@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Avaliação Gratuita — Pré-Inscrição</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --green: #5DCAA5;
+    --green-dk: #0F6E56;
+    --green-md: #1D9E75;
+    --black: #0a0a0a;
+    --card: #141414;
+    --border: #222222;
+    --muted: #555;
+    --light: #999;
+    --white: #f5f5f0;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--black);
+    color: var(--white);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* grid bg */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      repeating-linear-gradient(0deg, transparent, transparent 47px, rgba(255,255,255,0.018) 47px, rgba(255,255,255,0.018) 48px),
+      repeating-linear-gradient(90deg, transparent, transparent 47px, rgba(255,255,255,0.018) 47px, rgba(255,255,255,0.018) 48px);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrap {
+    position: relative;
+    z-index: 1;
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 0 20px 60px;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    padding: 40px 0 36px;
+    text-align: center;
+  }
+
+  .top-bar {
+    width: 48px;
+    height: 3px;
+    background: var(--green);
+    margin: 0 auto 28px;
+    border-radius: 2px;
+  }
+
+  .badge {
+    display: inline-block;
+    background: rgba(93,202,165,0.1);
+    border: 1px solid rgba(93,202,165,0.25);
+    color: var(--green);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    padding: 6px 16px;
+    border-radius: 20px;
+    margin-bottom: 20px;
+    animation: fadeUp 0.5s ease both;
+  }
+
+  .header h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 36px;
+    line-height: 1.1;
+    color: var(--white);
+    margin-bottom: 6px;
+    animation: fadeUp 0.5s 0.1s ease both;
+  }
+
+  .header h1 em {
+    font-style: italic;
+    color: var(--green);
+  }
+
+  .header p {
+    font-size: 14px;
+    color: var(--light);
+    line-height: 1.65;
+    max-width: 340px;
+    margin: 14px auto 0;
+    animation: fadeUp 0.5s 0.2s ease both;
+  }
+
+  /* ── VAGAS BADGE ── */
+  .vagas {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin: 20px 0 32px;
+    animation: fadeUp 0.5s 0.25s ease both;
+  }
+
+  .vaga-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    animation: pulse 2s infinite;
+  }
+
+  .vagas span {
+    font-size: 12px;
+    color: var(--green);
+    font-weight: 500;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.8); }
+  }
+
+  /* ── FORM ── */
+  .form-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 32px 28px;
+    animation: fadeUp 0.6s 0.3s ease both;
+  }
+
+  .field {
+    margin-bottom: 20px;
+  }
+
+  label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  input, select, textarea {
+    width: 100%;
+    background: #0e0e0e;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--white);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    padding: 14px 16px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    -webkit-appearance: none;
+  }
+
+  input::placeholder, textarea::placeholder {
+    color: #3a3a3a;
+  }
+
+  input:focus, select:focus, textarea:focus {
+    border-color: var(--green);
+    box-shadow: 0 0 0 3px rgba(93,202,165,0.08);
+  }
+
+  select {
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' fill='none' stroke='%23555' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    padding-right: 40px;
+  }
+
+  select option {
+    background: #1a1a1a;
+    color: var(--white);
+  }
+
+  textarea {
+    resize: none;
+    height: 90px;
+    line-height: 1.5;
+  }
+
+  /* ── RADIO PILLS ── */
+  .pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .pill-label {
+    cursor: pointer;
+  }
+
+  .pill-label input[type="radio"],
+  .pill-label input[type="checkbox"] {
+    display: none;
+  }
+
+  .pill-text {
+    display: block;
+    padding: 9px 16px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: #0e0e0e;
+    font-size: 13px;
+    color: var(--light);
+    transition: all 0.15s;
+    user-select: none;
+  }
+
+  .pill-label input:checked + .pill-text {
+    background: rgba(93,202,165,0.1);
+    border-color: var(--green);
+    color: var(--green);
+    font-weight: 500;
+  }
+
+  .pill-text:hover {
+    border-color: #444;
+    color: var(--white);
+  }
+
+  /* ── DIVIDER ── */
+  .form-divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 24px 0 20px;
+  }
+
+  .form-divider::before,
+  .form-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .form-divider span {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  /* ── SUBMIT ── */
+  .btn-submit {
+    width: 100%;
+    padding: 16px;
+    background: var(--green);
+    color: #0a2a1e;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    margin-top: 28px;
+    letter-spacing: 0.5px;
+    transition: background 0.2s, transform 0.1s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn-submit:hover { background: #4db894; }
+  .btn-submit:active { transform: scale(0.98); }
+
+  .btn-submit::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(255,255,255,0);
+    transition: background 0.2s;
+  }
+
+  .btn-submit:hover::after { background: rgba(255,255,255,0.05); }
+
+  /* ── TRUST BADGES ── */
+  .trust {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+  }
+
+  .trust-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .trust-icon {
+    width: 14px;
+    height: 14px;
+    color: var(--green);
+    flex-shrink: 0;
+  }
+
+  /* ── SUCCESS ── */
+  .success {
+    display: none;
+    text-align: center;
+    padding: 48px 28px;
+    animation: fadeUp 0.5s ease both;
+  }
+
+  .success-icon {
+    width: 64px;
+    height: 64px;
+    background: rgba(93,202,165,0.1);
+    border: 1px solid rgba(93,202,165,0.3);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 24px;
+  }
+
+  .success h2 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 28px;
+    color: var(--white);
+    margin-bottom: 12px;
+  }
+
+  .success p {
+    font-size: 14px;
+    color: var(--light);
+    line-height: 1.7;
+    max-width: 300px;
+    margin: 0 auto;
+  }
+
+  .success .next-step {
+    margin-top: 28px;
+    background: rgba(93,202,165,0.06);
+    border: 1px solid rgba(93,202,165,0.2);
+    border-radius: 12px;
+    padding: 16px 20px;
+    font-size: 13px;
+    color: var(--green);
+    line-height: 1.6;
+  }
+
+  /* ── FOOTER ── */
+  .footer {
+    text-align: center;
+    margin-top: 32px;
+    font-size: 12px;
+    color: #333;
+  }
+
+  .footer a { color: var(--green); text-decoration: none; }
+  .footer p { color: #666; }
+
+  /* ── ANIMATIONS ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── REQUIRED MARK ── */
+  .req { color: var(--green); margin-left: 2px; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="top-bar"></div>
+
+    <!-- LOGO MF PERFORMANCE -->
+    <div style="margin-bottom: 28px;">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 100" style="width:220px; height:auto; display:block; margin:0 auto;">
+        <!-- Hexagon -->
+        <polygon points="42,8 72,8 87,34 72,60 42,60 27,34" fill="none" stroke="#5DCAA5" stroke-width="1.5" opacity="0.35"/>
+        <polygon points="44,14 68,14 80,34 68,54 44,54 32,34" fill="none" stroke="#5DCAA5" stroke-width="0.6" opacity="0.18"/>
+        <!-- M -->
+        <text x="36" y="52" font-family="Georgia, serif" font-size="36" font-weight="700" fill="#5DCAA5">M</text>
+        <!-- F -->
+        <text x="64" y="52" font-family="Georgia, serif" font-size="36" font-weight="700" fill="#f5f5f0">F</text>
+        <!-- Divider -->
+        <line x1="104" y1="12" x2="104" y2="62" stroke="#252525" stroke-width="1"/>
+        <!-- Name -->
+        <text x="116" y="33" font-family="Georgia, serif" font-size="16" font-weight="700" fill="#f5f5f0" letter-spacing="0.5">MATHEUS FUMIS</text>
+        <!-- Accent line -->
+        <rect x="116" y="39" width="186" height="1" fill="#5DCAA5" opacity="0.5"/>
+        <!-- MF Performance -->
+        <text x="116" y="54" font-family="Arial, sans-serif" font-size="9" font-weight="400" fill="#5DCAA5" letter-spacing="4">MF PERFORMANCE</text>
+        <!-- Subtitle -->
+        <text x="116" y="68" font-family="Arial, sans-serif" font-size="7" fill="#444" letter-spacing="1.5">PERSONAL TRAINER · CONSULTORIA ONLINE</text>
+      </svg>
+    </div>
+
+    <div class="badge">Evento Gratuito</div>
+    <h1>Avaliação Física<br><em>Completa</em> e Gratuita</h1>
+    <p>Descubra sua composição corporal real — gordura, músculo, gordura visceral e idade metabólica — em 15 minutos.</p>
+    <div class="vagas">
+      <div class="vaga-dot"></div>
+      <span>Vagas limitadas · Garanta a sua agora</span>
+    </div>
+  </div>
+
+  <!-- FORM CARD -->
+  <div class="form-card" id="formCard">
+    <form id="mainForm" onsubmit="submitForm(event)" action="https://formspree.io/f/mlgolvpz" method="POST">
+
+      <!-- DADOS PESSOAIS -->
+      <div class="field">
+        <label>Nome completo <span class="req">*</span></label>
+        <input type="text" name="nome" placeholder="Como você se chama?" required>
+      </div>
+
+      <div class="field">
+        <label>WhatsApp <span class="req">*</span></label>
+        <input type="tel" id="phone" name="whatsapp" placeholder="(11) 9 0000-0000" required oninput="maskPhone(this)">
+      </div>
+
+      <div class="field">
+        <label>Idade <span class="req">*</span></label>
+        <select name="idade" required>
+          <option value="" disabled selected>Selecione sua faixa etária</option>
+          <option>18 – 24 anos</option>
+          <option>25 – 34 anos</option>
+          <option>35 – 44 anos</option>
+          <option>45 – 54 anos</option>
+          <option>55 anos ou mais</option>
+        </select>
+      </div>
+
+      <div class="form-divider"><span>Seu objetivo</span></div>
+
+      <!-- OBJETIVO -->
+      <div class="field">
+        <label>O que você mais quer conquistar? <span class="req">*</span></label>
+        <div class="pills">
+          <label class="pill-label"><input type="radio" name="objetivo" value="Perder gordura" required><span class="pill-text">Perder gordura</span></label>
+          <label class="pill-label"><input type="radio" name="objetivo" value="Ganhar músculo"><span class="pill-text">Ganhar músculo</span></label>
+          <label class="pill-label"><input type="radio" name="objetivo" value="Definição corporal"><span class="pill-text">Definição corporal</span></label>
+          <label class="pill-label"><input type="radio" name="objetivo" value="Saúde e disposição"><span class="pill-text">Saúde e disposição</span></label>
+          <label class="pill-label"><input type="radio" name="objetivo" value="Perder barriga"><span class="pill-text">Perder barriga</span></label>
+          <label class="pill-label"><input type="radio" name="objetivo" value="Outro"><span class="pill-text">Outro</span></label>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Há quanto tempo treina sem ver resultado?</label>
+        <div class="pills">
+          <label class="pill-label"><input type="radio" name="tempo_sem_resultado" value="Menos de 3 meses"><span class="pill-text">Menos de 3 meses</span></label>
+          <label class="pill-label"><input type="radio" name="tempo_sem_resultado" value="3 a 6 meses"><span class="pill-text">3 a 6 meses</span></label>
+          <label class="pill-label"><input type="radio" name="tempo_sem_resultado" value="6 meses a 1 ano"><span class="pill-text">6 meses a 1 ano</span></label>
+          <label class="pill-label"><input type="radio" name="tempo_sem_resultado" value="Mais de 1 ano"><span class="pill-text">Mais de 1 ano</span></label>
+          <label class="pill-label"><input type="radio" name="tempo_sem_resultado" value="Não treino ainda"><span class="pill-text">Não treino ainda</span></label>
+        </div>
+      </div>
+
+      <div class="form-divider"><span>Preferência de horário</span></div>
+
+      <div class="field">
+        <label>Qual horário prefere ser atendido?</label>
+        <div class="pills">
+          <label class="pill-label"><input type="radio" name="horario" value="Manhã"><span class="pill-text">Manhã</span></label>
+          <label class="pill-label"><input type="radio" name="horario" value="Tarde"><span class="pill-text">Tarde</span></label>
+          <label class="pill-label"><input type="radio" name="horario" value="Noite"><span class="pill-text">Noite</span></label>
+          <label class="pill-label"><input type="radio" name="horario" value="Qualquer horário"><span class="pill-text">Qualquer horário</span></label>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Alguma observação? (opcional)</label>
+        <textarea name="observacao" placeholder="Lesão, restrição, dúvida ou qualquer coisa que queira nos contar..."></textarea>
+      </div>
+
+      <button type="submit" class="btn-submit">Garantir minha vaga gratuita →</button>
+
+      <!-- TRUST -->
+      <div class="trust">
+        <div class="trust-item">
+          <svg class="trust-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M8 1l1.9 3.8 4.2.6-3 2.9.7 4.2L8 10.5l-3.8 2 .7-4.2-3-2.9 4.2-.6z"/>
+          </svg>
+          100% gratuito
+        </div>
+        <div class="trust-item">
+          <svg class="trust-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="2" y="6" width="12" height="8" rx="2"/>
+            <path d="M5 6V4a3 3 0 016 0v2"/>
+          </svg>
+          Dados seguros
+        </div>
+        <div class="trust-item">
+          <svg class="trust-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="8" cy="8" r="6"/>
+            <path d="M8 5v3.5l2 1.5"/>
+          </svg>
+          15 minutos
+        </div>
+      </div>
+
+    </form>
+
+    <!-- SUCCESS STATE -->
+    <div class="success" id="successMsg">
+      <div class="success-icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#5DCAA5" stroke-width="2" stroke-linecap="round">
+          <path d="M20 6L9 17l-5-5"/>
+        </svg>
+      </div>
+      <h2>Vaga garantida!</h2>
+      <p>Recebemos sua inscrição. Em breve você receberá uma confirmação no WhatsApp com data e horário.</p>
+      <div class="next-step">
+        📲 Salva o número do <strong>Matheus Fumis</strong> na agenda — vamos te chamar para confirmar seu horário em até 24h.
+      </div>
+    </div>
+
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <p style="color: var(--green); font-weight: 600; font-size: 13px; margin-bottom: 4px;">Matheus Fumis</p>
+    <p>MF Performance · Personal Trainer · Consultoria Online</p>
+  </div>
+
+</div>
+
+<script>
+function maskPhone(el) {
+  let v = el.value.replace(/\D/g, '').substring(0, 11);
+  if (v.length <= 2) v = v.replace(/(\d{0,2})/, '($1');
+  else if (v.length <= 6) v = v.replace(/(\d{2})(\d{0,4})/, '($1) $2');
+  else if (v.length <= 10) v = v.replace(/(\d{2})(\d{4})(\d{0,4})/, '($1) $2-$3');
+  else v = v.replace(/(\d{2})(\d{5})(\d{0,4})/, '($1) $2-$3');
+  el.value = v;
+}
+
+async function submitForm(e) {
+  e.preventDefault();
+  const btn = document.querySelector('.btn-submit');
+  btn.textContent = 'Enviando...';
+  btn.disabled = true;
+
+  const form = document.getElementById('mainForm');
+  const data = new FormData(form);
+
+  try {
+    const res = await fetch('https://formspree.io/f/mlgolvpz', {
+      method: 'POST',
+      body: data,
+      headers: { 'Accept': 'application/json' }
+    });
+
+    if (res.ok) {
+      form.style.display = 'none';
+      document.getElementById('successMsg').style.display = 'block';
+    } else {
+      btn.textContent = 'Erro ao enviar. Tente novamente.';
+      btn.disabled = false;
+      btn.style.background = '#c0392b';
+    }
+  } catch (err) {
+    btn.textContent = 'Erro de conexão. Tente novamente.';
+    btn.disabled = false;
+    btn.style.background = '#c0392b';
+  }
+}
+</script>
+
+</body>
+</html>
