@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MF Performance">
+<meta name="theme-color" content="#0d0d0d">
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./icons/icon-180.png">
+<link rel="icon" href="./icons/icon-192.png">
+<title>MF Performance — Avaliação Física</title>
+<script src="./lib/react.js"></script>
+<script src="./lib/react-dom.js"></script>
+<script src="./lib/babel.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#0b0b0d;--bg2:#141417;--bg3:#1c1c20;--bg4:#26262b;
+  --border:#2a2a30;--border2:#3a3a42;
+  --text:#f2f2f4;--text2:#8d8d96;--text3:#5a5a62;
+  --accent:#f97316;--accent2:#ea580c;--accent3:#c2410c;--accent-dim:rgba(249,115,22,.13);
+  --led:#ffd27a;
+  --green:#22c55e;--green-dim:rgba(34,197,94,.13);
+  --red:#ef4444;--red-dim:rgba(239,68,68,.13);
+  --yellow:#eab308;--blue:#3b82f6;--blue-dim:rgba(59,130,246,.12);
+  --r:12px;--r-sm:9px;
+}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,system-ui,sans-serif;min-height:100vh;font-size:14px;-webkit-font-smoothing:antialiased}
+.app{display:flex;min-height:100vh}
+
+/* ── Topbar (mobile) ── */
+.topbar{display:none;align-items:center;gap:12px;padding:12px 16px;padding-top:max(12px,env(safe-area-inset-top));background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:40}
+.hamb{width:42px;height:42px;border-radius:10px;background:var(--bg3);border:1px solid var(--border);color:var(--text);font-size:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.overlay{display:none}
+
+/* ── Sidebar ── */
+.sidebar{width:238px;background:var(--bg2);border-right:1px solid var(--border);padding:18px 12px;display:flex;flex-direction:column;gap:3px;flex-shrink:0;position:sticky;top:0;height:100vh;overflow-y:auto;z-index:50}
+.logo-row{display:flex;align-items:center;gap:11px;padding:2px 6px 18px;border-bottom:1px solid var(--border);margin-bottom:8px}
+.logo-name{font-weight:800;font-size:15px;line-height:1.1;letter-spacing:.3px}
+.logo-sub{font-size:10px;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase;margin-top:2px}
+.nav-btn{display:flex;align-items:center;gap:11px;padding:11px 13px;border-radius:9px;cursor:pointer;font-size:13.5px;color:var(--text2);transition:all .12s;border:none;background:none;width:100%;text-align:left;min-height:44px}
+.nav-btn:hover{background:var(--bg3);color:var(--text)}
+.nav-btn.active{background:var(--accent-dim);color:var(--accent);font-weight:500}
+.nav-ico{font-size:16px;width:18px;text-align:center;flex-shrink:0}
+.nav-section{font-size:10px;font-weight:700;letter-spacing:1px;color:var(--text3);padding:14px 13px 5px;text-transform:uppercase}
+.nav-divider{border:none;border-top:1px solid var(--border);margin:9px 4px}
+.sidebar-footer{margin-top:auto;padding:14px 10px 0;border-top:1px solid var(--border);font-size:11px;color:var(--text3)}
+
+/* ── Main ── */
+.main{flex:1;padding:28px 32px;overflow-y:auto;width:100%;max-width:1140px;margin:0 auto}
+
+.ph-title{font-size:23px;font-weight:800;letter-spacing:-.4px}
+.ph-sub{font-size:13px;color:var(--text2);margin-top:3px}
+.abar{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:14px}
+.breadcrumb{font-size:13px;color:var(--text2);cursor:pointer;display:inline-flex;align-items:center;gap:5px;margin-bottom:5px;transition:color .12s;min-height:30px}
+.breadcrumb:hover{color:var(--accent)}
+
+/* ── Buttons ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:11px 19px;border-radius:9px;font-size:13.5px;font-weight:500;cursor:pointer;border:none;transition:all .12s;line-height:1;min-height:44px;white-space:nowrap}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:var(--accent2)}
+.btn-primary:active{transform:scale(.98)}
+.btn-secondary{background:var(--bg3);color:var(--text);border:1px solid var(--border)}
+.btn-secondary:hover{border-color:var(--accent);color:var(--accent)}
+.btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border)}
+.btn-ghost:hover{color:var(--text);border-color:var(--border2)}
+.btn-sm{padding:8px 13px;font-size:12.5px;min-height:38px}
+.btn-icon{min-width:40px;height:40px;padding:0 10px;background:var(--bg3);border:1px solid var(--border);border-radius:9px;cursor:pointer;color:var(--text2);font-size:15px;line-height:1;transition:all .12s;display:inline-flex;align-items:center;justify-content:center}
+.btn-icon:hover{color:var(--text);border-color:var(--accent)}
+.bgroup{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+
+/* ── Cards ── */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:22px}
+.card+.card{margin-top:16px}
+.student-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.student-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:18px;cursor:pointer;transition:all .15s;position:relative}
+.student-card:hover{border-color:var(--accent);background:var(--bg3)}
+.avatar{width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent3));display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;color:#fff;flex-shrink:0;overflow:hidden}
+.avatar img{width:100%;height:100%;object-fit:cover}
+.s-name{font-size:15.5px;font-weight:600;margin-bottom:3px}
+.s-meta{font-size:12px;color:var(--text2);line-height:1.6}
+
+/* ── Stat cards ── */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:11px;margin-bottom:22px}
+.stat{background:var(--bg3);border-radius:10px;padding:14px 15px;border:1px solid var(--border)}
+.stat-lbl{font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:500}
+.stat-val{font-size:22px;font-weight:700;line-height:1;letter-spacing:-.5px}
+.stat-unit{font-size:12px;color:var(--text2);margin-left:2px;font-weight:400}
+
+/* ── Badges ── */
+.badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;line-height:1.5;white-space:nowrap}
+.bg{background:var(--green-dim);color:#86efac}
+.ba{background:rgba(234,179,8,.14);color:#fde047}
+.br{background:var(--red-dim);color:#fca5a5}
+.bb{background:var(--blue-dim);color:#93c5fd}
+.bo{background:var(--accent-dim);color:var(--accent)}
+
+/* ── Form ── */
+.fg{display:flex;flex-direction:column;gap:6px}
+.flbl{font-size:12px;color:var(--text2);font-weight:500}
+.fi{background:var(--bg3);border:1px solid var(--border);border-radius:9px;padding:11px 13px;color:var(--text);font-size:16px;width:100%;outline:none;transition:border .12s;-webkit-appearance:none;appearance:none}
+.fi:focus{border-color:var(--accent)}
+.fi::placeholder{color:var(--text3)}
+select.fi{cursor:pointer;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path d='M2 4l4 4 4-4' stroke='%238d8d96' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}
+textarea.fi{resize:vertical;min-height:70px;line-height:1.5}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:14px}
+.fgrid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:13px}
+
+/* ── Section ── */
+.sec{margin-bottom:26px}
+.sec:last-child{margin-bottom:0}
+.sec-title{font-size:12.5px;font-weight:700;color:var(--accent);margin-bottom:15px;padding-bottom:9px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;letter-spacing:.3px;text-transform:uppercase}
+
+/* ── Eval list ── */
+.eval-row{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:15px 18px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:12px;transition:all .15s;flex-wrap:wrap}
+.eval-row:hover{border-color:var(--accent3)}
+.eval-date{font-size:14.5px;font-weight:600;margin-bottom:3px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.eval-meta{font-size:12px;color:var(--text2);line-height:1.5}
+
+/* ── Alert ── */
+.alert{padding:11px 14px;border-radius:9px;font-size:12.5px;margin-bottom:14px;line-height:1.55}
+.alert-info{background:var(--blue-dim);border:1px solid rgba(59,130,246,.25);color:#93c5fd}
+.alert-success{background:var(--green-dim);border:1px solid rgba(34,197,94,.25);color:#86efac}
+.alert-warn{background:rgba(234,179,8,.1);border:1px solid rgba(234,179,8,.25);color:#fde047}
+
+/* ── Search ── */
+.search-wrap{position:relative;flex:1;max-width:360px;min-width:200px}
+.search-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text3);pointer-events:none;font-size:14px}
+.search-wrap .fi{padding-left:36px}
+
+/* ── Empty ── */
+.empty{text-align:center;padding:54px 20px;color:var(--text2)}
+.empty-icon{font-size:46px;margin-bottom:14px}
+.empty-title{font-size:16px;font-weight:600;color:var(--text);margin-bottom:6px}
+
+/* ── Photo upload ── */
+.photo-up{width:96px;height:96px;border-radius:14px;border:2px dashed var(--border2);display:flex;align-items:center;justify-content:center;cursor:pointer;background:var(--bg3);overflow:hidden;flex-shrink:0;transition:border .12s;position:relative}
+.photo-up:hover{border-color:var(--accent)}
+.photo-up img{width:100%;height:100%;object-fit:cover}
+.photo-ph{text-align:center;color:var(--text3);font-size:11px;padding:8px}
+.photo-ph-icon{font-size:24px;display:block;margin-bottom:3px}
+
+/* ── Report ── */
+.rpt-page{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.rpt-header{background:linear-gradient(135deg,#16161a 0%,#0e0e11 100%);padding:26px 30px;border-bottom:3px solid var(--accent);position:relative}
+.rpt-head-top{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap}
+.rpt-head-id{text-align:right;font-size:10.5px;color:var(--text3);line-height:1.6;letter-spacing:.4px}
+.rpt-student-block{display:flex;align-items:center;gap:16px;margin-top:20px;padding-top:18px;border-top:1px solid var(--border)}
+.rpt-photo{width:66px;height:66px;border-radius:12px;background:var(--bg3);overflow:hidden;flex-shrink:0;border:1px solid var(--border)}
+.rpt-photo img{width:100%;height:100%;object-fit:cover}
+.rpt-student-name{font-size:20px;font-weight:800;letter-spacing:-.3px}
+.rpt-student-info{font-size:12px;color:var(--text2);margin-top:4px;line-height:1.6}
+.rpt-body{padding:26px 30px}
+.rpt-sec{margin-bottom:26px}
+.rpt-sec-title{font-size:12px;font-weight:700;color:var(--accent);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.6px;display:flex;align-items:center;gap:7px}
+.rpt-tbl{width:100%;border-collapse:collapse;font-size:12.5px}
+.rpt-tbl td{padding:8px 9px;border-bottom:1px solid var(--border)}
+.rpt-tbl td:first-child{color:var(--text2)}
+.rpt-tbl td:nth-child(2){font-weight:600;text-align:right;white-space:nowrap}
+.rpt-tbl tr:last-child td{border-bottom:none}
+.rpt-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.delta{font-size:11px;font-weight:600;text-align:right;white-space:nowrap;width:64px}
+.d-good{color:#4ade80}.d-bad{color:#f87171}.d-neutral{color:var(--text3)}
+
+/* ── Compare cards ── */
+.cmp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:6px}
+.cmp-card{background:var(--bg3);border:1px solid var(--border);border-radius:11px;padding:14px 15px;position:relative;overflow:hidden}
+.cmp-card.good{border-color:rgba(34,197,94,.35)}
+.cmp-card.bad{border-color:rgba(239,68,68,.3)}
+.cmp-lbl{font-size:11px;color:var(--text2);margin-bottom:9px;font-weight:500}
+.cmp-flow{display:flex;align-items:baseline;gap:7px;font-size:13px}
+.cmp-from{color:var(--text3)}
+.cmp-arrow{color:var(--text3);font-size:11px}
+.cmp-to{font-size:19px;font-weight:700;letter-spacing:-.3px}
+.cmp-delta{margin-top:8px;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:4px}
+.cmp-delta.good{color:#4ade80}.cmp-delta.bad{color:#f87171}.cmp-delta.neutral{color:var(--text2)}
+.cmp-bar{height:5px;background:var(--bg4);border-radius:3px;margin-top:10px;overflow:hidden}
+.cmp-bar-fill{height:100%;border-radius:3px;transition:width .3s}
+
+.highlight-box{background:linear-gradient(135deg,var(--accent-dim),transparent);border:1px solid rgba(249,115,22,.25);border-radius:11px;padding:15px 17px;margin-bottom:20px}
+.highlight-title{font-size:12px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;margin-bottom:9px}
+.highlight-item{font-size:13px;line-height:1.7;display:flex;gap:8px;align-items:flex-start}
+.highlight-item .ico{flex-shrink:0;margin-top:1px}
+
+.sig-grid{display:grid;grid-template-columns:1fr 1fr;gap:44px;margin-top:50px}
+.sig-line{border-top:1px solid var(--border2);padding-top:7px;font-size:11px;color:var(--text2);text-align:center}
+.rpt-footer{text-align:center;margin-top:24px;padding-top:16px;border-top:1px solid var(--border);font-size:11px;color:var(--text3);line-height:1.6}
+
+.info-pill{display:inline-flex;align-items:center;gap:5px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;padding:4px 10px;font-size:11.5px;color:var(--text2);margin:0 6px 6px 0}
+
+/* ── Print ── */
+@media print{
+  @page{margin:12mm}
+  .no-print{display:none!important}
+  .app{display:block}
+  .sidebar,.topbar,.overlay{display:none!important}
+  .main{padding:0;max-width:none;margin:0}
+  body{background:#fff;color:#1a1a1a;font-size:11px}
+  .rpt-page{border:none;border-radius:0}
+  .rpt-header{background:#111114!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;border-bottom:3px solid #f97316!important}
+  .rpt-header *{color-adjust:exact}
+  .rpt-body{padding:18px 4px}
+  .stat,.cmp-card{background:#f6f6f6!important;border:1px solid #e3e3e3!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .stat-val,.cmp-to{color:#111}
+  .stat-lbl,.cmp-lbl,.s-meta,.rpt-tbl td:first-child,.rpt-student-info{color:#555!important}
+  .rpt-tbl td{color:#1a1a1a}
+  .rpt-sec-title,.highlight-title{color:#c2410c!important}
+  .highlight-box{background:#fff7ed!important;border:1px solid #fed7aa!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .highlight-item{color:#1a1a1a}
+  .rpt-footer,.sig-line{color:#888!important}
+  .rpt-sec{break-inside:avoid}
+  .cmp-card.good{border-color:#86efac!important}
+  .cmp-card.bad{border-color:#fca5a5!important}
+}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#2e2e34;border-radius:3px}
+
+/* ── Responsive ── */
+@media(max-width:860px){
+  .topbar{display:flex}
+  .overlay{display:block;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:45;opacity:0;pointer-events:none;transition:opacity .2s}
+  .overlay.show{opacity:1;pointer-events:auto}
+  .sidebar{position:fixed;left:0;top:0;height:100%;transform:translateX(-100%);transition:transform .22s ease;box-shadow:0 0 40px rgba(0,0,0,.5);padding-top:max(18px,env(safe-area-inset-top))}
+  .sidebar.open{transform:translateX(0)}
+  .main{padding:18px 16px;padding-bottom:40px}
+  .ph-title{font-size:20px}
+  .rpt-grid{grid-template-columns:1fr;gap:0}
+  .rpt-body{padding:18px 16px}
+  .rpt-header{padding:20px 18px}
+  .sig-grid{gap:28px}
+  .abar .bgroup{width:100%}
+  .abar .bgroup .btn{flex:1}
+}
+@media(max-width:480px){
+  .stat-grid{grid-template-columns:1fr 1fr}
+  .cmp-grid{grid-template-columns:1fr 1fr}
+  .eval-row{flex-direction:column;align-items:stretch}
+  .eval-row .bgroup{width:100%}
+  .eval-row .bgroup .btn,.eval-row .bgroup .btn-icon{flex:1}
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+/* ── Helpers ── */
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+const fmt = (n,d=1)=>(n!=null&&n!==''&&!isNaN(parseFloat(n)))?parseFloat(n).toFixed(d):'—';
+const fmtDate = d=>d?new Date(d+'T00:00:00').toLocaleDateString('pt-BR'):'—';
+const initials = name=>(name||'?').split(' ').filter(Boolean).slice(0,2).map(n=>n[0]).join('').toUpperCase();
+const age = dob=>dob?Math.floor((Date.now()-new Date(dob))/31557600000):null;
+const num = v=>{const n=parseFloat(v);return isNaN(n)?null:n;};
+function load(k,def){try{const v=localStorage.getItem('mfp_'+k);return v!=null?JSON.parse(v):def;}catch{return def;}}
+const save=(k,v)=>{try{localStorage.setItem('mfp_'+k,JSON.stringify(v));}catch{}};
+
+/* ── Logo (letreiro LED + pulso) ── */
+function LogoMark({size=46}){
+  const bulbs=[];
+  const W=64,P=8,G=8;
+  for(let x=P;x<=W-P;x+=G){bulbs.push([x,P]);bulbs.push([x,W-P]);}
+  for(let y=P+G;y<W-P;y+=G){bulbs.push([P,y]);bulbs.push([W-P,y]);}
+  return(
+    <svg viewBox="0 0 64 64" width={size} height={size} style={{flexShrink:0}}>
+      <defs>
+        <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+          <feGaussianBlur stdDeviation="1.1" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <linearGradient id="mfg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#fb923c"/><stop offset="1" stopColor="#ea580c"/>
+        </linearGradient>
+      </defs>
+      <rect x="2.5" y="2.5" width="59" height="59" rx="13" fill="#121215" stroke="#34343c" strokeWidth="1.4"/>
+      <rect x="8" y="8" width="48" height="48" rx="9" fill="none" stroke="#1f1f24" strokeWidth="1"/>
+      {bulbs.map((b,i)=><circle key={i} cx={b[0]} cy={b[1]} r="1.5" fill="var(--led)" filter="url(#glow)" opacity={0.55+0.45*Math.abs(Math.sin(i*1.7))}/>)}
+      <text x="32" y="33" textAnchor="middle" fontSize="22" fontWeight="800" fill="url(#mfg)" fontFamily="-apple-system,Segoe UI,sans-serif" letterSpacing="-1" filter="url(#glow)">MF</text>
+      <polyline points="14,46 22,46 26,40 31,50 36,38 40,46 50,46" fill="none" stroke="#fb923c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" filter="url(#glow)"/>
+    </svg>
+  );
+}
+
+/* ── Calculations ── */
+function bmi(w,h){const wn=num(w),hn=num(h);if(!wn||!hn)return null;const hm=hn/100;return wn/(hm*hm);}
+function classifyBMI(b){if(!b)return null;
+  if(b<18.5)return{l:'Abaixo do peso',c:'bb'};
+  if(b<25)return{l:'Peso normal',c:'bg'};
+  if(b<30)return{l:'Sobrepeso',c:'ba'};
+  if(b<35)return{l:'Obesidade I',c:'br'};
+  if(b<40)return{l:'Obesidade II',c:'br'};
+  return{l:'Obesidade III',c:'br'};}
+function jp7(gender,ageYrs,sf){
+  const keys=['sf_chest','sf_midaxillary','sf_triceps','sf_subscapular','sf_abdomen','sf_suprailiac','sf_thigh'];
+  const vals=keys.map(k=>num(sf[k]));
+  if(vals.some(v=>v==null))return null;
+  const sum=vals.reduce((a,b)=>a+b,0),a=num(ageYrs)||0;
+  let bd=gender==='M'
+    ?1.112-(0.00043499*sum)+(0.00000055*sum*sum)-(0.00028826*a)
+    :1.097-(0.00046971*sum)+(0.00000056*sum*sum)-(0.00012828*a);
+  return (495/bd)-450;}
+function classifyBP(s,d){const sv=num(s),dv=num(d);if(!sv||!dv)return null;
+  if(sv<120&&dv<80)return{l:'Ótima',c:'bg'};
+  if(sv<130&&dv<85)return{l:'Normal',c:'bg'};
+  if(sv<140&&dv<90)return{l:'Limítrofe',c:'ba'};
+  if(sv<160&&dv<100)return{l:'HAS Estágio 1',c:'br'};
+  if(sv<180&&dv<110)return{l:'HAS Estágio 2',c:'br'};
+  return{l:'HAS Estágio 3',c:'br'};}
+function classifyFat(gender,ageYrs,pct){const p=num(pct);if(p==null)return null;
+  if(gender==='M'){
+    if(p<6)return{l:'Abaixo do ideal',c:'bb'};
+    if(p<14)return{l:'Atlético',c:'bg'};
+    if(p<18)return{l:'Bom',c:'bg'};
+    if(p<25)return{l:'Aceitável',c:'ba'};
+    return{l:'Acima do ideal',c:'br'};
+  }else{
+    if(p<14)return{l:'Abaixo do ideal',c:'bb'};
+    if(p<21)return{l:'Atlético',c:'bg'};
+    if(p<25)return{l:'Bom',c:'bg'};
+    if(p<32)return{l:'Aceitável',c:'ba'};
+    return{l:'Acima do ideal',c:'br'};
+  }}
+
+/* ── Derived metrics for an eval ── */
+function derive(student,ev){
+  const a=age(student.dob)||25;
+  const b=bmi(ev.weight,ev.height);
+  const jp=jp7(student.gender,a,ev);
+  const fatPct=num(ev.bio_fat)??(jp!=null?+jp.toFixed(1):null);
+  const w=num(ev.weight);
+  const leanMass=num(ev.bio_lean)??((w&&fatPct!=null)?+(w*(1-fatPct/100)).toFixed(1):null);
+  const fatMass=(w&&fatPct!=null)?+(w*fatPct/100).toFixed(1):null;
+  const rcq=(num(ev.circ_waist)&&num(ev.circ_hip))?+(num(ev.circ_waist)/num(ev.circ_hip)).toFixed(2):null;
+  const dynAvg=(num(ev.dyn_r)&&num(ev.dyn_l))?+((num(ev.dyn_r)+num(ev.dyn_l))/2).toFixed(1):null;
+  return {bmi:b,jp,fatPct,leanMass,fatMass,rcq,dynAvg,weight:w};
+}
+
+/* ── UI primitives ── */
+function FI({label,unit,...p}){return(
+  <div className="fg">{label&&<label className="flbl">{label}{unit&&<span style={{color:'var(--text3)',marginLeft:3}}>({unit})</span>}</label>}<input className="fi" {...p}/></div>);}
+function FS({label,children,...p}){return(
+  <div className="fg">{label&&<label className="flbl">{label}</label>}<select className="fi" {...p}>{children}</select></div>);}
+function FTA({label,...p}){return(
+  <div className="fg">{label&&<label className="flbl">{label}</label>}<textarea className="fi" {...p}/></div>);}
+function Stat({lbl,val,unit,badge}){return(
+  <div className="stat"><div className="stat-lbl">{lbl}</div>
+    <div className="stat-val">{val??'—'}{unit&&<span className="stat-unit"> {unit}</span>}</div>
+    {badge&&<span className={`badge ${badge.c}`} style={{marginTop:7,display:'inline-flex'}}>{badge.l}</span>}</div>);}
+function Badge({cls,children}){return<span className={`badge ${cls}`}>{children}</span>;}
+
+/* ── Dashboard ── */
+function Dashboard({students,evals,onSelect,onNew,onDelete}){
+  const [q,setQ]=useState('');
+  const list=students.filter(s=>s.name.toLowerCase().includes(q.toLowerCase()))
+    .sort((a,b)=>a.name.localeCompare(b.name));
+  return(
+    <div>
+      <div className="abar">
+        <div><div className="ph-title">Alunos</div>
+          <div className="ph-sub">{students.length} aluno{students.length!==1?'s':''} · {evals.length} avaliaç{evals.length!==1?'ões':'ão'}</div></div>
+        <button className="btn btn-primary" onClick={onNew}>＋ Novo aluno</button>
+      </div>
+      <div style={{display:'flex',gap:12,marginBottom:22}}>
+        <div className="search-wrap"><span className="search-icon">🔍</span>
+          <input className="fi" placeholder="Buscar aluno..." value={q} onChange={e=>setQ(e.target.value)}/></div>
+      </div>
+      {list.length===0&&!q&&<div className="empty"><div className="empty-icon">🏋️</div>
+        <div className="empty-title">Nenhum aluno cadastrado</div>
+        <p style={{marginBottom:16,fontSize:13}}>Comece adicionando o primeiro aluno</p>
+        <button className="btn btn-primary" onClick={onNew}>＋ Novo aluno</button></div>}
+      {list.length===0&&q&&<div className="empty"><div className="empty-icon">🔍</div>
+        <div className="empty-title">Nenhum resultado para "{q}"</div></div>}
+      <div className="student-grid">
+        {list.map(s=>{
+          const se=evals.filter(e=>e.studentId===s.id).sort((a,b)=>new Date(b.date)-new Date(a.date));
+          const last=se[0],a=age(s.dob);
+          return(
+            <div key={s.id} className="student-card" onClick={()=>onSelect(s)}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:11}}>
+                <div className="avatar">{s.photo?<img src={s.photo} alt=""/>:initials(s.name)}</div>
+                <button className="btn-icon btn-sm" title="Excluir" onClick={e=>{e.stopPropagation();if(confirm(`Excluir ${s.name} e todas as avaliações?`))onDelete(s.id);}}>🗑️</button>
+              </div>
+              <div className="s-name">{s.name}</div>
+              <div className="s-meta">
+                {a?`${a} anos · `:''}{s.gender==='M'?'Masculino':'Feminino'}
+                {s.goal&&<><br/><span style={{color:'var(--accent)'}}>🎯 {s.goal}</span></>}
+                <br/>{se.length>0?`${se.length} avaliação${se.length>1?'ões':''} · ${fmtDate(last.date)}`:'Sem avaliações'}
+              </div>
+            </div>);
+        })}
+      </div>
+    </div>);
+}
+
+/* ── PhotoUpload ── */
+function PhotoUpload({value,onChange}){
+  const ref=useRef();
+  const pick=f=>{if(!f)return;const r=new FileReader();r.onload=e=>{
+    const img=new Image();img.onload=()=>{
+      const c=document.createElement('canvas');const m=320;let{width:w,height:h}=img;
+      const sc=Math.min(m/w,m/h,1);c.width=w*sc;c.height=h*sc;
+      c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+      onChange(c.toDataURL('image/jpeg',0.8));
+    };img.src=e.target.result;};r.readAsDataURL(f);};
+  return(
+    <div className="fg"><label className="flbl">Foto do aluno</label>
+      <div style={{display:'flex',gap:10,alignItems:'flex-start'}}>
+        <div className="photo-up" onClick={()=>ref.current.click()}>
+          {value?<img src={value} alt=""/>:<div className="photo-ph"><span className="photo-ph-icon">📷</span>Toque<br/>p/ adicionar</div>}
+        </div>
+        {value&&<button className="btn btn-ghost btn-sm" onClick={()=>onChange('')}>Remover</button>}
+        <input ref={ref} type="file" accept="image/*" capture="environment" style={{display:'none'}} onChange={e=>pick(e.target.files[0])}/>
+      </div>
+    </div>);
+}
+
+/* ── StudentForm ── */
+function StudentForm({student,onSave,onCancel}){
+  const [f,setF]=useState(student||{
+    name:'',dob:'',gender:'M',phone:'',email:'',profession:'',goal:'',
+    activity:'Moderadamente ativo',schedule:'',train_time:'',photo:'',
+    health:'',meds:'',family_hist:'',injuries:'',smoker:'Não',alcohol:'Não',sleep:'',obs:''});
+  const s=(k,v)=>setF(p=>({...p,[k]:v}));
+  return(
+    <div>
+      <div className="abar">
+        <div><div className="breadcrumb" onClick={onCancel}>← Voltar</div>
+          <div className="ph-title">{student?'Editar aluno':'Novo aluno'}</div>
+          <div className="ph-sub">Dados cadastrais e anamnese</div></div>
+        <div className="bgroup">
+          <button className="btn btn-ghost" onClick={onCancel}>Cancelar</button>
+          <button className="btn btn-primary" onClick={()=>{if(!f.name.trim()){alert('Nome é obrigatório');return;}onSave({...f,id:student?.id||uid()});}}>💾 Salvar</button>
+        </div>
+      </div>
+      <div className="card">
+        <div className="sec">
+          <div className="sec-title">👤 Dados pessoais</div>
+          <div style={{display:'flex',gap:20,alignItems:'flex-start',flexWrap:'wrap'}}>
+            <PhotoUpload value={f.photo} onChange={v=>s('photo',v)}/>
+            <div style={{flex:1,minWidth:240}}>
+              <FI label="Nome completo *" value={f.name} onChange={e=>s('name',e.target.value)} placeholder="Nome do aluno"/>
+              <div className="fgrid2" style={{marginTop:13}}>
+                <FI label="Data de nascimento" type="date" value={f.dob} onChange={e=>s('dob',e.target.value)}/>
+                <FS label="Sexo biológico" value={f.gender} onChange={e=>s('gender',e.target.value)}>
+                  <option value="M">Masculino</option><option value="F">Feminino</option></FS>
+              </div>
+            </div>
+          </div>
+          <div className="fgrid" style={{marginTop:13}}>
+            <FI label="Telefone / WhatsApp" value={f.phone} onChange={e=>s('phone',e.target.value)} placeholder="(00) 00000-0000"/>
+            <FI label="E-mail" type="email" value={f.email} onChange={e=>s('email',e.target.value)} placeholder="email@exemplo.com"/>
+            <FI label="Profissão" value={f.profession} onChange={e=>s('profession',e.target.value)} placeholder="Ex: Advogado"/>
+          </div>
+        </div>
+
+        <div className="sec">
+          <div className="sec-title">🎯 Perfil de treino</div>
+          <div className="fgrid">
+            <FI label="Objetivo principal" value={f.goal} onChange={e=>s('goal',e.target.value)} placeholder="Hipertrofia, emagrecimento..."/>
+            <FS label="Nível de atividade física" value={f.activity} onChange={e=>s('activity',e.target.value)}>
+              <option>Sedentário</option><option>Levemente ativo</option><option>Moderadamente ativo</option>
+              <option>Muito ativo</option><option>Atleta</option></FS>
+            <FI label="Tempo de treino / experiência" value={f.train_time} onChange={e=>s('train_time',e.target.value)} placeholder="Ex: 2 anos"/>
+            <FI label="Horários disponíveis" value={f.schedule} onChange={e=>s('schedule',e.target.value)} placeholder="Ex: Seg/Qua/Sex manhã"/>
+          </div>
+        </div>
+
+        <div className="sec">
+          <div className="sec-title">🩺 Anamnese / Histórico de saúde</div>
+          <div className="fgrid2" style={{marginBottom:13}}>
+            <FS label="Fumante" value={f.smoker} onChange={e=>s('smoker',e.target.value)}>
+              <option>Não</option><option>Sim</option><option>Ex-fumante</option></FS>
+            <FS label="Consumo de álcool" value={f.alcohol} onChange={e=>s('alcohol',e.target.value)}>
+              <option>Não</option><option>Social</option><option>Frequente</option></FS>
+            <FI label="Qualidade do sono" value={f.sleep} onChange={e=>s('sleep',e.target.value)} placeholder="Ex: 7h, boa"/>
+          </div>
+          <div className="fgrid" style={{gridTemplateColumns:'1fr 1fr'}}>
+            <FTA label="Doenças / condições de saúde" value={f.health} onChange={e=>s('health',e.target.value)} placeholder="Hipertensão, diabetes, asma..."/>
+            <FTA label="Medicamentos em uso" value={f.meds} onChange={e=>s('meds',e.target.value)} placeholder="Nome e dosagem..."/>
+            <FTA label="Histórico familiar" value={f.family_hist} onChange={e=>s('family_hist',e.target.value)} placeholder="Doenças na família..."/>
+            <FTA label="Lesões / limitações articulares" value={f.injuries} onChange={e=>s('injuries',e.target.value)} placeholder="Lesões prévias, dores, restrições..."/>
+          </div>
+          <div style={{marginTop:13}}>
+            <FTA label="Observações gerais" value={f.obs} onChange={e=>s('obs',e.target.value)} placeholder="Outras informações relevantes..."/>
+          </div>
+        </div>
+      </div>
+    </div>);
+}
+
+/* ── EvalForm ── */
+const BLANK_EVAL={date:new Date().toISOString().slice(0,10),
+  weight:'',height:'',bp_sys:'',bp_dia:'',dyn_r:'',dyn_l:'',
+  bio_fat:'',bio_muscle:'',bio_lean:'',bio_water:'',bio_visceral:'',
+  sf_triceps:'',sf_subscapular:'',sf_biceps:'',sf_chest:'',sf_midaxillary:'',sf_suprailiac:'',sf_abdomen:'',sf_thigh:'',sf_calf:'',
+  circ_neck:'',circ_chest:'',circ_waist:'',circ_abdomen:'',circ_hip:'',
+  circ_arm_r:'',circ_arm_l:'',circ_thigh_r:'',circ_thigh_l:'',circ_calf_r:'',circ_calf_l:'',obs:''};
+
+function EvalForm({student,evalData,carryHeight,isReassess,onSave,onCancel}){
+  const [f,setF]=useState(evalData||{...BLANK_EVAL,height:carryHeight||''});
+  const upd=(k,v)=>setF(p=>({...p,[k]:v}));
+  const N=(label,key,unit,ph)=>(
+    <div className="fg"><label className="flbl">{label}{unit&&<span style={{color:'var(--text3)',marginLeft:3}}>({unit})</span>}</label>
+      <input className="fi" type="number" inputMode="decimal" step="0.1" value={f[key]} onChange={e=>upd(key,e.target.value)} placeholder={ph||''}/></div>);
+  const a=age(student.dob)||25;
+  const d=derive(student,f);
+  const bmiCls=classifyBMI(d.bmi),bpCls=classifyBP(f.bp_sys,f.bp_dia),fatCls=classifyFat(student.gender,a,d.fatPct);
+  return(
+    <div>
+      <div className="abar">
+        <div><div className="breadcrumb" onClick={onCancel}>← {student.name}</div>
+          <div className="ph-title">{evalData?'Editar avaliação':isReassess?'Reavaliação':'Nova avaliação'}</div>
+          {isReassess&&<div className="ph-sub">Estatura preenchida da última avaliação · ajuste se necessário</div>}</div>
+        <div className="bgroup">
+          <button className="btn btn-ghost" onClick={onCancel}>Cancelar</button>
+          <button className="btn btn-primary" onClick={()=>onSave({...f,id:evalData?.id||uid()})}>💾 Salvar avaliação</button>
+        </div>
+      </div>
+      {(d.bmi||bpCls||d.fatPct||d.dynAvg)&&(
+        <div className="stat-grid">
+          {d.bmi&&<Stat lbl="IMC" val={fmt(d.bmi)} unit="kg/m²" badge={bmiCls}/>}
+          {bpCls&&<Stat lbl="Pressão arterial" val={`${f.bp_sys}/${f.bp_dia}`} unit="mmHg" badge={bpCls}/>}
+          {d.fatPct!=null&&<Stat lbl="% Gordura" val={fmt(d.fatPct)} unit="%" badge={fatCls}/>}
+          {d.dynAvg&&<Stat lbl="Preensão média" val={fmt(d.dynAvg)} unit="kgf"/>}
+          {d.rcq&&<Stat lbl="Cintura/Quadril" val={fmt(d.rcq,2)}/>}
+        </div>)}
+      <div className="card">
+        <div className="sec"><div className="sec-title">📅 Data e medidas básicas</div>
+          <div className="fgrid">
+            <FI label="Data da avaliação" type="date" value={f.date} onChange={e=>upd('date',e.target.value)}/>
+            {N('Peso','weight','kg','70.5')}{N('Estatura','height','cm','175')}
+          </div>
+          {d.bmi&&<div className="alert alert-info" style={{marginTop:13}}>IMC: <strong>{fmt(d.bmi)} kg/m²</strong>{bmiCls&&<> — <Badge cls={bmiCls.c}>{bmiCls.l}</Badge></>}</div>}
+        </div>
+        <div className="sec"><div className="sec-title">🩺 Pressão arterial</div>
+          <div className="fgrid">{N('Sistólica','bp_sys','mmHg','120')}{N('Diastólica','bp_dia','mmHg','80')}</div>
+          {bpCls&&<div style={{marginTop:9}}><Badge cls={bpCls.c}>{bpCls.l}</Badge></div>}
+        </div>
+        <div className="sec"><div className="sec-title">✊ Dinamometria — preensão manual</div>
+          <div className="fgrid">{N('Mão direita','dyn_r','kgf','35')}{N('Mão esquerda','dyn_l','kgf','32')}</div>
+          {d.dynAvg&&<div style={{marginTop:9,fontSize:12,color:'var(--text2)'}}>Média: <strong style={{color:'var(--text)'}}>{fmt(d.dynAvg)} kgf</strong></div>}
+        </div>
+        <div className="sec"><div className="sec-title">⚡ Bioimpedância</div>
+          <div className="fgrid2">{N('% Gordura corporal','bio_fat','%','18.5')}{N('Massa muscular','bio_muscle','kg','32')}
+            {N('Massa magra','bio_lean','kg','58')}{N('% Água corporal','bio_water','%','55')}{N('Gordura visceral','bio_visceral','nível','5')}</div>
+        </div>
+        <div className="sec"><div className="sec-title">📐 Dobras cutâneas</div>
+          <div className="alert alert-info">Preencha as 7 dobras com ★ (tórax, axilar, tríceps, subescapular, abdominal, suprailíaca e coxa) para o cálculo automático de % de gordura — protocolo Jackson-Pollock 7.</div>
+          <div className="fgrid2">{N('Tríceps ★','sf_triceps','mm')}{N('Subescapular ★','sf_subscapular','mm')}{N('Bíceps','sf_biceps','mm')}
+            {N('Tórax/Peitoral ★','sf_chest','mm')}{N('Axilar média ★','sf_midaxillary','mm')}{N('Suprailíaca ★','sf_suprailiac','mm')}
+            {N('Abdominal ★','sf_abdomen','mm')}{N('Coxa ★','sf_thigh','mm')}{N('Panturrilha','sf_calf','mm')}</div>
+          {d.jp!=null&&<div className="alert alert-success" style={{marginTop:13}}>% Gordura (JP7): <strong>{fmt(d.jp)}%</strong>{fatCls&&<> — <Badge cls={fatCls.c}>{fatCls.l}</Badge></>}</div>}
+        </div>
+        <div className="sec"><div className="sec-title">📏 Circunferências</div>
+          <div className="fgrid2">{N('Pescoço','circ_neck','cm')}{N('Tórax','circ_chest','cm')}{N('Cintura','circ_waist','cm')}
+            {N('Abdômen','circ_abdomen','cm')}{N('Quadril','circ_hip','cm')}{N('Braço dir. contraído','circ_arm_r','cm')}
+            {N('Braço esq. contraído','circ_arm_l','cm')}{N('Coxa direita','circ_thigh_r','cm')}{N('Coxa esquerda','circ_thigh_l','cm')}
+            {N('Panturrilha dir.','circ_calf_r','cm')}{N('Panturrilha esq.','circ_calf_l','cm')}</div>
+          {d.rcq&&<div style={{marginTop:9,fontSize:12,color:'var(--text2)'}}>Relação cintura/quadril: <strong style={{color:'var(--text)'}}>{fmt(d.rcq,2)}</strong></div>}
+        </div>
+        <div className="sec"><div className="sec-title">📝 Observações</div>
+          <FTA value={f.obs} onChange={e=>upd('obs',e.target.value)} placeholder="Observações desta avaliação..."/></div>
+      </div>
+    </div>);
+}
+
+/* ── StudentDetail ── */
+function StudentDetail({student,evals,onNewEval,onReassess,onEditEval,onDeleteEval,onReport,onBack,onEdit}){
+  const a=age(student.dob);
+  const sorted=[...evals].sort((x,y)=>new Date(y.date)-new Date(x.date));
+  const last=sorted[0];
+  const d=last?derive(student,last):null;
+  return(
+    <div>
+      <div className="abar">
+        <div><div className="breadcrumb" onClick={onBack}>← Alunos</div>
+          <div style={{display:'flex',alignItems:'center',gap:13}}>
+            <div className="avatar" style={{width:52,height:52}}>{student.photo?<img src={student.photo} alt=""/>:initials(student.name)}</div>
+            <div><div className="ph-title">{student.name}</div>
+              <div className="ph-sub">{a?`${a} anos · `:''}{student.gender==='M'?'Masculino':'Feminino'}{student.activity&&` · ${student.activity}`}</div></div>
+          </div>
+        </div>
+        <div className="bgroup">
+          <button className="btn btn-ghost btn-sm" onClick={onEdit}>✏️ Editar ficha</button>
+          {sorted.length>0&&<button className="btn btn-secondary" onClick={onReassess}>🔁 Reavaliação</button>}
+          <button className="btn btn-primary" onClick={onNewEval}>＋ Nova avaliação</button>
+        </div>
+      </div>
+
+      <div style={{marginBottom:20,display:'flex',flexWrap:'wrap',gap:0}}>
+        {student.goal&&<span className="info-pill">🎯 {student.goal}</span>}
+        {student.profession&&<span className="info-pill">💼 {student.profession}</span>}
+        {student.schedule&&<span className="info-pill">🕐 {student.schedule}</span>}
+        {student.phone&&<span className="info-pill">📱 {student.phone}</span>}
+        {(student.health||student.injuries)&&<span className="info-pill" style={{borderColor:'rgba(234,179,8,.3)',color:'#fde047'}}>⚠️ Anamnese registrada</span>}
+      </div>
+
+      {last&&d&&(
+        <div className="stat-grid">
+          {last.weight&&<Stat lbl="Peso atual" val={last.weight} unit="kg"/>}
+          {last.height&&<Stat lbl="Estatura" val={last.height} unit="cm"/>}
+          {d.bmi&&<Stat lbl="IMC" val={fmt(d.bmi)} unit="kg/m²" badge={classifyBMI(d.bmi)}/>}
+          {d.fatPct!=null&&<Stat lbl="% Gordura" val={fmt(d.fatPct)} unit="%" badge={classifyFat(student.gender,a||25,d.fatPct)}/>}
+          {last.bp_sys&&last.bp_dia&&<Stat lbl="Pressão" val={`${last.bp_sys}/${last.bp_dia}`} badge={classifyBP(last.bp_sys,last.bp_dia)}/>}
+          <Stat lbl="Avaliações" val={evals.length}/>
+        </div>)}
+
+      <div style={{fontSize:15,fontWeight:600,margin:'24px 0 14px'}}>Histórico de avaliações</div>
+      {sorted.length===0?(
+        <div className="empty"><div className="empty-icon">📋</div>
+          <div className="empty-title">Nenhuma avaliação registrada</div>
+          <p style={{marginBottom:16,fontSize:13}}>Clique em "Nova avaliação" para começar</p>
+          <button className="btn btn-primary" onClick={onNewEval}>＋ Nova avaliação</button></div>
+      ):sorted.map((ev,i)=>{
+        const dd=derive(student,ev);
+        return(
+          <div key={ev.id} className="eval-row">
+            <div style={{flex:1,minWidth:180}}>
+              <div className="eval-date">{fmtDate(ev.date)}
+                {i===0&&<span className="badge bo">mais recente</span>}
+                {i<sorted.length-1&&<span style={{fontSize:11,color:'var(--text3)',fontWeight:400}}>nº {sorted.length-i}</span>}</div>
+              <div className="eval-meta">
+                {ev.weight&&`${ev.weight} kg · `}{dd.bmi&&`IMC ${fmt(dd.bmi)} · `}
+                {dd.fatPct!=null&&`Gordura ${fmt(dd.fatPct)}% · `}
+                {ev.bp_sys&&`PA ${ev.bp_sys}/${ev.bp_dia} · `}{dd.dynAvg&&`Preensão ${fmt(dd.dynAvg)} kgf`}</div>
+            </div>
+            <div className="bgroup">
+              <button className="btn-icon" title="Editar" onClick={()=>onEditEval(ev)}>✏️</button>
+              <button className="btn btn-secondary btn-sm" onClick={()=>onReport(ev)}>📄 Relatório</button>
+              <button className="btn-icon" title="Excluir" onClick={()=>{if(confirm('Excluir esta avaliação?'))onDeleteEval(ev.id);}}>🗑️</button>
+            </div>
+          </div>);
+      })}
+    </div>);
+}
+
+/* ── Comparative pieces ── */
+function CmpCard({label,cur,prev,unit,dir}){
+  if(cur==null||cur==='')return null;
+  const c=parseFloat(cur),p=prev!=null&&prev!==''?parseFloat(prev):null;
+  const delta=p!=null?+(c-p).toFixed(1):null;
+  const pct=p!=null&&p!==0?+((delta/p)*100).toFixed(1):null;
+  let cls='neutral';
+  if(delta!=null&&delta!==0&&dir){
+    const good=dir==='down'?delta<0:delta>0;
+    cls=good?'good':'bad';
+  }
+  return(
+    <div className={`cmp-card ${cls}`}>
+      <div className="cmp-lbl">{label}</div>
+      <div className="cmp-flow">
+        {p!=null&&<><span className="cmp-from">{p}{unit?` ${unit}`:''}</span><span className="cmp-arrow">→</span></>}
+        <span className="cmp-to">{c}{unit?` ${unit}`:''}</span>
+      </div>
+      {delta!=null&&<div className={`cmp-delta ${cls}`}>
+        {delta>0?'▲':delta<0?'▼':'＝'} {delta>0?'+':''}{delta}{unit?` ${unit}`:''}{pct!=null&&delta!==0?` (${pct>0?'+':''}${pct}%)`:''}
+      </div>}
+    </div>);
+}
+
+function buildHighlights(student,cur,prev){
+  if(!prev)return[];
+  const dc=derive(student,cur),dp=derive(student,prev);
+  const out=[];
+  const push=(cond,ico,txt)=>{if(cond)out.push({ico,txt});};
+  if(dc.fatMass!=null&&dp.fatMass!=null){
+    const dd=+(dc.fatMass-dp.fatMass).toFixed(1);
+    if(dd<0)push(true,'🔥',`Redução de ${Math.abs(dd)} kg de massa gorda.`);
+    else if(dd>0)push(true,'⚠️',`Aumento de ${dd} kg de massa gorda.`);
+  }
+  if(dc.leanMass!=null&&dp.leanMass!=null){
+    const dd=+(dc.leanMass-dp.leanMass).toFixed(1);
+    if(dd>0)push(true,'💪',`Ganho de ${dd} kg de massa magra.`);
+    else if(dd<0)push(true,'📉',`Perda de ${Math.abs(dd)} kg de massa magra — atenção.`);
+  }
+  if(dc.fatPct!=null&&dp.fatPct!=null){
+    const dd=+(dc.fatPct-dp.fatPct).toFixed(1);
+    if(dd!==0)push(true,dd<0?'✅':'🔸',`% de gordura ${dd<0?'reduziu':'aumentou'} ${Math.abs(dd)} pontos (${fmt(dp.fatPct)}% → ${fmt(dc.fatPct)}%).`);
+  }
+  const wc=num(cur.circ_waist),wp=num(prev.circ_waist);
+  if(wc&&wp){const dd=+(wc-wp).toFixed(1);if(dd!==0)push(true,dd<0?'📏':'🔸',`Cintura ${dd<0?'reduziu':'aumentou'} ${Math.abs(dd)} cm.`);}
+  if(dc.dynAvg&&dp.dynAvg){const dd=+(dc.dynAvg-dp.dynAvg).toFixed(1);
+    if(dd>0)push(true,'✊',`Força de preensão melhorou ${dd} kgf.`);}
+  if(out.length===0)push(true,'📊','Avaliação comparativa registrada. Mantenha a consistência.');
+  return out;
+}
+
+/* ── Report ── */
+function Report({student,evalData,allEvals,onBack}){
+  const others=allEvals.filter(e=>e.id!==evalData.id&&new Date(e.date)<=new Date(evalData.date))
+    .sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const [baseId,setBaseId]=useState(others[0]?.id||'');
+  const prevEval=others.find(e=>e.id===baseId)||null;
+
+  const a=age(student.dob)||25;
+  const d=derive(student,evalData);
+  const dp=prevEval?derive(student,prevEval):null;
+  const bmiCls=classifyBMI(d.bmi),bpCls=classifyBP(evalData.bp_sys,evalData.bp_dia),fatCls=classifyFat(student.gender,a,d.fatPct);
+  const highlights=buildHighlights(student,evalData,prevEval);
+
+  function Row({lbl,val,unit,prev,badge,strong}){
+    if(val==null||val==='')return null;
+    const dlt=(prev!=null&&prev!==''&&!isNaN(parseFloat(prev)))?+(parseFloat(val)-parseFloat(prev)).toFixed(1):null;
+    return(<tr>
+      <td style={strong?{fontWeight:600,color:'var(--text)'}:null}>{lbl}</td>
+      <td style={strong?{fontWeight:700}:null}>{val}{unit?` ${unit}`:''}{badge&&<span className={`badge ${badge.c}`} style={{marginLeft:7}}>{badge.l}</span>}</td>
+      {prevEval&&<td className={`delta ${dlt==null?'d-neutral':dlt>0?'d-bad':dlt<0?'d-good':'d-neutral'}`}>{dlt==null?'—':(dlt>0?'▲+':dlt<0?'▼':'')+(dlt||0)}</td>}
+    </tr>);
+  }
+  const hasSF=['sf_chest','sf_midaxillary','sf_triceps','sf_subscapular','sf_abdomen','sf_suprailiac','sf_thigh','sf_biceps','sf_calf'].some(k=>num(evalData[k]));
+  const hasCirc=['circ_neck','circ_chest','circ_waist','circ_abdomen','circ_hip','circ_arm_r','circ_thigh_r','circ_calf_r'].some(k=>num(evalData[k]));
+  const hasBio=['bio_fat','bio_muscle','bio_lean','bio_water','bio_visceral'].some(k=>num(evalData[k]));
+  const hasBP=num(evalData.bp_sys)&&num(evalData.bp_dia);
+  const hasDyn=num(evalData.dyn_r)||num(evalData.dyn_l);
+  const reportNo=`MF-${new Date(evalData.date).getFullYear()}${String(new Date(evalData.date).getMonth()+1).padStart(2,'0')}-${evalData.id.slice(-4).toUpperCase()}`;
+
+  return(
+    <div>
+      <div className="abar no-print">
+        <div><div className="breadcrumb" onClick={onBack}>← Histórico</div>
+          <div className="ph-title">Relatório de avaliação</div>
+          <div className="ph-sub">{student.name} · {fmtDate(evalData.date)}</div></div>
+        <div className="bgroup">
+          {others.length>0&&(
+            <select className="fi" style={{width:'auto',minWidth:200}} value={baseId} onChange={e=>setBaseId(e.target.value)}>
+              <option value="">Sem comparação</option>
+              {others.map(e=><option key={e.id} value={e.id}>Comparar com {fmtDate(e.date)}</option>)}
+            </select>)}
+          <button className="btn btn-primary" onClick={()=>window.print()}>🖨️ Imprimir / PDF</button>
+        </div>
+      </div>
+
+      <div className="rpt-page" id="rpt">
+        <div className="rpt-header">
+          <div className="rpt-head-top">
+            <div style={{display:'flex',alignItems:'center',gap:14}}>
+              <LogoMark size={58}/>
+              <div><div style={{fontSize:21,fontWeight:800,letterSpacing:'.5px'}}>MF PERFORMANCE</div>
+                <div style={{fontSize:10.5,color:'var(--text3)',letterSpacing:'2px',textTransform:'uppercase',marginTop:2}}>Avaliação Física &amp; Performance</div></div>
+            </div>
+            <div className="rpt-head-id">
+              Relatório nº {reportNo}<br/>
+              {prevEval?'Avaliação comparativa':'Avaliação física'}<br/>
+              Emitido em {new Date().toLocaleDateString('pt-BR')}
+            </div>
+          </div>
+          <div className="rpt-student-block">
+            <div className="rpt-photo">{student.photo?<img src={student.photo} alt=""/>:<div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100%',fontWeight:700,fontSize:20,color:'var(--accent)'}}>{initials(student.name)}</div>}</div>
+            <div style={{flex:1}}>
+              <div className="rpt-student-name">{student.name}</div>
+              <div className="rpt-student-info">
+                {age(student.dob)?`${age(student.dob)} anos · `:''}{student.gender==='M'?'Masculino':'Feminino'}
+                {student.profession&&` · ${student.profession}`}{student.activity&&` · ${student.activity}`}<br/>
+                Avaliado em <strong style={{color:'var(--text2)'}}>{fmtDate(evalData.date)}</strong>
+                {student.goal&&<> · Objetivo: <strong style={{color:'var(--accent)'}}>{student.goal}</strong></>}
+                {prevEval&&<> · Comparado com <strong style={{color:'var(--text2)'}}>{fmtDate(prevEval.date)}</strong></>}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="rpt-body">
+          {/* Resumo */}
+          <div className="stat-grid" style={{marginBottom:24}}>
+            {d.bmi&&<Stat lbl="IMC" val={fmt(d.bmi)} unit="kg/m²" badge={bmiCls}/>}
+            {d.fatPct!=null&&<Stat lbl="% Gordura" val={fmt(d.fatPct)} unit="%" badge={fatCls}/>}
+            {hasBP&&<Stat lbl="Pressão" val={`${evalData.bp_sys}/${evalData.bp_dia}`} badge={bpCls}/>}
+            {d.leanMass!=null&&<Stat lbl="Massa magra" val={d.leanMass} unit="kg"/>}
+            {d.fatMass!=null&&<Stat lbl="Massa gorda" val={d.fatMass} unit="kg"/>}
+            {d.dynAvg&&<Stat lbl="Preensão" val={d.dynAvg} unit="kgf"/>}
+          </div>
+
+          {/* Comparativo */}
+          {prevEval&&dp&&(
+            <div className="rpt-sec">
+              <div className="rpt-sec-title">📈 Evolução desde {fmtDate(prevEval.date)}</div>
+              {highlights.length>0&&(
+                <div className="highlight-box">
+                  <div className="highlight-title">Destaques da evolução</div>
+                  {highlights.map((h,i)=><div className="highlight-item" key={i}><span className="ico">{h.ico}</span><span>{h.txt}</span></div>)}
+                </div>)}
+              <div className="cmp-grid">
+                <CmpCard label="Peso" cur={evalData.weight} prev={prevEval.weight} unit="kg" dir={null}/>
+                <CmpCard label="% Gordura" cur={d.fatPct} prev={dp.fatPct} unit="%" dir="down"/>
+                <CmpCard label="Massa magra" cur={d.leanMass} prev={dp.leanMass} unit="kg" dir="up"/>
+                <CmpCard label="Massa gorda" cur={d.fatMass} prev={dp.fatMass} unit="kg" dir="down"/>
+                {(num(evalData.bio_muscle)||num(prevEval.bio_muscle))&&<CmpCard label="Massa muscular" cur={evalData.bio_muscle} prev={prevEval.bio_muscle} unit="kg" dir="up"/>}
+                <CmpCard label="Cintura" cur={evalData.circ_waist} prev={prevEval.circ_waist} unit="cm" dir="down"/>
+                {(d.dynAvg||dp.dynAvg)&&<CmpCard label="Preensão média" cur={d.dynAvg} prev={dp.dynAvg} unit="kgf" dir="up"/>}
+                <CmpCard label="IMC" cur={d.bmi?+d.bmi.toFixed(1):null} prev={dp.bmi?+dp.bmi.toFixed(1):null} unit="" dir="down"/>
+              </div>
+            </div>)}
+
+          {/* Tabelas detalhadas */}
+          <div className="rpt-grid">
+            <div>
+              <div className="rpt-sec">
+                <div className="rpt-sec-title">📊 Antropometria</div>
+                <table className="rpt-tbl"><tbody>
+                  <Row lbl="Peso" val={evalData.weight} unit="kg" prev={prevEval?.weight}/>
+                  <Row lbl="Estatura" val={evalData.height} unit="cm" prev={prevEval?.height}/>
+                  {d.bmi&&<Row lbl="IMC" val={fmt(d.bmi)} unit="kg/m²" badge={bmiCls} prev={dp?(dp.bmi?fmt(dp.bmi):null):null}/>}
+                  {d.leanMass!=null&&<Row lbl="Massa magra (calc.)" val={d.leanMass} unit="kg" prev={dp?.leanMass}/>}
+                  {d.fatMass!=null&&<Row lbl="Massa gorda (calc.)" val={d.fatMass} unit="kg" prev={dp?.fatMass}/>}
+                </tbody></table>
+              </div>
+              {(hasBP||hasDyn)&&(
+                <div className="rpt-sec"><div className="rpt-sec-title">🩺 Pressão &amp; força</div>
+                  <table className="rpt-tbl"><tbody>
+                    {hasBP&&<><Row lbl="PA sistólica" val={evalData.bp_sys} unit="mmHg" prev={prevEval?.bp_sys}/>
+                    <Row lbl="PA diastólica" val={evalData.bp_dia} unit="mmHg" prev={prevEval?.bp_dia}/>
+                    {bpCls&&<tr><td>Classificação</td><td><Badge cls={bpCls.c}>{bpCls.l}</Badge></td>{prevEval&&<td/>}</tr>}</>}
+                    {num(evalData.dyn_r)&&<Row lbl="Preensão direita" val={evalData.dyn_r} unit="kgf" prev={prevEval?.dyn_r}/>}
+                    {num(evalData.dyn_l)&&<Row lbl="Preensão esquerda" val={evalData.dyn_l} unit="kgf" prev={prevEval?.dyn_l}/>}
+                    {d.dynAvg&&<Row lbl="Média preensão" val={d.dynAvg} unit="kgf" prev={dp?.dynAvg}/>}
+                  </tbody></table>
+                </div>)}
+              {hasBio&&(
+                <div className="rpt-sec"><div className="rpt-sec-title">⚡ Bioimpedância</div>
+                  <table className="rpt-tbl"><tbody>
+                    <Row lbl="% Gordura corporal" val={evalData.bio_fat} unit="%" badge={num(evalData.bio_fat)?fatCls:null} prev={prevEval?.bio_fat}/>
+                    <Row lbl="Massa muscular" val={evalData.bio_muscle} unit="kg" prev={prevEval?.bio_muscle}/>
+                    <Row lbl="Massa magra" val={evalData.bio_lean} unit="kg" prev={prevEval?.bio_lean}/>
+                    <Row lbl="% Água corporal" val={evalData.bio_water} unit="%" prev={prevEval?.bio_water}/>
+                    <Row lbl="Gordura visceral" val={evalData.bio_visceral} unit="" prev={prevEval?.bio_visceral}/>
+                  </tbody></table>
+                </div>)}
+            </div>
+            <div>
+              {hasSF&&(
+                <div className="rpt-sec"><div className="rpt-sec-title">📐 Dobras cutâneas (mm)</div>
+                  <table className="rpt-tbl"><tbody>
+                    <Row lbl="Tríceps" val={evalData.sf_triceps} unit="mm" prev={prevEval?.sf_triceps}/>
+                    <Row lbl="Subescapular" val={evalData.sf_subscapular} unit="mm" prev={prevEval?.sf_subscapular}/>
+                    <Row lbl="Bíceps" val={evalData.sf_biceps} unit="mm" prev={prevEval?.sf_biceps}/>
+                    <Row lbl="Tórax/Peitoral" val={evalData.sf_chest} unit="mm" prev={prevEval?.sf_chest}/>
+                    <Row lbl="Axilar média" val={evalData.sf_midaxillary} unit="mm" prev={prevEval?.sf_midaxillary}/>
+                    <Row lbl="Suprailíaca" val={evalData.sf_suprailiac} unit="mm" prev={prevEval?.sf_suprailiac}/>
+                    <Row lbl="Abdominal" val={evalData.sf_abdomen} unit="mm" prev={prevEval?.sf_abdomen}/>
+                    <Row lbl="Coxa" val={evalData.sf_thigh} unit="mm" prev={prevEval?.sf_thigh}/>
+                    <Row lbl="Panturrilha" val={evalData.sf_calf} unit="mm" prev={prevEval?.sf_calf}/>
+                    {d.jp!=null&&<Row lbl="% Gordura (JP7)" val={fmt(d.jp)} unit="%" badge={fatCls} strong prev={dp&&dp.jp!=null?fmt(dp.jp):null}/>}
+                  </tbody></table>
+                </div>)}
+              {hasCirc&&(
+                <div className="rpt-sec"><div className="rpt-sec-title">📏 Circunferências (cm)</div>
+                  <table className="rpt-tbl"><tbody>
+                    <Row lbl="Pescoço" val={evalData.circ_neck} unit="cm" prev={prevEval?.circ_neck}/>
+                    <Row lbl="Tórax" val={evalData.circ_chest} unit="cm" prev={prevEval?.circ_chest}/>
+                    <Row lbl="Cintura" val={evalData.circ_waist} unit="cm" prev={prevEval?.circ_waist}/>
+                    <Row lbl="Abdômen" val={evalData.circ_abdomen} unit="cm" prev={prevEval?.circ_abdomen}/>
+                    <Row lbl="Quadril" val={evalData.circ_hip} unit="cm" prev={prevEval?.circ_hip}/>
+                    {d.rcq&&<Row lbl="Rel. cintura/quadril" val={d.rcq} unit="" prev={dp?.rcq}/>}
+                    <Row lbl="Braço direito" val={evalData.circ_arm_r} unit="cm" prev={prevEval?.circ_arm_r}/>
+                    <Row lbl="Braço esquerdo" val={evalData.circ_arm_l} unit="cm" prev={prevEval?.circ_arm_l}/>
+                    <Row lbl="Coxa direita" val={evalData.circ_thigh_r} unit="cm" prev={prevEval?.circ_thigh_r}/>
+                    <Row lbl="Coxa esquerda" val={evalData.circ_thigh_l} unit="cm" prev={prevEval?.circ_thigh_l}/>
+                    <Row lbl="Panturrilha dir." val={evalData.circ_calf_r} unit="cm" prev={prevEval?.circ_calf_r}/>
+                    <Row lbl="Panturrilha esq." val={evalData.circ_calf_l} unit="cm" prev={prevEval?.circ_calf_l}/>
+                  </tbody></table>
+                </div>)}
+            </div>
+          </div>
+
+          {/* Anamnese resumo */}
+          {(student.health||student.meds||student.injuries||student.goal)&&(
+            <div className="rpt-sec"><div className="rpt-sec-title">🩺 Perfil &amp; anamnese</div>
+              <table className="rpt-tbl"><tbody>
+                {student.activity&&<tr><td>Nível de atividade</td><td style={{textAlign:'left',fontWeight:400}}>{student.activity}</td></tr>}
+                {student.train_time&&<tr><td>Experiência de treino</td><td style={{textAlign:'left',fontWeight:400}}>{student.train_time}</td></tr>}
+                {student.health&&<tr><td>Condições de saúde</td><td style={{textAlign:'left',fontWeight:400}}>{student.health}</td></tr>}
+                {student.meds&&<tr><td>Medicamentos</td><td style={{textAlign:'left',fontWeight:400}}>{student.meds}</td></tr>}
+                {student.injuries&&<tr><td>Lesões / limitações</td><td style={{textAlign:'left',fontWeight:400}}>{student.injuries}</td></tr>}
+                {(student.smoker&&student.smoker!=='Não')&&<tr><td>Fumante</td><td style={{textAlign:'left',fontWeight:400}}>{student.smoker}</td></tr>}
+              </tbody></table>
+            </div>)}
+
+          {evalData.obs&&(<div className="rpt-sec"><div className="rpt-sec-title">📝 Observações da avaliação</div>
+            <p style={{fontSize:12.5,color:'var(--text2)',lineHeight:1.65}}>{evalData.obs}</p></div>)}
+
+          <div className="sig-grid">
+            <div className="sig-line">Avaliador responsável · CREF</div>
+            <div className="sig-line">{student.name}</div>
+          </div>
+          <div className="rpt-footer">
+            <strong style={{color:'var(--accent)'}}>MF PERFORMANCE</strong> · Avaliação Física &amp; Performance<br/>
+            Relatório {reportNo} · Documento gerado em {new Date().toLocaleDateString('pt-BR')} · Os dados refletem a avaliação de {fmtDate(evalData.date)}
+          </div>
+        </div>
+      </div>
+    </div>);
+}
+
+/* ── Auth (tranca local) ── */
+async function sha256(str){
+  const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('mfp::'+str));
+  return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+function Lock({onUnlock}){
+  const hash=load('pwhash',null);
+  const isSetup=!hash;
+  const [p1,setP1]=useState('');
+  const [p2,setP2]=useState('');
+  const [err,setErr]=useState('');
+  const [busy,setBusy]=useState(false);
+  const submit=async()=>{
+    setErr('');
+    if(isSetup){
+      if(p1.length<4){setErr('Use ao menos 4 caracteres.');return;}
+      if(p1!==p2){setErr('As senhas não conferem.');return;}
+      setBusy(true);save('pwhash',await sha256(p1));setBusy(false);sessionStorage.setItem('mfp_auth','1');onUnlock();
+    }else{
+      setBusy(true);const h=await sha256(p1);setBusy(false);
+      if(h===hash){sessionStorage.setItem('mfp_auth','1');onUnlock();}
+      else setErr('Senha incorreta.');
+    }
+  };
+  const onKey=e=>{if(e.key==='Enter')submit();};
+  return(
+    <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',padding:24}}>
+      <div style={{width:'100%',maxWidth:360,textAlign:'center'}}>
+        <div style={{display:'flex',justifyContent:'center',marginBottom:16}}><LogoMark size={76}/></div>
+        <div style={{fontSize:20,fontWeight:800,letterSpacing:.5}}>MF PERFORMANCE</div>
+        <div style={{fontSize:11,color:'var(--text3)',letterSpacing:2,textTransform:'uppercase',marginBottom:26}}>Avaliação Física</div>
+        <div className="card" style={{textAlign:'left'}}>
+          <div style={{fontSize:15,fontWeight:600,marginBottom:4}}>{isSetup?'🔐 Criar senha de acesso':'🔒 Entrar'}</div>
+          <div style={{fontSize:12,color:'var(--text2)',marginBottom:16,lineHeight:1.5}}>
+            {isSetup?'Defina uma senha para proteger o app neste dispositivo. Guarde-a bem — não há recuperação.':'Digite sua senha para acessar o app.'}
+          </div>
+          <input className="fi" type="password" autoFocus placeholder={isSetup?'Nova senha':'Senha'} value={p1} onChange={e=>setP1(e.target.value)} onKeyDown={onKey}/>
+          {isSetup&&<input className="fi" type="password" placeholder="Confirmar senha" value={p2} onChange={e=>setP2(e.target.value)} onKeyDown={onKey} style={{marginTop:10}}/>}
+          {err&&<div style={{color:'var(--red)',fontSize:12,marginTop:10}}>{err}</div>}
+          <button className="btn btn-primary" style={{width:'100%',marginTop:16}} disabled={busy} onClick={submit}>
+            {busy?'...':isSetup?'Criar e entrar':'Entrar'}</button>
+          {!isSetup&&<button className="btn btn-ghost btn-sm" style={{width:'100%',marginTop:9}}
+            onClick={()=>{if(confirm('Esqueceu a senha? Isso APAGA a senha e TODOS os dados (alunos e avaliações) deste dispositivo. Continuar?')){localStorage.clear();sessionStorage.clear();location.reload();}}}>
+            Esqueci a senha</button>}
+        </div>
+        <div style={{fontSize:11,color:'var(--text3)',marginTop:16,lineHeight:1.5}}>
+          🔒 Senha e dados ficam só neste aparelho.<br/>Nada é enviado para a internet.
+        </div>
+      </div>
+    </div>);
+}
+
+/* ── App ── */
+function App(){
+  const [students,setStudents]=useState(()=>load('students',[]));
+  const [evals,setEvals]=useState(()=>load('evals',[]));
+  const [view,setView]=useState('dashboard');
+  const [selStudent,setSelStudent]=useState(null);
+  const [selEval,setSelEval]=useState(null);
+  const [editStu,setEditStu]=useState(null);
+  const [editEv,setEditEv]=useState(null);
+  const [reassess,setReassess]=useState(false);
+  const [menu,setMenu]=useState(false);
+
+  useEffect(()=>save('students',students),[students]);
+  useEffect(()=>save('evals',evals),[evals]);
+
+  const stuEvals=selStudent?evals.filter(e=>e.studentId===selStudent.id):[];
+  const sortedStuEvals=[...stuEvals].sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const lastHeight=sortedStuEvals[0]?.height||'';
+
+  const go=v=>{setView(v);setMenu(false);};
+  const saveStu=s=>{setStudents(p=>p.find(x=>x.id===s.id)?p.map(x=>x.id===s.id?s:x):[...p,s]);setSelStudent(s);go('detail');};
+  const delStu=id=>{setStudents(p=>p.filter(s=>s.id!==id));setEvals(p=>p.filter(e=>e.studentId!==id));setSelStudent(null);go('dashboard');};
+  const saveEv=e=>{const ev={...e,studentId:selStudent.id};setEvals(p=>p.find(x=>x.id===ev.id)?p.map(x=>x.id===ev.id?ev:x):[...p,ev]);go('detail');};
+  const delEv=id=>setEvals(p=>p.filter(e=>e.id!==id));
+
+  return(
+    <div className="app">
+      <div className={`overlay ${menu?'show':''}`} onClick={()=>setMenu(false)}/>
+      <div className={`sidebar ${menu?'open':''}`}>
+        <div className="logo-row"><LogoMark size={46}/>
+          <div><div className="logo-name">MF Performance</div><div className="logo-sub">Avaliação Física</div></div></div>
+        <button className={`nav-btn ${view==='dashboard'?'active':''}`} onClick={()=>go('dashboard')}><span className="nav-ico">🏠</span>Dashboard</button>
+        <button className="nav-btn" onClick={()=>{setEditStu(null);go('stu-form');}}><span className="nav-ico">👤</span>Novo aluno</button>
+        {selStudent&&<>
+          <hr className="nav-divider"/>
+          <div className="nav-section">Aluno ativo</div>
+          <button className={`nav-btn ${view==='detail'?'active':''}`} onClick={()=>go('detail')}><span className="nav-ico">📋</span>{selStudent.name.split(' ')[0]}</button>
+          <button className="nav-btn" onClick={()=>{setEditEv(null);setReassess(false);go('ev-form');}}><span className="nav-ico">📐</span>Nova avaliação</button>
+          {sortedStuEvals.length>0&&<button className="nav-btn" onClick={()=>{setEditEv(null);setReassess(true);go('ev-form');}}><span className="nav-ico">🔁</span>Reavaliação</button>}
+        </>}
+        <div className="sidebar-footer">
+          <button className="btn btn-ghost btn-sm" style={{width:'100%',marginBottom:10}}
+            onClick={()=>{sessionStorage.removeItem('mfp_auth');location.reload();}}>🔒 Sair</button>
+          {students.length} aluno{students.length!==1?'s':''} · {evals.length} avaliaç{evals.length!==1?'ões':'ão'}<br/>
+          <span style={{color:'var(--text2)'}}>Dados salvos neste dispositivo</span></div>
+      </div>
+
+      <div style={{flex:1,display:'flex',flexDirection:'column',minWidth:0}}>
+        <div className="topbar no-print">
+          <button className="hamb" onClick={()=>setMenu(true)}>☰</button>
+          <LogoMark size={34}/>
+          <div style={{fontWeight:800,fontSize:15,letterSpacing:.3}}>MF Performance</div>
+        </div>
+        <div className="main">
+          {view==='dashboard'&&<Dashboard students={students} evals={evals}
+            onSelect={s=>{setSelStudent(s);go('detail');}} onNew={()=>{setEditStu(null);go('stu-form');}} onDelete={delStu}/>}
+          {view==='stu-form'&&<StudentForm student={editStu} onSave={saveStu} onCancel={()=>go(selStudent?'detail':'dashboard')}/>}
+          {view==='detail'&&selStudent&&<StudentDetail student={selStudent} evals={stuEvals}
+            onNewEval={()=>{setEditEv(null);setReassess(false);go('ev-form');}}
+            onReassess={()=>{setEditEv(null);setReassess(true);go('ev-form');}}
+            onEditEval={ev=>{setEditEv(ev);setReassess(false);go('ev-form');}}
+            onDeleteEval={delEv} onReport={ev=>{setSelEval(ev);go('report');}}
+            onBack={()=>go('dashboard')} onEdit={()=>{setEditStu(selStudent);go('stu-form');}}/>}
+          {view==='ev-form'&&selStudent&&<EvalForm student={selStudent} evalData={editEv}
+            carryHeight={reassess?lastHeight:''} isReassess={reassess&&!editEv}
+            onSave={saveEv} onCancel={()=>go('detail')}/>}
+          {view==='report'&&selStudent&&selEval&&<Report student={selStudent} evalData={selEval}
+            allEvals={stuEvals} onBack={()=>go('detail')}/>}
+        </div>
+      </div>
+    </div>);
+}
+function Root(){
+  const [authed,setAuthed]=useState(()=>sessionStorage.getItem('mfp_auth')==='1');
+  if(!authed)return <Lock onUnlock={()=>setAuthed(true)}/>;
+  return <App/>;
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<Root/>);
+</script>
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+}
+</script>
+</body>
+</html>
