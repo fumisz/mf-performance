@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="MF Performance">
-<meta name="theme-color" content="#0d0d0d">
+<meta name="theme-color" content="#09090a">
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icons/icon-180.png">
 <link rel="icon" href="./icons/icon-192.png">
@@ -17,14 +17,15 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{
-  --bg:#0b0b0d;--bg2:#141417;--bg3:#1c1c20;--bg4:#26262b;
-  --border:#2a2a30;--border2:#3a3a42;
-  --text:#f2f2f4;--text2:#8d8d96;--text3:#5a5a62;
-  --accent:#f97316;--accent2:#ea580c;--accent3:#c2410c;--accent-dim:rgba(249,115,22,.13);
-  --led:#ffd27a;
-  --green:#22c55e;--green-dim:rgba(34,197,94,.13);
-  --red:#ef4444;--red-dim:rgba(239,68,68,.13);
-  --yellow:#eab308;--blue:#3b82f6;--blue-dim:rgba(59,130,246,.12);
+  --bg:#09090a;--bg2:#121211;--bg3:#1a1a18;--bg4:#242422;
+  --border:#2b2b27;--border2:#3a3a35;
+  --bone:#ece6d8;--bone2:#d8d0bd;
+  --text:#ece6d8;--text2:#928c7e;--text3:#5e594e;
+  --accent:#c9a86a;--accent2:#b8975a;--accent3:#9c7e44;--accent-dim:rgba(201,168,106,.14);
+  --led:#d8d0bd;
+  --green:#7fae6a;--green-dim:rgba(127,174,106,.14);
+  --red:#c4685e;--red-dim:rgba(196,104,94,.14);
+  --yellow:#c9a86a;--blue:#7fa0c4;--blue-dim:rgba(127,160,196,.12);
   --r:12px;--r-sm:9px;
 }
 html{-webkit-text-size-adjust:100%}
@@ -307,27 +308,68 @@ function load(k,def){try{const v=localStorage.getItem('mfp_'+k);return v!=null?J
 const save=(k,v)=>{try{localStorage.setItem('mfp_'+k,JSON.stringify(v));}catch{}};
 
 /* ── Logo (letreiro LED + pulso) ── */
+/* Silhueta do levantador (deadlift) — desenhada em paths, estilo estêncil */
+function Lifter({bone='var(--bone)',cut='#0c0c0b'}){
+  return(
+    <g>
+      {/* corpo: cabeça, ombros, tronco em V, braços até a barra */}
+      <path fill={bone} d="M110 58
+        c7 0 12 5 12 12 0 4-2 8-5 10
+        l10 6 c9 5 14 11 17 19
+        l4 11 -7 3 -5-11 c-2-5-6-9-11-11
+        l3 14 4 20 -3 14 -8-2 2-15 -3-19 -2 8-4 14-4 14
+        l0 1 -8 0 0-1 c0 0-2-6-4-14 -5 4-3 19-3 19
+        l2 15 -8 2 -3-14 4-20 3-14 c-5 2-9 6-11 11
+        l-5 11 -7-3 4-11 c3-8 8-14 17-19
+        l10-6 c-3-2-5-6-5-10 0-7 5-12 12-12 Z"/>
+      {/* pernas */}
+      <path fill={bone} d="M97 132 l-3 30 -1 34 9 0 3-32 2-18 z"/>
+      <path fill={bone} d="M123 132 l3 30 1 34 -9 0 -3-32 -2-18 z"/>
+      {/* linhas de definição (estêncil) */}
+      <g stroke={cut} strokeWidth="2.2" fill="none" strokeLinecap="round">
+        <path d="M110 84 l0 30"/>
+        <path d="M96 92 c6 7 22 7 28 0"/>
+        <path d="M100 104 c4 4 16 4 20 0"/>
+        <path d="M101 120 h18 M102 128 h16"/>
+      </g>
+      {/* barra + anilhas */}
+      <g fill={bone}>
+        <rect x="44" y="150" width="132" height="5" rx="2.5"/>
+        <rect x="38" y="138" width="9" height="30" rx="3"/>
+        <rect x="50" y="142" width="7" height="22" rx="3"/>
+        <rect x="173" y="138" width="9" height="30" rx="3"/>
+        <rect x="163" y="142" width="7" height="22" rx="3"/>
+      </g>
+    </g>);
+}
+
+/* Brasão completo: MF · levantador · PERFORMANCE */
+function LogoLifter({size=120}){
+  return(
+    <svg viewBox="0 0 220 250" height={size} width={size*0.88} style={{flexShrink:0}} aria-label="MF Performance">
+      <text x="110" y="50" textAnchor="middle" fontSize="62" fontWeight="800" fill="var(--bone)"
+        fontFamily="Arial Black,Helvetica,sans-serif" letterSpacing="-2">MF</text>
+      <g transform="translate(0,8)"><Lifter/></g>
+      <text x="110" y="242" textAnchor="middle" fontSize="26" fontWeight="800" fill="var(--bone)"
+        fontFamily="Arial Black,Helvetica,sans-serif" letterSpacing="1">PERFORMANCE</text>
+    </svg>
+  );
+}
+
+/* Emblema compacto: MF + barra, em badge */
 function LogoMark({size=46}){
-  const bulbs=[];
-  const W=64,P=8,G=8;
-  for(let x=P;x<=W-P;x+=G){bulbs.push([x,P]);bulbs.push([x,W-P]);}
-  for(let y=P+G;y<W-P;y+=G){bulbs.push([P,y]);bulbs.push([W-P,y]);}
   return(
     <svg viewBox="0 0 64 64" width={size} height={size} style={{flexShrink:0}}>
-      <defs>
-        <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
-          <feGaussianBlur stdDeviation="1.1" result="b"/>
-          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-        </filter>
-        <linearGradient id="mfg" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#fb923c"/><stop offset="1" stopColor="#ea580c"/>
-        </linearGradient>
-      </defs>
-      <rect x="2.5" y="2.5" width="59" height="59" rx="13" fill="#121215" stroke="#34343c" strokeWidth="1.4"/>
-      <rect x="8" y="8" width="48" height="48" rx="9" fill="none" stroke="#1f1f24" strokeWidth="1"/>
-      {bulbs.map((b,i)=><circle key={i} cx={b[0]} cy={b[1]} r="1.5" fill="var(--led)" filter="url(#glow)" opacity={0.55+0.45*Math.abs(Math.sin(i*1.7))}/>)}
-      <text x="32" y="33" textAnchor="middle" fontSize="22" fontWeight="800" fill="url(#mfg)" fontFamily="-apple-system,Segoe UI,sans-serif" letterSpacing="-1" filter="url(#glow)">MF</text>
-      <polyline points="14,46 22,46 26,40 31,50 36,38 40,46 50,46" fill="none" stroke="#fb923c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" filter="url(#glow)"/>
+      <rect x="1.5" y="1.5" width="61" height="61" rx="14" fill="#16160f" stroke="var(--accent)" strokeWidth="1.2" opacity="1"/>
+      <text x="32" y="34" textAnchor="middle" fontSize="27" fontWeight="800" fill="var(--bone)"
+        fontFamily="Arial Black,Helvetica,sans-serif" letterSpacing="-1.5">MF</text>
+      <g fill="var(--bone)">
+        <rect x="14" y="44" width="36" height="3.4" rx="1.7"/>
+        <rect x="10" y="40" width="5" height="12" rx="2"/>
+        <rect x="17" y="42" width="4" height="8" rx="2"/>
+        <rect x="49" y="40" width="5" height="12" rx="2"/>
+        <rect x="43" y="42" width="4" height="8" rx="2"/>
+      </g>
     </svg>
   );
 }
@@ -435,7 +477,7 @@ function Dashboard({students,evals,onSelect,onNew,onDelete}){
               <div className="s-meta">
                 {a?`${a} anos · `:''}{s.gender==='M'?'Masculino':'Feminino'}
                 {s.goal&&<><br/><span style={{color:'var(--accent)'}}>🎯 {s.goal}</span></>}
-                <br/>{se.length>0?`${se.length} avaliação${se.length>1?'ões':''} · ${fmtDate(last.date)}`:'Sem avaliações'}
+                <br/>{se.length>0?`${se.length} ${se.length>1?'avaliações':'avaliação'} · ${fmtDate(last.date)}`:'Sem avaliações'}
               </div>
             </div>);
         })}
@@ -542,9 +584,9 @@ function StudentForm({student,onSave,onCancel}){
 /* ── EvalForm ── */
 const BLANK_EVAL={date:new Date().toISOString().slice(0,10),
   weight:'',height:'',bp_sys:'',bp_dia:'',dyn_r:'',dyn_l:'',
-  bio_fat:'',bio_muscle:'',bio_lean:'',bio_water:'',bio_visceral:'',
+  bio_fat:'',bio_muscle:'',bio_muscle_pct:'',bio_lean:'',bio_water:'',bio_visceral:'',bio_bmr:'',bio_metabage:'',bio_bone:'',
   sf_triceps:'',sf_subscapular:'',sf_biceps:'',sf_chest:'',sf_midaxillary:'',sf_suprailiac:'',sf_abdomen:'',sf_thigh:'',sf_calf:'',
-  circ_neck:'',circ_chest:'',circ_waist:'',circ_abdomen:'',circ_hip:'',
+  circ_shoulders:'',circ_chest:'',circ_waist:'',circ_abdomen:'',circ_hip:'',
   circ_arm_r:'',circ_arm_l:'',circ_thigh_r:'',circ_thigh_l:'',circ_calf_r:'',circ_calf_l:'',obs:''};
 
 function EvalForm({student,evalData,carryHeight,isReassess,onSave,onCancel}){
@@ -593,7 +635,9 @@ function EvalForm({student,evalData,carryHeight,isReassess,onSave,onCancel}){
         </div>
         <div className="sec"><div className="sec-title">⚡ Bioimpedância</div>
           <div className="fgrid2">{N('% Gordura corporal','bio_fat','%','18.5')}{N('Massa muscular','bio_muscle','kg','32')}
-            {N('Massa magra','bio_lean','kg','58')}{N('% Água corporal','bio_water','%','55')}{N('Gordura visceral','bio_visceral','nível','5')}</div>
+            {N('% Músculo esquelético','bio_muscle_pct','%','42')}{N('Massa magra','bio_lean','kg','58')}{N('% Água corporal','bio_water','%','55')}
+            {N('Massa óssea','bio_bone','kg','3.2')}{N('Gordura visceral','bio_visceral','nível','5')}
+            {N('Taxa metab. basal (TMB)','bio_bmr','kcal','1750')}{N('Idade metabólica','bio_metabage','anos','28')}</div>
         </div>
         <div className="sec"><div className="sec-title">📐 Dobras cutâneas</div>
           <div className="alert alert-info">Preencha as 7 dobras com ★ (tórax, axilar, tríceps, subescapular, abdominal, suprailíaca e coxa) para o cálculo automático de % de gordura — protocolo Jackson-Pollock 7.</div>
@@ -603,7 +647,7 @@ function EvalForm({student,evalData,carryHeight,isReassess,onSave,onCancel}){
           {d.jp!=null&&<div className="alert alert-success" style={{marginTop:13}}>% Gordura (JP7): <strong>{fmt(d.jp)}%</strong>{fatCls&&<> — <Badge cls={fatCls.c}>{fatCls.l}</Badge></>}</div>}
         </div>
         <div className="sec"><div className="sec-title">📏 Circunferências</div>
-          <div className="fgrid2">{N('Pescoço','circ_neck','cm')}{N('Tórax','circ_chest','cm')}{N('Cintura','circ_waist','cm')}
+          <div className="fgrid2">{N('Ombros','circ_shoulders','cm')}{N('Tórax','circ_chest','cm')}{N('Cintura','circ_waist','cm')}
             {N('Abdômen','circ_abdomen','cm')}{N('Quadril','circ_hip','cm')}{N('Braço dir. contraído','circ_arm_r','cm')}
             {N('Braço esq. contraído','circ_arm_l','cm')}{N('Coxa direita','circ_thigh_r','cm')}{N('Coxa esquerda','circ_thigh_l','cm')}
             {N('Panturrilha dir.','circ_calf_r','cm')}{N('Panturrilha esq.','circ_calf_l','cm')}</div>
@@ -792,7 +836,9 @@ function EvolutionSection({student,evals}){
     {key:'lean',label:'Massa magra',unit:'kg',color:'#059669',dir:'up',vals:der.map(d=>d.leanMass)},
     {key:'waist',label:'Cintura',unit:'cm',color:'#2563eb',dir:'down',vals:asc.map(e=>num(e.circ_waist))},
     {key:'musc',label:'Massa muscular',unit:'kg',color:'#7c3aed',dir:'up',vals:asc.map(e=>num(e.bio_muscle))},
-    {key:'dyn',label:'Preensão',unit:'kgf',color:'#0891b2',dir:'up',vals:der.map(d=>d.dynAvg)}
+    {key:'shoulders',label:'Ombros',unit:'cm',color:'#0d9488',dir:'up',vals:asc.map(e=>num(e.circ_shoulders))},
+    {key:'dyn',label:'Preensão',unit:'kgf',color:'#0891b2',dir:'up',vals:der.map(d=>d.dynAvg)},
+    {key:'metab',label:'Idade metabólica',unit:'anos',color:'#b45309',dir:'down',vals:asc.map(e=>num(e.bio_metabage))}
   ].filter(m=>m.vals.filter(v=>v!=null&&!isNaN(v)).length>=2);
   if(metrics.length===0)return null;
   return(
@@ -872,8 +918,8 @@ function Report({student,evalData,allEvals,onBack}){
     </tr>);
   }
   const hasSF=['sf_chest','sf_midaxillary','sf_triceps','sf_subscapular','sf_abdomen','sf_suprailiac','sf_thigh','sf_biceps','sf_calf'].some(k=>num(evalData[k]));
-  const hasCirc=['circ_neck','circ_chest','circ_waist','circ_abdomen','circ_hip','circ_arm_r','circ_thigh_r','circ_calf_r'].some(k=>num(evalData[k]));
-  const hasBio=['bio_fat','bio_muscle','bio_lean','bio_water','bio_visceral'].some(k=>num(evalData[k]));
+  const hasCirc=['circ_shoulders','circ_chest','circ_waist','circ_abdomen','circ_hip','circ_arm_r','circ_thigh_r','circ_calf_r'].some(k=>num(evalData[k]));
+  const hasBio=['bio_fat','bio_muscle','bio_muscle_pct','bio_lean','bio_water','bio_visceral','bio_bmr','bio_metabage','bio_bone'].some(k=>num(evalData[k]));
   const hasBP=num(evalData.bp_sys)&&num(evalData.bp_dia);
   const hasDyn=num(evalData.dyn_r)||num(evalData.dyn_l);
   const reportNo=`MF-${new Date(evalData.date).getFullYear()}${String(new Date(evalData.date).getMonth()+1).padStart(2,'0')}-${evalData.id.slice(-4).toUpperCase()}`;
@@ -933,6 +979,8 @@ function Report({student,evalData,allEvals,onBack}){
             {d.leanMass!=null&&<Stat lbl="Massa magra" val={d.leanMass} unit="kg"/>}
             {d.fatMass!=null&&<Stat lbl="Massa gorda" val={d.fatMass} unit="kg"/>}
             {d.dynAvg&&<Stat lbl="Preensão" val={d.dynAvg} unit="kgf"/>}
+            {num(evalData.bio_bmr)&&<Stat lbl="TMB" val={num(evalData.bio_bmr).toLocaleString('pt-BR')} unit="kcal"/>}
+            {num(evalData.bio_metabage)&&<Stat lbl="Idade metabólica" val={evalData.bio_metabage} unit="anos" badge={age(student.dob)?(num(evalData.bio_metabage)<=age(student.dob)?{l:`${age(student.dob)-num(evalData.bio_metabage)} anos abaixo`,c:'bg'}:{l:`${num(evalData.bio_metabage)-age(student.dob)} anos acima`,c:'ba'}):null}/>}
           </div>
 
           {/* Medidor de gordura */}
@@ -995,9 +1043,13 @@ function Report({student,evalData,allEvals,onBack}){
                   <table className="rpt-tbl"><tbody>
                     <Row lbl="% Gordura corporal" val={evalData.bio_fat} unit="%" badge={num(evalData.bio_fat)?fatCls:null} prev={prevEval?.bio_fat}/>
                     <Row lbl="Massa muscular" val={evalData.bio_muscle} unit="kg" prev={prevEval?.bio_muscle}/>
+                    <Row lbl="% Músculo esquelético" val={evalData.bio_muscle_pct} unit="%" prev={prevEval?.bio_muscle_pct}/>
                     <Row lbl="Massa magra" val={evalData.bio_lean} unit="kg" prev={prevEval?.bio_lean}/>
                     <Row lbl="% Água corporal" val={evalData.bio_water} unit="%" prev={prevEval?.bio_water}/>
+                    <Row lbl="Massa óssea" val={evalData.bio_bone} unit="kg" prev={prevEval?.bio_bone}/>
                     <Row lbl="Gordura visceral" val={evalData.bio_visceral} unit="" prev={prevEval?.bio_visceral}/>
+                    <Row lbl="Taxa metab. basal" val={evalData.bio_bmr} unit="kcal" prev={prevEval?.bio_bmr}/>
+                    <Row lbl="Idade metabólica" val={evalData.bio_metabage} unit="anos" prev={prevEval?.bio_metabage}/>
                   </tbody></table>
                 </div>)}
             </div>
@@ -1020,7 +1072,7 @@ function Report({student,evalData,allEvals,onBack}){
               {hasCirc&&(
                 <div className="rpt-sec"><div className="rpt-sec-title">📏 Circunferências (cm)</div>
                   <table className="rpt-tbl"><tbody>
-                    <Row lbl="Pescoço" val={evalData.circ_neck} unit="cm" prev={prevEval?.circ_neck}/>
+                    <Row lbl="Ombros" val={evalData.circ_shoulders} unit="cm" prev={prevEval?.circ_shoulders}/>
                     <Row lbl="Tórax" val={evalData.circ_chest} unit="cm" prev={prevEval?.circ_chest}/>
                     <Row lbl="Cintura" val={evalData.circ_waist} unit="cm" prev={prevEval?.circ_waist}/>
                     <Row lbl="Abdômen" val={evalData.circ_abdomen} unit="cm" prev={prevEval?.circ_abdomen}/>
@@ -1094,9 +1146,8 @@ function Lock({onUnlock}){
   return(
     <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',padding:24}}>
       <div style={{width:'100%',maxWidth:360,textAlign:'center'}}>
-        <div style={{display:'flex',justifyContent:'center',marginBottom:16}}><LogoMark size={76}/></div>
-        <div style={{fontSize:20,fontWeight:800,letterSpacing:.5}}>MF PERFORMANCE</div>
-        <div style={{fontSize:11,color:'var(--text3)',letterSpacing:2,textTransform:'uppercase',marginBottom:26}}>Avaliação Física</div>
+        <div style={{display:'flex',justifyContent:'center',marginBottom:10}}><LogoLifter size={150}/></div>
+        <div style={{fontSize:11,color:'var(--text2)',letterSpacing:3,textTransform:'uppercase',marginBottom:26}}>Avaliação Física &amp; Performance</div>
         <div className="card" style={{textAlign:'left'}}>
           <div style={{fontSize:15,fontWeight:600,marginBottom:4}}>{isSetup?'🔐 Criar senha de acesso':'🔒 Entrar'}</div>
           <div style={{fontSize:12,color:'var(--text2)',marginBottom:16,lineHeight:1.5}}>
