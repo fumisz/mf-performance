@@ -191,29 +191,76 @@ textarea.fi{resize:vertical;min-height:70px;line-height:1.5}
 
 .info-pill{display:inline-flex;align-items:center;gap:5px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;padding:4px 10px;font-size:11.5px;color:var(--text2);margin:0 6px 6px 0}
 
+/* ── Relatório: documento claro (legível em tela e impressão) ── */
+.rpt-page{background:#ffffff;color:#1f2430;border:1px solid #e5e7eb}
+.rpt-page .rpt-body{color:#1f2430}
+.rpt-page .rpt-sec-title{color:#c2410c;border-bottom:1px solid #ececef}
+.rpt-page .rpt-tbl td{color:#1f2430;border-bottom:1px solid #eef0f2;font-size:13px}
+.rpt-page .rpt-tbl td:first-child{color:#6b7280}
+.rpt-page .rpt-tbl td:nth-child(2){color:#111827}
+.rpt-page .delta.d-good{color:#15803d}
+.rpt-page .delta.d-bad{color:#b91c1c}
+.rpt-page .delta.d-neutral{color:#9ca3af}
+.rpt-page .stat{background:#f7f8fa;border:1px solid #e9ebee}
+.rpt-page .stat-lbl{color:#6b7280}
+.rpt-page .stat-val{color:#111827}
+.rpt-page .cmp-card{background:#f9fafb;border:1px solid #e9ebee}
+.rpt-page .cmp-card.good{border-color:#9ae6b4;background:#f0fdf4}
+.rpt-page .cmp-card.bad{border-color:#feb2b2;background:#fef2f2}
+.rpt-page .cmp-lbl{color:#6b7280}
+.rpt-page .cmp-from{color:#9ca3af}
+.rpt-page .cmp-to{color:#111827}
+.rpt-page .cmp-delta.good{color:#15803d}
+.rpt-page .cmp-delta.bad{color:#b91c1c}
+.rpt-page .cmp-delta.neutral{color:#6b7280}
+.rpt-page .cmp-bar{background:#e9ebee}
+.rpt-page .highlight-box{background:#fff7ed;border:1px solid #fed7aa}
+.rpt-page .highlight-title{color:#c2410c}
+.rpt-page .highlight-item{color:#1f2430}
+.rpt-page .rpt-footer{color:#9ca3af;border-top:1px solid #ececef}
+.rpt-page .sig-line{color:#6b7280;border-top:1px solid #9ca3af}
+.rpt-page .rpt-photo{background:#f3f4f6;border:1px solid #e5e7eb}
+.rpt-page .rpt-student-name{color:#fff}
+.rpt-page .rpt-student-info{color:#cfd2d8}
+.rpt-page .rpt-student-info strong{color:#fff}
+.rpt-page .rpt-student-block{border-top:1px solid rgba(255,255,255,.12)}
+.rpt-page .rpt-head-id{color:#9ca3af}
+/* badges legíveis em fundo branco */
+.rpt-page .badge{font-weight:700}
+.rpt-page .bg{background:#dcfce7;color:#166534}
+.rpt-page .ba{background:#fef9c3;color:#854d0e}
+.rpt-page .br{background:#fee2e2;color:#991b1b}
+.rpt-page .bb{background:#dbeafe;color:#1e40af}
+.rpt-page .bo{background:#ffedd5;color:#9a3412}
+/* gauge e gráfico */
+.gauge-wrap{margin:6px 0 4px}
+.gauge-bar{position:relative;height:30px;border-radius:7px;overflow:hidden;display:flex}
+.gauge-seg{height:100%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700}
+.gauge-marker{position:absolute;top:-6px;width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-top:9px solid #111827;transform:translateX(-50%)}
+.gauge-val{position:absolute;top:34px;font-size:11px;font-weight:700;color:#111827;transform:translateX(-50%);white-space:nowrap}
+.gauge-scale{position:relative;height:16px;margin-top:20px;font-size:9px;color:#9ca3af}
+.evo-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.evo-card{background:#f9fafb;border:1px solid #e9ebee;border-radius:11px;padding:13px 14px}
+.evo-lbl{font-size:11px;color:#6b7280;font-weight:600;margin-bottom:6px}
+.evo-vals{display:flex;align-items:baseline;justify-content:space-between;margin-top:6px}
+.evo-end{font-size:18px;font-weight:700;color:#111827}
+.evo-start{font-size:11px;color:#9ca3af}
+.evo-delta{font-size:11px;font-weight:700;margin-top:2px}
+
 /* ── Print ── */
 @media print{
-  @page{margin:12mm}
+  @page{margin:11mm}
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
   .no-print{display:none!important}
   .app{display:block}
   .sidebar,.topbar,.overlay{display:none!important}
   .main{padding:0;max-width:none;margin:0}
-  body{background:#fff;color:#1a1a1a;font-size:11px}
+  body{background:#fff;font-size:11px}
   .rpt-page{border:none;border-radius:0}
-  .rpt-header{background:#111114!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;border-bottom:3px solid #f97316!important}
-  .rpt-header *{color-adjust:exact}
-  .rpt-body{padding:18px 4px}
-  .stat,.cmp-card{background:#f6f6f6!important;border:1px solid #e3e3e3!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .stat-val,.cmp-to{color:#111}
-  .stat-lbl,.cmp-lbl,.s-meta,.rpt-tbl td:first-child,.rpt-student-info{color:#555!important}
-  .rpt-tbl td{color:#1a1a1a}
-  .rpt-sec-title,.highlight-title{color:#c2410c!important}
-  .highlight-box{background:#fff7ed!important;border:1px solid #fed7aa!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .highlight-item{color:#1a1a1a}
-  .rpt-footer,.sig-line{color:#888!important}
+  .rpt-body{padding:16px 4px}
+  .rpt-header{background:#111114!important;border-bottom:3px solid #f97316!important}
   .rpt-sec{break-inside:avoid}
-  .cmp-card.good{border-color:#86efac!important}
-  .cmp-card.bad{border-color:#fca5a5!important}
+  .evo-card,.cmp-card,.stat{break-inside:avoid}
 }
 ::-webkit-scrollbar{width:6px;height:6px}
 ::-webkit-scrollbar-track{background:transparent}
@@ -689,6 +736,119 @@ function buildHighlights(student,cur,prev){
   return out;
 }
 
+/* ── Compartilhar resumo no WhatsApp ── */
+function shareWhatsApp(student,evalData,prevEval){
+  const d=derive(student,evalData);
+  const L=[];
+  L.push('*MF PERFORMANCE — Avaliação Física*');
+  L.push(`*${student.name}* · ${fmtDate(evalData.date)}`);
+  L.push('');
+  if(evalData.weight)L.push(`⚖️ Peso: ${evalData.weight} kg`);
+  if(d.bmi)L.push(`📊 IMC: ${fmt(d.bmi)} kg/m²${classifyBMI(d.bmi)?' ('+classifyBMI(d.bmi).l+')':''}`);
+  if(d.fatPct!=null){const fc=classifyFat(student.gender,age(student.dob)||25,d.fatPct);L.push(`🔥 % Gordura: ${fmt(d.fatPct)}%${fc?' ('+fc.l+')':''}`);}
+  if(d.leanMass!=null)L.push(`💪 Massa magra: ${d.leanMass} kg`);
+  if(evalData.bp_sys&&evalData.bp_dia)L.push(`🩺 Pressão: ${evalData.bp_sys}/${evalData.bp_dia} mmHg`);
+  if(d.dynAvg)L.push(`✊ Preensão: ${d.dynAvg} kgf`);
+  if(prevEval){
+    const hi=buildHighlights(student,evalData,prevEval);
+    if(hi.length){L.push('');L.push(`*Evolução desde ${fmtDate(prevEval.date)}:*`);hi.forEach(h=>L.push(`${h.ico} ${h.txt}`));}
+  }
+  L.push('');L.push('_Continue firme nos treinos! 💪_');
+  const txt=encodeURIComponent(L.join('\n'));
+  const phone=(student.phone||'').replace(/\D/g,'');
+  const target=phone?`https://wa.me/55${phone}?text=${txt}`:`https://wa.me/?text=${txt}`;
+  window.open(target,'_blank');
+}
+
+/* ── Sparkline (SVG, sem libs) ── */
+function Sparkline({values,color='#c2410c',w=140,h=40}){
+  const vals=values.filter(v=>v!=null&&!isNaN(v));
+  if(vals.length<2)return null;
+  const min=Math.min(...vals),max=Math.max(...vals),rng=max-min||1;
+  const pad=4,iw=w-pad*2,ih=h-pad*2;
+  const pts=vals.map((v,i)=>{
+    const x=pad+(vals.length===1?iw/2:(i/(vals.length-1))*iw);
+    const y=pad+ih-((v-min)/rng)*ih;
+    return [x,y];
+  });
+  const d=pts.map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' ');
+  const area=d+` L${pts[pts.length-1][0].toFixed(1)} ${h-pad} L${pts[0][0].toFixed(1)} ${h-pad} Z`;
+  return(
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{display:'block',width:'100%'}} preserveAspectRatio="none">
+      <path d={area} fill={color} opacity="0.1"/>
+      <path d={d} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      {pts.map((p,i)=><circle key={i} cx={p[0]} cy={p[1]} r={i===pts.length-1?3:2} fill={color}/>)}
+    </svg>);
+}
+
+/* ── Evolução (vários gráficos) ── */
+function EvolutionSection({student,evals}){
+  const asc=[...evals].sort((a,b)=>new Date(a.date)-new Date(b.date));
+  if(asc.length<2)return null;
+  const der=asc.map(e=>derive(student,e));
+  const metrics=[
+    {key:'weight',label:'Peso',unit:'kg',color:'#c2410c',dir:'down',vals:asc.map(e=>num(e.weight))},
+    {key:'fat',label:'% Gordura',unit:'%',color:'#dc2626',dir:'down',vals:der.map(d=>d.fatPct)},
+    {key:'lean',label:'Massa magra',unit:'kg',color:'#059669',dir:'up',vals:der.map(d=>d.leanMass)},
+    {key:'waist',label:'Cintura',unit:'cm',color:'#2563eb',dir:'down',vals:asc.map(e=>num(e.circ_waist))},
+    {key:'musc',label:'Massa muscular',unit:'kg',color:'#7c3aed',dir:'up',vals:asc.map(e=>num(e.bio_muscle))},
+    {key:'dyn',label:'Preensão',unit:'kgf',color:'#0891b2',dir:'up',vals:der.map(d=>d.dynAvg)}
+  ].filter(m=>m.vals.filter(v=>v!=null&&!isNaN(v)).length>=2);
+  if(metrics.length===0)return null;
+  return(
+    <div className="rpt-sec">
+      <div className="rpt-sec-title">📊 Evolução ao longo do tempo ({asc.length} avaliações)</div>
+      <div className="evo-grid">
+        {metrics.map(m=>{
+          const clean=m.vals.filter(v=>v!=null&&!isNaN(v));
+          const start=clean[0],end=clean[clean.length-1];
+          const delta=+(end-start).toFixed(1);
+          const good=m.dir==='down'?delta<0:delta>0;
+          const col=delta===0?'#6b7280':good?'#15803d':'#b91c1c';
+          return(
+            <div className="evo-card" key={m.key}>
+              <div className="evo-lbl">{m.label}</div>
+              <Sparkline values={m.vals} color={m.color}/>
+              <div className="evo-vals">
+                <span className="evo-start">{start}{m.unit} →</span>
+                <span className="evo-end">{end}<span style={{fontSize:11,color:'#6b7280'}}> {m.unit}</span></span>
+              </div>
+              <div className="evo-delta" style={{color:col}}>
+                {delta>0?'▲ +':delta<0?'▼ ':'＝ '}{delta!==0?delta+' '+m.unit:'sem variação'}
+              </div>
+            </div>);
+        })}
+      </div>
+    </div>);
+}
+
+/* ── Medidor de % de gordura ── */
+function FatGauge({gender,pct}){
+  const p=num(pct);if(p==null)return null;
+  const zones=gender==='M'
+    ?[{l:'Atlético',max:14,c:'#bbf7d0',t:'#166534'},{l:'Bom',max:18,c:'#d9f99d',t:'#3f6212'},{l:'Aceitável',max:25,c:'#fef08a',t:'#854d0e'},{l:'Acima',max:35,c:'#fecaca',t:'#991b1b'}]
+    :[{l:'Atlético',max:21,c:'#bbf7d0',t:'#166534'},{l:'Bom',max:25,c:'#d9f99d',t:'#3f6212'},{l:'Aceitável',max:32,c:'#fef08a',t:'#854d0e'},{l:'Acima',max:42,c:'#fecaca',t:'#991b1b'}]
+  ;
+  const min=gender==='M'?5:10,maxScale=zones[zones.length-1].max;
+  const span=maxScale-min;
+  let prev=min;
+  const segs=zones.map(z=>{const w=((z.max-prev)/span)*100;prev=z.max;return{...z,w};});
+  const clamped=Math.max(min,Math.min(maxScale,p));
+  const markPct=((clamped-min)/span)*100;
+  return(
+    <div className="gauge-wrap">
+      <div className="gauge-bar">
+        {segs.map((s,i)=><div key={i} className="gauge-seg" style={{width:s.w+'%',background:s.c,color:s.t}}>{s.w>10?s.l:''}</div>)}
+      </div>
+      <div className="gauge-scale">
+        <div className="gauge-marker" style={{left:markPct+'%',top:'-40px'}}/>
+        <div className="gauge-val" style={{left:markPct+'%',top:'-66px'}}>{fmt(p)}%</div>
+        <span style={{position:'absolute',left:0}}>{min}%</span>
+        <span style={{position:'absolute',right:0}}>{maxScale}%</span>
+      </div>
+    </div>);
+}
+
 /* ── Report ── */
 function Report({student,evalData,allEvals,onBack}){
   const others=allEvals.filter(e=>e.id!==evalData.id&&new Date(e.date)<=new Date(evalData.date))
@@ -730,6 +890,7 @@ function Report({student,evalData,allEvals,onBack}){
               <option value="">Sem comparação</option>
               {others.map(e=><option key={e.id} value={e.id}>Comparar com {fmtDate(e.date)}</option>)}
             </select>)}
+          <button className="btn btn-secondary" onClick={()=>shareWhatsApp(student,evalData,prevEval)}>💬 WhatsApp</button>
           <button className="btn btn-primary" onClick={()=>window.print()}>🖨️ Imprimir / PDF</button>
         </div>
       </div>
@@ -739,8 +900,8 @@ function Report({student,evalData,allEvals,onBack}){
           <div className="rpt-head-top">
             <div style={{display:'flex',alignItems:'center',gap:14}}>
               <LogoMark size={58}/>
-              <div><div style={{fontSize:21,fontWeight:800,letterSpacing:'.5px'}}>MF PERFORMANCE</div>
-                <div style={{fontSize:10.5,color:'var(--text3)',letterSpacing:'2px',textTransform:'uppercase',marginTop:2}}>Avaliação Física &amp; Performance</div></div>
+              <div><div style={{fontSize:21,fontWeight:800,letterSpacing:'.5px',color:'#fff'}}>MF PERFORMANCE</div>
+                <div style={{fontSize:10.5,color:'#9ca3af',letterSpacing:'2px',textTransform:'uppercase',marginTop:2}}>Avaliação Física &amp; Performance</div></div>
             </div>
             <div className="rpt-head-id">
               Relatório nº {reportNo}<br/>
@@ -774,6 +935,13 @@ function Report({student,evalData,allEvals,onBack}){
             {d.dynAvg&&<Stat lbl="Preensão" val={d.dynAvg} unit="kgf"/>}
           </div>
 
+          {/* Medidor de gordura */}
+          {d.fatPct!=null&&(
+            <div className="rpt-sec">
+              <div className="rpt-sec-title">🎯 Faixa de % de gordura corporal{fatCls&&<span style={{marginLeft:'auto',fontWeight:700,textTransform:'none',letterSpacing:0}} className={`badge ${fatCls.c}`}>{fatCls.l}</span>}</div>
+              <FatGauge gender={student.gender} pct={d.fatPct}/>
+            </div>)}
+
           {/* Comparativo */}
           {prevEval&&dp&&(
             <div className="rpt-sec">
@@ -794,6 +962,9 @@ function Report({student,evalData,allEvals,onBack}){
                 <CmpCard label="IMC" cur={d.bmi?+d.bmi.toFixed(1):null} prev={dp.bmi?+dp.bmi.toFixed(1):null} unit="" dir="down"/>
               </div>
             </div>)}
+
+          {/* Gráfico de evolução */}
+          <EvolutionSection student={student} evals={allEvals}/>
 
           {/* Tabelas detalhadas */}
           <div className="rpt-grid">
@@ -971,9 +1142,29 @@ function App(){
   const delStu=id=>{setStudents(p=>p.filter(s=>s.id!==id));setEvals(p=>p.filter(e=>e.studentId!==id));setSelStudent(null);go('dashboard');};
   const saveEv=e=>{const ev={...e,studentId:selStudent.id};setEvals(p=>p.find(x=>x.id===ev.id)?p.map(x=>x.id===ev.id?ev:x):[...p,ev]);go('detail');};
   const delEv=id=>setEvals(p=>p.filter(e=>e.id!==id));
+  const fileRef=useRef();
+  const exportData=()=>{
+    const data={app:'MF Performance',v:1,exportedAt:new Date().toISOString(),students,evals};
+    const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+    const u=URL.createObjectURL(blob);const a=document.createElement('a');
+    a.href=u;a.download='mf-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click();
+    setTimeout(()=>URL.revokeObjectURL(u),1000);
+  };
+  const importData=file=>{
+    if(!file)return;const r=new FileReader();
+    r.onload=e=>{try{const d=JSON.parse(e.target.result);
+      if(!Array.isArray(d.students)||!Array.isArray(d.evals))throw 0;
+      if(confirm(`Restaurar backup de ${new Date(d.exportedAt).toLocaleDateString('pt-BR')}?\n\n${d.students.length} aluno(s) e ${d.evals.length} avaliação(ões).\n\n⚠️ Isso SUBSTITUI todos os dados atuais deste aparelho.`)){
+        setStudents(d.students);setEvals(d.evals);setSelStudent(null);go('dashboard');
+        setTimeout(()=>alert('✅ Backup restaurado com sucesso!'),100);
+      }
+    }catch{alert('❌ Arquivo inválido. Selecione um backup .json gerado pelo app.');}};
+    r.readAsText(file);
+  };
 
   return(
     <div className="app">
+      <input ref={fileRef} type="file" accept="application/json,.json" style={{display:'none'}} onChange={e=>{importData(e.target.files[0]);e.target.value='';}}/>
       <div className={`overlay ${menu?'show':''}`} onClick={()=>setMenu(false)}/>
       <div className={`sidebar ${menu?'open':''}`}>
         <div className="logo-row"><LogoMark size={46}/>
@@ -987,6 +1178,10 @@ function App(){
           <button className="nav-btn" onClick={()=>{setEditEv(null);setReassess(false);go('ev-form');}}><span className="nav-ico">📐</span>Nova avaliação</button>
           {sortedStuEvals.length>0&&<button className="nav-btn" onClick={()=>{setEditEv(null);setReassess(true);go('ev-form');}}><span className="nav-ico">🔁</span>Reavaliação</button>}
         </>}
+        <hr className="nav-divider"/>
+        <div className="nav-section">Dados</div>
+        <button className="nav-btn" onClick={exportData}><span className="nav-ico">💾</span>Exportar backup</button>
+        <button className="nav-btn" onClick={()=>fileRef.current.click()}><span className="nav-ico">📥</span>Importar backup</button>
         <div className="sidebar-footer">
           <button className="btn btn-ghost btn-sm" style={{width:'100%',marginBottom:10}}
             onClick={()=>{sessionStorage.removeItem('mfp_auth');location.reload();}}>🔒 Sair</button>
