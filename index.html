@@ -4,33 +4,64 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="MF Performance">
-<meta name="theme-color" content="#09090a">
+<meta name="theme-color" content="#f7f3ef">
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icons/icon-180.png">
 <link rel="icon" href="./icons/icon-192.png">
 <title>MF Performance — Avaliação Física</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="./config.js"></script>
 <script src="./lib/react.js"></script>
 <script src="./lib/react-dom.js"></script>
 <script src="./lib/babel.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{
-  --bg:#09090a;--bg2:#121211;--bg3:#1a1a18;--bg4:#242422;
-  --border:#2b2b27;--border2:#3a3a35;
-  --bone:#ece6d8;--bone2:#d8d0bd;
-  --text:#ece6d8;--text2:#928c7e;--text3:#5e594e;
-  --accent:#c9a86a;--accent2:#b8975a;--accent3:#9c7e44;--accent-dim:rgba(201,168,106,.14);
-  --led:#d8d0bd;
-  --green:#7fae6a;--green-dim:rgba(127,174,106,.14);
-  --red:#c4685e;--red-dim:rgba(196,104,94,.14);
-  --yellow:#c9a86a;--blue:#7fa0c4;--blue-dim:rgba(127,160,196,.12);
-  --r:12px;--r-sm:9px;
+  --bg:#f7f3ef;--bg2:#ffffff;--bg3:#f4ede4;--bg4:#e9ddd3;
+  --border:#ece2d6;--border2:#dccfbe;
+  --text:#1f1a1c;--text2:#8a7d76;--text3:#b4a79e;
+  --accent:#5a1e2e;--accent2:#4a1825;--accent3:#8f3147;--accent-dim:rgba(90,30,46,.07);
+  --gold:#b0894f;--gold2:#c2a269;--gold-dim:rgba(176,137,79,.13);
+  --bone:#fbf7f2;--ink:#1f1a1c;--cream:#fbf7f2;
+  --green:#6f7d57;--green-dim:rgba(111,125,87,.14);--sage:#6f7d57;--sage-dim:rgba(111,125,87,.14);
+  --red:#b3434f;--red-dim:rgba(179,67,79,.1);
+  --yellow:#b0894f;--blue:#5b7a99;--blue-dim:rgba(91,122,153,.12);
+  --led:#b0894f;
+  --r:18px;--r-sm:12px;
+  --shadow:0 1px 2px rgba(31,26,28,.04),0 6px 22px rgba(31,26,28,.05);
+  --shadow-lg:0 18px 50px rgba(31,26,28,.14);
+  --font:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,system-ui,sans-serif;
+  --serif:'Playfair Display',Georgia,'Times New Roman',serif;
+  --serif2:'Cormorant Garamond',Georgia,serif;
 }
 html{-webkit-text-size-adjust:100%}
-body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,system-ui,sans-serif;min-height:100vh;font-size:14px;-webkit-font-smoothing:antialiased}
+body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh;font-size:14px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
 .app{display:flex;min-height:100vh}
+
+/* ── Ajustes de identidade (boutique: serifada + sombras) ── */
+.ph-title{font-family:var(--serif);font-weight:600;letter-spacing:-.2px}
+.logo-name{font-family:var(--serif);font-weight:600}
+.empty-title,.sec-title{font-family:var(--serif)}
+.card{box-shadow:var(--shadow)}
+.btn-primary{box-shadow:0 6px 18px rgba(90,30,46,.20)}
+.nav-btn.active{font-weight:600}
+.logo-sub{color:var(--gold)!important;font-weight:600}
+.center-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+.auth-wrap{width:100%;max-width:420px}
+.auth-card{background:var(--bg2);border:1px solid var(--border);border-radius:24px;padding:34px 28px;box-shadow:var(--shadow-lg)}
+.seg{display:flex;background:var(--bg3);border-radius:12px;padding:4px;gap:4px;margin-bottom:16px}
+.seg button{flex:1;padding:10px;border:none;background:none;color:var(--text2);font-size:13px;font-weight:600;border-radius:9px;cursor:pointer;transition:all .15s;min-height:42px}
+.seg button.on{background:var(--accent);color:var(--cream);box-shadow:0 3px 10px rgba(90,30,46,.2)}
+.link{color:var(--accent);cursor:pointer;font-weight:600}
+.spinner{width:30px;height:30px;border:3px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin:40px auto}
+@keyframes spin{to{transform:rotate(360deg)}}
+.alert-error{background:var(--red-dim);border:1px solid rgba(179,67,79,.25);color:#9a3540}
+.btn-block{width:100%}
 
 /* ── Topbar (mobile) ── */
 .topbar{display:none;align-items:center;gap:12px;padding:12px 16px;padding-top:max(12px,env(safe-area-inset-top));background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:40}
@@ -307,9 +338,16 @@ const num = v=>{const n=parseFloat(v);return isNaN(n)?null:n;};
 function load(k,def){try{const v=localStorage.getItem('mfp_'+k);return v!=null?JSON.parse(v):def;}catch{return def;}}
 const save=(k,v)=>{try{localStorage.setItem('mfp_'+k,JSON.stringify(v));}catch{}};
 
+/* ── Supabase (mesmo projeto do MF Nutrition) ── */
+const CFG = window.MFP_CONFIG || {};
+const CONFIGURED = !!(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY);
+let sb = null;
+if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY);
+const todayStr = () => new Date().toLocaleDateString('en-CA');
+
 /* ── Logo (letreiro LED + pulso) ── */
 /* Silhueta do levantador (deadlift) — desenhada em paths, estilo estêncil */
-function Lifter({bone='var(--bone)',cut='#0c0c0b'}){
+function Lifter({bone='var(--accent)',cut='var(--bg)'}){
   return(
     <g>
       {/* corpo: cabeça, ombros, tronco em V, braços até a barra */}
@@ -346,12 +384,13 @@ function Lifter({bone='var(--bone)',cut='#0c0c0b'}){
 /* Brasão completo: MF · levantador · PERFORMANCE */
 function LogoLifter({size=120}){
   return(
-    <svg viewBox="0 0 220 250" height={size} width={size*0.88} style={{flexShrink:0}} aria-label="MF Performance">
-      <text x="110" y="50" textAnchor="middle" fontSize="62" fontWeight="800" fill="var(--bone)"
+    <svg viewBox="0 0 220 256" height={size} width={size*0.88} style={{flexShrink:0}} aria-label="MF Performance">
+      <text x="110" y="50" textAnchor="middle" fontSize="62" fontWeight="800" fill="var(--accent)"
         fontFamily="Arial Black,Helvetica,sans-serif" letterSpacing="-2">MF</text>
       <g transform="translate(0,8)"><Lifter/></g>
-      <text x="110" y="242" textAnchor="middle" fontSize="26" fontWeight="800" fill="var(--bone)"
+      <text x="110" y="240" textAnchor="middle" fontSize="25" fontWeight="800" fill="var(--accent)"
         fontFamily="Arial Black,Helvetica,sans-serif" letterSpacing="1">PERFORMANCE</text>
+      <line x1="74" y1="250" x2="146" y2="250" stroke="var(--gold)" strokeWidth="2"/>
     </svg>
   );
 }
@@ -896,7 +935,7 @@ function FatGauge({gender,pct}){
 }
 
 /* ── Report ── */
-function Report({student,evalData,allEvals,onBack}){
+function Report({student,evalData,allEvals,onBack,coach}){
   const others=allEvals.filter(e=>e.id!==evalData.id&&new Date(e.date)<=new Date(evalData.date))
     .sort((a,b)=>new Date(b.date)-new Date(a.date));
   const [baseId,setBaseId]=useState(others[0]?.id||'');
@@ -1106,7 +1145,7 @@ function Report({student,evalData,allEvals,onBack}){
             <p style={{fontSize:12.5,color:'var(--text2)',lineHeight:1.65}}>{evalData.obs}</p></div>)}
 
           <div className="sig-grid">
-            <div className="sig-line">Avaliador responsável · CREF</div>
+            <div className="sig-line">{coach?.name?`${coach.name} · Avaliador responsável`:'Avaliador responsável · CREF'}</div>
             <div className="sig-line">{student.name}</div>
           </div>
           <div className="rpt-footer">
@@ -1118,61 +1157,92 @@ function Report({student,evalData,allEvals,onBack}){
     </div>);
 }
 
-/* ── Auth (tranca local) ── */
-async function sha256(str){
-  const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('mfp::'+str));
-  return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
-}
-function Lock({onUnlock}){
-  const hash=load('pwhash',null);
-  const isSetup=!hash;
-  const [p1,setP1]=useState('');
-  const [p2,setP2]=useState('');
-  const [err,setErr]=useState('');
-  const [busy,setBusy]=useState(false);
-  const submit=async()=>{
-    setErr('');
-    if(isSetup){
-      if(p1.length<4){setErr('Use ao menos 4 caracteres.');return;}
-      if(p1!==p2){setErr('As senhas não conferem.');return;}
-      setBusy(true);save('pwhash',await sha256(p1));setBusy(false);sessionStorage.setItem('mfp_auth','1');onUnlock();
-    }else{
-      setBusy(true);const h=await sha256(p1);setBusy(false);
-      if(h===hash){sessionStorage.setItem('mfp_auth','1');onUnlock();}
-      else setErr('Senha incorreta.');
+/* ── Mapeamento DB <-> objetos do app ── */
+const STU_COLS=['name','dob','gender','phone','email','profession','goal','activity','schedule','train_time','health','meds','family_hist','injuries','smoker','alcohol','sleep','obs'];
+function stuToRow(s,coachId){const r={coach_id:coachId};STU_COLS.forEach(k=>r[k]=(s[k]===''?null:s[k])??null);r.photo_url=s.photo||null;return r;}
+function rowToStu(r){const s={id:r.id,photo:r.photo_url||''};STU_COLS.forEach(k=>s[k]=r[k]??'');if(!s.gender)s.gender='M';return s;}
+const EVAL_META=['id','studentId','date','obs'];
+function evalToRow(e,coachId){const data={};Object.keys(e).forEach(k=>{if(!EVAL_META.includes(k))data[k]=e[k];});return{student_id:e.studentId,coach_id:coachId,date:e.date,obs:e.obs||null,data};}
+function rowToEval(r){return{id:r.id,studentId:r.student_id,date:r.date,obs:r.obs||'',...(r.data||{})};}
+
+/* ── Tela de autenticação (treinadores) ── */
+function AuthScreen(){
+  const [mode,setMode]=useState('login');
+  const [name,setName]=useState('');const [email,setEmail]=useState('');const [pass,setPass]=useState('');const [acode,setAcode]=useState('');
+  const [busy,setBusy]=useState(false);const [msg,setMsg]=useState(null);
+  async function submit(e){
+    e.preventDefault();setMsg(null);
+    if(!email||!pass){setMsg({type:'error',text:'Preencha e-mail e senha.'});return;}
+    if(mode==='signup'&&!name.trim()){setMsg({type:'error',text:'Informe seu nome.'});return;}
+    if(mode==='signup'&&!acode.trim()){setMsg({type:'error',text:'Informe o código de acesso de treinador.'});return;}
+    setBusy(true);
+    try{
+      if(mode==='login'){
+        const {error}=await sb.auth.signInWithPassword({email:email.trim(),password:pass});
+        if(error)throw error;
+      }else{
+        const {data:ok}=await sb.rpc('coach_invite_valid',{p_code:acode.trim()});
+        if(!ok){setMsg({type:'error',text:'Código de acesso inválido ou esgotado. Fale com o administrador.'});setBusy(false);return;}
+        const {data,error}=await sb.auth.signUp({email:email.trim(),password:pass,
+          options:{data:{role:'coach',name:name.trim(),coach_signup_code:acode.trim()}}});
+        if(error)throw error;
+        if(data.user&&!data.session){setMsg({type:'success',text:'Conta criada! Confirme pelo e-mail e faça login.'});setMode('login');setBusy(false);return;}
+      }
+    }catch(err){
+      let t=err.message||'Erro';
+      if(/invalid login/i.test(t))t='E-mail ou senha incorretos.';
+      if(/already registered/i.test(t))t='Este e-mail já tem conta. Faça login.';
+      if(/at least 6/i.test(t))t='A senha precisa ter ao menos 6 caracteres.';
+      if(/database error|invalid_coach/i.test(t))t='Código de acesso de treinador inválido.';
+      setMsg({type:'error',text:t});
     }
-  };
-  const onKey=e=>{if(e.key==='Enter')submit();};
+    setBusy(false);
+  }
   return(
-    <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',padding:24}}>
-      <div style={{width:'100%',maxWidth:360,textAlign:'center'}}>
-        <div style={{display:'flex',justifyContent:'center',marginBottom:10}}><LogoLifter size={150}/></div>
-        <div style={{fontSize:11,color:'var(--text2)',letterSpacing:3,textTransform:'uppercase',marginBottom:26}}>Avaliação Física &amp; Performance</div>
-        <div className="card" style={{textAlign:'left'}}>
-          <div style={{fontSize:15,fontWeight:600,marginBottom:4}}>{isSetup?'🔐 Criar senha de acesso':'🔒 Entrar'}</div>
-          <div style={{fontSize:12,color:'var(--text2)',marginBottom:16,lineHeight:1.5}}>
-            {isSetup?'Defina uma senha para proteger o app neste dispositivo. Guarde-a bem — não há recuperação.':'Digite sua senha para acessar o app.'}
+    <div className="center-screen">
+      <div className="auth-wrap">
+        <div className="auth-card">
+          <div style={{display:'flex',justifyContent:'center',marginBottom:6}}><LogoLifter size={132}/></div>
+          <div style={{fontFamily:'var(--serif)',fontSize:13.5,color:'var(--text2)',textAlign:'center',fontStyle:'italic',marginBottom:22}}>Avaliação física de alta performance</div>
+          <div className="seg">
+            <button className={mode==='login'?'on':''} onClick={()=>{setMode('login');setMsg(null);}}>Entrar</button>
+            <button className={mode==='signup'?'on':''} onClick={()=>{setMode('signup');setMsg(null);}}>Criar conta</button>
           </div>
-          <input className="fi" type="password" autoFocus placeholder={isSetup?'Nova senha':'Senha'} value={p1} onChange={e=>setP1(e.target.value)} onKeyDown={onKey}/>
-          {isSetup&&<input className="fi" type="password" placeholder="Confirmar senha" value={p2} onChange={e=>setP2(e.target.value)} onKeyDown={onKey} style={{marginTop:10}}/>}
-          {err&&<div style={{color:'var(--red)',fontSize:12,marginTop:10}}>{err}</div>}
-          <button className="btn btn-primary" style={{width:'100%',marginTop:16}} disabled={busy} onClick={submit}>
-            {busy?'...':isSetup?'Criar e entrar':'Entrar'}</button>
-          {!isSetup&&<button className="btn btn-ghost btn-sm" style={{width:'100%',marginTop:9}}
-            onClick={()=>{if(confirm('Esqueceu a senha? Isso APAGA a senha e TODOS os dados (alunos e avaliações) deste dispositivo. Continuar?')){localStorage.clear();sessionStorage.clear();location.reload();}}}>
-            Esqueci a senha</button>}
-        </div>
-        <div style={{fontSize:11,color:'var(--text3)',marginTop:16,lineHeight:1.5}}>
-          🔒 Senha e dados ficam só neste aparelho.<br/>Nada é enviado para a internet.
+          {msg&&<div className={`alert alert-${msg.type==='error'?'error':msg.type==='success'?'success':'info'}`}>{msg.text}</div>}
+          <form onSubmit={submit} style={{display:'flex',flexDirection:'column',gap:13}}>
+            {mode==='signup'&&<>
+              <FI label="Nome" value={name} onChange={e=>setName(e.target.value)} placeholder="Seu nome"/>
+              <FI label="Código de acesso (treinador)" value={acode} onChange={e=>setAcode(e.target.value.toUpperCase())} placeholder="Fornecido pelo administrador" style={{textTransform:'uppercase',letterSpacing:1}}/>
+            </>}
+            <FI label="E-mail" type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="email@exemplo.com" autoComplete="email"/>
+            <FI label="Senha" type="password" value={pass} onChange={e=>setPass(e.target.value)} placeholder="••••••" autoComplete={mode==='login'?'current-password':'new-password'}/>
+            <button className="btn btn-primary btn-block" disabled={busy}>{busy?'Aguarde…':(mode==='login'?'Entrar':'Criar conta')}</button>
+          </form>
+          <p style={{textAlign:'center',fontSize:12,color:'var(--text3)',marginTop:16}}>
+            {mode==='login'?<>É treinador e ainda não tem conta? <span className="link" onClick={()=>{setMode('signup');setMsg(null);}}>Criar agora</span></>
+            :<>Já tem conta? <span className="link" onClick={()=>{setMode('login');setMsg(null);}}>Entrar</span></>}
+          </p>
         </div>
       </div>
     </div>);
 }
 
+/* ── Telas de bloqueio (perfil errado / assinatura) ── */
+function BlockScreen({title,children}){
+  return(
+    <div className="center-screen"><div className="auth-wrap"><div className="auth-card" style={{textAlign:'center'}}>
+      <div style={{display:'flex',justifyContent:'center',marginBottom:14}}><LogoLifter size={110}/></div>
+      <div style={{fontFamily:'var(--serif)',fontSize:19,fontWeight:600,marginBottom:8}}>{title}</div>
+      <div style={{fontSize:13.5,color:'var(--text2)',lineHeight:1.6,marginBottom:18}}>{children}</div>
+      <button className="btn btn-ghost btn-block" onClick={()=>sb.auth.signOut()}>Sair</button>
+    </div></div></div>);
+}
+
 /* ── App ── */
-function App(){
-  const [students,setStudents]=useState(()=>load('students',[]));
-  const [evals,setEvals]=useState(()=>load('evals',[]));
+function App({profile}){
+  const coachId=profile.id;
+  const [students,setStudents]=useState(null);
+  const [evals,setEvals]=useState([]);
   const [view,setView]=useState('dashboard');
   const [selStudent,setSelStudent]=useState(null);
   const [selEval,setSelEval]=useState(null);
@@ -1180,45 +1250,80 @@ function App(){
   const [editEv,setEditEv]=useState(null);
   const [reassess,setReassess]=useState(false);
   const [menu,setMenu]=useState(false);
+  const [saving,setSaving]=useState(false);
 
-  useEffect(()=>save('students',students),[students]);
-  useEffect(()=>save('evals',evals),[evals]);
+  useEffect(()=>{let alive=true;(async()=>{
+    const [sr,ar]=await Promise.all([
+      sb.from('assess_students').select('*').eq('coach_id',coachId).order('name'),
+      sb.from('assessments').select('*').eq('coach_id',coachId)
+    ]);
+    if(!alive)return;
+    setStudents((sr.data||[]).map(rowToStu));
+    setEvals((ar.data||[]).map(rowToEval));
+  })();return()=>{alive=false;};},[coachId]);
 
   const stuEvals=selStudent?evals.filter(e=>e.studentId===selStudent.id):[];
   const sortedStuEvals=[...stuEvals].sort((a,b)=>new Date(b.date)-new Date(a.date));
   const lastHeight=sortedStuEvals[0]?.height||'';
-
   const go=v=>{setView(v);setMenu(false);};
-  const saveStu=s=>{setStudents(p=>p.find(x=>x.id===s.id)?p.map(x=>x.id===s.id?s:x):[...p,s]);setSelStudent(s);go('detail');};
-  const delStu=id=>{setStudents(p=>p.filter(s=>s.id!==id));setEvals(p=>p.filter(e=>e.studentId!==id));setSelStudent(null);go('dashboard');};
-  const saveEv=e=>{const ev={...e,studentId:selStudent.id};setEvals(p=>p.find(x=>x.id===ev.id)?p.map(x=>x.id===ev.id?ev:x):[...p,ev]);go('detail');};
-  const delEv=id=>setEvals(p=>p.filter(e=>e.id!==id));
-  const fileRef=useRef();
+
+  const saveStu=async s=>{
+    setSaving(true);
+    const exists=(students||[]).some(x=>x.id===s.id);
+    if(exists){
+      const {error}=await sb.from('assess_students').update(stuToRow(s,coachId)).eq('id',s.id);
+      setSaving(false);if(error){alert('Erro ao salvar: '+error.message);return;}
+      setStudents(p=>p.map(x=>x.id===s.id?s:x));setSelStudent(s);
+    }else{
+      const {data,error}=await sb.from('assess_students').insert(stuToRow(s,coachId)).select().single();
+      setSaving(false);if(error){alert('Erro ao salvar: '+error.message);return;}
+      const ns=rowToStu(data);setStudents(p=>[...p,ns]);setSelStudent(ns);
+    }
+    go('detail');
+  };
+  const delStu=async id=>{
+    const {error}=await sb.from('assess_students').delete().eq('id',id);
+    if(error){alert('Erro ao excluir: '+error.message);return;}
+    setStudents(p=>p.filter(s=>s.id!==id));setEvals(p=>p.filter(e=>e.studentId!==id));setSelStudent(null);go('dashboard');
+  };
+  const saveEv=async e=>{
+    setSaving(true);
+    const ev={...e,studentId:selStudent.id};
+    const exists=evals.some(x=>x.id===ev.id);
+    if(exists){
+      const {error}=await sb.from('assessments').update(evalToRow(ev,coachId)).eq('id',ev.id);
+      setSaving(false);if(error){alert('Erro ao salvar: '+error.message);return;}
+      setEvals(p=>p.map(x=>x.id===ev.id?ev:x));
+    }else{
+      const {data,error}=await sb.from('assessments').insert(evalToRow(ev,coachId)).select().single();
+      setSaving(false);if(error){alert('Erro ao salvar: '+error.message);return;}
+      setEvals(p=>[...p,rowToEval(data)]);
+    }
+    go('detail');
+  };
+  const delEv=async id=>{
+    const {error}=await sb.from('assessments').delete().eq('id',id);
+    if(error){alert('Erro ao excluir: '+error.message);return;}
+    setEvals(p=>p.filter(e=>e.id!==id));
+  };
   const exportData=()=>{
-    const data={app:'MF Performance',v:1,exportedAt:new Date().toISOString(),students,evals};
+    const data={app:'MF Performance',v:2,exportedAt:new Date().toISOString(),coach:profile.name,students,evals};
     const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
     const u=URL.createObjectURL(blob);const a=document.createElement('a');
-    a.href=u;a.download='mf-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click();
-    setTimeout(()=>URL.revokeObjectURL(u),1000);
+    a.href=u;a.download='mf-performance-backup-'+todayStr()+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);
   };
-  const importData=file=>{
-    if(!file)return;const r=new FileReader();
-    r.onload=e=>{try{const d=JSON.parse(e.target.result);
-      if(!Array.isArray(d.students)||!Array.isArray(d.evals))throw 0;
-      if(confirm(`Restaurar backup de ${new Date(d.exportedAt).toLocaleDateString('pt-BR')}?\n\n${d.students.length} aluno(s) e ${d.evals.length} avaliação(ões).\n\n⚠️ Isso SUBSTITUI todos os dados atuais deste aparelho.`)){
-        setStudents(d.students);setEvals(d.evals);setSelStudent(null);go('dashboard');
-        setTimeout(()=>alert('✅ Backup restaurado com sucesso!'),100);
-      }
-    }catch{alert('❌ Arquivo inválido. Selecione um backup .json gerado pelo app.');}};
-    r.readAsText(file);
-  };
+
+  const subUntil=profile.subscription_until;
+  const daysLeft=subUntil?Math.ceil((new Date(subUntil+'T00:00:00')-new Date(todayStr()+'T00:00:00'))/86400000):null;
+
+  if(students===null)return(
+    <div className="app"><div style={{flex:1}}><div className="center-screen"><div style={{textAlign:'center'}}><LogoLifter size={120}/><div className="spinner"/></div></div></div></div>);
 
   return(
     <div className="app">
-      <input ref={fileRef} type="file" accept="application/json,.json" style={{display:'none'}} onChange={e=>{importData(e.target.files[0]);e.target.value='';}}/>
       <div className={`overlay ${menu?'show':''}`} onClick={()=>setMenu(false)}/>
       <div className={`sidebar ${menu?'open':''}`}>
-        <div className="logo-row"><LogoMark size={46}/>
+        <div className="logo-row"><LogoMark size={44}/>
           <div><div className="logo-name">MF Performance</div><div className="logo-sub">Avaliação Física</div></div></div>
         <button className={`nav-btn ${view==='dashboard'?'active':''}`} onClick={()=>go('dashboard')}><span className="nav-ico">🏠</span>Dashboard</button>
         <button className="nav-btn" onClick={()=>{setEditStu(null);go('stu-form');}}><span className="nav-ico">👤</span>Novo aluno</button>
@@ -1230,23 +1335,26 @@ function App(){
           {sortedStuEvals.length>0&&<button className="nav-btn" onClick={()=>{setEditEv(null);setReassess(true);go('ev-form');}}><span className="nav-ico">🔁</span>Reavaliação</button>}
         </>}
         <hr className="nav-divider"/>
-        <div className="nav-section">Dados</div>
         <button className="nav-btn" onClick={exportData}><span className="nav-ico">💾</span>Exportar backup</button>
-        <button className="nav-btn" onClick={()=>fileRef.current.click()}><span className="nav-ico">📥</span>Importar backup</button>
         <div className="sidebar-footer">
-          <button className="btn btn-ghost btn-sm" style={{width:'100%',marginBottom:10}}
-            onClick={()=>{sessionStorage.removeItem('mfp_auth');location.reload();}}>🔒 Sair</button>
-          {students.length} aluno{students.length!==1?'s':''} · {evals.length} avaliaç{evals.length!==1?'ões':'ão'}<br/>
-          <span style={{color:'var(--text2)'}}>Dados salvos neste dispositivo</span></div>
+          <div style={{display:'flex',alignItems:'center',gap:9,marginBottom:10}}>
+            <div className="avatar" style={{width:34,height:34,fontSize:13}}>{initials(profile.name)}</div>
+            <div style={{minWidth:0}}><div style={{fontWeight:600,fontSize:12.5,color:'var(--text)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{profile.name||'Treinador'}</div>
+              {daysLeft!=null&&<div style={{fontSize:10.5,color:daysLeft<=5?'var(--red)':'var(--text3)'}}>Assinatura: {daysLeft} dia{daysLeft!==1?'s':''}</div>}</div>
+          </div>
+          <button className="btn btn-ghost btn-sm" style={{width:'100%'}} onClick={()=>sb.auth.signOut()}>Sair</button>
+          <div style={{marginTop:8}}>{(students||[]).length} aluno{students.length!==1?'s':''} · {evals.length} avaliaç{evals.length!==1?'ões':'ão'} · ☁️ nuvem</div>
+        </div>
       </div>
 
       <div style={{flex:1,display:'flex',flexDirection:'column',minWidth:0}}>
         <div className="topbar no-print">
           <button className="hamb" onClick={()=>setMenu(true)}>☰</button>
-          <LogoMark size={34}/>
-          <div style={{fontWeight:800,fontSize:15,letterSpacing:.3}}>MF Performance</div>
+          <LogoMark size={32}/>
+          <div style={{fontFamily:'var(--serif)',fontWeight:600,fontSize:16}}>MF Performance</div>
         </div>
         <div className="main">
+          {saving&&<div style={{position:'fixed',top:14,right:16,zIndex:80,background:'var(--accent)',color:'var(--cream)',padding:'7px 14px',borderRadius:10,fontSize:12,fontWeight:600,boxShadow:'var(--shadow-lg)'}}>Salvando…</div>}
           {view==='dashboard'&&<Dashboard students={students} evals={evals}
             onSelect={s=>{setSelStudent(s);go('detail');}} onNew={()=>{setEditStu(null);go('stu-form');}} onDelete={delStu}/>}
           {view==='stu-form'&&<StudentForm student={editStu} onSave={saveStu} onCancel={()=>go(selStudent?'detail':'dashboard')}/>}
@@ -1259,16 +1367,44 @@ function App(){
           {view==='ev-form'&&selStudent&&<EvalForm student={selStudent} evalData={editEv}
             carryHeight={reassess?lastHeight:''} isReassess={reassess&&!editEv}
             onSave={saveEv} onCancel={()=>go('detail')}/>}
-          {view==='report'&&selStudent&&selEval&&<Report student={selStudent} evalData={selEval}
+          {view==='report'&&selStudent&&selEval&&<Report student={selStudent} evalData={selEval} coach={profile}
             allEvals={stuEvals} onBack={()=>go('detail')}/>}
         </div>
       </div>
     </div>);
 }
+
+/* ── Root: sessão + perfil + portão de assinatura ── */
 function Root(){
-  const [authed,setAuthed]=useState(()=>sessionStorage.getItem('mfp_auth')==='1');
-  if(!authed)return <Lock onUnlock={()=>setAuthed(true)}/>;
-  return <App/>;
+  const [session,setSession]=useState(undefined);
+  const [profile,setProfile]=useState(undefined);
+  useEffect(()=>{
+    if(!sb)return;
+    sb.auth.getSession().then(({data})=>setSession(data.session||null));
+    const {data:sub}=sb.auth.onAuthStateChange((_e,s)=>{setSession(s||null);if(!s)setProfile(undefined);});
+    return()=>sub.subscription.unsubscribe();
+  },[]);
+  useEffect(()=>{
+    if(!session)return;let alive=true;
+    (async()=>{
+      let {data}=await sb.from('profiles').select('*').eq('id',session.user.id).maybeSingle();
+      if(!data){await new Promise(r=>setTimeout(r,900));const r2=await sb.from('profiles').select('*').eq('id',session.user.id).maybeSingle();data=r2.data;}
+      if(alive)setProfile(data||null);
+    })();return()=>{alive=false;};
+  },[session]);
+
+  if(!CONFIGURED||!sb)return(<div className="center-screen"><div className="auth-wrap"><div className="auth-card"><div className="alert alert-warn">⚙️ Falta configurar o Supabase em <code>config.js</code>.</div></div></div></div>);
+  if(session===undefined)return <div className="center-screen"><div className="spinner"/></div>;
+  if(!session)return <AuthScreen/>;
+  if(profile===undefined)return <div className="center-screen"><div className="spinner"/></div>;
+  if(profile===null)return <BlockScreen title="Não foi possível carregar seu perfil">Saia e entre novamente.</BlockScreen>;
+  if(profile.role!=='coach')return <BlockScreen title="Acesso exclusivo para treinadores">Este app de avaliação física é para treinadores. Sua conta é de aluno.</BlockScreen>;
+  const sub=profile.subscription_until;
+  const expired=!sub||new Date(sub+'T00:00:00')<new Date(todayStr()+'T00:00:00');
+  if(expired)return <BlockScreen title={sub?'Assinatura expirada':'Assinatura pendente'}>
+    {sub?`Sua assinatura venceu em ${fmtDate(sub)}.`:'Sua conta ainda não foi liberada.'} Para reativar o acesso, fale com o administrador do MF Performance.
+  </BlockScreen>;
+  return <App profile={profile}/>;
 }
 ReactDOM.createRoot(document.getElementById('root')).render(<Root/>);
 </script>
