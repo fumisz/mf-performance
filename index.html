@@ -1242,7 +1242,7 @@ function BlockScreen({title,children}){
 function AdminScreen({onBack}){
   const [coaches,setCoaches]=useState(null);
   const [invites,setInvites]=useState([]);
-  const [code,setCode]=useState('');const [label,setLabel]=useState('');const [days,setDays]=useState('30');const [maxUses,setMaxUses]=useState('1');
+  const [code,setCode]=useState('');const [label,setLabel]=useState('');const [days,setDays]=useState('30');const [maxUses,setMaxUses]=useState('1');const [app,setApp]=useState('perf');
   const [busy,setBusy]=useState(false);const [msg,setMsg]=useState(null);
   const reload=async()=>{
     const [c,i]=await Promise.all([sb.rpc('admin_list_coaches'),sb.rpc('admin_list_invites')]);
@@ -1253,15 +1253,28 @@ function AdminScreen({onBack}){
   const create=async()=>{
     if(!code.trim()){setMsg({t:'error',x:'Defina um código.'});return;}
     setBusy(true);
-    const {error}=await sb.rpc('admin_create_invite',{p_code:code.trim(),p_label:label.trim(),p_max:maxUses===''?null:parseInt(maxUses),p_days:days===''?null:parseInt(days)});
+    const {error}=await sb.rpc('admin_create_invite',{p_code:code.trim(),p_label:label.trim(),p_max:maxUses===''?null:parseInt(maxUses),p_days:days===''?null:parseInt(days),p_app:app});
     setBusy(false);
     if(error){setMsg({t:'error',x:error.message});return;}
-    setMsg({t:'success',x:`Código ${code.trim().toUpperCase()} criado.`});setCode('');setLabel('');reload();
+    setMsg({t:'success',x:`Código ${code.trim().toUpperCase()} criado (${app==='both'?'ambos':app==='perf'?'Performance':'Nutrition'}).`});setCode('');setLabel('');reload();
   };
-  const setSub=async(c,d)=>{await sb.rpc('admin_set_subscription',{p_coach:c.id,p_days:d});reload();};
-  const block=async(c)=>{if(confirm(`Bloquear ${c.name||c.email} agora?`)){await sb.rpc('admin_block',{p_coach:c.id});reload();}};
+  const setApp_=async(c,ap,d)=>{await sb.rpc('admin_set_app',{p_coach:c.id,p_app:ap,p_days:d});reload();};
+  const blockApp=async(c,ap)=>{if(confirm(`Bloquear ${ap==='perf'?'Performance':'Nutrition'} de ${c.name||c.email}?`)){await sb.rpc('admin_block_app',{p_coach:c.id,p_app:ap});reload();}};
   const toggleInvite=async(iv)=>{await sb.rpc('admin_set_invite_active',{p_code:iv.code,p_active:!iv.active});reload();};
   const dleft=d=>d?Math.ceil((new Date(d+'T00:00:00')-new Date(todayStr()+'T00:00:00'))/86400000):null;
+  const APPLBL={perf:'Performance',nutri:'Nutrition',both:'Ambos'};
+  function AppRow({c,ap}){
+    const dl=dleft(c[ap+'_until']);const exp=dl==null||dl<0;
+    return(
+      <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap',marginTop:8}}>
+        <span style={{fontSize:12,fontWeight:600,width:88}}>{ap==='perf'?'🏋️ Performance':'🥗 Nutrition'}</span>
+        <span className={`badge ${exp?'br':dl<=7?'bo':'bg'}`}>{c[ap+'_until']?(exp?'expirado':`${dl}d`):'sem acesso'}</span>
+        <button className="btn btn-secondary btn-sm" onClick={()=>setApp_(c,ap,30)}>+30d</button>
+        <button className="btn btn-secondary btn-sm" onClick={()=>setApp_(c,ap,365)}>+1 ano</button>
+        <button className="btn btn-secondary btn-sm" onClick={()=>setApp_(c,ap,36500)}>Vitalício</button>
+        {!exp&&<button className="btn btn-ghost btn-sm" onClick={()=>blockApp(c,ap)}>Bloquear</button>}
+      </div>);
+  }
 
   return(
     <div>
@@ -1280,6 +1293,12 @@ function AdminScreen({onBack}){
               <input className="fi" value={code} onChange={e=>setCode(e.target.value.toUpperCase())} placeholder="EX: JOAO2026" style={{textTransform:'uppercase',letterSpacing:1}}/>
               <button className="btn btn-secondary btn-sm" type="button" onClick={gen}>🎲</button></div></div>
           <FI label="Nome / referência" value={label} onChange={e=>setLabel(e.target.value)} placeholder="Ex: João Personal"/>
+          <div className="fg"><label className="flbl">App liberado</label>
+            <select className="fi" value={app} onChange={e=>setApp(e.target.value)}>
+              <option value="perf">🏋️ Performance</option>
+              <option value="nutri">🥗 Nutrition</option>
+              <option value="both">Ambos</option>
+            </select></div>
           <FI label="Dias de acesso" type="number" value={days} onChange={e=>setDays(e.target.value)} placeholder="30"/>
           <FI label="Usos (vazio = ilimitado)" type="number" value={maxUses} onChange={e=>setMaxUses(e.target.value)} placeholder="1"/>
         </div>
@@ -1293,7 +1312,7 @@ function AdminScreen({onBack}){
             {invites.map(iv=>(
               <div key={iv.code} style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,padding:'10px 12px',background:'var(--bg3)',borderRadius:12,flexWrap:'wrap'}}>
                 <div><span style={{fontWeight:700,letterSpacing:1,fontFamily:'monospace'}}>{iv.code}</span>
-                  <span className="muted" style={{fontSize:12,marginLeft:8}}>{iv.label||'—'} · {iv.uses}/{iv.max_uses??'∞'} usos · {iv.grant_days??30}d{!iv.active&&' · inativo'}</span></div>
+                  <span className="muted" style={{fontSize:12,marginLeft:8}}>{iv.label||'—'} · {APPLBL[iv.app]||'Ambos'} · {iv.uses}/{iv.max_uses??'∞'} usos · {iv.grant_days??30}d{!iv.active&&' · inativo'}</span></div>
                 <button className="btn btn-ghost btn-sm" onClick={()=>toggleInvite(iv)}>{iv.active?'Desativar':'Ativar'}</button>
               </div>))}
           </div>}
@@ -1303,22 +1322,13 @@ function AdminScreen({onBack}){
         <div className="sec-title" style={{marginBottom:14}}>👥 Treinadores ({coaches?coaches.length:'…'})</div>
         {coaches===null?<div className="spinner"/>:coaches.length===0?<div className="muted" style={{fontSize:13}}>Nenhum treinador ainda.</div>:
           <div style={{display:'flex',flexDirection:'column',gap:10}}>
-            {coaches.map(c=>{const dl=dleft(c.subscription_until);const exp=dl==null||dl<0;
-              return(
+            {coaches.map(c=>(
               <div key={c.id} style={{padding:'12px 13px',background:'var(--bg3)',borderRadius:12}}>
-                <div style={{display:'flex',justifyContent:'space-between',gap:10,flexWrap:'wrap',alignItems:'center'}}>
-                  <div><div style={{fontWeight:600}}>{c.name||'(sem nome)'}</div>
-                    <div className="muted" style={{fontSize:12}}>{c.email} · cód. {c.coach_code}</div></div>
-                  <span className={`badge ${exp?'br':dl<=7?'bo':'bg'}`}>{c.subscription_until?(exp?'expirado':`${dl} dias`):'pendente'}</span>
-                </div>
-                <div className="bgroup" style={{marginTop:10}}>
-                  <button className="btn btn-secondary btn-sm" onClick={()=>setSub(c,30)}>+30d</button>
-                  <button className="btn btn-secondary btn-sm" onClick={()=>setSub(c,90)}>+90d</button>
-                  <button className="btn btn-secondary btn-sm" onClick={()=>setSub(c,365)}>+1 ano</button>
-                  <button className="btn btn-secondary btn-sm" onClick={()=>setSub(c,36500)}>Vitalício</button>
-                  <button className="btn btn-ghost btn-sm" onClick={()=>block(c)}>Bloquear</button>
-                </div>
-              </div>);})}
+                <div><div style={{fontWeight:600}}>{c.name||'(sem nome)'}</div>
+                  <div className="muted" style={{fontSize:12}}>{c.email} · cód. {c.coach_code}</div></div>
+                <AppRow c={c} ap="perf"/>
+                <AppRow c={c} ap="nutri"/>
+              </div>))}
           </div>}
       </div>
     </div>);
@@ -1399,7 +1409,7 @@ function App({profile}){
     a.href=u;a.download='mf-performance-backup-'+todayStr()+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);
   };
 
-  const subUntil=profile.subscription_until;
+  const subUntil=profile.perf_until;
   const daysLeft=subUntil?Math.ceil((new Date(subUntil+'T00:00:00')-new Date(todayStr()+'T00:00:00'))/86400000):null;
 
   if(students===null)return(
@@ -1487,10 +1497,10 @@ function Root(){
   if(profile===undefined)return <div className="center-screen"><div className="spinner"/></div>;
   if(profile===null)return <BlockScreen title="Não foi possível carregar seu perfil">Saia e entre novamente.</BlockScreen>;
   if(profile.role!=='coach')return <BlockScreen title="Acesso exclusivo para treinadores">Este app de avaliação física é para treinadores. Sua conta é de aluno.</BlockScreen>;
-  const sub=profile.subscription_until;
+  const sub=profile.perf_until;
   const expired=!sub||new Date(sub+'T00:00:00')<new Date(todayStr()+'T00:00:00');
   if(expired)return <BlockScreen title={sub?'Assinatura expirada':'Assinatura pendente'}>
-    {sub?`Sua assinatura venceu em ${fmtDate(sub)}.`:'Sua conta ainda não foi liberada.'} Para reativar o acesso, fale com o administrador do MF Performance.
+    {sub?`Seu acesso ao MF Performance venceu em ${fmtDate(sub)}.`:'Sua conta ainda não tem acesso ao MF Performance.'} Para liberar, fale com o administrador.
   </BlockScreen>;
   return <App profile={profile}/>;
 }
