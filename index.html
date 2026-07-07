@@ -480,6 +480,32 @@ function classifyVO2(gender,ageYrs,vo2){const v=num(vo2);if(v==null)return null;
 /* 1-RM estimado a partir de carga × repetições (Brzycki) */
 function est1RM(weight,reps){const w=num(weight),r=num(reps);if(!w||!r)return null;if(r<=1)return w;if(r>12)return w*(1+r/30);return +(w/(1.0278-0.0278*r)).toFixed(1);}
 
+/* Protocolo incremental de esteira: VO2máx estimado pela velocidade final (VAM ≈ 3.5 × km/h) */
+function incVO2(vFinalKmh){const v=num(vFinalKmh);if(v==null)return null;return v*3.5;}
+
+/* ── Normas de resistência (referência geral, ajustável) ── mínimos [Excelente,Muito bom,Bom,Razoável] */
+const SITUP_NORMS={ // abdominal em 1 min, por idade/sexo
+  M:{'20':[43,37,33,29],'30':[39,33,29,25],'40':[35,29,25,21],'50':[30,24,20,16],'60':[26,20,16,12]},
+  F:{'20':[38,32,28,24],'30':[34,28,24,20],'40':[30,24,20,16],'50':[25,19,15,11],'60':[20,14,10,6]}
+};
+function classifySitup(gender,ageYrs,reps){return classifyByMin(SITUP_NORMS[gender==='F'?'F':'M'][ageBand(ageYrs)],reps);}
+/* barra fixa (máx. repetições) — referência geral por sexo */
+function classifyPullup(gender,reps){const r=num(reps);if(r==null)return null;
+  const t=gender==='F'?[8,5,3,1]:[15,10,6,3];return classifyByMin(t,reps);}
+/* agachamento em 1 min — referência geral por sexo */
+function classifySquat(gender,reps){const r=num(reps);if(r==null)return null;
+  const t=gender==='F'?[45,37,30,22]:[50,42,34,26];return classifyByMin(t,reps);}
+/* Banco de Wells (sentar-e-alcançar, cm) — mínimos [Excelente,Bom,Média,Fraco] (ref. geral por idade/sexo) */
+const WELLS_NORMS={
+  M:{'20':[34,28,23,16],'30':[33,27,21,15],'40':[31,25,19,13],'50':[29,23,17,10],'60':[27,21,15,8]},
+  F:{'20':[37,33,28,22],'30':[36,32,27,21],'40':[34,30,25,19],'50':[33,28,23,17],'60':[31,26,21,15]}
+};
+function classifyWells(gender,ageYrs,cm){const v=num(cm);if(v==null)return null;
+  const t=WELLS_NORMS[gender==='F'?'F':'M'][ageBand(ageYrs)];
+  const labs=[{l:'Excelente',c:'bg'},{l:'Bom',c:'bg'},{l:'Média',c:'bb'},{l:'Fraco',c:'ba'}];
+  for(let i=0;i<t.length;i++)if(v>=t[i])return labs[i];
+  return{l:'Ruim',c:'br'};}
+
 /* ── Derived metrics for an eval ── */
 function derive(student,ev){
   const a=age(student.dob)||25;
@@ -570,6 +596,43 @@ function PhotoUpload({value,onChange}){
         {value&&<button className="btn btn-ghost btn-sm" onClick={()=>onChange('')}>Remover</button>}
         <input ref={ref} type="file" accept="image/*" capture="environment" style={{display:'none'}} onChange={e=>pick(e.target.files[0])}/>
       </div>
+    </div>);
+}
+
+/* Sobreposição de fio de prumo + grade sobre a foto postural */
+function PlumbOverlay({plumb=50,grid=true}){
+  return(
+    <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{position:'absolute',inset:0,width:'100%',height:'100%',pointerEvents:'none'}}>
+      {grid&&<g stroke="rgba(176,137,79,.45)" strokeWidth="0.4">
+        <line x1="33.3" y1="0" x2="33.3" y2="100"/><line x1="66.6" y1="0" x2="66.6" y2="100"/>
+        <line x1="0" y1="33.3" x2="100" y2="33.3"/><line x1="0" y1="66.6" x2="100" y2="66.6"/>
+      </g>}
+      <line x1={plumb} y1="0" x2={plumb} y2="100" stroke="#b3434f" strokeWidth="0.7" strokeDasharray="2 1.5"/>
+    </svg>);
+}
+/* Upload de foto postural com prumo ajustável (form) */
+function PlumbPhoto({label,photo,plumb,onPhoto,onPlumb}){
+  const ref=useRef();
+  const pick=f=>{if(!f)return;const r=new FileReader();r.onload=e=>{
+    const img=new Image();img.onload=()=>{const c=document.createElement('canvas');const m=760;let{width:w,height:h}=img;
+      const sc=Math.min(m/w,m/h,1);c.width=w*sc;c.height=h*sc;c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+      onPhoto(c.toDataURL('image/jpeg',0.72));};img.src=e.target.result;};r.readAsDataURL(f);};
+  return(
+    <div className="fg"><label className="flbl">{label}</label>
+      {photo?<>
+        <div style={{position:'relative',borderRadius:12,overflow:'hidden',border:'1px solid var(--border2)',background:'#000',maxWidth:220}}>
+          <img src={photo} alt="" style={{display:'block',width:'100%'}}/>
+          <PlumbOverlay plumb={plumb??50}/>
+        </div>
+        <div style={{display:'flex',alignItems:'center',gap:8,marginTop:6,maxWidth:220}}>
+          <span style={{fontSize:11,color:'var(--text2)'}}>Prumo</span>
+          <input type="range" min="0" max="100" value={plumb??50} onChange={e=>onPlumb(parseInt(e.target.value))} style={{flex:1}}/>
+          <button className="btn btn-ghost btn-sm" onClick={()=>onPhoto('')}>✕</button>
+        </div>
+      </>:
+        <div className="photo-up" style={{width:'100%',maxWidth:220,height:150}} onClick={()=>ref.current.click()}>
+          <div className="photo-ph"><span className="photo-ph-icon">📷</span>{label}<br/>toque p/ adicionar</div></div>}
+      <input ref={ref} type="file" accept="image/*" capture="environment" style={{display:'none'}} onChange={e=>pick(e.target.files[0])}/>
     </div>);
 }
 
@@ -723,10 +786,17 @@ function EvalForm({student,evalData,carryHeight,isReassess,onSave,onCancel}){
           <div className="fg"><label className="flbl">{label}</label>
             <select className="fi" value={f[key]||''} onChange={e=>upd(key,e.target.value)}>
               <option value="">—</option>{opts.map(o=><option key={o} value={o}>{o}</option>)}</select></div>);
-          const pAge=age(student.dob);
-          const puCls=classifyPushup(student.gender,pAge,f.res_pushup);
-          const vo2=num(f.cooper_dist)?cooperVO2(f.cooper_dist):num(f.vo2max);
-          const vo2Cls=classifyVO2(student.gender,pAge,vo2);
+          const pAge=age(student.dob);const G=student.gender;
+          const puCls=classifyPushup(G,pAge,f.res_pushup);
+          const siCls=classifySitup(G,pAge,f.res_situp);
+          const sqCls=classifySquat(G,f.res_squat);
+          const puuCls=classifyPullup(G,f.res_pullup);
+          const wCls=classifyWells(G,pAge,f.flex_wells);
+          const vo2=num(f.inc_vfinal)?incVO2(f.inc_vfinal):(num(f.cooper_dist)?cooperVO2(f.cooper_dist):num(f.vo2max));
+          const vo2Cls=classifyVO2(G,pAge,vo2);
+          const PhotoField=(lbl,k)=><PlumbPhoto label={lbl} photo={f['post_photo_'+k]} plumb={f['post_plumb_'+k]}
+            onPhoto={v=>upd('post_photo_'+k,v)} onPlumb={v=>upd('post_plumb_'+k,v)}/>;
+          const badgeLine=(lbl,cls,val,unit)=>cls?<div style={{marginTop:8}}><span style={{fontSize:12,color:'var(--text2)'}}>{lbl}: <strong style={{color:'var(--text)'}}>{val} {unit}</strong></span> <Badge cls={cls.c}>{cls.l}</Badge></div>:null;
           return(<>
           <div className="sec"><div className="sec-title">🧍 Avaliação postural</div>
             <div className="fgrid2">
@@ -740,6 +810,10 @@ function EvalForm({student,evalData,carryHeight,isReassess,onSave,onCancel}){
               {SEL('Pés','post_feet',['Neutros','Plano','Cavo','Abduzido'])}
             </div>
             <div style={{marginTop:12}}><FTA label="Observações posturais" value={f.post_obs||''} onChange={e=>upd('post_obs',e.target.value)} placeholder="Assimetrias, compensações, encurtamentos..."/></div>
+            <div style={{marginTop:14,fontSize:12,color:'var(--text2)',fontWeight:600}}>📸 Fotos posturais (com fio de prumo ajustável)</div>
+            <div className="fgrid" style={{gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',marginTop:8}}>
+              {PhotoField('Frente','front')}{PhotoField('Lateral','side')}{PhotoField('Costas','back')}
+            </div>
           </div>
 
           <div className="sec"><div className="sec-title">💪 Testes de resistência muscular</div>
@@ -749,16 +823,38 @@ function EvalForm({student,evalData,carryHeight,isReassess,onSave,onCancel}){
               {N('Agachamento (1 min)','res_squat','reps')}
               {N('Barra fixa','res_pullup','reps')}
             </div>
-            {puCls&&<div className="alert alert-info" style={{marginTop:12}}>Flexão de braço: <strong>{f.res_pushup} reps</strong> — <Badge cls={puCls.c}>{puCls.l}</Badge> <span style={{color:'var(--text3)'}}>(ref. ACSM por idade/sexo)</span></div>}
+            {badgeLine('Flexão de braço',puCls,f.res_pushup,'reps')}
+            {badgeLine('Abdominal',siCls,f.res_situp,'reps')}
+            {badgeLine('Agachamento',sqCls,f.res_squat,'reps')}
+            {badgeLine('Barra fixa',puuCls,f.res_pullup,'reps')}
           </div>
 
-          <div className="sec"><div className="sec-title">🏃 Teste cardiorrespiratório (esteira)</div>
-            <div className="alert alert-info">Teste de Cooper: distância máxima em 12 minutos. O VO₂máx é estimado automaticamente. (Ou informe o VO₂máx direto, se usar outro protocolo.)</div>
+          <div className="sec"><div className="sec-title">🤸 Flexibilidade &amp; encurtamentos</div>
             <div className="fgrid2">
-              {N('Cooper — distância (12 min)','cooper_dist','m','2400')}
-              {N('VO₂máx (se medido)','vo2max','mL/kg/min')}
+              {N('Banco de Wells','flex_wells','cm')}
+              {SEL('Isquiotibiais','short_hamstring',['Normal','Encurtado leve','Encurtado moderado','Encurtado severo'])}
+              {SEL('Iliopsoas (Thomas)','short_iliopsoas',['Normal','Encurtado D','Encurtado E','Encurtado bilateral'])}
+              {SEL('Reto femoral','short_rectus',['Normal','Encurtado D','Encurtado E','Encurtado bilateral'])}
+              {SEL('Tríceps sural (panturrilha)','short_calf',['Normal','Encurtado leve','Encurtado moderado'])}
+              {SEL('Peitoral','short_pec',['Normal','Encurtado leve','Encurtado moderado'])}
             </div>
-            {vo2!=null&&<div className="alert alert-success" style={{marginTop:12}}>VO₂máx: <strong>{fmt(vo2)} mL/kg/min</strong>{vo2Cls&&<> — <Badge cls={vo2Cls.c}>{vo2Cls.l}</Badge></>}</div>}
+            {badgeLine('Banco de Wells',wCls,f.flex_wells,'cm')}
+            <div style={{marginTop:10}}><FTA label="Observações de flexibilidade" value={f.flex_obs||''} onChange={e=>upd('flex_obs',e.target.value)} placeholder="Outros testes, ângulos, assimetrias..."/></div>
+          </div>
+
+          <div className="sec"><div className="sec-title">🏃 Teste cardiorrespiratório (esteira incremental)</div>
+            <div className="alert alert-info">Protocolo incremental: aquecer 5 min na velocidade inicial, aumentando <strong>0,5 km/h a cada minuto</strong>; a partir do 5º min, aumentar <strong>1 km/h a cada minuto</strong> até a fadiga. Registre a velocidade final e o tempo. O VO₂máx é estimado pela velocidade final (VAM).</div>
+            <div className="fgrid2">
+              {N('Velocidade inicial','inc_v0','km/h','6')}
+              {N('Velocidade final atingida','inc_vfinal','km/h','15')}
+              {N('Tempo total','inc_time','min')}
+            </div>
+            <details style={{marginTop:10}}><summary style={{cursor:'pointer',fontSize:12,color:'var(--text2)'}}>Outros protocolos (Cooper / VO₂ direto)</summary>
+              <div className="fgrid2" style={{marginTop:10}}>
+                {N('Cooper — distância (12 min)','cooper_dist','m','2400')}
+                {N('VO₂máx (se medido)','vo2max','mL/kg/min')}
+              </div></details>
+            {vo2!=null&&<div className="alert alert-success" style={{marginTop:12}}>VO₂máx estimado: <strong>{fmt(vo2)} mL/kg/min</strong>{vo2Cls&&<> — <Badge cls={vo2Cls.c}>{vo2Cls.l}</Badge></>}</div>}
           </div>
 
           <div className="sec"><div className="sec-title">🏋️ Teste de força — 1‑RM</div>
@@ -1211,18 +1307,38 @@ function Report({student,evalData,allEvals,onBack,coach}){
             </div>
           </div>
 
+          {/* Fotos posturais com fio de prumo */}
+          {(()=>{
+            const PH=[['Frente','front'],['Lateral','side'],['Costas','back']];
+            const has=PH.some(([,k])=>evalData['post_photo_'+k]);
+            if(!has)return null;
+            return(<div className="rpt-sec"><div className="rpt-sec-title">📸 Análise postural (fotos com fio de prumo)</div>
+              <div style={{display:'flex',gap:14,flexWrap:'wrap'}}>
+                {PH.map(([lbl,k])=>evalData['post_photo_'+k]?(
+                  <div key={k} style={{textAlign:'center'}}>
+                    <div style={{position:'relative',width:150,borderRadius:8,overflow:'hidden',border:'1px solid #e5e7eb'}}>
+                      <img src={evalData['post_photo_'+k]} alt="" style={{display:'block',width:'100%'}}/>
+                      <PlumbOverlay plumb={evalData['post_plumb_'+k]??50}/>
+                    </div>
+                    <div style={{fontSize:11,color:'#6b7280',marginTop:4}}>{lbl}</div>
+                  </div>):null)}
+              </div></div>);
+          })()}
+
           {/* Postural / testes físicos */}
           {(()=>{
-            const pAge=age(student.dob);
+            const pAge=age(student.dob);const G=student.gender;
             const POST=[['Cabeça','post_head'],['Ombros','post_shoulders'],['Coluna torácica','post_thoracic'],['Coluna lombar','post_lumbar'],['Coluna (frontal)','post_spine'],['Pelve','post_pelvis'],['Joelhos','post_knees'],['Pés','post_feet']];
+            const SHORT=[['Isquiotibiais','short_hamstring'],['Iliopsoas','short_iliopsoas'],['Reto femoral','short_rectus'],['Tríceps sural','short_calf'],['Peitoral','short_pec']];
             const hasPost=POST.some(([,k])=>evalData[k])||evalData.post_obs;
+            const hasFlex=num(evalData.flex_wells)!=null||SHORT.some(([,k])=>evalData[k])||evalData.flex_obs;
             const hasRes=['res_pushup','res_situp','res_squat','res_pullup'].some(k=>num(evalData[k]));
-            const vo2=num(evalData.cooper_dist)?cooperVO2(evalData.cooper_dist):num(evalData.vo2max);
+            const vo2=num(evalData.inc_vfinal)?incVO2(evalData.inc_vfinal):(num(evalData.cooper_dist)?cooperVO2(evalData.cooper_dist):num(evalData.vo2max));
             const RM=[['Supino','bench'],['Agachamento','squat'],['Levantamento terra','dead'],['Desenvolvimento','ohp'],['Remada','row']];
             const hasRM=RM.some(([,k])=>num(evalData['rm_'+k+'_w']));
-            const puCls=classifyPushup(student.gender,pAge,evalData.res_pushup);
-            const vo2Cls=classifyVO2(student.gender,pAge,vo2);
-            if(!hasPost&&!hasRes&&vo2==null&&!hasRM)return null;
+            const puCls=classifyPushup(G,pAge,evalData.res_pushup),siCls=classifySitup(G,pAge,evalData.res_situp),sqCls=classifySquat(G,evalData.res_squat),puuCls=classifyPullup(G,evalData.res_pullup),wCls=classifyWells(G,pAge,evalData.flex_wells);
+            const vo2Cls=classifyVO2(G,pAge,vo2);
+            if(!hasPost&&!hasFlex&&!hasRes&&vo2==null&&!hasRM)return null;
             return(<div className="rpt-grid">
               <div>
                 {hasPost&&<div className="rpt-sec"><div className="rpt-sec-title">🧍 Avaliação postural</div>
@@ -1231,9 +1347,18 @@ function Report({student,evalData,allEvals,onBack,coach}){
                   </tbody></table>
                   {evalData.post_obs&&<p style={{fontSize:12,color:'var(--text2)',marginTop:8,lineHeight:1.6}}>{evalData.post_obs}</p>}
                 </div>}
+                {hasFlex&&<div className="rpt-sec"><div className="rpt-sec-title">🤸 Flexibilidade &amp; encurtamentos</div>
+                  <table className="rpt-tbl"><tbody>
+                    {num(evalData.flex_wells)!=null&&<Row lbl="Banco de Wells" val={evalData.flex_wells} unit="cm" badge={wCls} prev={prevEval?.flex_wells}/>}
+                    {SHORT.map(([lbl,k])=>evalData[k]?<tr key={k}><td>{lbl}</td><td style={{textAlign:'left',fontWeight:400}}>{evalData[k]}</td></tr>:null)}
+                  </tbody></table>
+                  {evalData.flex_obs&&<p style={{fontSize:12,color:'var(--text2)',marginTop:8,lineHeight:1.6}}>{evalData.flex_obs}</p>}
+                </div>}
                 {(vo2!=null)&&<div className="rpt-sec"><div className="rpt-sec-title">🏃 Cardiorrespiratório</div>
                   <table className="rpt-tbl"><tbody>
-                    <Row lbl="Cooper (12 min)" val={evalData.cooper_dist} unit="m" prev={prevEval?.cooper_dist}/>
+                    {num(evalData.inc_vfinal)&&<Row lbl="Esteira — vel. final" val={evalData.inc_vfinal} unit="km/h" prev={prevEval?.inc_vfinal}/>}
+                    {num(evalData.inc_time)&&<Row lbl="Tempo total" val={evalData.inc_time} unit="min" prev={prevEval?.inc_time}/>}
+                    {num(evalData.cooper_dist)&&<Row lbl="Cooper (12 min)" val={evalData.cooper_dist} unit="m" prev={prevEval?.cooper_dist}/>}
                     <tr><td><strong>VO₂máx</strong></td><td style={{fontWeight:700}}>{fmt(vo2)} mL/kg/min{vo2Cls&&<span className={`badge ${vo2Cls.c}`} style={{marginLeft:6}}>{vo2Cls.l}</span>}</td>{prevEval&&<td/>}</tr>
                   </tbody></table></div>}
               </div>
@@ -1241,9 +1366,9 @@ function Report({student,evalData,allEvals,onBack,coach}){
                 {hasRes&&<div className="rpt-sec"><div className="rpt-sec-title">💪 Resistência muscular</div>
                   <table className="rpt-tbl"><tbody>
                     <Row lbl="Flexão de braço" val={evalData.res_pushup} unit="reps" badge={puCls} prev={prevEval?.res_pushup}/>
-                    <Row lbl="Abdominal (1 min)" val={evalData.res_situp} unit="reps" prev={prevEval?.res_situp}/>
-                    <Row lbl="Agachamento (1 min)" val={evalData.res_squat} unit="reps" prev={prevEval?.res_squat}/>
-                    <Row lbl="Barra fixa" val={evalData.res_pullup} unit="reps" prev={prevEval?.res_pullup}/>
+                    <Row lbl="Abdominal (1 min)" val={evalData.res_situp} unit="reps" badge={siCls} prev={prevEval?.res_situp}/>
+                    <Row lbl="Agachamento (1 min)" val={evalData.res_squat} unit="reps" badge={sqCls} prev={prevEval?.res_squat}/>
+                    <Row lbl="Barra fixa" val={evalData.res_pullup} unit="reps" badge={puuCls} prev={prevEval?.res_pullup}/>
                   </tbody></table></div>}
                 {hasRM&&<div className="rpt-sec"><div className="rpt-sec-title">🏋️ Força — 1‑RM estimado</div>
                   <table className="rpt-tbl"><tbody>
@@ -1524,16 +1649,45 @@ function ProtocolsScreen({onBack}){
         <ProtoLabel>Barra fixa</ProtoLabel>Pegada pronada, braços estendidos; elevar até o queixo passar da barra e descer com controle. Contar o máximo de repetições sem pausa.
       </Proto>
 
-      <Proto title="🏃 Teste de Cooper (esteira / pista)">
+      <Proto title="🤸 Flexibilidade — Banco de Wells &amp; encurtamentos">
+        <ProtoLabel>Banco de Wells (sentar-e-alcançar)</ProtoLabel>
+        <Steps items={[
+          'Aluno sentado, pernas estendidas e pés apoiados na base do banco (descalço).',
+          'Braços estendidos, uma mão sobre a outra; inclinar o tronco lentamente à frente.',
+          'Empurrar o cursor o mais longe possível e sustentar ~2 s, sem flexionar os joelhos.',
+          'Registrar a maior das 3 tentativas, em centímetros.'
+        ]}/>
+        <ProtoLabel>Testes de encurtamento (registre Normal / Encurtado)</ProtoLabel>
+        <Steps items={[
+          'Isquiotibiais: elevação da perna estendida (ou ângulo poplíteo) — limitação indica encurtamento.',
+          'Iliopsoas / reto femoral (Teste de Thomas): deitado, um joelho ao peito; a coxa oposta que se eleva indica encurtamento.',
+          'Tríceps sural: dorsiflexão do tornozelo com joelho estendido.',
+          'Peitoral: em decúbito, ombro que não encosta na maca indica encurtamento.'
+        ]}/>
+      </Proto>
+
+      <Proto title="🏃 Teste incremental de esteira (VO₂máx / resistência)">
+        <ProtoLabel>Protocolo</ProtoLabel>
+        <Steps items={[
+          'Aquecer 5 minutos na velocidade inicial (ex.: 6 km/h).',
+          'Nesses 5 min, aumentar 0,5 km/h a cada minuto.',
+          'A partir do 5º minuto, aumentar 1 km/h a cada minuto.',
+          'Manter até a fadiga voluntária (aluno não sustenta o ritmo).',
+          'Registrar a velocidade final atingida e o tempo total.'
+        ]}/>
+        <ProtoLabel>Estimativa</ProtoLabel>
+        VO₂máx (mL/kg/min) ≈ velocidade final (km/h) × 3,5. O app calcula e classifica por idade e sexo. Também aceita o teste de Cooper (distância em 12 min) como alternativa.
+      </Proto>
+
+      <Proto title="🏃 Teste de Cooper (alternativa)">
         <ProtoLabel>Como fazer</ProtoLabel>
         <Steps items={[
           'Aquecer 5 minutos em intensidade leve.',
-          'Percorrer a maior distância possível em 12 minutos (correndo ou alternando com caminhada).',
-          'Registrar a distância total em metros.',
-          'Fazer volta à calma ao final.'
+          'Percorrer a maior distância possível em 12 minutos.',
+          'Registrar a distância total em metros.'
         ]}/>
         <ProtoLabel>Cálculo</ProtoLabel>
-        VO₂máx (mL/kg/min) = (distância em metros − 504,9) ÷ 44,73. O app calcula e classifica por idade e sexo automaticamente.
+        VO₂máx (mL/kg/min) = (distância em metros − 504,9) ÷ 44,73.
       </Proto>
 
       <Proto title="🏋️ Teste de 1‑RM (força máxima)">

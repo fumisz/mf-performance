@@ -1,4 +1,4 @@
-const CACHE='mfp-v6';
+const CACHE='mfp-v7';
 const ASSETS=[
   './','./index.html','./config.js','./manifest.json',
   './lib/react.js','./lib/react-dom.js','./lib/babel.js',
