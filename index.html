@@ -718,6 +718,16 @@ const BLANK_EVAL={date:new Date().toISOString().slice(0,10),
   circ_shoulders:'',circ_chest:'',circ_waist:'',circ_abdomen:'',circ_hip:'',
   circ_arm_r:'',circ_arm_l:'',circ_thigh_r:'',circ_thigh_l:'',circ_calf_r:'',circ_calf_l:'',obs:''};
 
+/* Protocolos selecionáveis por avaliação */
+const EVAL_MODULES=[['bp','🩺 Pressão'],['dyn','✊ Dinamometria'],['bio','⚡ Bioimpedância'],['skin','📐 Dobras'],['circ','📏 Circunferências'],['postural','🧍 Postural'],['resist','💪 Resistência'],['flex','🤸 Flexibilidade'],['cardio','🏃 Cardio'],['strength','🏋️ 1‑RM']];
+const EVAL_PRESETS=[
+  ['Completa',['bp','dyn','bio','skin','circ','postural','resist','flex','cardio','strength']],
+  ['Só bioimpedância',['bio']],
+  ['Composição',['bio','skin','circ']],
+  ['Saúde',['bp','bio','circ','flex','cardio']],
+  ['Performance',['dyn','postural','resist','flex','cardio','strength']]
+];
+
 function EvalForm({student,evalData,carryHeight,isReassess,onSave,onCancel}){
   const [f,setF]=useState(evalData||{...BLANK_EVAL,height:carryHeight||''});
   const upd=(k,v)=>setF(p=>({...p,[k]:v}));
@@ -727,6 +737,10 @@ function EvalForm({student,evalData,carryHeight,isReassess,onSave,onCancel}){
   const a=age(student.dob)||25;
   const d=derive(student,f);
   const bmiCls=classifyBMI(d.bmi),bpCls=classifyBP(f.bp_sys,f.bp_dia),fatCls=classifyFat(student.gender,a,d.fatPct);
+  const mods=f._mods||EVAL_MODULES.map(m=>m[0]);
+  const has=k=>mods.includes(k);
+  const toggleMod=k=>upd('_mods',has(k)?mods.filter(x=>x!==k):[...mods,k]);
+  const setPreset=arr=>upd('_mods',arr);
   return(
     <div>
       <div className="abar">
@@ -746,6 +760,19 @@ function EvalForm({student,evalData,carryHeight,isReassess,onSave,onCancel}){
           {d.dynAvg&&<Stat lbl="Preensão média" val={fmt(d.dynAvg)} unit="kgf"/>}
           {d.rcq&&<Stat lbl="Cintura/Quadril" val={fmt(d.rcq,2)}/>}
         </div>)}
+      <div className="card" style={{marginBottom:16}}>
+        <div className="sec-title" style={{marginBottom:12}}>🧩 Protocolos desta avaliação</div>
+        <div className="bgroup" style={{marginBottom:12}}>
+          {EVAL_PRESETS.map(([lbl,arr])=><button key={lbl} type="button" className="btn btn-ghost btn-sm" onClick={()=>setPreset(arr)}>{lbl}</button>)}
+        </div>
+        <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
+          {EVAL_MODULES.map(([k,lbl])=>(
+            <button key={k} type="button" onClick={()=>toggleMod(k)}
+              style={{padding:'8px 12px',borderRadius:20,fontSize:12.5,fontWeight:600,cursor:'pointer',border:'1px solid '+(has(k)?'var(--accent)':'var(--border2)'),background:has(k)?'var(--accent)':'transparent',color:has(k)?'var(--cream)':'var(--text2)'}}>
+              {has(k)?'✓ ':''}{lbl}</button>))}
+        </div>
+        <div style={{fontSize:11.5,color:'var(--text3)',marginTop:10}}>Só os protocolos marcados aparecem abaixo e no relatório. (Data, peso e estatura estão sempre presentes.)</div>
+      </div>
       <div className="card">
         <div className="sec"><div className="sec-title">📅 Data e medidas básicas</div>
           <div className="fgrid">
@@ -754,34 +781,34 @@ function EvalForm({student,evalData,carryHeight,isReassess,onSave,onCancel}){
           </div>
           {d.bmi&&<div className="alert alert-info" style={{marginTop:13}}>IMC: <strong>{fmt(d.bmi)} kg/m²</strong>{bmiCls&&<> — <Badge cls={bmiCls.c}>{bmiCls.l}</Badge></>}</div>}
         </div>
-        <div className="sec"><div className="sec-title">🩺 Pressão arterial</div>
+        {has('bp')&&<div className="sec"><div className="sec-title">🩺 Pressão arterial</div>
           <div className="fgrid">{N('Sistólica','bp_sys','mmHg','120')}{N('Diastólica','bp_dia','mmHg','80')}</div>
           {bpCls&&<div style={{marginTop:9}}><Badge cls={bpCls.c}>{bpCls.l}</Badge></div>}
-        </div>
-        <div className="sec"><div className="sec-title">✊ Dinamometria — preensão manual</div>
+        </div>}
+        {has('dyn')&&<div className="sec"><div className="sec-title">✊ Dinamometria — preensão manual</div>
           <div className="fgrid">{N('Mão direita','dyn_r','kgf','35')}{N('Mão esquerda','dyn_l','kgf','32')}</div>
           {d.dynAvg&&<div style={{marginTop:9,fontSize:12,color:'var(--text2)'}}>Média: <strong style={{color:'var(--text)'}}>{fmt(d.dynAvg)} kgf</strong></div>}
-        </div>
-        <div className="sec"><div className="sec-title">⚡ Bioimpedância</div>
+        </div>}
+        {has('bio')&&<div className="sec"><div className="sec-title">⚡ Bioimpedância</div>
           <div className="fgrid2">{N('% Gordura corporal','bio_fat','%','18.5')}{N('Massa muscular','bio_muscle','kg','32')}
             {N('% Músculo esquelético','bio_muscle_pct','%','42')}{N('Massa magra','bio_lean','kg','58')}{N('% Água corporal','bio_water','%','55')}
             {N('Massa óssea','bio_bone','kg','3.2')}{N('Gordura visceral','bio_visceral','nível','5')}
             {N('Taxa metab. basal (TMB)','bio_bmr','kcal','1750')}{N('Idade metabólica','bio_metabage','anos','28')}</div>
-        </div>
-        <div className="sec"><div className="sec-title">📐 Dobras cutâneas</div>
+        </div>}
+        {has('skin')&&<div className="sec"><div className="sec-title">📐 Dobras cutâneas</div>
           <div className="alert alert-info">Preencha as 7 dobras com ★ (tórax, axilar, tríceps, subescapular, abdominal, suprailíaca e coxa) para o cálculo automático de % de gordura — protocolo Jackson-Pollock 7.</div>
           <div className="fgrid2">{N('Tríceps ★','sf_triceps','mm')}{N('Subescapular ★','sf_subscapular','mm')}{N('Bíceps','sf_biceps','mm')}
             {N('Tórax/Peitoral ★','sf_chest','mm')}{N('Axilar média ★','sf_midaxillary','mm')}{N('Suprailíaca ★','sf_suprailiac','mm')}
             {N('Abdominal ★','sf_abdomen','mm')}{N('Coxa ★','sf_thigh','mm')}{N('Panturrilha','sf_calf','mm')}</div>
           {d.jp!=null&&<div className="alert alert-success" style={{marginTop:13}}>% Gordura (JP7): <strong>{fmt(d.jp)}%</strong>{fatCls&&<> — <Badge cls={fatCls.c}>{fatCls.l}</Badge></>}</div>}
-        </div>
-        <div className="sec"><div className="sec-title">📏 Circunferências</div>
+        </div>}
+        {has('circ')&&<div className="sec"><div className="sec-title">📏 Circunferências</div>
           <div className="fgrid2">{N('Ombros','circ_shoulders','cm')}{N('Tórax','circ_chest','cm')}{N('Cintura','circ_waist','cm')}
             {N('Abdômen','circ_abdomen','cm')}{N('Quadril','circ_hip','cm')}{N('Braço dir. contraído','circ_arm_r','cm')}
             {N('Braço esq. contraído','circ_arm_l','cm')}{N('Coxa direita','circ_thigh_r','cm')}{N('Coxa esquerda','circ_thigh_l','cm')}
             {N('Panturrilha dir.','circ_calf_r','cm')}{N('Panturrilha esq.','circ_calf_l','cm')}</div>
           {d.rcq&&<div style={{marginTop:9,fontSize:12,color:'var(--text2)'}}>Relação cintura/quadril: <strong style={{color:'var(--text)'}}>{fmt(d.rcq,2)}</strong></div>}
-        </div>
+        </div>}
         {(()=>{const SEL=(label,key,opts)=>(
           <div className="fg"><label className="flbl">{label}</label>
             <select className="fi" value={f[key]||''} onChange={e=>upd(key,e.target.value)}>
@@ -798,7 +825,7 @@ function EvalForm({student,evalData,carryHeight,isReassess,onSave,onCancel}){
             onPhoto={v=>upd('post_photo_'+k,v)} onPlumb={v=>upd('post_plumb_'+k,v)}/>;
           const badgeLine=(lbl,cls,val,unit)=>cls?<div style={{marginTop:8}}><span style={{fontSize:12,color:'var(--text2)'}}>{lbl}: <strong style={{color:'var(--text)'}}>{val} {unit}</strong></span> <Badge cls={cls.c}>{cls.l}</Badge></div>:null;
           return(<>
-          <div className="sec"><div className="sec-title">🧍 Avaliação postural</div>
+          {has('postural')&&<div className="sec"><div className="sec-title">🧍 Avaliação postural</div>
             <div className="fgrid2">
               {SEL('Cabeça','post_head',['Alinhada','Anteriorizada','Inclinada D','Inclinada E','Rotada'])}
               {SEL('Ombros','post_shoulders',['Nivelados','Elevado D','Elevado E','Protraídos'])}
@@ -814,9 +841,9 @@ function EvalForm({student,evalData,carryHeight,isReassess,onSave,onCancel}){
             <div className="fgrid" style={{gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',marginTop:8}}>
               {PhotoField('Frente','front')}{PhotoField('Lateral','side')}{PhotoField('Costas','back')}
             </div>
-          </div>
+          </div>}
 
-          <div className="sec"><div className="sec-title">💪 Testes de resistência muscular</div>
+          {has('resist')&&<div className="sec"><div className="sec-title">💪 Testes de resistência muscular</div>
             <div className="fgrid2">
               {N('Flexão de braço','res_pushup','reps')}
               {N('Abdominal (1 min)','res_situp','reps')}
@@ -827,9 +854,9 @@ function EvalForm({student,evalData,carryHeight,isReassess,onSave,onCancel}){
             {badgeLine('Abdominal',siCls,f.res_situp,'reps')}
             {badgeLine('Agachamento',sqCls,f.res_squat,'reps')}
             {badgeLine('Barra fixa',puuCls,f.res_pullup,'reps')}
-          </div>
+          </div>}
 
-          <div className="sec"><div className="sec-title">🤸 Flexibilidade &amp; encurtamentos</div>
+          {has('flex')&&<div className="sec"><div className="sec-title">🤸 Flexibilidade &amp; encurtamentos</div>
             <div className="fgrid2">
               {N('Banco de Wells','flex_wells','cm')}
               {SEL('Isquiotibiais','short_hamstring',['Normal','Encurtado leve','Encurtado moderado','Encurtado severo'])}
@@ -840,9 +867,9 @@ function EvalForm({student,evalData,carryHeight,isReassess,onSave,onCancel}){
             </div>
             {badgeLine('Banco de Wells',wCls,f.flex_wells,'cm')}
             <div style={{marginTop:10}}><FTA label="Observações de flexibilidade" value={f.flex_obs||''} onChange={e=>upd('flex_obs',e.target.value)} placeholder="Outros testes, ângulos, assimetrias..."/></div>
-          </div>
+          </div>}
 
-          <div className="sec"><div className="sec-title">🏃 Teste cardiorrespiratório (esteira incremental)</div>
+          {has('cardio')&&<div className="sec"><div className="sec-title">🏃 Teste cardiorrespiratório (esteira incremental)</div>
             <div className="alert alert-info">Protocolo incremental: aquecer 5 min na velocidade inicial, aumentando <strong>0,5 km/h a cada minuto</strong>; a partir do 5º min, aumentar <strong>1 km/h a cada minuto</strong> até a fadiga. Registre a velocidade final e o tempo. O VO₂máx é estimado pela velocidade final (VAM).</div>
             <div className="fgrid2">
               {N('Velocidade inicial','inc_v0','km/h','6')}
@@ -855,9 +882,9 @@ function EvalForm({student,evalData,carryHeight,isReassess,onSave,onCancel}){
                 {N('VO₂máx (se medido)','vo2max','mL/kg/min')}
               </div></details>
             {vo2!=null&&<div className="alert alert-success" style={{marginTop:12}}>VO₂máx estimado: <strong>{fmt(vo2)} mL/kg/min</strong>{vo2Cls&&<> — <Badge cls={vo2Cls.c}>{vo2Cls.l}</Badge></>}</div>}
-          </div>
+          </div>}
 
-          <div className="sec"><div className="sec-title">🏋️ Teste de força — 1‑RM</div>
+          {has('strength')&&<div className="sec"><div className="sec-title">🏋️ Teste de força — 1‑RM</div>
             <div className="alert alert-info">Informe a carga e as repetições até a falha; o 1‑RM estimado é calculado (fórmula de Brzycki). Para 1‑RM direto, use 1 repetição.</div>
             {[['Supino','bench'],['Agachamento','squat'],['Levantamento terra','dead'],['Desenvolvimento','ohp'],['Remada','row']].map(([lbl,k])=>{
               const e1=est1RM(f['rm_'+k+'_w'],f['rm_'+k+'_r']);
@@ -868,7 +895,7 @@ function EvalForm({student,evalData,carryHeight,isReassess,onSave,onCancel}){
                 <div style={{fontSize:12,color:'var(--text2)',paddingBottom:11,minWidth:92}}>1‑RM: <strong style={{color:'var(--accent)'}}>{e1?fmt(e1)+' kg':'—'}</strong></div>
               </div>);
             })}
-          </div>
+          </div>}
           </>);})()}
 
         <div className="sec"><div className="sec-title">📝 Observações</div>
