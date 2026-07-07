@@ -1163,8 +1163,8 @@ function Report({student,evalData,allEvals,onBack,coach}){
         <div className="rpt-header">
           <div className="rpt-head-top">
             <div style={{display:'flex',alignItems:'center',gap:14}}>
-              <LogoMark size={58}/>
-              <div><div style={{fontSize:21,fontWeight:800,letterSpacing:'.5px',color:'#fff'}}>MF PERFORMANCE</div>
+              {coach?.logo_url?<img src={coach.logo_url} alt="" style={{height:56,maxWidth:120,objectFit:'contain'}}/>:<LogoMark size={58}/>}
+              <div><div style={{fontSize:21,fontWeight:800,letterSpacing:'.5px',color:'#fff'}}>{(coach?.brand_name||'MF PERFORMANCE').toUpperCase()}</div>
                 <div style={{fontSize:10.5,color:'#9ca3af',letterSpacing:'2px',textTransform:'uppercase',marginTop:2}}>Avaliação Física &amp; Performance</div></div>
             </div>
             <div className="rpt-head-id">
@@ -1396,11 +1396,12 @@ function Report({student,evalData,allEvals,onBack,coach}){
             <p style={{fontSize:12.5,color:'var(--text2)',lineHeight:1.65}}>{evalData.obs}</p></div>)}
 
           <div className="sig-grid">
-            <div className="sig-line">{coach?.name?`${coach.name} · Avaliador responsável`:'Avaliador responsável · CREF'}</div>
+            <div className="sig-line">{[coach?.name,coach?.cref&&`CREF ${coach.cref}`].filter(Boolean).join(' · ')||'Avaliador responsável · CREF'}</div>
             <div className="sig-line">{student.name}</div>
           </div>
           <div className="rpt-footer">
-            <strong style={{color:'var(--accent)'}}>MF PERFORMANCE</strong> · Avaliação Física &amp; Performance<br/>
+            <strong style={{color:'var(--accent)'}}>{(coach?.brand_name||'MF Performance')}</strong>
+            {[coach?.phone,coach?.instagram].filter(Boolean).length>0&&<> · {[coach?.phone,coach?.instagram].filter(Boolean).join(' · ')}</>}<br/>
             Relatório {reportNo} · Documento gerado em {new Date().toLocaleDateString('pt-BR')} · Os dados refletem a avaliação de {fmtDate(evalData.date)}
           </div>
         </div>
@@ -1705,8 +1706,60 @@ function ProtocolsScreen({onBack}){
     </div>);
 }
 
+/* ── Meu perfil / marca (white-label) ── */
+function BrandScreen({profile,setProfile,onBack}){
+  const [f,setF]=useState({brand_name:profile.brand_name||'',name:profile.name||'',cref:profile.cref||'',phone:profile.phone||'',instagram:profile.instagram||'',logo_url:profile.logo_url||''});
+  const [busy,setBusy]=useState(false);const [msg,setMsg]=useState(null);
+  const s=(k,v)=>setF(p=>({...p,[k]:v}));
+  const ref=useRef();
+  const pickLogo=file=>{if(!file)return;const r=new FileReader();r.onload=e=>{const img=new Image();img.onload=()=>{
+    const c=document.createElement('canvas');const m=300;let{width:w,height:h}=img;const sc=Math.min(m/w,m/h,1);
+    c.width=w*sc;c.height=h*sc;c.getContext('2d').drawImage(img,0,0,c.width,c.height);s('logo_url',c.toDataURL('image/png'));};img.src=e.target.result;};r.readAsDataURL(file);};
+  const save=async()=>{
+    setBusy(true);
+    const upd={brand_name:f.brand_name||null,name:f.name||null,cref:f.cref||null,phone:f.phone||null,instagram:f.instagram||null,logo_url:f.logo_url||null};
+    const {error}=await sb.from('profiles').update(upd).eq('id',profile.id);
+    setBusy(false);
+    if(error){setMsg({t:'error',x:error.message});return;}
+    setProfile({...profile,...upd});setMsg({t:'success',x:'Marca salva! Já aparece nos próximos relatórios.'});
+  };
+  return(
+    <div>
+      <div className="abar"><div>
+        <div className="breadcrumb" onClick={onBack}>← Dashboard</div>
+        <div className="ph-title">Meu perfil / marca</div>
+        <div className="ph-sub">Aparece no cabeçalho e na assinatura dos seus relatórios</div></div>
+        <button className="btn btn-primary" disabled={busy} onClick={save}>{busy?'…':'💾 Salvar'}</button>
+      </div>
+      {msg&&<div className={`alert alert-${msg.t==='error'?'error':'success'}`}>{msg.x}</div>}
+      <div className="card">
+        <div style={{display:'flex',gap:20,alignItems:'flex-start',flexWrap:'wrap',marginBottom:16}}>
+          <div className="fg"><label className="flbl">Logo (aparece no relatório)</label>
+            <div style={{display:'flex',gap:10,alignItems:'center'}}>
+              <div className="photo-up" style={{width:96,height:96}} onClick={()=>ref.current.click()}>
+                {f.logo_url?<img src={f.logo_url} alt="" style={{objectFit:'contain'}}/>:<div className="photo-ph"><span className="photo-ph-icon">🏷️</span>Logo</div>}</div>
+              {f.logo_url&&<button className="btn btn-ghost btn-sm" onClick={()=>s('logo_url','')}>Remover</button>}
+              <input ref={ref} type="file" accept="image/*" style={{display:'none'}} onChange={e=>pickLogo(e.target.files[0])}/>
+            </div>
+            <div style={{fontSize:11,color:'var(--text3)',marginTop:4}}>Sem logo, usa o emblema padrão.</div>
+          </div>
+          <div style={{flex:1,minWidth:220}}>
+            <FI label="Nome da marca / estúdio" value={f.brand_name} onChange={e=>s('brand_name',e.target.value)} placeholder="Ex: João Personal Training"/>
+            <div style={{marginTop:12}}><FI label="Seu nome (avaliador)" value={f.name} onChange={e=>s('name',e.target.value)} placeholder="Nome que assina o laudo"/></div>
+          </div>
+        </div>
+        <div className="fgrid">
+          <FI label="CREF" value={f.cref} onChange={e=>s('cref',e.target.value)} placeholder="000000-G/UF"/>
+          <FI label="Telefone / WhatsApp" value={f.phone} onChange={e=>s('phone',e.target.value)} placeholder="(00) 00000-0000"/>
+          <FI label="Instagram" value={f.instagram} onChange={e=>s('instagram',e.target.value)} placeholder="@seu_perfil"/>
+        </div>
+        <div className="alert alert-info" style={{marginTop:16}}>Prévia da assinatura: <strong>{f.name||f.brand_name||'Avaliador'}</strong>{f.cref?` · CREF ${f.cref}`:''}</div>
+      </div>
+    </div>);
+}
+
 /* ── App ── */
-function App({profile}){
+function App({profile,setProfile}){
   const coachId=profile.id;
   const [students,setStudents]=useState(null);
   const [evals,setEvals]=useState([]);
@@ -1803,6 +1856,7 @@ function App({profile}){
           {sortedStuEvals.length>0&&<button className="nav-btn" onClick={()=>{setEditEv(null);setReassess(true);go('ev-form');}}><span className="nav-ico">🔁</span>Reavaliação</button>}
         </>}
         <hr className="nav-divider"/>
+        <button className={`nav-btn ${view==='brand'?'active':''}`} onClick={()=>go('brand')}><span className="nav-ico">🏷️</span>Meu perfil / marca</button>
         {profile.is_admin&&<button className={`nav-btn ${view==='admin'?'active':''}`} onClick={()=>go('admin')}><span className="nav-ico">⚙️</span>Administração</button>}
         <button className="nav-btn" onClick={exportData}><span className="nav-ico">💾</span>Exportar backup</button>
         <div className="sidebar-footer">
@@ -1826,6 +1880,7 @@ function App({profile}){
           {saving&&<div style={{position:'fixed',top:14,right:16,zIndex:80,background:'var(--accent)',color:'var(--cream)',padding:'7px 14px',borderRadius:10,fontSize:12,fontWeight:600,boxShadow:'var(--shadow-lg)'}}>Salvando…</div>}
           {view==='admin'&&profile.is_admin&&<AdminScreen onBack={()=>go('dashboard')}/>}
           {view==='protocols'&&<ProtocolsScreen onBack={()=>go('dashboard')}/>}
+          {view==='brand'&&<BrandScreen profile={profile} setProfile={setProfile} onBack={()=>go('dashboard')}/>}
           {view==='dashboard'&&<Dashboard students={students} evals={evals}
             onSelect={s=>{setSelStudent(s);go('detail');}} onNew={()=>{setEditStu(null);go('stu-form');}} onDelete={delStu}/>}
           {view==='stu-form'&&<StudentForm student={editStu} onSave={saveStu} onCancel={()=>go(selStudent?'detail':'dashboard')}/>}
@@ -1875,7 +1930,7 @@ function Root(){
   if(expired)return <BlockScreen title={sub?'Assinatura expirada':'Assinatura pendente'}>
     {sub?`Seu acesso ao MF Performance venceu em ${fmtDate(sub)}.`:'Sua conta ainda não tem acesso ao MF Performance.'} Para liberar, fale com o administrador.
   </BlockScreen>;
-  return <App profile={profile}/>;
+  return <App profile={profile} setProfile={setProfile}/>;
 }
 ReactDOM.createRoot(document.getElementById('root')).render(<Root/>);
 </script>
