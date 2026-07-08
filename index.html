@@ -226,7 +226,7 @@ textarea.fi{resize:vertical;min-height:70px;line-height:1.5}
 /* ── Relatório: documento claro (legível em tela e impressão) ── */
 .rpt-page{background:#ffffff;color:#1f2430;border:1px solid #e5e7eb}
 .rpt-page .rpt-body{color:#1f2430}
-.rpt-page .rpt-sec-title{color:#c2410c;border-bottom:1px solid #ececef}
+.rpt-page .rpt-sec-title{color:#fff;background:var(--accent);border:none;padding:7px 12px;border-radius:6px;margin-bottom:12px;font-size:11.5px;letter-spacing:.7px;box-shadow:none}
 .rpt-page .rpt-tbl td{color:#1f2430;border-bottom:1px solid #eef0f2;font-size:13px}
 .rpt-page .rpt-tbl td:first-child{color:#6b7280}
 .rpt-page .rpt-tbl td:nth-child(2){color:#111827}
@@ -414,7 +414,55 @@ function LogoMark({size=46}){
 }
 
 /* ── Calculations ── */
-function bmi(w,h){const wn=num(w),hn=num(h);if(!wn||!hn)return null;const hm=hn/100;return wn/(hm*hm);}
+/* aceita estatura em cm (175) ou metros (1.75); retorna sempre cm */
+function normHeightCm(h){const v=num(h);if(v==null)return null;return v>0&&v<3?v*100:v;}
+function bmi(w,h){const wn=num(w),hc=normHeightCm(h);if(!wn||!hc)return null;const hm=hc/100;const b=wn/(hm*hm);return (b<5||b>90)?null:b;}
+/* Relação cintura/quadril — risco cardiometabólico por sexo (OMS) */
+function classifyRCQ(gender,rcq){const v=num(rcq);if(v==null)return null;
+  if(gender==='F'){
+    if(v<0.80)return{l:'Baixo risco',c:'bg'};
+    if(v<0.85)return{l:'Risco moderado',c:'ba'};
+    return{l:'Alto risco',c:'br'};
+  }
+  if(v<0.90)return{l:'Baixo risco',c:'bg'};
+  if(v<1.00)return{l:'Risco moderado',c:'ba'};
+  return{l:'Alto risco',c:'br'};}
+/* Relação cintura/estatura (WHtR) — preditor de risco cardiometabólico */
+function whtr(waist,heightCm){const wc=num(waist),h=normHeightCm(heightCm);if(!wc||!h)return null;return +(wc/h).toFixed(2);}
+function classifyWHtR(v){const x=num(v);if(x==null)return null;
+  if(x<0.40)return{l:'Cuidado (baixo)',c:'ba'};
+  if(x<0.50)return{l:'Saudável',c:'bg'};
+  if(x<0.60)return{l:'Risco aumentado',c:'ba'};
+  return{l:'Risco alto',c:'br'};}
+/* Índice de massa livre de gordura (FFMI) — muscularidade (kg/m²) */
+function ffmi(leanKg,heightCm){const l=num(leanKg),h=normHeightCm(heightCm);if(!l||!h)return null;const hm=h/100;return +(l/(hm*hm)).toFixed(1);}
+function classifyFFMI(gender,v){const x=num(v);if(x==null)return null;
+  if(gender==='F'){
+    if(x<14)return{l:'Abaixo',c:'bb'};if(x<17)return{l:'Média',c:'bg'};if(x<19)return{l:'Boa massa muscular',c:'bg'};if(x<21.5)return{l:'Muito boa',c:'bg'};return{l:'Excepcional',c:'bo'};
+  }
+  if(x<18)return{l:'Abaixo',c:'bb'};if(x<20)return{l:'Média',c:'bg'};if(x<22)return{l:'Boa massa muscular',c:'bg'};if(x<25)return{l:'Muito boa',c:'bg'};return{l:'Excepcional',c:'bo'};}
+/* Taxa metabólica basal — Katch-McArdle (usa massa magra) ou Mifflin-St Jeor */
+function tmbCalc(leanKg,weight,heightCm,ageYrs,gender){
+  const l=num(leanKg);
+  if(l)return Math.round(370+21.6*l);
+  const w=num(weight),h=normHeightCm(heightCm),a=num(ageYrs);
+  if(!w||!h||!a)return null;
+  return Math.round(gender==='F'?(10*w+6.25*h-5*a-161):(10*w+6.25*h-5*a+5));
+}
+const ACTIVITY_FACTOR={'Sedentário':1.2,'Levemente ativo':1.375,'Moderadamente ativo':1.55,'Muito ativo':1.725,'Atleta':1.9};
+function gastoTotal(tmb,activity){const t=num(tmb);if(!t)return null;return Math.round(t*(ACTIVITY_FACTOR[activity]||1.375));}
+/* Projeção de metas até a próxima reavaliação (fácil/razoável/difícil) */
+function projectGoals(ev,d){
+  if(!ev.goal_next||!ev.date)return null;
+  const weeks=Math.round((new Date(ev.goal_next+'T00:00:00')-new Date(ev.date+'T00:00:00'))/6048e5);
+  if(weeks<1)return null;
+  const fat=d.fatPct,w=d.weight;
+  const rates=[['Fácil',0.20,0.25],['Razoável',0.35,0.45],['Difícil',0.50,0.70]]; // %gordura/sem , kg/sem
+  const scenarios=rates.map(([l,fr,wr])=>({l,
+    fat:fat!=null?Math.max(+(fat-fr*weeks).toFixed(1),3):null,
+    weight:w?Math.max(+(w-wr*weeks).toFixed(1),35):null}));
+  return {weeks,scenarios};
+}
 function classifyBMI(b){if(!b)return null;
   if(b<18.5)return{l:'Abaixo do peso',c:'bb'};
   if(b<25)return{l:'Peso normal',c:'bg'};
@@ -481,7 +529,7 @@ function classifyVO2(gender,ageYrs,vo2){const v=num(vo2);if(v==null)return null;
 function est1RM(weight,reps){const w=num(weight),r=num(reps);if(!w||!r)return null;if(r<=1)return w;if(r>12)return w*(1+r/30);return +(w/(1.0278-0.0278*r)).toFixed(1);}
 
 /* Protocolo incremental de esteira: VO2máx estimado pela velocidade final (VAM ≈ 3.5 × km/h) */
-function incVO2(vFinalKmh){const v=num(vFinalKmh);if(v==null)return null;return v*3.5;}
+function incVO2(vFinalKmh){const v=num(vFinalKmh);if(v==null)return null;return +(3.5+3.3333*v).toFixed(1);}
 
 /* ── Normas de resistência (referência geral, ajustável) ── mínimos [Excelente,Muito bom,Bom,Razoável] */
 const SITUP_NORMS={ // abdominal em 1 min, por idade/sexo
@@ -517,7 +565,11 @@ function derive(student,ev){
   const fatMass=(w&&fatPct!=null)?+(w*fatPct/100).toFixed(1):null;
   const rcq=(num(ev.circ_waist)&&num(ev.circ_hip))?+(num(ev.circ_waist)/num(ev.circ_hip)).toFixed(2):null;
   const dynAvg=(num(ev.dyn_r)&&num(ev.dyn_l))?+((num(ev.dyn_r)+num(ev.dyn_l))/2).toFixed(1):null;
-  return {bmi:b,jp,fatPct,leanMass,fatMass,rcq,dynAvg,weight:w};
+  const wh=whtr(ev.circ_waist,ev.height);
+  const ffmiV=ffmi(leanMass,ev.height);
+  const tmb=num(ev.bio_bmr)||tmbCalc(leanMass,ev.weight,ev.height,a,student.gender);
+  const get=gastoTotal(tmb,student.activity);
+  return {bmi:b,jp,fatPct,leanMass,fatMass,rcq,dynAvg,weight:w,whtr:wh,ffmi:ffmiV,tmb,get};
 }
 
 /* ── UI primitives ── */
@@ -712,20 +764,21 @@ function StudentForm({student,onSave,onCancel}){
 
 /* ── EvalForm ── */
 const BLANK_EVAL={date:new Date().toISOString().slice(0,10),
-  weight:'',height:'',bp_sys:'',bp_dia:'',dyn_r:'',dyn_l:'',
+  weight:'',height:'',bp_sys:'',bp_dia:'',resting_hr:'',dyn_r:'',dyn_l:'',
   bio_fat:'',bio_muscle:'',bio_muscle_pct:'',bio_lean:'',bio_water:'',bio_visceral:'',bio_bmr:'',bio_metabage:'',bio_bone:'',
   sf_triceps:'',sf_subscapular:'',sf_biceps:'',sf_chest:'',sf_midaxillary:'',sf_suprailiac:'',sf_abdomen:'',sf_thigh:'',sf_calf:'',
   circ_shoulders:'',circ_chest:'',circ_waist:'',circ_abdomen:'',circ_hip:'',
-  circ_arm_r:'',circ_arm_l:'',circ_thigh_r:'',circ_thigh_l:'',circ_calf_r:'',circ_calf_l:'',obs:''};
+  circ_arm_r:'',circ_arm_l:'',circ_thigh_r:'',circ_thigh_l:'',circ_calf_r:'',circ_calf_l:'',
+  mob_lunge:'',goal_weight:'',goal_fat:'',goal_next:'',pt_strong:'',pt_improve:'',pt_strategy:'',obs:''};
 
 /* Protocolos selecionáveis por avaliação */
-const EVAL_MODULES=[['bp','🩺 Pressão'],['dyn','✊ Dinamometria'],['bio','⚡ Bioimpedância'],['skin','📐 Dobras'],['circ','📏 Circunferências'],['postural','🧍 Postural'],['resist','💪 Resistência'],['flex','🤸 Flexibilidade'],['cardio','🏃 Cardio'],['strength','🏋️ 1‑RM']];
+const EVAL_MODULES=[['bp','Hemodinâmica'],['dyn','Dinamometria'],['bio','Bioimpedância'],['skin','Dobras'],['circ','Circunferências'],['postural','Postural'],['resist','Resistência'],['flex','Flexibilidade'],['cardio','Cardio'],['strength','1‑RM'],['goals','Metas'],['parecer','Parecer']];
 const EVAL_PRESETS=[
-  ['Completa',['bp','dyn','bio','skin','circ','postural','resist','flex','cardio','strength']],
-  ['Só bioimpedância',['bio']],
-  ['Composição',['bio','skin','circ']],
-  ['Saúde',['bp','bio','circ','flex','cardio']],
-  ['Performance',['dyn','postural','resist','flex','cardio','strength']]
+  ['Completa',['bp','dyn','bio','skin','circ','postural','resist','flex','cardio','strength','goals','parecer']],
+  ['Só bioimpedância',['bio','goals','parecer']],
+  ['Composição',['bio','skin','circ','goals','parecer']],
+  ['Saúde',['bp','bio','circ','flex','cardio','goals','parecer']],
+  ['Performance',['dyn','postural','resist','flex','cardio','strength','goals','parecer']]
 ];
 
 function EvalForm({student,evalData,carryHeight,isReassess,onSave,onCancel}){
@@ -781,9 +834,9 @@ function EvalForm({student,evalData,carryHeight,isReassess,onSave,onCancel}){
           </div>
           {d.bmi&&<div className="alert alert-info" style={{marginTop:13}}>IMC: <strong>{fmt(d.bmi)} kg/m²</strong>{bmiCls&&<> — <Badge cls={bmiCls.c}>{bmiCls.l}</Badge></>}</div>}
         </div>
-        {has('bp')&&<div className="sec"><div className="sec-title">🩺 Pressão arterial</div>
-          <div className="fgrid">{N('Sistólica','bp_sys','mmHg','120')}{N('Diastólica','bp_dia','mmHg','80')}</div>
-          {bpCls&&<div style={{marginTop:9}}><Badge cls={bpCls.c}>{bpCls.l}</Badge></div>}
+        {has('bp')&&<div className="sec"><div className="sec-title">🩺 Dados hemodinâmicos</div>
+          <div className="fgrid">{N('Freq. cardíaca de repouso','resting_hr','bpm','60')}{N('PA sistólica','bp_sys','mmHg','120')}{N('PA diastólica','bp_dia','mmHg','80')}</div>
+          {bpCls&&<div style={{marginTop:9}}>Pressão arterial: <Badge cls={bpCls.c}>{bpCls.l}</Badge></div>}
         </div>}
         {has('dyn')&&<div className="sec"><div className="sec-title">✊ Dinamometria — preensão manual</div>
           <div className="fgrid">{N('Mão direita','dyn_r','kgf','35')}{N('Mão esquerda','dyn_l','kgf','32')}</div>
@@ -807,7 +860,10 @@ function EvalForm({student,evalData,carryHeight,isReassess,onSave,onCancel}){
             {N('Abdômen','circ_abdomen','cm')}{N('Quadril','circ_hip','cm')}{N('Braço dir. contraído','circ_arm_r','cm')}
             {N('Braço esq. contraído','circ_arm_l','cm')}{N('Coxa direita','circ_thigh_r','cm')}{N('Coxa esquerda','circ_thigh_l','cm')}
             {N('Panturrilha dir.','circ_calf_r','cm')}{N('Panturrilha esq.','circ_calf_l','cm')}</div>
-          {d.rcq&&<div style={{marginTop:9,fontSize:12,color:'var(--text2)'}}>Relação cintura/quadril: <strong style={{color:'var(--text)'}}>{fmt(d.rcq,2)}</strong></div>}
+          {(d.rcq||d.whtr)&&<div className="alert alert-info" style={{marginTop:12}}>
+            {d.rcq&&<div>Relação cintura/quadril: <strong>{fmt(d.rcq,2)}</strong> {classifyRCQ(student.gender,d.rcq)&&<Badge cls={classifyRCQ(student.gender,d.rcq).c}>{classifyRCQ(student.gender,d.rcq).l}</Badge>}</div>}
+            {d.whtr&&<div style={{marginTop:5}}>Relação cintura/estatura: <strong>{fmt(d.whtr,2)}</strong> {classifyWHtR(d.whtr)&&<Badge cls={classifyWHtR(d.whtr).c}>{classifyWHtR(d.whtr).l}</Badge>}</div>}
+          </div>}
         </div>}
         {(()=>{const SEL=(label,key,opts)=>(
           <div className="fg"><label className="flbl">{label}</label>
@@ -859,6 +915,7 @@ function EvalForm({student,evalData,carryHeight,isReassess,onSave,onCancel}){
           {has('flex')&&<div className="sec"><div className="sec-title">🤸 Flexibilidade &amp; encurtamentos</div>
             <div className="fgrid2">
               {N('Banco de Wells','flex_wells','cm')}
+              {N('Mobilidade tornozelo (lunge)','mob_lunge','cm')}
               {SEL('Isquiotibiais','short_hamstring',['Normal','Encurtado leve','Encurtado moderado','Encurtado severo'])}
               {SEL('Iliopsoas (Thomas)','short_iliopsoas',['Normal','Encurtado D','Encurtado E','Encurtado bilateral'])}
               {SEL('Reto femoral','short_rectus',['Normal','Encurtado D','Encurtado E','Encurtado bilateral'])}
@@ -895,6 +952,34 @@ function EvalForm({student,evalData,carryHeight,isReassess,onSave,onCancel}){
                 <div style={{fontSize:12,color:'var(--text2)',paddingBottom:11,minWidth:92}}>1‑RM: <strong style={{color:'var(--accent)'}}>{e1?fmt(e1)+' kg':'—'}</strong></div>
               </div>);
             })}
+          </div>}
+
+          {has('goals')&&<div className="sec"><div className="sec-title">🎯 Metas e projeções</div>
+            <div className="fgrid2">
+              {N('Peso alvo','goal_weight','kg')}
+              {N('% Gordura alvo','goal_fat','%')}
+              <div className="fg"><label className="flbl">Próxima reavaliação</label>
+                <input className="fi" type="date" value={f.goal_next||''} onChange={e=>upd('goal_next',e.target.value)}/></div>
+            </div>
+            {(()=>{const proj=projectGoals(f,d);if(!proj)return null;
+              return(<div className="alert alert-info" style={{marginTop:12}}>
+                <div style={{fontWeight:600,marginBottom:6}}>Projeção até {fmtDate(f.goal_next)} ({proj.weeks} semanas)</div>
+                <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>
+                  {proj.scenarios.map(s=><div key={s.l} style={{flex:'1 1 120px',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:10,padding:'8px 10px'}}>
+                    <div style={{fontSize:11,color:'var(--text2)',fontWeight:600}}>{s.l}</div>
+                    {s.fat!=null&&<div style={{fontSize:13}}>Gordura: <strong>{fmt(s.fat)}%</strong></div>}
+                    {s.weight!=null&&<div style={{fontSize:13}}>Peso: <strong>{fmt(s.weight)} kg</strong></div>}
+                  </div>)}
+                </div></div>);
+            })()}
+          </div>}
+
+          {has('parecer')&&<div className="sec"><div className="sec-title">📝 Parecer do avaliador</div>
+            <div className="fgrid" style={{gridTemplateColumns:'1fr 1fr'}}>
+              <FTA label="Pontos fortes" value={f.pt_strong||''} onChange={e=>upd('pt_strong',e.target.value)} placeholder="O que está bem..."/>
+              <FTA label="Pontos a melhorar" value={f.pt_improve||''} onChange={e=>upd('pt_improve',e.target.value)} placeholder="Prioridades..."/>
+            </div>
+            <div style={{marginTop:12}}><FTA label="Estratégia / conduta" value={f.pt_strategy||''} onChange={e=>upd('pt_strategy',e.target.value)} placeholder="Plano de ação, foco do treino, recomendações..."/></div>
           </div>}
           </>);})()}
 
@@ -1088,7 +1173,7 @@ function EvolutionSection({student,evals}){
   if(metrics.length===0)return null;
   return(
     <div className="rpt-sec">
-      <div className="rpt-sec-title">📊 Evolução ao longo do tempo ({asc.length} avaliações)</div>
+      <div className="rpt-sec-title">Evolução ao longo do tempo ({asc.length} avaliações)</div>
       <div className="evo-grid">
         {metrics.map(m=>{
           const clean=m.vals.filter(v=>v!=null&&!isNaN(v));
@@ -1231,14 +1316,14 @@ function Report({student,evalData,allEvals,onBack,coach}){
           {/* Medidor de gordura */}
           {d.fatPct!=null&&(
             <div className="rpt-sec">
-              <div className="rpt-sec-title">🎯 Faixa de % de gordura corporal{fatCls&&<span style={{marginLeft:'auto',fontWeight:700,textTransform:'none',letterSpacing:0}} className={`badge ${fatCls.c}`}>{fatCls.l}</span>}</div>
+              <div className="rpt-sec-title">Faixa de % de gordura corporal{fatCls&&<span style={{marginLeft:'auto',fontWeight:700,textTransform:'none',letterSpacing:0}} className={`badge ${fatCls.c}`}>{fatCls.l}</span>}</div>
               <FatGauge gender={student.gender} pct={d.fatPct}/>
             </div>)}
 
           {/* Comparativo */}
           {prevEval&&dp&&(
             <div className="rpt-sec">
-              <div className="rpt-sec-title">📈 Evolução desde {fmtDate(prevEval.date)}</div>
+              <div className="rpt-sec-title">Evolução desde {fmtDate(prevEval.date)}</div>
               {highlights.length>0&&(
                 <div className="highlight-box">
                   <div className="highlight-title">Destaques da evolução</div>
@@ -1263,28 +1348,43 @@ function Report({student,evalData,allEvals,onBack,coach}){
           <div className="rpt-grid">
             <div>
               <div className="rpt-sec">
-                <div className="rpt-sec-title">📊 Antropometria</div>
+                <div className="rpt-sec-title">Antropometria e composição</div>
                 <table className="rpt-tbl"><tbody>
                   <Row lbl="Peso" val={evalData.weight} unit="kg" prev={prevEval?.weight}/>
-                  <Row lbl="Estatura" val={evalData.height} unit="cm" prev={prevEval?.height}/>
+                  <Row lbl="Estatura" val={normHeightCm(evalData.height)} unit="cm" prev={prevEval?prevEval.height&&normHeightCm(prevEval.height):null}/>
                   {d.bmi&&<Row lbl="IMC" val={fmt(d.bmi)} unit="kg/m²" badge={bmiCls} prev={dp?(dp.bmi?fmt(dp.bmi):null):null}/>}
-                  {d.leanMass!=null&&<Row lbl="Massa magra (calc.)" val={d.leanMass} unit="kg" prev={dp?.leanMass}/>}
-                  {d.fatMass!=null&&<Row lbl="Massa gorda (calc.)" val={d.fatMass} unit="kg" prev={dp?.fatMass}/>}
+                  {d.fatPct!=null&&<Row lbl="% Gordura" val={fmt(d.fatPct)} unit="%" badge={fatCls} prev={dp?.fatPct}/>}
+                  {d.fatMass!=null&&<Row lbl="Massa gorda" val={d.fatMass} unit="kg" badge={fatCls} prev={dp?.fatMass}/>}
+                  {d.leanMass!=null&&<Row lbl="Massa magra" val={d.leanMass} unit="kg" prev={dp?.leanMass}/>}
+                  {d.ffmi&&<Row lbl="FFMI (índice massa magra)" val={d.ffmi} unit="kg/m²" badge={classifyFFMI(student.gender,d.ffmi)} prev={dp?.ffmi}/>}
+                  {d.rcq&&<Row lbl="Rel. cintura/quadril" val={d.rcq} badge={classifyRCQ(student.gender,d.rcq)} prev={dp?.rcq}/>}
+                  {d.whtr&&<Row lbl="Rel. cintura/estatura" val={d.whtr} badge={classifyWHtR(d.whtr)} prev={dp?.whtr}/>}
                 </tbody></table>
+                {(classifyRCQ(student.gender,d.rcq)?.c==='br'||classifyWHtR(d.whtr)?.c==='br')&&
+                  <p style={{fontSize:11,color:'#9a3540',marginTop:6,lineHeight:1.5}}>Distribuição de gordura em faixa de <strong>risco cardiometabólico aumentado</strong> — associado a maior risco de doenças cardiovasculares, hipertensão e diabetes tipo 2. Recomenda-se acompanhamento.</p>}
               </div>
-              {(hasBP||hasDyn)&&(
-                <div className="rpt-sec"><div className="rpt-sec-title">🩺 Pressão &amp; força</div>
+              {(hasBP||hasDyn||num(evalData.resting_hr))&&(
+                <div className="rpt-sec"><div className="rpt-sec-title">Dados hemodinâmicos</div>
                   <table className="rpt-tbl"><tbody>
+                    {num(evalData.resting_hr)&&<Row lbl="FC de repouso" val={evalData.resting_hr} unit="bpm" prev={prevEval?.resting_hr}/>}
                     {hasBP&&<><Row lbl="PA sistólica" val={evalData.bp_sys} unit="mmHg" prev={prevEval?.bp_sys}/>
                     <Row lbl="PA diastólica" val={evalData.bp_dia} unit="mmHg" prev={prevEval?.bp_dia}/>
-                    {bpCls&&<tr><td>Classificação</td><td><Badge cls={bpCls.c}>{bpCls.l}</Badge></td>{prevEval&&<td/>}</tr>}</>}
+                    {bpCls&&<tr><td>Classificação PA</td><td><Badge cls={bpCls.c}>{bpCls.l}</Badge></td>{prevEval&&<td/>}</tr>}</>}
                     {num(evalData.dyn_r)&&<Row lbl="Preensão direita" val={evalData.dyn_r} unit="kgf" prev={prevEval?.dyn_r}/>}
                     {num(evalData.dyn_l)&&<Row lbl="Preensão esquerda" val={evalData.dyn_l} unit="kgf" prev={prevEval?.dyn_l}/>}
                     {d.dynAvg&&<Row lbl="Média preensão" val={d.dynAvg} unit="kgf" prev={dp?.dynAvg}/>}
                   </tbody></table>
                 </div>)}
+              {d.tmb&&(
+                <div className="rpt-sec"><div className="rpt-sec-title">Indicadores metabólicos</div>
+                  <table className="rpt-tbl"><tbody>
+                    <Row lbl="Taxa metabólica basal" val={d.tmb.toLocaleString('pt-BR')} unit="kcal" prev={dp?.tmb}/>
+                    {d.get&&<Row lbl="Gasto energético total" val={d.get.toLocaleString('pt-BR')} unit="kcal/dia" prev={dp?.get}/>}
+                    {num(evalData.bio_metabage)&&<Row lbl="Idade metabólica" val={evalData.bio_metabage} unit="anos" prev={prevEval?.bio_metabage}/>}
+                  </tbody></table>
+                </div>)}
               {hasBio&&(
-                <div className="rpt-sec"><div className="rpt-sec-title">⚡ Bioimpedância</div>
+                <div className="rpt-sec"><div className="rpt-sec-title">Bioimpedância</div>
                   <table className="rpt-tbl"><tbody>
                     <Row lbl="% Gordura corporal" val={evalData.bio_fat} unit="%" badge={num(evalData.bio_fat)?fatCls:null} prev={prevEval?.bio_fat}/>
                     <Row lbl="Massa muscular" val={evalData.bio_muscle} unit="kg" prev={prevEval?.bio_muscle}/>
@@ -1293,14 +1393,12 @@ function Report({student,evalData,allEvals,onBack,coach}){
                     <Row lbl="% Água corporal" val={evalData.bio_water} unit="%" prev={prevEval?.bio_water}/>
                     <Row lbl="Massa óssea" val={evalData.bio_bone} unit="kg" prev={prevEval?.bio_bone}/>
                     <Row lbl="Gordura visceral" val={evalData.bio_visceral} unit="" prev={prevEval?.bio_visceral}/>
-                    <Row lbl="Taxa metab. basal" val={evalData.bio_bmr} unit="kcal" prev={prevEval?.bio_bmr}/>
-                    <Row lbl="Idade metabólica" val={evalData.bio_metabage} unit="anos" prev={prevEval?.bio_metabage}/>
                   </tbody></table>
                 </div>)}
             </div>
             <div>
               {hasSF&&(
-                <div className="rpt-sec"><div className="rpt-sec-title">📐 Dobras cutâneas (mm)</div>
+                <div className="rpt-sec"><div className="rpt-sec-title">Dobras cutâneas (mm)</div>
                   <table className="rpt-tbl"><tbody>
                     <Row lbl="Tríceps" val={evalData.sf_triceps} unit="mm" prev={prevEval?.sf_triceps}/>
                     <Row lbl="Subescapular" val={evalData.sf_subscapular} unit="mm" prev={prevEval?.sf_subscapular}/>
@@ -1315,7 +1413,7 @@ function Report({student,evalData,allEvals,onBack,coach}){
                   </tbody></table>
                 </div>)}
               {hasCirc&&(
-                <div className="rpt-sec"><div className="rpt-sec-title">📏 Circunferências (cm)</div>
+                <div className="rpt-sec"><div className="rpt-sec-title">Circunferências (cm)</div>
                   <table className="rpt-tbl"><tbody>
                     <Row lbl="Ombros" val={evalData.circ_shoulders} unit="cm" prev={prevEval?.circ_shoulders}/>
                     <Row lbl="Tórax" val={evalData.circ_chest} unit="cm" prev={prevEval?.circ_chest}/>
@@ -1339,7 +1437,7 @@ function Report({student,evalData,allEvals,onBack,coach}){
             const PH=[['Frente','front'],['Lateral','side'],['Costas','back']];
             const has=PH.some(([,k])=>evalData['post_photo_'+k]);
             if(!has)return null;
-            return(<div className="rpt-sec"><div className="rpt-sec-title">📸 Análise postural (fotos com fio de prumo)</div>
+            return(<div className="rpt-sec"><div className="rpt-sec-title">Análise postural (fotos com fio de prumo)</div>
               <div style={{display:'flex',gap:14,flexWrap:'wrap'}}>
                 {PH.map(([lbl,k])=>evalData['post_photo_'+k]?(
                   <div key={k} style={{textAlign:'center'}}>
@@ -1368,20 +1466,20 @@ function Report({student,evalData,allEvals,onBack,coach}){
             if(!hasPost&&!hasFlex&&!hasRes&&vo2==null&&!hasRM)return null;
             return(<div className="rpt-grid">
               <div>
-                {hasPost&&<div className="rpt-sec"><div className="rpt-sec-title">🧍 Avaliação postural</div>
+                {hasPost&&<div className="rpt-sec"><div className="rpt-sec-title">Avaliação postural</div>
                   <table className="rpt-tbl"><tbody>
                     {POST.map(([lbl,k])=>evalData[k]?<tr key={k}><td>{lbl}</td><td style={{textAlign:'left',fontWeight:400}}>{evalData[k]}</td></tr>:null)}
                   </tbody></table>
                   {evalData.post_obs&&<p style={{fontSize:12,color:'var(--text2)',marginTop:8,lineHeight:1.6}}>{evalData.post_obs}</p>}
                 </div>}
-                {hasFlex&&<div className="rpt-sec"><div className="rpt-sec-title">🤸 Flexibilidade &amp; encurtamentos</div>
+                {hasFlex&&<div className="rpt-sec"><div className="rpt-sec-title">Flexibilidade &amp; encurtamentos</div>
                   <table className="rpt-tbl"><tbody>
                     {num(evalData.flex_wells)!=null&&<Row lbl="Banco de Wells" val={evalData.flex_wells} unit="cm" badge={wCls} prev={prevEval?.flex_wells}/>}
                     {SHORT.map(([lbl,k])=>evalData[k]?<tr key={k}><td>{lbl}</td><td style={{textAlign:'left',fontWeight:400}}>{evalData[k]}</td></tr>:null)}
                   </tbody></table>
                   {evalData.flex_obs&&<p style={{fontSize:12,color:'var(--text2)',marginTop:8,lineHeight:1.6}}>{evalData.flex_obs}</p>}
                 </div>}
-                {(vo2!=null)&&<div className="rpt-sec"><div className="rpt-sec-title">🏃 Cardiorrespiratório</div>
+                {(vo2!=null)&&<div className="rpt-sec"><div className="rpt-sec-title">Cardiorrespiratório</div>
                   <table className="rpt-tbl"><tbody>
                     {num(evalData.inc_vfinal)&&<Row lbl="Esteira — vel. final" val={evalData.inc_vfinal} unit="km/h" prev={prevEval?.inc_vfinal}/>}
                     {num(evalData.inc_time)&&<Row lbl="Tempo total" val={evalData.inc_time} unit="min" prev={prevEval?.inc_time}/>}
@@ -1390,14 +1488,14 @@ function Report({student,evalData,allEvals,onBack,coach}){
                   </tbody></table></div>}
               </div>
               <div>
-                {hasRes&&<div className="rpt-sec"><div className="rpt-sec-title">💪 Resistência muscular</div>
+                {hasRes&&<div className="rpt-sec"><div className="rpt-sec-title">Resistência muscular</div>
                   <table className="rpt-tbl"><tbody>
                     <Row lbl="Flexão de braço" val={evalData.res_pushup} unit="reps" badge={puCls} prev={prevEval?.res_pushup}/>
                     <Row lbl="Abdominal (1 min)" val={evalData.res_situp} unit="reps" badge={siCls} prev={prevEval?.res_situp}/>
                     <Row lbl="Agachamento (1 min)" val={evalData.res_squat} unit="reps" badge={sqCls} prev={prevEval?.res_squat}/>
                     <Row lbl="Barra fixa" val={evalData.res_pullup} unit="reps" badge={puuCls} prev={prevEval?.res_pullup}/>
                   </tbody></table></div>}
-                {hasRM&&<div className="rpt-sec"><div className="rpt-sec-title">🏋️ Força — 1‑RM estimado</div>
+                {hasRM&&<div className="rpt-sec"><div className="rpt-sec-title">Força — 1‑RM estimado</div>
                   <table className="rpt-tbl"><tbody>
                     {RM.map(([lbl,k])=>{const e1=est1RM(evalData['rm_'+k+'_w'],evalData['rm_'+k+'_r']);
                       return e1?<tr key={k}><td>{lbl}</td><td style={{fontWeight:600}}>{fmt(e1)} kg <span style={{color:'var(--text3)',fontWeight:400,fontSize:11}}>({evalData['rm_'+k+'_w']}kg × {evalData['rm_'+k+'_r']||1})</span></td>{prevEval&&<td/>}</tr>:null;})}
@@ -1408,7 +1506,7 @@ function Report({student,evalData,allEvals,onBack,coach}){
 
           {/* Anamnese resumo */}
           {(student.health||student.meds||student.injuries||student.goal)&&(
-            <div className="rpt-sec"><div className="rpt-sec-title">🩺 Perfil &amp; anamnese</div>
+            <div className="rpt-sec"><div className="rpt-sec-title">Perfil &amp; anamnese</div>
               <table className="rpt-tbl"><tbody>
                 {student.activity&&<tr><td>Nível de atividade</td><td style={{textAlign:'left',fontWeight:400}}>{student.activity}</td></tr>}
                 {student.train_time&&<tr><td>Experiência de treino</td><td style={{textAlign:'left',fontWeight:400}}>{student.train_time}</td></tr>}
@@ -1419,7 +1517,36 @@ function Report({student,evalData,allEvals,onBack,coach}){
               </tbody></table>
             </div>)}
 
-          {evalData.obs&&(<div className="rpt-sec"><div className="rpt-sec-title">📝 Observações da avaliação</div>
+          {/* Metas e projeções */}
+          {(num(evalData.goal_weight)||num(evalData.goal_fat)||evalData.goal_next)&&(()=>{
+            const proj=projectGoals(evalData,d);
+            return(<div className="rpt-sec"><div className="rpt-sec-title">Definição de metas e alvos</div>
+              <table className="rpt-tbl"><tbody>
+                {num(evalData.goal_weight)&&<tr><td>Peso alvo</td><td style={{fontWeight:600}}>{evalData.goal_weight} kg</td>{prevEval&&<td/>}</tr>}
+                {num(evalData.goal_fat)&&<tr><td>% Gordura alvo</td><td style={{fontWeight:600}}>{evalData.goal_fat}%</td>{prevEval&&<td/>}</tr>}
+                {evalData.goal_next&&<tr><td>Próxima reavaliação</td><td style={{fontWeight:600}}>{fmtDate(evalData.goal_next)}</td>{prevEval&&<td/>}</tr>}
+              </tbody></table>
+              {proj&&<div style={{marginTop:10}}>
+                <div style={{fontSize:11,color:'#6b7280',marginBottom:6}}>Projeção sugerida em {proj.weeks} semanas (a partir dos dados atuais):</div>
+                <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+                  {proj.scenarios.map(sc=><div key={sc.l} style={{flex:'1 1 130px',background:'#f7f8fa',border:'1px solid #e9ebee',borderRadius:8,padding:'8px 10px'}}>
+                    <div style={{fontSize:11,fontWeight:700,color:'var(--accent)'}}>{sc.l}</div>
+                    {sc.fat!=null&&<div style={{fontSize:12.5,color:'#111827'}}>Gordura: <strong>{fmt(sc.fat)}%</strong></div>}
+                    {sc.weight!=null&&<div style={{fontSize:12.5,color:'#111827'}}>Peso: <strong>{fmt(sc.weight)} kg</strong></div>}
+                  </div>)}
+                </div></div>}
+            </div>);
+          })()}
+
+          {/* Parecer do avaliador */}
+          {(evalData.pt_strong||evalData.pt_improve||evalData.pt_strategy)&&(
+            <div className="rpt-sec"><div className="rpt-sec-title">Parecer do avaliador</div>
+              {evalData.pt_strong&&<div style={{marginBottom:8}}><div style={{fontSize:11,fontWeight:700,color:'#15803d',textTransform:'uppercase',letterSpacing:.4}}>Pontos fortes</div><p style={{fontSize:12.5,lineHeight:1.6,color:'#1f2430'}}>{evalData.pt_strong}</p></div>}
+              {evalData.pt_improve&&<div style={{marginBottom:8}}><div style={{fontSize:11,fontWeight:700,color:'#9a3540',textTransform:'uppercase',letterSpacing:.4}}>Pontos a melhorar</div><p style={{fontSize:12.5,lineHeight:1.6,color:'#1f2430'}}>{evalData.pt_improve}</p></div>}
+              {evalData.pt_strategy&&<div><div style={{fontSize:11,fontWeight:700,color:'var(--accent)',textTransform:'uppercase',letterSpacing:.4}}>Estratégia / conduta</div><p style={{fontSize:12.5,lineHeight:1.6,color:'#1f2430'}}>{evalData.pt_strategy}</p></div>}
+            </div>)}
+
+          {evalData.obs&&(<div className="rpt-sec"><div className="rpt-sec-title">Observações da avaliação</div>
             <p style={{fontSize:12.5,color:'var(--text2)',lineHeight:1.65}}>{evalData.obs}</p></div>)}
 
           <div className="sig-grid">
@@ -1427,9 +1554,8 @@ function Report({student,evalData,allEvals,onBack,coach}){
             <div className="sig-line">{student.name}</div>
           </div>
           <div className="rpt-footer">
-            <strong style={{color:'var(--accent)'}}>{(coach?.brand_name||'MF Performance')}</strong>
-            {[coach?.phone,coach?.instagram].filter(Boolean).length>0&&<> · {[coach?.phone,coach?.instagram].filter(Boolean).join(' · ')}</>}<br/>
-            Relatório {reportNo} · Documento gerado em {new Date().toLocaleDateString('pt-BR')} · Os dados refletem a avaliação de {fmtDate(evalData.date)}
+            Documento confidencial · Relatório nº {reportNo} · Emitido em {new Date().toLocaleDateString('pt-BR')}
+            {[coach?.phone,coach?.instagram].filter(Boolean).length>0&&<><br/>{[coach?.brand_name||coach?.name,coach?.phone,coach?.instagram].filter(Boolean).join(' · ')}</>}
           </div>
         </div>
       </div>
@@ -1730,6 +1856,19 @@ function ProtocolsScreen({onBack}){
         <ProtoLabel>Estimativa (sem ir à falha máxima)</ProtoLabel>
         No app, informe carga × repetições e o 1‑RM é estimado pela fórmula de Brzycki.
       </Proto>
+
+      <Proto title="📚 Referências científicas">
+        <div style={{fontSize:12.5,lineHeight:1.7,color:'var(--text2)'}}>
+          <div>• ACSM. Diretrizes do ACSM para os Testes de Esforço e sua Prescrição — normas de flexão de braço, VO₂máx e classificações.</div>
+          <div>• Canadian Society for Exercise Physiology (CSEP) — normas de flexão e de sentar-e-alcançar.</div>
+          <div>• Cooper KH (1968), JAMA — teste de 12 minutos e estimativa de VO₂máx.</div>
+          <div>• Brzycki M (1993), JOPERD — estimativa de 1‑RM a partir de repetições.</div>
+          <div>• ACSM Metabolic Equations — VO₂ na corrida em esteira (protocolo incremental).</div>
+          <div>• Katch &amp; McArdle / Mifflin-St Jeor — taxa metabólica basal.</div>
+          <div>• Organização Mundial da Saúde (OMS) — relação cintura/quadril e cintura/estatura e risco cardiometabólico.</div>
+          <div style={{marginTop:8,color:'var(--text3)',fontSize:11}}>Algumas tabelas de referência (abdominal, agachamento, barra, Wells) usam valores normativos gerais dessas fontes; se você tiver as tabelas específicas do seu material, é possível ajustá-las.</div>
+        </div>
+      </Proto>
     </div>);
 }
 
@@ -1739,9 +1878,20 @@ function BrandScreen({profile,setProfile,onBack}){
   const [busy,setBusy]=useState(false);const [msg,setMsg]=useState(null);
   const s=(k,v)=>setF(p=>({...p,[k]:v}));
   const ref=useRef();
-  const pickLogo=file=>{if(!file)return;const r=new FileReader();r.onload=e=>{const img=new Image();img.onload=()=>{
-    const c=document.createElement('canvas');const m=300;let{width:w,height:h}=img;const sc=Math.min(m/w,m/h,1);
-    c.width=w*sc;c.height=h*sc;c.getContext('2d').drawImage(img,0,0,c.width,c.height);s('logo_url',c.toDataURL('image/png'));};img.src=e.target.result;};r.readAsDataURL(file);};
+  const pickLogo=file=>{if(!file)return;const r=new FileReader();
+    r.onload=e=>{const src=e.target.result;const img=new Image();
+      img.onload=()=>{try{
+        const c=document.createElement('canvas');const m=512;let w=img.naturalWidth||img.width,h=img.naturalHeight||img.height;
+        if(!w||!h){s('logo_url',src);return;}
+        const sc=Math.min(m/w,m/h,1);c.width=Math.max(1,Math.round(w*sc));c.height=Math.max(1,Math.round(h*sc));
+        c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+        let out;try{out=c.toDataURL('image/png');}catch{out=c.toDataURL('image/jpeg',0.85);}
+        s('logo_url',out.length>1500000?c.toDataURL('image/jpeg',0.8):out);
+      }catch{s('logo_url',src);}};
+      img.onerror=()=>s('logo_url',src);
+      img.src=src;};
+    r.onerror=()=>alert('Não foi possível ler a imagem. Tente outra.');
+    r.readAsDataURL(file);};
   const save=async()=>{
     setBusy(true);
     const upd={brand_name:f.brand_name||null,name:f.name||null,cref:f.cref||null,phone:f.phone||null,instagram:f.instagram||null,logo_url:f.logo_url||null};
