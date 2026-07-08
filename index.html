@@ -769,16 +769,17 @@ const BLANK_EVAL={date:new Date().toISOString().slice(0,10),
   sf_triceps:'',sf_subscapular:'',sf_biceps:'',sf_chest:'',sf_midaxillary:'',sf_suprailiac:'',sf_abdomen:'',sf_thigh:'',sf_calf:'',
   circ_shoulders:'',circ_chest:'',circ_waist:'',circ_abdomen:'',circ_hip:'',
   circ_arm_r:'',circ_arm_l:'',circ_thigh_r:'',circ_thigh_l:'',circ_calf_r:'',circ_calf_l:'',
+  pw_cmj:'',pw_horizontal:'',pw_sargent:'',pw_medball:'',pw_sprint20:'',pw_agility_t:'',
   mob_lunge:'',goal_weight:'',goal_fat:'',goal_next:'',pt_strong:'',pt_improve:'',pt_strategy:'',obs:''};
 
 /* Protocolos selecionáveis por avaliação */
-const EVAL_MODULES=[['bp','Hemodinâmica'],['dyn','Dinamometria'],['bio','Bioimpedância'],['skin','Dobras'],['circ','Circunferências'],['postural','Postural'],['resist','Resistência'],['flex','Flexibilidade'],['cardio','Cardio'],['strength','1‑RM'],['goals','Metas'],['parecer','Parecer']];
+const EVAL_MODULES=[['bp','Hemodinâmica'],['dyn','Dinamometria'],['bio','Bioimpedância'],['skin','Dobras'],['circ','Circunferências'],['postural','Postural'],['resist','Resistência'],['flex','Flexibilidade'],['cardio','Cardio'],['strength','1‑RM'],['power','Potência'],['goals','Metas'],['parecer','Parecer']];
 const EVAL_PRESETS=[
-  ['Completa',['bp','dyn','bio','skin','circ','postural','resist','flex','cardio','strength','goals','parecer']],
+  ['Completa',['bp','dyn','bio','skin','circ','postural','resist','flex','cardio','strength','power','goals','parecer']],
   ['Só bioimpedância',['bio','goals','parecer']],
   ['Composição',['bio','skin','circ','goals','parecer']],
   ['Saúde',['bp','bio','circ','flex','cardio','goals','parecer']],
-  ['Performance',['dyn','postural','resist','flex','cardio','strength','goals','parecer']]
+  ['Performance',['dyn','postural','resist','power','cardio','strength','goals','parecer']]
 ];
 
 function EvalForm({student,evalData,carryHeight,isReassess,onSave,onCancel}){
@@ -952,6 +953,20 @@ function EvalForm({student,evalData,carryHeight,isReassess,onSave,onCancel}){
                 <div style={{fontSize:12,color:'var(--text2)',paddingBottom:11,minWidth:92}}>1‑RM: <strong style={{color:'var(--accent)'}}>{e1?fmt(e1)+' kg':'—'}</strong></div>
               </div>);
             })}
+          </div>}
+
+          {has('power')&&<div className="sec"><div className="sec-title">⚡ Potência &amp; velocidade</div>
+            <div className="fgrid2">
+              {N('Salto vertical (CMJ)','pw_cmj','cm')}
+              {N('Salto horizontal','pw_horizontal','cm')}
+              {N('Impulsão (Sargent)','pw_sargent','cm')}
+              {N('Arremesso medicine ball','pw_medball','m')}
+              {N('Sprint 20 m','pw_sprint20','s')}
+              {N('Agilidade (T-test)','pw_agility_t','s')}
+            </div>
+            {classifyCMJ(student.gender,f.pw_cmj)&&<div className="alert alert-info" style={{marginTop:12}}>
+              Salto vertical: <strong>{f.pw_cmj} cm</strong> — <Badge cls={classifyCMJ(student.gender,f.pw_cmj).c}>{classifyCMJ(student.gender,f.pw_cmj).l}</Badge>
+              {jumpPower(f.pw_cmj,f.weight)&&<> · Potência de pico estimada: <strong>{jumpPower(f.pw_cmj,f.weight).toLocaleString('pt-BR')} W</strong></>}</div>}
           </div>}
 
           {has('goals')&&<div className="sec"><div className="sec-title">🎯 Metas e projeções</div>
@@ -1225,6 +1240,75 @@ function FatGauge({gender,pct}){
     </div>);
 }
 
+/* Arco SVG entre dois ângulos (graus), y invertido p/ semicírculo superior */
+function arcPath(cx,cy,r,a1,a2){
+  const P=a=>[cx+r*Math.cos(a*Math.PI/180),cy-r*Math.sin(a*Math.PI/180)];
+  const [x1,y1]=P(a1),[x2,y2]=P(a2);
+  return `M ${x1.toFixed(2)} ${y1.toFixed(2)} A ${r} ${r} 0 0 ${a1>a2?1:0} ${x2.toFixed(2)} ${y2.toFixed(2)}`;
+}
+/* Medidor semicircular (velocímetro) */
+function Gauge({value,min,max,segments,label,unit,badge,decimals=1}){
+  const v=num(value);if(v==null)return null;
+  const cx=100,cy=96,R=76,sw=15;
+  const ang=x=>180-((Math.max(min,Math.min(max,x))-min)/(max-min))*180;
+  let prev=min;
+  const arcs=segments.map((s,i)=>{const p=arcPath(cx,cy,R,ang(prev),ang(s.t));prev=s.t;return <path key={i} d={p} stroke={s.c} strokeWidth={sw} fill="none"/>;});
+  const va=ang(v),nx=cx+(R-3)*Math.cos(va*Math.PI/180),ny=cy-(R-3)*Math.sin(va*Math.PI/180);
+  return(
+    <div style={{textAlign:'center',minWidth:150}}>
+      <div style={{fontSize:11,color:'#6b7280',fontWeight:600,marginBottom:2}}>{label}</div>
+      <svg viewBox="0 0 200 112" width="100%" style={{maxWidth:180,display:'block',margin:'0 auto'}}>
+        {arcs}
+        <line x1={cx} y1={cy} x2={nx.toFixed(2)} y2={ny.toFixed(2)} stroke="#111827" strokeWidth="2.5" strokeLinecap="round"/>
+        <circle cx={cx} cy={cy} r="4.5" fill="#111827"/>
+        <text x="18" y={cy+10} fontSize="9" fill="#9ca3af">{min}</text>
+        <text x="182" y={cy+10} fontSize="9" fill="#9ca3af" textAnchor="end">{max}</text>
+      </svg>
+      <div style={{fontSize:19,fontWeight:700,color:'#111827',marginTop:-2}}>{fmt(v,decimals)}{unit&&<span style={{fontSize:11,color:'#6b7280'}}> {unit}</span>}</div>
+      {badge&&<span className={`badge ${badge.c}`} style={{marginTop:3,display:'inline-flex'}}>{badge.l}</span>}
+    </div>);
+}
+/* Anel / donut */
+function Donut({pct,color='#5a1e2e',label,center}){
+  const p=num(pct);if(p==null)return null;
+  const R=34,C=2*Math.PI*R,cl=Math.max(0,Math.min(100,p));
+  return(
+    <div style={{textAlign:'center',minWidth:110}}>
+      <svg viewBox="0 0 92 92" width="92" height="92">
+        <circle cx="46" cy="46" r={R} fill="none" stroke="#ece8df" strokeWidth="10"/>
+        <circle cx="46" cy="46" r={R} fill="none" stroke={color} strokeWidth="10" strokeLinecap="round" strokeDasharray={C} strokeDashoffset={C*(1-cl/100)} transform="rotate(-90 46 46)"/>
+        <text x="46" y="50" textAnchor="middle" fontSize="18" fontWeight="700" fill="#111827">{center??fmt(p)+'%'}</text>
+      </svg>
+      <div style={{fontSize:11,color:'#6b7280',fontWeight:600}}>{label}</div>
+    </div>);
+}
+/* Radar do perfil físico */
+function scoreOf(cls){if(!cls)return null;const m={
+  'Superior':95,'Excelente':88,'Atlético':92,'Muito bom':80,'Muito boa':85,'Boa massa muscular':78,'Excepcional':96,
+  'Bom':68,'Média':52,'Aceitável':52,'Normal':70,'Saudável':85,'Baixo risco':85,'Regular':45,'Abaixo do ideal':58,'Abaixo':46,
+  'Razoável':40,'Risco moderado':45,'Cuidado (baixo)':52,'Risco aumentado':38,'Fraco':28,'Ruim':18,'Acima do ideal':26,'Alto risco':20,'Risco alto':20};
+  return m[cls.l]??null;}
+function Radar({axes}){
+  const A=axes.filter(a=>a.score!=null);if(A.length<3)return null;
+  const n=A.length,cx=125,cy=118,R=80;
+  const pt=(i,r)=>{const a=(-90+i*360/n)*Math.PI/180;return[+(cx+r*Math.cos(a)).toFixed(1),+(cy+r*Math.sin(a)).toFixed(1)];};
+  const poly=ps=>ps.map(p=>p.join(',')).join(' ');
+  const data=A.map((a,i)=>pt(i,R*Math.max(5,Math.min(100,a.score))/100));
+  return(
+    <svg viewBox="0 0 250 220" width="100%" style={{maxWidth:320,display:'block',margin:'0 auto'}}>
+      {[25,50,75,100].map(rr=><polygon key={rr} points={poly(A.map((_,i)=>pt(i,R*rr/100)))} fill="none" stroke="#e5e7eb" strokeWidth="1"/>)}
+      {A.map((_,i)=>{const[x,y]=pt(i,R);return <line key={i} x1={cx} y1={cy} x2={x} y2={y} stroke="#e5e7eb" strokeWidth="1"/>;})}
+      <polygon points={poly(data)} fill="rgba(90,30,46,.16)" stroke="var(--accent)" strokeWidth="2"/>
+      {data.map((p,i)=><circle key={i} cx={p[0]} cy={p[1]} r="3" fill="var(--accent)"/>)}
+      {A.map((a,i)=>{const[x,y]=pt(i,R+17);return <text key={i} x={x} y={y} textAnchor="middle" dominantBaseline="middle" fontSize="9.5" fontWeight="600" fill="#374151">{a.label}</text>;})}
+    </svg>);
+}
+/* Potência de pico via salto vertical (Sayers) */
+function jumpPower(cmj,weightKg){const j=num(cmj),w=num(weightKg);if(!j||!w)return null;return Math.round(60.7*j+45.3*w-2055);}
+function classifyCMJ(gender,cm){const v=num(cm);if(v==null)return null;const t=gender==='F'?[40,33,27,20]:[55,45,36,28];
+  const labs=[{l:'Excelente',c:'bg'},{l:'Bom',c:'bg'},{l:'Médio',c:'bb'},{l:'Regular',c:'ba'}];
+  for(let i=0;i<t.length;i++)if(v>=t[i])return labs[i];return{l:'Fraco',c:'br'};}
+
 /* ── Report ── */
 function Report({student,evalData,allEvals,onBack,coach}){
   const others=allEvals.filter(e=>e.id!==evalData.id&&new Date(e.date)<=new Date(evalData.date))
@@ -1313,7 +1397,46 @@ function Report({student,evalData,allEvals,onBack,coach}){
             {num(evalData.bio_metabage)&&<Stat lbl="Idade metabólica" val={evalData.bio_metabage} unit="anos" badge={age(student.dob)?(num(evalData.bio_metabage)<=age(student.dob)?{l:`${age(student.dob)-num(evalData.bio_metabage)} anos abaixo`,c:'bg'}:{l:`${num(evalData.bio_metabage)-age(student.dob)} anos acima`,c:'ba'}):null}/>}
           </div>
 
-          {/* Medidor de gordura */}
+          {/* Painel visual (medidores + anel) e radar do perfil */}
+          {(()=>{
+            const pAge=age(student.dob);
+            const bc={bg:'#5a8a4a',ba:'#c99a3a',br:'#c4685e',bb:'#5b7a99',bo:'#b0894f'};
+            const col=cls=>cls?(bc[cls.c]||'#5a1e2e'):'#5a1e2e';
+            const musc=num(evalData.bio_muscle)||d.leanMass;
+            const ratio=(musc&&d.fatMass)?+(musc/d.fatMass).toFixed(1):null;
+            const vo2r=num(evalData.inc_vfinal)?incVO2(evalData.inc_vfinal):(num(evalData.cooper_dist)?cooperVO2(evalData.cooper_dist):num(evalData.vo2max));
+            const vo2Clsr=classifyVO2(student.gender,pAge,vo2r);
+            const g=[];
+            if(d.bmi)g.push(<Gauge key="imc" label="IMC" value={d.bmi} min={15} max={40} unit="kg/m²" badge={bmiCls} segments={[{t:18.5,c:'#5b7a99'},{t:25,c:'#5a8a4a'},{t:30,c:'#c99a3a'},{t:40,c:'#c4685e'}]}/>);
+            if(num(evalData.bio_water))g.push(<Gauge key="ag" label="Água corporal" value={num(evalData.bio_water)} min={40} max={70} unit="%" segments={[{t:50,c:'#c99a3a'},{t:65,c:'#5a8a4a'},{t:70,c:'#5b7a99'}]}/>);
+            if(num(evalData.bio_visceral))g.push(<Gauge key="vi" label="Gordura visceral" value={num(evalData.bio_visceral)} min={1} max={20} decimals={0} segments={[{t:9,c:'#5a8a4a'},{t:14,c:'#c99a3a'},{t:20,c:'#c4685e'}]}/>);
+            if(ratio)g.push(<Gauge key="ra" label="Músculo/gordura" value={ratio} min={0} max={3} segments={[{t:1,c:'#c4685e'},{t:2,c:'#5a8a4a'},{t:3,c:'#5b7a99'}]}/>);
+            if(num(evalData.resting_hr))g.push(<Gauge key="fc" label="FC repouso" value={num(evalData.resting_hr)} min={40} max={110} decimals={0} unit="bpm" segments={[{t:60,c:'#5a8a4a'},{t:80,c:'#c99a3a'},{t:110,c:'#c4685e'}]}/>);
+            if(vo2r!=null)g.push(<Gauge key="vo" label="VO₂máx" value={vo2r} min={20} max={65} unit="mL/kg" badge={vo2Clsr} segments={[{t:30,c:'#c4685e'},{t:42,c:'#c99a3a'},{t:52,c:'#5a8a4a'},{t:65,c:'#5b7a99'}]}/>);
+            const axes=[
+              {label:'Composição',score:scoreOf(fatCls)},
+              {label:'Aeróbio',score:scoreOf(vo2Clsr)},
+              {label:'Força',score:scoreOf(classifyFFMI(student.gender,d.ffmi))},
+              {label:'Resistência',score:(Math.max(scoreOf(classifyPushup(student.gender,pAge,evalData.res_pushup))||0,scoreOf(classifySitup(student.gender,pAge,evalData.res_situp))||0))||null},
+              {label:'Flexibilidade',score:scoreOf(classifyWells(student.gender,pAge,evalData.flex_wells))},
+              {label:'Potência',score:scoreOf(classifyCMJ(student.gender,evalData.pw_cmj))}
+            ];
+            const hasRadar=axes.filter(a=>a.score!=null).length>=3;
+            if(g.length===0&&d.fatPct==null&&!hasRadar)return null;
+            return(<>
+              {(g.length>0||d.fatPct!=null)&&<div className="rpt-sec"><div className="rpt-sec-title">Painel de indicadores</div>
+                <div style={{display:'flex',flexWrap:'wrap',gap:'18px 20px',alignItems:'flex-start',justifyContent:'center'}}>
+                  {d.fatPct!=null&&<Donut pct={d.fatPct} color={col(fatCls)} label="% Gordura"/>}
+                  {g}
+                </div></div>}
+              {hasRadar&&<div className="rpt-sec"><div className="rpt-sec-title">Perfil físico</div>
+                <Radar axes={axes}/>
+                <div style={{fontSize:10.5,color:'#9ca3af',textAlign:'center',marginTop:2}}>Escore 0–100 por domínio, com base nas classificações normativas.</div>
+              </div>}
+            </>);
+          })()}
+
+          {/* Faixa de gordura */}
           {d.fatPct!=null&&(
             <div className="rpt-sec">
               <div className="rpt-sec-title">Faixa de % de gordura corporal{fatCls&&<span style={{marginLeft:'auto',fontWeight:700,textTransform:'none',letterSpacing:0}} className={`badge ${fatCls.c}`}>{fatCls.l}</span>}</div>
@@ -1499,6 +1622,17 @@ function Report({student,evalData,allEvals,onBack,coach}){
                   <table className="rpt-tbl"><tbody>
                     {RM.map(([lbl,k])=>{const e1=est1RM(evalData['rm_'+k+'_w'],evalData['rm_'+k+'_r']);
                       return e1?<tr key={k}><td>{lbl}</td><td style={{fontWeight:600}}>{fmt(e1)} kg <span style={{color:'var(--text3)',fontWeight:400,fontSize:11}}>({evalData['rm_'+k+'_w']}kg × {evalData['rm_'+k+'_r']||1})</span></td>{prevEval&&<td/>}</tr>:null;})}
+                  </tbody></table></div>}
+                {['pw_cmj','pw_horizontal','pw_sargent','pw_medball','pw_sprint20','pw_agility_t'].some(k=>num(evalData[k]))&&
+                  <div className="rpt-sec"><div className="rpt-sec-title">Potência &amp; velocidade</div>
+                  <table className="rpt-tbl"><tbody>
+                    <Row lbl="Salto vertical (CMJ)" val={evalData.pw_cmj} unit="cm" badge={classifyCMJ(student.gender,evalData.pw_cmj)} prev={prevEval?.pw_cmj}/>
+                    {jumpPower(evalData.pw_cmj,evalData.weight)&&<tr><td>Potência de pico (est.)</td><td style={{fontWeight:600}}>{jumpPower(evalData.pw_cmj,evalData.weight).toLocaleString('pt-BR')} W</td>{prevEval&&<td/>}</tr>}
+                    <Row lbl="Salto horizontal" val={evalData.pw_horizontal} unit="cm" prev={prevEval?.pw_horizontal}/>
+                    <Row lbl="Impulsão (Sargent)" val={evalData.pw_sargent} unit="cm" prev={prevEval?.pw_sargent}/>
+                    <Row lbl="Arremesso medicine ball" val={evalData.pw_medball} unit="m" prev={prevEval?.pw_medball}/>
+                    <Row lbl="Sprint 20 m" val={evalData.pw_sprint20} unit="s" prev={prevEval?.pw_sprint20}/>
+                    <Row lbl="Agilidade (T-test)" val={evalData.pw_agility_t} unit="s" prev={prevEval?.pw_agility_t}/>
                   </tbody></table></div>}
               </div>
             </div>);
@@ -1855,6 +1989,15 @@ function ProtocolsScreen({onBack}){
         ]}/>
         <ProtoLabel>Estimativa (sem ir à falha máxima)</ProtoLabel>
         No app, informe carga × repetições e o 1‑RM é estimado pela fórmula de Brzycki.
+      </Proto>
+
+      <Proto title="⚡ Potência, velocidade e agilidade">
+        <ProtoLabel>Salto vertical (CMJ)</ProtoLabel>Com as mãos na cintura, agachar e saltar o mais alto possível; medir a altura alcançada. Potência de pico estimada pela fórmula de Sayers.
+        <ProtoLabel>Salto horizontal</ProtoLabel>Pés paralelos, saltar à frente o máximo possível; medir a distância do ponto de saída ao calcanhar mais próximo.
+        <ProtoLabel>Impulsão (Sargent / jump-and-reach)</ProtoLabel>Diferença entre o alcance em pé e o alcance no ponto máximo do salto.
+        <ProtoLabel>Arremesso de medicine ball</ProtoLabel>Sentado ou em pé, arremessar a bola à frente; medir a distância.
+        <ProtoLabel>Sprint 20 m</ProtoLabel>Tempo para percorrer 20 m em velocidade máxima (idealmente com fotocélula).
+        <ProtoLabel>Agilidade (T-test)</ProtoLabel>Percurso em "T" com deslocamentos frontal, laterais e ré; registrar o tempo.
       </Proto>
 
       <Proto title="📚 Referências científicas">
