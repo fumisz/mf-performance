@@ -2250,10 +2250,15 @@ function AdminScreen({onBack}){
 }
 
 /* ── Protocolos (referência: passo a passo + normas) ── */
-function Proto({title,children,open}){
+function Proto({title,children,open,search}){
   return(<details open={open} style={{background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:14,padding:'4px 4px',marginBottom:10,boxShadow:'var(--shadow)'}}>
     <summary style={{cursor:'pointer',padding:'14px 16px',fontFamily:'var(--serif)',fontSize:16,fontWeight:600,listStyle:'none'}}>{title}</summary>
-    <div style={{padding:'0 18px 16px',fontSize:13.5,lineHeight:1.7,color:'var(--text)'}}>{children}</div>
+    <div style={{padding:'0 18px 16px',fontSize:13.5,lineHeight:1.7,color:'var(--text)'}}>
+      {children}
+      {search&&<a href={`https://www.youtube.com/results?search_query=${encodeURIComponent(search)}`} target="_blank" rel="noopener noreferrer"
+        style={{display:'inline-flex',alignItems:'center',gap:7,marginTop:14,padding:'8px 14px',borderRadius:9,background:'var(--accent)',color:'var(--cream)',fontSize:12.5,fontWeight:600,textDecoration:'none'}}>
+        <span style={{fontSize:10}}>▶</span> Ver vídeo-aulas no YouTube ↗</a>}
+    </div>
   </details>);
 }
 function Steps({items}){return <ol style={{margin:'8px 0 8px 18px',display:'flex',flexDirection:'column',gap:6}}>{items.map((s,i)=><li key={i}>{s}</li>)}</ol>;}
@@ -2271,10 +2276,49 @@ function ProtocolsScreen({onBack}){
       <div className="abar"><div>
         <div className="breadcrumb" onClick={onBack}>← Dashboard</div>
         <div className="ph-title">Protocolos de avaliação</div>
-        <div className="ph-sub">Passo a passo e valores de referência (base: ACSM)</div></div>
+        <div className="ph-sub">Passo a passo, valores de referência (base: ACSM) e vídeo-aulas</div></div>
       </div>
+      <div className="alert alert-info" style={{marginBottom:14}}>Cada protocolo tem um botão <b>Ver vídeo-aulas no YouTube</b> que abre uma busca com o termo técnico daquele teste — sempre trazendo conteúdo atualizado de canais de educação física.</div>
 
-      <Proto title="Avaliação postural" open>
+      <Proto title="Dobras cutâneas (Jackson-Pollock)" search="protocolo dobras cutâneas Jackson Pollock 7 dobras técnica adipômetro">
+        <ProtoLabel>Como fazer</ProtoLabel>
+        <Steps items={[
+          'Marque o ponto de cada dobra do lado direito do corpo.',
+          'Pince a dobra com os dedos ~1 cm acima do ponto e aplique o adipômetro perpendicular à dobra.',
+          'Leia após ~2 segundos; repita 2–3 vezes e use a média.',
+          'Some as 7 dobras (JP7) para o cálculo do percentual de gordura.'
+        ]}/>
+        <ProtoLabel>No app</ProtoLabel>Informe as 7 dobras ★ e o % de gordura é calculado automaticamente.
+      </Proto>
+
+      <Proto title="Perimetria (circunferências)" search="medida de circunferências perimetria avaliação física técnica fita métrica">
+        <ProtoLabel>Como fazer</ProtoLabel>
+        <Steps items={[
+          'Use fita métrica inelástica, sem comprimir o tecido.',
+          'Padronize os pontos (cintura na menor curvatura, quadril na maior, braço contraído no ponto médio).',
+          'Meça 2 vezes cada ponto e registre a média; mantenha o mesmo avaliador entre reavaliações.'
+        ]}/>
+      </Proto>
+
+      <Proto title="Bioimpedância" search="bioimpedância avaliação composição corporal orientações jejum hidratação">
+        <ProtoLabel>Preparo do avaliado</ProtoLabel>
+        <Steps items={[
+          'Estar bem hidratado, sem álcool nas 24 h e sem exercício intenso nas horas anteriores.',
+          'Bexiga vazia; sem refeição volumosa na hora anterior.',
+          'Remover objetos metálicos; pés e mãos limpos para bom contato com os eletrodos.'
+        ]}/>
+      </Proto>
+
+      <Proto title="Frequência cardíaca e pressão arterial" search="aferição pressão arterial frequência cardíaca de repouso técnica correta">
+        <ProtoLabel>Como fazer</ProtoLabel>
+        <Steps items={[
+          'Avaliado sentado, em repouso de 5 minutos, sem falar.',
+          'FC de repouso: pulso radial/carotídeo por 60 s ou frequencímetro.',
+          'PA: manguito na altura do coração, braço apoiado; registre sistólica/diastólica.'
+        ]}/>
+      </Proto>
+
+      <Proto title="Avaliação postural" open search="avaliação postural fotogrametria pontos anatômicos educação física">
         <ProtoLabel>Objetivo</ProtoLabel>Identificar desalinhamentos e assimetrias nos planos anterior, posterior e lateral.
         <ProtoLabel>Como fazer</ProtoLabel>        <Steps items={[
           'Posicione o aluno em pé, descalço, postura natural, contra um fundo neutro (ou simetrógrafo).',
@@ -2285,7 +2329,7 @@ function ProtocolsScreen({onBack}){
         ]}/>
       </Proto>
 
-      <Proto title="Flexão de braço (resistência de MMSS)">
+      <Proto title="Flexão de braço (resistência de MMSS)" search="teste de flexão de braço push up test protocolo ACSM">
         <ProtoLabel>Como fazer</ProtoLabel>        <Steps items={[
           'Homens: apoio nas pontas dos pés; mulheres: apoio nos joelhos (flexão modificada), corpo alinhado.',
           'Descer até o cotovelo formar ~90° (queixo próximo ao solo), mantendo o tronco reto.',
@@ -2304,13 +2348,13 @@ function ProtocolsScreen({onBack}){
         <div style={{fontSize:11,color:'var(--text3)',marginTop:6}}>H = homens · M = mulheres. Fonte: ACSM / Canadian Society for Exercise Physiology.</div>
       </Proto>
 
-      <Proto title="Abdominal, agachamento e barra fixa">
+      <Proto title="Abdominal, agachamento e barra fixa" search="teste abdominal 1 minuto agachamento barra fixa avaliação física">
         <ProtoLabel>Abdominal (1 min)</ProtoLabel>Deitado, joelhos flexionados a ~90°; elevar o tronco e voltar. Contar repetições completas em 60 s.
         <ProtoLabel>Agachamento (1 min)</ProtoLabel>Pés na largura dos ombros; descer até coxas ~paralelas ao solo e subir. Contar repetições válidas em 60 s.
         <ProtoLabel>Barra fixa</ProtoLabel>Pegada pronada, braços estendidos; elevar até o queixo passar da barra e descer com controle. Contar o máximo de repetições sem pausa.
       </Proto>
 
-      <Proto title="Flexibilidade — Banco de Wells &amp; encurtamentos">
+      <Proto title="Flexibilidade — Banco de Wells &amp; encurtamentos" search="teste sentar e alcançar banco de Wells testes de encurtamento muscular Thomas">
         <ProtoLabel>Banco de Wells (sentar-e-alcançar)</ProtoLabel>        <Steps items={[
           'Aluno sentado, pernas estendidas e pés apoiados na base do banco (descalço).',
           'Braços estendidos, uma mão sobre a outra; inclinar o tronco lentamente à frente.',
@@ -2325,7 +2369,7 @@ function ProtocolsScreen({onBack}){
         ]}/>
       </Proto>
 
-      <Proto title="Teste incremental de esteira (VO₂máx / resistência)">
+      <Proto title="Teste incremental de esteira (VO₂máx / resistência)" search="teste incremental esteira VO2 máximo protocolo velocidade progressiva">
         <ProtoLabel>Protocolo</ProtoLabel>        <Steps items={[
           'Aquecer 5 minutos na velocidade inicial (ex.: 6 km/h).',
           'Nesses 5 min, aumentar 0,5 km/h a cada minuto.',
@@ -2336,7 +2380,7 @@ function ProtocolsScreen({onBack}){
         <ProtoLabel>Estimativa</ProtoLabel>        VO₂máx (mL/kg/min) ≈ velocidade final (km/h) × 3,5. O app calcula e classifica por idade e sexo. Também aceita o teste de Cooper (distância em 12 min) como alternativa.
       </Proto>
 
-      <Proto title="Teste de Cooper (alternativa)">
+      <Proto title="Teste de Cooper (alternativa)" search="teste de Cooper 12 minutos VO2 máximo como aplicar">
         <ProtoLabel>Como fazer</ProtoLabel>        <Steps items={[
           'Aquecer 5 minutos em intensidade leve.',
           'Percorrer a maior distância possível em 12 minutos.',
@@ -2345,7 +2389,7 @@ function ProtocolsScreen({onBack}){
         <ProtoLabel>Cálculo</ProtoLabel>        VO₂máx (mL/kg/min) = (distância em metros − 504,9) ÷ 44,73.
       </Proto>
 
-      <Proto title="Teste de 1‑RM (força máxima)">
+      <Proto title="Teste de 1‑RM (força máxima)" search="teste de 1RM uma repetição máxima supino agachamento protocolo">
         <ProtoLabel>Como fazer</ProtoLabel>        <Steps items={[
           'Realizar após familiarização com o exercício (supino, agachamento, terra, etc.).',
           'Aquecer com uma série leve de repetições no próprio exercício.',
@@ -2356,7 +2400,7 @@ function ProtocolsScreen({onBack}){
         <ProtoLabel>Estimativa (sem ir à falha máxima)</ProtoLabel>        No app, informe carga × repetições e o 1‑RM é estimado pela fórmula de Brzycki.
       </Proto>
 
-      <Proto title="Potência, velocidade e agilidade">
+      <Proto title="Potência, velocidade e agilidade" search="teste salto vertical CMJ sprint 20m teste de agilidade T-test avaliação">
         <ProtoLabel>Salto vertical (CMJ)</ProtoLabel>Com as mãos na cintura, agachar e saltar o mais alto possível; medir a altura alcançada. Potência de pico estimada pela fórmula de Sayers.
         <ProtoLabel>Salto horizontal</ProtoLabel>Pés paralelos, saltar à frente o máximo possível; medir a distância do ponto de saída ao calcanhar mais próximo.
         <ProtoLabel>Impulsão (Sargent / jump-and-reach)</ProtoLabel>Diferença entre o alcance em pé e o alcance no ponto máximo do salto.
