@@ -441,6 +441,17 @@ function classifyFFMI(gender,v){const x=num(v);if(x==null)return null;
     if(x<14)return{l:'Abaixo',c:'bb'};if(x<17)return{l:'Média',c:'bg'};if(x<19)return{l:'Boa massa muscular',c:'bg'};if(x<21.5)return{l:'Muito boa',c:'bg'};return{l:'Excepcional',c:'bo'};
   }
   if(x<18)return{l:'Abaixo',c:'bb'};if(x<20)return{l:'Média',c:'bg'};if(x<22)return{l:'Boa massa muscular',c:'bg'};if(x<25)return{l:'Muito boa',c:'bg'};return{l:'Excepcional',c:'bo'};}
+/* % água corporal (referência geral por sexo) */
+function classifyWater(gender,pct){const p=num(pct);if(p==null)return null;
+  if(gender==='F'){if(p<45)return{l:'Baixa',c:'ba'};if(p<=60)return{l:'Adequada',c:'bg'};return{l:'Alta',c:'bb'};}
+  if(p<50)return{l:'Baixa',c:'ba'};if(p<=65)return{l:'Adequada',c:'bg'};return{l:'Alta',c:'bb'};}
+/* % músculo esquelético (referência geral por sexo) */
+function classifySkeletal(gender,pct){const p=num(pct);if(p==null)return null;
+  if(gender==='F'){if(p<24)return{l:'Baixo',c:'ba'};if(p<35)return{l:'Normal',c:'bg'};return{l:'Alto',c:'bo'};}
+  if(p<33)return{l:'Baixo',c:'ba'};if(p<43)return{l:'Normal',c:'bg'};return{l:'Alto',c:'bo'};}
+/* gordura visceral (níveis Tanita/OMS) */
+function classifyVisceral(v){const x=num(v);if(x==null)return null;
+  if(x<=9)return{l:'Saudável',c:'bg'};if(x<=14)return{l:'Elevada',c:'ba'};return{l:'Alto risco',c:'br'};}
 /* Taxa metabólica basal — Katch-McArdle (usa massa magra) ou Mifflin-St Jeor */
 function tmbCalc(leanKg,weight,heightCm,ageYrs,gender){
   const l=num(leanKg);
@@ -598,14 +609,14 @@ function Dashboard({students,evals,onSelect,onNew,onDelete}){
         <button className="btn btn-primary" onClick={onNew}>＋ Novo aluno</button>
       </div>
       <div style={{display:'flex',gap:12,marginBottom:22}}>
-        <div className="search-wrap"><span className="search-icon">🔍</span>
+        <div className="search-wrap"><span className="search-icon"></span>
           <input className="fi" placeholder="Buscar aluno..." value={q} onChange={e=>setQ(e.target.value)}/></div>
       </div>
-      {list.length===0&&!q&&<div className="empty"><div className="empty-icon">🏋️</div>
+      {list.length===0&&!q&&<div className="empty"><div className="empty-icon"></div>
         <div className="empty-title">Nenhum aluno cadastrado</div>
         <p style={{marginBottom:16,fontSize:13}}>Comece adicionando o primeiro aluno</p>
         <button className="btn btn-primary" onClick={onNew}>＋ Novo aluno</button></div>}
-      {list.length===0&&q&&<div className="empty"><div className="empty-icon">🔍</div>
+      {list.length===0&&q&&<div className="empty"><div className="empty-icon"></div>
         <div className="empty-title">Nenhum resultado para "{q}"</div></div>}
       <div className="student-grid">
         {list.map(s=>{
@@ -615,12 +626,12 @@ function Dashboard({students,evals,onSelect,onNew,onDelete}){
             <div key={s.id} className="student-card" onClick={()=>onSelect(s)}>
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:11}}>
                 <div className="avatar">{s.photo?<img src={s.photo} alt=""/>:initials(s.name)}</div>
-                <button className="btn-icon btn-sm" title="Excluir" onClick={e=>{e.stopPropagation();if(confirm(`Excluir ${s.name} e todas as avaliações?`))onDelete(s.id);}}>🗑️</button>
+                <button className="btn-icon btn-sm" title="Excluir" onClick={e=>{e.stopPropagation();if(confirm(`Excluir ${s.name} e todas as avaliações?`))onDelete(s.id);}}>Excluir</button>
               </div>
               <div className="s-name">{s.name}</div>
               <div className="s-meta">
                 {a?`${a} anos · `:''}{s.gender==='M'?'Masculino':'Feminino'}
-                {s.goal&&<><br/><span style={{color:'var(--accent)'}}>🎯 {s.goal}</span></>}
+                {s.goal&&<><br/><span style={{color:'var(--accent)'}}> {s.goal}</span></>}
                 <br/>{se.length>0?`${se.length} ${se.length>1?'avaliações':'avaliação'} · ${fmtDate(last.date)}`:'Sem avaliações'}
               </div>
             </div>);
@@ -643,7 +654,7 @@ function PhotoUpload({value,onChange}){
     <div className="fg"><label className="flbl">Foto do aluno</label>
       <div style={{display:'flex',gap:10,alignItems:'flex-start'}}>
         <div className="photo-up" onClick={()=>ref.current.click()}>
-          {value?<img src={value} alt=""/>:<div className="photo-ph"><span className="photo-ph-icon">📷</span>Toque<br/>p/ adicionar</div>}
+          {value?<img src={value} alt=""/>:<div className="photo-ph"><span className="photo-ph-icon">Foto</span>Toque<br/>p/ adicionar</div>}
         </div>
         {value&&<button className="btn btn-ghost btn-sm" onClick={()=>onChange('')}>Remover</button>}
         <input ref={ref} type="file" accept="image/*" capture="environment" style={{display:'none'}} onChange={e=>pick(e.target.files[0])}/>
@@ -679,11 +690,116 @@ function PlumbPhoto({label,photo,plumb,onPhoto,onPlumb}){
         <div style={{display:'flex',alignItems:'center',gap:8,marginTop:6,maxWidth:220}}>
           <span style={{fontSize:11,color:'var(--text2)'}}>Prumo</span>
           <input type="range" min="0" max="100" value={plumb??50} onChange={e=>onPlumb(parseInt(e.target.value))} style={{flex:1}}/>
-          <button className="btn btn-ghost btn-sm" onClick={()=>onPhoto('')}>✕</button>
+          <button className="btn btn-ghost btn-sm" onClick={()=>onPhoto('')}>×</button>
         </div>
       </>:
         <div className="photo-up" style={{width:'100%',maxWidth:220,height:150}} onClick={()=>ref.current.click()}>
-          <div className="photo-ph"><span className="photo-ph-icon">📷</span>{label}<br/>toque p/ adicionar</div></div>}
+          <div className="photo-ph"><span className="photo-ph-icon">Foto</span>{label}<br/>toque p/ adicionar</div></div>}
+      <input ref={ref} type="file" accept="image/*" capture="environment" style={{display:'none'}} onChange={e=>pick(e.target.files[0])}/>
+    </div>);
+}
+
+/* ── Postura: marcação de pontos anatômicos e cálculo de ângulos ── */
+const POSTURE_VIEWS={
+  front:{label:'Anterior',landmarks:[
+    {k:'earR',l:'Orelha D',s:'R'},{k:'earL',l:'Orelha E',s:'L'},
+    {k:'acrR',l:'Acrômio D',s:'R'},{k:'acrL',l:'Acrômio E',s:'L'},
+    {k:'asisR',l:'EIAS D',s:'R'},{k:'asisL',l:'EIAS E',s:'L'},
+    {k:'kneeR',l:'Joelho D',s:'R'},{k:'kneeL',l:'Joelho E',s:'L'},
+    {k:'malR',l:'Maléolo D',s:'R'},{k:'malL',l:'Maléolo E',s:'L'}],
+    pairs:[['earR','earL'],['acrR','acrL'],['asisR','asisL'],['kneeR','kneeL'],['malR','malL']]},
+  side:{label:'Lateral',landmarks:[
+    {k:'tragus',l:'Trago',s:'C'},{k:'acr',l:'Acrômio',s:'C'},{k:'troch',l:'Trocânter',s:'C'},{k:'fib',l:'Cab. fíbula',s:'C'},{k:'mal',l:'Maléolo',s:'C'}],
+    pairs:[]},
+  back:{label:'Posterior',landmarks:[
+    {k:'c7',l:'C7',s:'C'},{k:'scapR',l:'Escápula D',s:'R'},{k:'scapL',l:'Escápula E',s:'L'},
+    {k:'sacrum',l:'Sacro',s:'C'},{k:'malR',l:'Maléolo D',s:'R'},{k:'malL',l:'Maléolo E',s:'L'}],
+    pairs:[['scapR','scapL'],['malR','malL']]}
+};
+function classifyTilt(deg){const x=num(deg);if(x==null)return null;const a=Math.abs(x);if(a<2)return{l:'Simétrico',c:'bg'};if(a<4)return{l:'Leve',c:'bb'};if(a<6)return{l:'Moderado',c:'ba'};return{l:'Acentuado',c:'br'};}
+function classifySym(p){const x=num(p);if(x==null)return null;if(x>=90)return{l:'Ótima',c:'bg'};if(x>=80)return{l:'Boa',c:'bb'};if(x>=70)return{l:'Regular',c:'ba'};return{l:'Baixa',c:'br'};}
+function segAngle(a,b,asp){if(!a||!b)return null;return Math.atan2((b.y-a.y),(b.x-a.x)*asp)*180/Math.PI;}
+function vertAngle(a,b,asp){if(!a||!b)return null;return Math.atan2((b.x-a.x)*asp,(b.y-a.y))*180/Math.PI;}
+function computePosture(view,pts,asp){
+  if(!pts||!asp)return[];const P=pts;const out=[];const add=(l,v,u,badge)=>{if(v!=null&&!isNaN(v))out.push({l,v:+(+v).toFixed(1),u,badge});};
+  if(view==='front'){
+    const h=segAngle(P.earR,P.earL,asp);if(h!=null)add('Inclinação da cabeça',Math.abs(h),'°',classifyTilt(h));
+    const s=segAngle(P.acrR,P.acrL,asp);if(s!=null)add('Inclinação dos ombros',Math.abs(s),'°',classifyTilt(s));
+    const pe=segAngle(P.asisR,P.asisL,asp);if(pe!=null)add('Inclinação da pelve',Math.abs(pe),'°',classifyTilt(pe));
+    const k=segAngle(P.kneeR,P.kneeL,asp);if(k!=null)add('Inclinação dos joelhos',Math.abs(k),'°',classifyTilt(k));
+    // simetria: média do desalinhamento vertical dos pares
+    const prs=[['earR','earL'],['acrR','acrL'],['asisR','asisL'],['kneeR','kneeL'],['malR','malL']];
+    const ds=prs.filter(([a,b])=>P[a]&&P[b]).map(([a,b])=>Math.abs(P[a].y-P[b].y));
+    if(ds.length){const m=ds.reduce((x,y)=>x+y,0)/ds.length;const sym=Math.max(0,Math.min(100,Math.round(100-m*600)));add('Simetria corporal',sym,'%',classifySym(sym));}
+  }else if(view==='side'){
+    const fh=vertAngle(P.acr,P.tragus,asp);if(fh!=null)add('Projeção anterior da cabeça',Math.abs(fh),'°',classifyTilt(fh/1.5));
+    if(P.mal){const dev=k=>P[k]?+((P[k].x-P.mal.x)*asp*100).toFixed(1):null;
+      const a=dev('acr'),t=dev('troch');
+      if(a!=null)add('Desvio do acrômio (linha de gravidade)',a,'%');
+      if(t!=null)add('Desvio do trocânter (linha de gravidade)',t,'%');}
+  }else if(view==='back'){
+    const sc=segAngle(P.scapR,P.scapL,asp);if(sc!=null)add('Inclinação das escápulas',Math.abs(sc),'°',classifyTilt(sc));
+    const sp=vertAngle(P.c7,P.sacrum,asp);if(sp!=null)add('Desvio lateral da coluna',Math.abs(sp),'°',classifyTilt(sp));
+    const prs=[['scapR','scapL'],['malR','malL']];
+    const ds=prs.filter(([a,b])=>P[a]&&P[b]).map(([a,b])=>Math.abs(P[a].y-P[b].y));
+    if(ds.length){const m=ds.reduce((x,y)=>x+y,0)/ds.length;const sym=Math.max(0,Math.min(100,Math.round(100-m*600)));add('Simetria posterior',sym,'%',classifySym(sym));}
+  }
+  return out;
+}
+function ptColor(s){return s==='R'?'#2563eb':s==='L'?'#c4685e':'#5a1e2e';}
+/* Overlay dos pontos + linhas (compartilhado form/relatório) */
+function PostureOverlay({view,pts}){
+  const cfg=POSTURE_VIEWS[view];if(!cfg)return null;
+  const X=p=>p.x*100,Y=p=>p.y*100;
+  let plumb=50;const ml=pts.mal,mr=pts.malR,mll=pts.malL;
+  if(view==='side'&&ml)plumb=ml.x*100;else if((view==='front'||view==='back')&&mr&&mll)plumb=(mr.x+mll.x)/2*100;
+  return(
+    <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{position:'absolute',inset:0,width:'100%',height:'100%',pointerEvents:'none'}}>
+      <line x1={plumb} y1="0" x2={plumb} y2="100" stroke="rgba(179,67,79,.6)" strokeWidth="0.5" strokeDasharray="1.5 1.2"/>
+      {cfg.pairs.map(([a,b],i)=>pts[a]&&pts[b]?<line key={i} x1={X(pts[a])} y1={Y(pts[a])} x2={X(pts[b])} y2={Y(pts[b])} stroke="#b0894f" strokeWidth="0.6"/>:null)}
+      {cfg.landmarks.map(l=>{const p=pts[l.k];if(!p)return null;return <g key={l.k}>
+        <circle cx={X(p)} cy={Y(p)} r="1.5" fill={ptColor(l.s)} stroke="#fff" strokeWidth="0.4"/>
+      </g>;})}
+    </svg>);
+}
+/* Marcação interativa (formulário) */
+function PostureMarker({view,label,photo,pts,onPhoto,onPts,onMetrics}){
+  const cfg=POSTURE_VIEWS[view];
+  const P=pts||{};
+  const firstMissing=cfg.landmarks.find(l=>!P[l.k]);
+  const [active,setActive]=useState(firstMissing?firstMissing.k:cfg.landmarks[0].k);
+  const [asp,setAsp]=useState(P._a||null);
+  const ref=useRef();
+  const pick=f=>{if(!f)return;const r=new FileReader();r.onload=e=>{const img=new Image();img.onload=()=>{
+    const c=document.createElement('canvas');const m=760;let{width:w,height:h}=img;const sc=Math.min(m/w,m/h,1);
+    c.width=w*sc;c.height=h*sc;c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+    onPhoto(c.toDataURL('image/jpeg',0.75));};img.src=e.target.result;};r.readAsDataURL(f);};
+  useEffect(()=>{if(asp)onMetrics(computePosture(view,P,asp));},[JSON.stringify(P),asp]);
+  const tap=e=>{if(!active)return;const r=e.currentTarget.getBoundingClientRect();
+    const x=+((e.clientX-r.left)/r.width).toFixed(4),y=+((e.clientY-r.top)/r.height).toFixed(4);
+    const np={...P,[active]:{x,y},_a:asp};onPts(np);
+    const idx=cfg.landmarks.findIndex(l=>l.k===active);const nx=cfg.landmarks.slice(idx+1).find(l=>!np[l.k]);setActive(nx?nx.k:null);};
+  return(
+    <div className="fg"><label className="flbl">{label} — toque nos pontos</label>
+      {photo?<>
+        <div onClick={tap} style={{position:'relative',borderRadius:12,overflow:'hidden',border:'1px solid var(--border2)',background:'#000',maxWidth:250,cursor:'crosshair',touchAction:'manipulation'}}>
+          <img src={photo} alt="" style={{display:'block',width:'100%'}} onLoad={e=>{const a=e.target.naturalWidth/e.target.naturalHeight;setAsp(a);}}/>
+          <PostureOverlay view={view} pts={P}/>
+        </div>
+        <div style={{display:'flex',flexWrap:'wrap',gap:5,marginTop:7,maxWidth:250}}>
+          {cfg.landmarks.map(l=>{const done=!!P[l.k];const on=active===l.k;
+            return <button key={l.k} type="button" onClick={()=>setActive(l.k)}
+              style={{fontSize:10.5,padding:'4px 7px',borderRadius:14,cursor:'pointer',border:'1px solid '+(on?'var(--accent)':done?ptColor(l.s):'var(--border2)'),
+                background:on?'var(--accent)':done?ptColor(l.s):'transparent',color:on||done?'#fff':'var(--text2)',fontWeight:600}}>
+              {done?'✓ ':''}{l.l}</button>;})}
+        </div>
+        <div style={{display:'flex',gap:6,marginTop:6}}>
+          <button className="btn btn-ghost btn-sm" type="button" onClick={()=>{onPts({_a:asp});setActive(cfg.landmarks[0].k);}}>Limpar pontos</button>
+          <button className="btn btn-ghost btn-sm" type="button" onClick={()=>{onPhoto('');onPts({});}}>Trocar foto</button>
+        </div>
+      </>:
+        <div className="photo-up" style={{width:'100%',maxWidth:250,height:160}} onClick={()=>ref.current.click()}>
+          <div className="photo-ph">{label}<br/>toque p/ adicionar foto</div></div>}
       <input ref={ref} type="file" accept="image/*" capture="environment" style={{display:'none'}} onChange={e=>pick(e.target.files[0])}/>
     </div>);
 }
@@ -703,12 +819,12 @@ function StudentForm({student,onSave,onCancel}){
           <div className="ph-sub">Dados cadastrais e anamnese</div></div>
         <div className="bgroup">
           <button className="btn btn-ghost" onClick={onCancel}>Cancelar</button>
-          <button className="btn btn-primary" onClick={()=>{if(!f.name.trim()){alert('Nome é obrigatório');return;}onSave({...f,id:student?.id||uid()});}}>💾 Salvar</button>
+          <button className="btn btn-primary" onClick={()=>{if(!f.name.trim()){alert('Nome é obrigatório');return;}onSave({...f,id:student?.id||uid()});}}> Salvar</button>
         </div>
       </div>
       <div className="card">
         <div className="sec">
-          <div className="sec-title">👤 Dados pessoais</div>
+          <div className="sec-title">Dados pessoais</div>
           <div style={{display:'flex',gap:20,alignItems:'flex-start',flexWrap:'wrap'}}>
             <PhotoUpload value={f.photo} onChange={v=>s('photo',v)}/>
             <div style={{flex:1,minWidth:240}}>
@@ -728,7 +844,7 @@ function StudentForm({student,onSave,onCancel}){
         </div>
 
         <div className="sec">
-          <div className="sec-title">🎯 Perfil de treino</div>
+          <div className="sec-title">Perfil de treino</div>
           <div className="fgrid">
             <FI label="Objetivo principal" value={f.goal} onChange={e=>s('goal',e.target.value)} placeholder="Hipertrofia, emagrecimento..."/>
             <FS label="Nível de atividade física" value={f.activity} onChange={e=>s('activity',e.target.value)}>
@@ -740,7 +856,7 @@ function StudentForm({student,onSave,onCancel}){
         </div>
 
         <div className="sec">
-          <div className="sec-title">🩺 Anamnese / Histórico de saúde</div>
+          <div className="sec-title">Anamnese / Histórico de saúde</div>
           <div className="fgrid2" style={{marginBottom:13}}>
             <FS label="Fumante" value={f.smoker} onChange={e=>s('smoker',e.target.value)}>
               <option>Não</option><option>Sim</option><option>Ex-fumante</option></FS>
@@ -803,7 +919,7 @@ function EvalForm({student,evalData,carryHeight,isReassess,onSave,onCancel}){
           {isReassess&&<div className="ph-sub">Estatura preenchida da última avaliação · ajuste se necessário</div>}</div>
         <div className="bgroup">
           <button className="btn btn-ghost" onClick={onCancel}>Cancelar</button>
-          <button className="btn btn-primary" onClick={()=>onSave({...f,id:evalData?.id||uid()})}>💾 Salvar avaliação</button>
+          <button className="btn btn-primary" onClick={()=>onSave({...f,id:evalData?.id||uid()})}> Salvar avaliação</button>
         </div>
       </div>
       {(d.bmi||bpCls||d.fatPct||d.dynAvg)&&(
@@ -815,7 +931,7 @@ function EvalForm({student,evalData,carryHeight,isReassess,onSave,onCancel}){
           {d.rcq&&<Stat lbl="Cintura/Quadril" val={fmt(d.rcq,2)}/>}
         </div>)}
       <div className="card" style={{marginBottom:16}}>
-        <div className="sec-title" style={{marginBottom:12}}>🧩 Protocolos desta avaliação</div>
+        <div className="sec-title" style={{marginBottom:12}}> Protocolos desta avaliação</div>
         <div className="bgroup" style={{marginBottom:12}}>
           {EVAL_PRESETS.map(([lbl,arr])=><button key={lbl} type="button" className="btn btn-ghost btn-sm" onClick={()=>setPreset(arr)}>{lbl}</button>)}
         </div>
@@ -823,40 +939,40 @@ function EvalForm({student,evalData,carryHeight,isReassess,onSave,onCancel}){
           {EVAL_MODULES.map(([k,lbl])=>(
             <button key={k} type="button" onClick={()=>toggleMod(k)}
               style={{padding:'8px 12px',borderRadius:20,fontSize:12.5,fontWeight:600,cursor:'pointer',border:'1px solid '+(has(k)?'var(--accent)':'var(--border2)'),background:has(k)?'var(--accent)':'transparent',color:has(k)?'var(--cream)':'var(--text2)'}}>
-              {has(k)?'✓ ':''}{lbl}</button>))}
+              {has(k)?' ':''}{lbl}</button>))}
         </div>
         <div style={{fontSize:11.5,color:'var(--text3)',marginTop:10}}>Só os protocolos marcados aparecem abaixo e no relatório. (Data, peso e estatura estão sempre presentes.)</div>
       </div>
       <div className="card">
-        <div className="sec"><div className="sec-title">📅 Data e medidas básicas</div>
+        <div className="sec"><div className="sec-title">Data e medidas básicas</div>
           <div className="fgrid">
             <FI label="Data da avaliação" type="date" value={f.date} onChange={e=>upd('date',e.target.value)}/>
             {N('Peso','weight','kg','70.5')}{N('Estatura','height','cm','175')}
           </div>
           {d.bmi&&<div className="alert alert-info" style={{marginTop:13}}>IMC: <strong>{fmt(d.bmi)} kg/m²</strong>{bmiCls&&<> — <Badge cls={bmiCls.c}>{bmiCls.l}</Badge></>}</div>}
         </div>
-        {has('bp')&&<div className="sec"><div className="sec-title">🩺 Dados hemodinâmicos</div>
+        {has('bp')&&<div className="sec"><div className="sec-title">Dados hemodinâmicos</div>
           <div className="fgrid">{N('Freq. cardíaca de repouso','resting_hr','bpm','60')}{N('PA sistólica','bp_sys','mmHg','120')}{N('PA diastólica','bp_dia','mmHg','80')}</div>
           {bpCls&&<div style={{marginTop:9}}>Pressão arterial: <Badge cls={bpCls.c}>{bpCls.l}</Badge></div>}
         </div>}
-        {has('dyn')&&<div className="sec"><div className="sec-title">✊ Dinamometria — preensão manual</div>
+        {has('dyn')&&<div className="sec"><div className="sec-title">Dinamometria — preensão manual</div>
           <div className="fgrid">{N('Mão direita','dyn_r','kgf','35')}{N('Mão esquerda','dyn_l','kgf','32')}</div>
           {d.dynAvg&&<div style={{marginTop:9,fontSize:12,color:'var(--text2)'}}>Média: <strong style={{color:'var(--text)'}}>{fmt(d.dynAvg)} kgf</strong></div>}
         </div>}
-        {has('bio')&&<div className="sec"><div className="sec-title">⚡ Bioimpedância</div>
+        {has('bio')&&<div className="sec"><div className="sec-title">Bioimpedância</div>
           <div className="fgrid2">{N('% Gordura corporal','bio_fat','%','18.5')}{N('Massa muscular','bio_muscle','kg','32')}
             {N('% Músculo esquelético','bio_muscle_pct','%','42')}{N('Massa magra','bio_lean','kg','58')}{N('% Água corporal','bio_water','%','55')}
             {N('Massa óssea','bio_bone','kg','3.2')}{N('Gordura visceral','bio_visceral','nível','5')}
             {N('Taxa metab. basal (TMB)','bio_bmr','kcal','1750')}{N('Idade metabólica','bio_metabage','anos','28')}</div>
         </div>}
-        {has('skin')&&<div className="sec"><div className="sec-title">📐 Dobras cutâneas</div>
+        {has('skin')&&<div className="sec"><div className="sec-title">Dobras cutâneas</div>
           <div className="alert alert-info">Preencha as 7 dobras com ★ (tórax, axilar, tríceps, subescapular, abdominal, suprailíaca e coxa) para o cálculo automático de % de gordura — protocolo Jackson-Pollock 7.</div>
           <div className="fgrid2">{N('Tríceps ★','sf_triceps','mm')}{N('Subescapular ★','sf_subscapular','mm')}{N('Bíceps','sf_biceps','mm')}
             {N('Tórax/Peitoral ★','sf_chest','mm')}{N('Axilar média ★','sf_midaxillary','mm')}{N('Suprailíaca ★','sf_suprailiac','mm')}
             {N('Abdominal ★','sf_abdomen','mm')}{N('Coxa ★','sf_thigh','mm')}{N('Panturrilha','sf_calf','mm')}</div>
           {d.jp!=null&&<div className="alert alert-success" style={{marginTop:13}}>% Gordura (JP7): <strong>{fmt(d.jp)}%</strong>{fatCls&&<> — <Badge cls={fatCls.c}>{fatCls.l}</Badge></>}</div>}
         </div>}
-        {has('circ')&&<div className="sec"><div className="sec-title">📏 Circunferências</div>
+        {has('circ')&&<div className="sec"><div className="sec-title">Circunferências</div>
           <div className="fgrid2">{N('Ombros','circ_shoulders','cm')}{N('Tórax','circ_chest','cm')}{N('Cintura','circ_waist','cm')}
             {N('Abdômen','circ_abdomen','cm')}{N('Quadril','circ_hip','cm')}{N('Braço dir. contraído','circ_arm_r','cm')}
             {N('Braço esq. contraído','circ_arm_l','cm')}{N('Coxa direita','circ_thigh_r','cm')}{N('Coxa esquerda','circ_thigh_l','cm')}
@@ -882,25 +998,34 @@ function EvalForm({student,evalData,carryHeight,isReassess,onSave,onCancel}){
             onPhoto={v=>upd('post_photo_'+k,v)} onPlumb={v=>upd('post_plumb_'+k,v)}/>;
           const badgeLine=(lbl,cls,val,unit)=>cls?<div style={{marginTop:8}}><span style={{fontSize:12,color:'var(--text2)'}}>{lbl}: <strong style={{color:'var(--text)'}}>{val} {unit}</strong></span> <Badge cls={cls.c}>{cls.l}</Badge></div>:null;
           return(<>
-          {has('postural')&&<div className="sec"><div className="sec-title">🧍 Avaliação postural</div>
-            <div className="fgrid2">
-              {SEL('Cabeça','post_head',['Alinhada','Anteriorizada','Inclinada D','Inclinada E','Rotada'])}
-              {SEL('Ombros','post_shoulders',['Nivelados','Elevado D','Elevado E','Protraídos'])}
+          {has('postural')&&<div className="sec"><div className="sec-title">Avaliação postural</div>
+            <div className="alert alert-info">Adicione as fotos (frente, lateral e costas) e toque nos pontos anatômicos indicados. Os ângulos são calculados automaticamente.</div>
+            <div className="fgrid" style={{gridTemplateColumns:'repeat(auto-fit,minmax(230px,1fr))'}}>
+              {['front','side','back'].map(v=><PostureMarker key={v} view={v} label={POSTURE_VIEWS[v].label}
+                photo={f['post_photo_'+v]} pts={f['post_pts_'+v]}
+                onPhoto={val=>upd('post_photo_'+v,val)} onPts={val=>upd('post_pts_'+v,val)} onMetrics={m=>upd('post_metrics_'+v,m)}/>)}
+            </div>
+            {['front','side','back'].some(v=>(f['post_metrics_'+v]||[]).length>0)&&
+              <div className="alert alert-success" style={{marginTop:12}}>
+                {['front','side','back'].map(v=>{const m=f['post_metrics_'+v]||[];if(!m.length)return null;
+                  return <div key={v} style={{marginBottom:6}}><strong>{POSTURE_VIEWS[v].label}:</strong> {m.map((x,i)=><span key={i} style={{marginRight:10}}>{x.l} <strong>{x.v}{x.u}</strong>{x.badge&&<> <Badge cls={x.badge.c}>{x.badge.l}</Badge></>}</span>)}</div>;})}
+              </div>}
+            <div style={{marginTop:14,fontSize:12.5,fontWeight:700,color:'var(--accent)'}}>Classificação por segmento (grau)</div>
+            <div className="fgrid2" style={{marginTop:8}}>
+              {SEL('Cabeça','post_head',['Alinhada','Leve anteriorização','Moderada','Grave'])}
+              {SEL('Ombros','post_shoulders',['Simétricos','Direito elevado','Esquerdo elevado','Protraídos','Retraídos'])}
+              {SEL('Escápulas','post_scapula',['Normal','Alada D','Alada E','Abduzida','Aduzida','Elevada','Deprimida'])}
+              {SEL('Coluna cervical','post_cervical',['Normal','Hiperlordose','Retificada'])}
               {SEL('Coluna torácica','post_thoracic',['Normal','Hipercifose','Retificada'])}
               {SEL('Coluna lombar','post_lumbar',['Normal','Hiperlordose','Retificada'])}
-              {SEL('Coluna (frontal)','post_spine',['Alinhada','Escoliose torácica','Escoliose lombar','Escoliose em S'])}
-              {SEL('Pelve','post_pelvis',['Neutra','Anteroversão','Retroversão','Báscula D','Báscula E'])}
-              {SEL('Joelhos','post_knees',['Alinhados','Valgo','Varo','Recurvado'])}
-              {SEL('Pés','post_feet',['Neutros','Plano','Cavo','Abduzido'])}
+              {SEL('Pelve','post_pelvis',['Neutra','Anteversão','Retroversão','Inclinação D','Inclinação E','Rotação'])}
+              {SEL('Joelhos','post_knees',['Normal','Valgo','Varo','Recurvato','Flexo'])}
+              {SEL('Pés','post_feet',['Normal','Pronado','Supinado','Plano','Cavo','Hallux Valgus'])}
             </div>
             <div style={{marginTop:12}}><FTA label="Observações posturais" value={f.post_obs||''} onChange={e=>upd('post_obs',e.target.value)} placeholder="Assimetrias, compensações, encurtamentos..."/></div>
-            <div style={{marginTop:14,fontSize:12,color:'var(--text2)',fontWeight:600}}>📸 Fotos posturais (com fio de prumo ajustável)</div>
-            <div className="fgrid" style={{gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',marginTop:8}}>
-              {PhotoField('Frente','front')}{PhotoField('Lateral','side')}{PhotoField('Costas','back')}
-            </div>
           </div>}
 
-          {has('resist')&&<div className="sec"><div className="sec-title">💪 Testes de resistência muscular</div>
+          {has('resist')&&<div className="sec"><div className="sec-title">Testes de resistência muscular</div>
             <div className="fgrid2">
               {N('Flexão de braço','res_pushup','reps')}
               {N('Abdominal (1 min)','res_situp','reps')}
@@ -913,7 +1038,7 @@ function EvalForm({student,evalData,carryHeight,isReassess,onSave,onCancel}){
             {badgeLine('Barra fixa',puuCls,f.res_pullup,'reps')}
           </div>}
 
-          {has('flex')&&<div className="sec"><div className="sec-title">🤸 Flexibilidade &amp; encurtamentos</div>
+          {has('flex')&&<div className="sec"><div className="sec-title">Flexibilidade &amp; encurtamentos</div>
             <div className="fgrid2">
               {N('Banco de Wells','flex_wells','cm')}
               {N('Mobilidade tornozelo (lunge)','mob_lunge','cm')}
@@ -927,7 +1052,7 @@ function EvalForm({student,evalData,carryHeight,isReassess,onSave,onCancel}){
             <div style={{marginTop:10}}><FTA label="Observações de flexibilidade" value={f.flex_obs||''} onChange={e=>upd('flex_obs',e.target.value)} placeholder="Outros testes, ângulos, assimetrias..."/></div>
           </div>}
 
-          {has('cardio')&&<div className="sec"><div className="sec-title">🏃 Teste cardiorrespiratório (esteira incremental)</div>
+          {has('cardio')&&<div className="sec"><div className="sec-title">Teste cardiorrespiratório (esteira incremental)</div>
             <div className="alert alert-info">Protocolo incremental: aquecer 5 min na velocidade inicial, aumentando <strong>0,5 km/h a cada minuto</strong>; a partir do 5º min, aumentar <strong>1 km/h a cada minuto</strong> até a fadiga. Registre a velocidade final e o tempo. O VO₂máx é estimado pela velocidade final (VAM).</div>
             <div className="fgrid2">
               {N('Velocidade inicial','inc_v0','km/h','6')}
@@ -942,7 +1067,7 @@ function EvalForm({student,evalData,carryHeight,isReassess,onSave,onCancel}){
             {vo2!=null&&<div className="alert alert-success" style={{marginTop:12}}>VO₂máx estimado: <strong>{fmt(vo2)} mL/kg/min</strong>{vo2Cls&&<> — <Badge cls={vo2Cls.c}>{vo2Cls.l}</Badge></>}</div>}
           </div>}
 
-          {has('strength')&&<div className="sec"><div className="sec-title">🏋️ Teste de força — 1‑RM</div>
+          {has('strength')&&<div className="sec"><div className="sec-title">Teste de força — 1‑RM</div>
             <div className="alert alert-info">Informe a carga e as repetições até a falha; o 1‑RM estimado é calculado (fórmula de Brzycki). Para 1‑RM direto, use 1 repetição.</div>
             {[['Supino','bench'],['Agachamento','squat'],['Levantamento terra','dead'],['Desenvolvimento','ohp'],['Remada','row']].map(([lbl,k])=>{
               const e1=est1RM(f['rm_'+k+'_w'],f['rm_'+k+'_r']);
@@ -955,7 +1080,7 @@ function EvalForm({student,evalData,carryHeight,isReassess,onSave,onCancel}){
             })}
           </div>}
 
-          {has('power')&&<div className="sec"><div className="sec-title">⚡ Potência &amp; velocidade</div>
+          {has('power')&&<div className="sec"><div className="sec-title">Potência &amp; velocidade</div>
             <div className="fgrid2">
               {N('Salto vertical (CMJ)','pw_cmj','cm')}
               {N('Salto horizontal','pw_horizontal','cm')}
@@ -969,7 +1094,7 @@ function EvalForm({student,evalData,carryHeight,isReassess,onSave,onCancel}){
               {jumpPower(f.pw_cmj,f.weight)&&<> · Potência de pico estimada: <strong>{jumpPower(f.pw_cmj,f.weight).toLocaleString('pt-BR')} W</strong></>}</div>}
           </div>}
 
-          {has('goals')&&<div className="sec"><div className="sec-title">🎯 Metas e projeções</div>
+          {has('goals')&&<div className="sec"><div className="sec-title">Metas e projeções</div>
             <div className="fgrid2">
               {N('Peso alvo','goal_weight','kg')}
               {N('% Gordura alvo','goal_fat','%')}
@@ -989,7 +1114,7 @@ function EvalForm({student,evalData,carryHeight,isReassess,onSave,onCancel}){
             })()}
           </div>}
 
-          {has('parecer')&&<div className="sec"><div className="sec-title">📝 Parecer do avaliador</div>
+          {has('parecer')&&<div className="sec"><div className="sec-title">Parecer do avaliador</div>
             <div className="fgrid" style={{gridTemplateColumns:'1fr 1fr'}}>
               <FTA label="Pontos fortes" value={f.pt_strong||''} onChange={e=>upd('pt_strong',e.target.value)} placeholder="O que está bem..."/>
               <FTA label="Pontos a melhorar" value={f.pt_improve||''} onChange={e=>upd('pt_improve',e.target.value)} placeholder="Prioridades..."/>
@@ -998,7 +1123,7 @@ function EvalForm({student,evalData,carryHeight,isReassess,onSave,onCancel}){
           </div>}
           </>);})()}
 
-        <div className="sec"><div className="sec-title">📝 Observações</div>
+        <div className="sec"><div className="sec-title">Observações</div>
           <FTA value={f.obs} onChange={e=>upd('obs',e.target.value)} placeholder="Observações desta avaliação..."/></div>
       </div>
     </div>);
@@ -1021,18 +1146,18 @@ function StudentDetail({student,evals,onNewEval,onReassess,onEditEval,onDeleteEv
           </div>
         </div>
         <div className="bgroup">
-          <button className="btn btn-ghost btn-sm" onClick={onEdit}>✏️ Editar ficha</button>
-          {sorted.length>0&&<button className="btn btn-secondary" onClick={onReassess}>🔁 Reavaliação</button>}
+          <button className="btn btn-ghost btn-sm" onClick={onEdit}>Editar Editar ficha</button>
+          {sorted.length>0&&<button className="btn btn-secondary" onClick={onReassess}> Reavaliação</button>}
           <button className="btn btn-primary" onClick={onNewEval}>＋ Nova avaliação</button>
         </div>
       </div>
 
       <div style={{marginBottom:20,display:'flex',flexWrap:'wrap',gap:0}}>
-        {student.goal&&<span className="info-pill">🎯 {student.goal}</span>}
-        {student.profession&&<span className="info-pill">💼 {student.profession}</span>}
-        {student.schedule&&<span className="info-pill">🕐 {student.schedule}</span>}
-        {student.phone&&<span className="info-pill">📱 {student.phone}</span>}
-        {(student.health||student.injuries)&&<span className="info-pill" style={{borderColor:'rgba(234,179,8,.3)',color:'#fde047'}}>⚠️ Anamnese registrada</span>}
+        {student.goal&&<span className="info-pill"> {student.goal}</span>}
+        {student.profession&&<span className="info-pill"> {student.profession}</span>}
+        {student.schedule&&<span className="info-pill"> {student.schedule}</span>}
+        {student.phone&&<span className="info-pill"> {student.phone}</span>}
+        {(student.health||student.injuries)&&<span className="info-pill" style={{borderColor:'rgba(234,179,8,.3)',color:'#fde047'}}> Anamnese registrada</span>}
       </div>
 
       {last&&d&&(
@@ -1047,7 +1172,7 @@ function StudentDetail({student,evals,onNewEval,onReassess,onEditEval,onDeleteEv
 
       <div style={{fontSize:15,fontWeight:600,margin:'24px 0 14px'}}>Histórico de avaliações</div>
       {sorted.length===0?(
-        <div className="empty"><div className="empty-icon">📋</div>
+        <div className="empty"><div className="empty-icon"></div>
           <div className="empty-title">Nenhuma avaliação registrada</div>
           <p style={{marginBottom:16,fontSize:13}}>Clique em "Nova avaliação" para começar</p>
           <button className="btn btn-primary" onClick={onNewEval}>＋ Nova avaliação</button></div>
@@ -1065,9 +1190,9 @@ function StudentDetail({student,evals,onNewEval,onReassess,onEditEval,onDeleteEv
                 {ev.bp_sys&&`PA ${ev.bp_sys}/${ev.bp_dia} · `}{dd.dynAvg&&`Preensão ${fmt(dd.dynAvg)} kgf`}</div>
             </div>
             <div className="bgroup">
-              <button className="btn-icon" title="Editar" onClick={()=>onEditEval(ev)}>✏️</button>
-              <button className="btn btn-secondary btn-sm" onClick={()=>onReport(ev)}>📄 Relatório</button>
-              <button className="btn-icon" title="Excluir" onClick={()=>{if(confirm('Excluir esta avaliação?'))onDeleteEval(ev.id);}}>🗑️</button>
+              <button className="btn-icon" title="Editar" onClick={()=>onEditEval(ev)}>Editar</button>
+              <button className="btn btn-secondary btn-sm" onClick={()=>onReport(ev)}> Relatório</button>
+              <button className="btn-icon" title="Excluir" onClick={()=>{if(confirm('Excluir esta avaliação?'))onDeleteEval(ev.id);}}>Excluir</button>
             </div>
           </div>);
       })}
@@ -1105,23 +1230,23 @@ function buildHighlights(student,cur,prev){
   const push=(cond,ico,txt)=>{if(cond)out.push({ico,txt});};
   if(dc.fatMass!=null&&dp.fatMass!=null){
     const dd=+(dc.fatMass-dp.fatMass).toFixed(1);
-    if(dd<0)push(true,'🔥',`Redução de ${Math.abs(dd)} kg de massa gorda.`);
-    else if(dd>0)push(true,'⚠️',`Aumento de ${dd} kg de massa gorda.`);
+    if(dd<0)push(true,'',`Redução de ${Math.abs(dd)} kg de massa gorda.`);
+    else if(dd>0)push(true,'',`Aumento de ${dd} kg de massa gorda.`);
   }
   if(dc.leanMass!=null&&dp.leanMass!=null){
     const dd=+(dc.leanMass-dp.leanMass).toFixed(1);
-    if(dd>0)push(true,'💪',`Ganho de ${dd} kg de massa magra.`);
-    else if(dd<0)push(true,'📉',`Perda de ${Math.abs(dd)} kg de massa magra — atenção.`);
+    if(dd>0)push(true,'',`Ganho de ${dd} kg de massa magra.`);
+    else if(dd<0)push(true,'',`Perda de ${Math.abs(dd)} kg de massa magra — atenção.`);
   }
   if(dc.fatPct!=null&&dp.fatPct!=null){
     const dd=+(dc.fatPct-dp.fatPct).toFixed(1);
-    if(dd!==0)push(true,dd<0?'✅':'🔸',`% de gordura ${dd<0?'reduziu':'aumentou'} ${Math.abs(dd)} pontos (${fmt(dp.fatPct)}% → ${fmt(dc.fatPct)}%).`);
+    if(dd!==0)push(true,dd<0?'':'',`% de gordura ${dd<0?'reduziu':'aumentou'} ${Math.abs(dd)} pontos (${fmt(dp.fatPct)}% → ${fmt(dc.fatPct)}%).`);
   }
   const wc=num(cur.circ_waist),wp=num(prev.circ_waist);
-  if(wc&&wp){const dd=+(wc-wp).toFixed(1);if(dd!==0)push(true,dd<0?'📏':'🔸',`Cintura ${dd<0?'reduziu':'aumentou'} ${Math.abs(dd)} cm.`);}
+  if(wc&&wp){const dd=+(wc-wp).toFixed(1);if(dd!==0)push(true,dd<0?'':'',`Cintura ${dd<0?'reduziu':'aumentou'} ${Math.abs(dd)} cm.`);}
   if(dc.dynAvg&&dp.dynAvg){const dd=+(dc.dynAvg-dp.dynAvg).toFixed(1);
-    if(dd>0)push(true,'✊',`Força de preensão melhorou ${dd} kgf.`);}
-  if(out.length===0)push(true,'📊','Avaliação comparativa registrada. Mantenha a consistência.');
+    if(dd>0)push(true,'',`Força de preensão melhorou ${dd} kgf.`);}
+  if(out.length===0)push(true,'','Avaliação comparativa registrada. Mantenha a consistência.');
   return out;
 }
 
@@ -1132,17 +1257,17 @@ function shareWhatsApp(student,evalData,prevEval){
   L.push('*MF PERFORMANCE — Avaliação Física*');
   L.push(`*${student.name}* · ${fmtDate(evalData.date)}`);
   L.push('');
-  if(evalData.weight)L.push(`⚖️ Peso: ${evalData.weight} kg`);
-  if(d.bmi)L.push(`📊 IMC: ${fmt(d.bmi)} kg/m²${classifyBMI(d.bmi)?' ('+classifyBMI(d.bmi).l+')':''}`);
-  if(d.fatPct!=null){const fc=classifyFat(student.gender,age(student.dob)||25,d.fatPct);L.push(`🔥 % Gordura: ${fmt(d.fatPct)}%${fc?' ('+fc.l+')':''}`);}
-  if(d.leanMass!=null)L.push(`💪 Massa magra: ${d.leanMass} kg`);
-  if(evalData.bp_sys&&evalData.bp_dia)L.push(`🩺 Pressão: ${evalData.bp_sys}/${evalData.bp_dia} mmHg`);
-  if(d.dynAvg)L.push(`✊ Preensão: ${d.dynAvg} kgf`);
+  if(evalData.weight)L.push(` Peso: ${evalData.weight} kg`);
+  if(d.bmi)L.push(` IMC: ${fmt(d.bmi)} kg/m²${classifyBMI(d.bmi)?' ('+classifyBMI(d.bmi).l+')':''}`);
+  if(d.fatPct!=null){const fc=classifyFat(student.gender,age(student.dob)||25,d.fatPct);L.push(` % Gordura: ${fmt(d.fatPct)}%${fc?' ('+fc.l+')':''}`);}
+  if(d.leanMass!=null)L.push(` Massa magra: ${d.leanMass} kg`);
+  if(evalData.bp_sys&&evalData.bp_dia)L.push(` Pressão: ${evalData.bp_sys}/${evalData.bp_dia} mmHg`);
+  if(d.dynAvg)L.push(` Preensão: ${d.dynAvg} kgf`);
   if(prevEval){
     const hi=buildHighlights(student,evalData,prevEval);
     if(hi.length){L.push('');L.push(`*Evolução desde ${fmtDate(prevEval.date)}:*`);hi.forEach(h=>L.push(`${h.ico} ${h.txt}`));}
   }
-  L.push('');L.push('_Continue firme nos treinos! 💪_');
+  L.push('');L.push('_Continue firme nos treinos! _');
   const txt=encodeURIComponent(L.join('\n'));
   const phone=(student.phone||'').replace(/\D/g,'');
   const target=phone?`https://wa.me/55${phone}?text=${txt}`:`https://wa.me/?text=${txt}`;
@@ -1350,8 +1475,8 @@ function Report({student,evalData,allEvals,onBack,coach}){
               <option value="">Sem comparação</option>
               {others.map(e=><option key={e.id} value={e.id}>Comparar com {fmtDate(e.date)}</option>)}
             </select>)}
-          <button className="btn btn-secondary" onClick={()=>shareWhatsApp(student,evalData,prevEval)}>💬 WhatsApp</button>
-          <button className="btn btn-primary" onClick={()=>window.print()}>🖨️ Imprimir / PDF</button>
+          <button className="btn btn-secondary" onClick={()=>shareWhatsApp(student,evalData,prevEval)}> WhatsApp</button>
+          <button className="btn btn-primary" onClick={()=>window.print()}> Imprimir / PDF</button>
         </div>
       </div>
 
@@ -1511,11 +1636,11 @@ function Report({student,evalData,allEvals,onBack,coach}){
                   <table className="rpt-tbl"><tbody>
                     <Row lbl="% Gordura corporal" val={evalData.bio_fat} unit="%" badge={num(evalData.bio_fat)?fatCls:null} prev={prevEval?.bio_fat}/>
                     <Row lbl="Massa muscular" val={evalData.bio_muscle} unit="kg" prev={prevEval?.bio_muscle}/>
-                    <Row lbl="% Músculo esquelético" val={evalData.bio_muscle_pct} unit="%" prev={prevEval?.bio_muscle_pct}/>
-                    <Row lbl="Massa magra" val={evalData.bio_lean} unit="kg" prev={prevEval?.bio_lean}/>
-                    <Row lbl="% Água corporal" val={evalData.bio_water} unit="%" prev={prevEval?.bio_water}/>
+                    <Row lbl="% Músculo esquelético" val={evalData.bio_muscle_pct} unit="%" badge={classifySkeletal(student.gender,evalData.bio_muscle_pct)} prev={prevEval?.bio_muscle_pct}/>
+                    <Row lbl="Massa magra" val={evalData.bio_lean} unit="kg" badge={d.ffmi?classifyFFMI(student.gender,d.ffmi):null} prev={prevEval?.bio_lean}/>
+                    <Row lbl="% Água corporal" val={evalData.bio_water} unit="%" badge={classifyWater(student.gender,evalData.bio_water)} prev={prevEval?.bio_water}/>
                     <Row lbl="Massa óssea" val={evalData.bio_bone} unit="kg" prev={prevEval?.bio_bone}/>
-                    <Row lbl="Gordura visceral" val={evalData.bio_visceral} unit="" prev={prevEval?.bio_visceral}/>
+                    <Row lbl="Gordura visceral" val={evalData.bio_visceral} unit="" badge={classifyVisceral(evalData.bio_visceral)} prev={prevEval?.bio_visceral}/>
                   </tbody></table>
                 </div>)}
             </div>
@@ -1557,26 +1682,28 @@ function Report({student,evalData,allEvals,onBack,coach}){
 
           {/* Fotos posturais com fio de prumo */}
           {(()=>{
-            const PH=[['Frente','front'],['Lateral','side'],['Costas','back']];
-            const has=PH.some(([,k])=>evalData['post_photo_'+k]);
-            if(!has)return null;
-            return(<div className="rpt-sec"><div className="rpt-sec-title">Análise postural (fotos com fio de prumo)</div>
-              <div style={{display:'flex',gap:14,flexWrap:'wrap'}}>
-                {PH.map(([lbl,k])=>evalData['post_photo_'+k]?(
-                  <div key={k} style={{textAlign:'center'}}>
-                    <div style={{position:'relative',width:150,borderRadius:8,overflow:'hidden',border:'1px solid #e5e7eb'}}>
-                      <img src={evalData['post_photo_'+k]} alt="" style={{display:'block',width:'100%'}}/>
-                      <PlumbOverlay plumb={evalData['post_plumb_'+k]??50}/>
-                    </div>
-                    <div style={{fontSize:11,color:'#6b7280',marginTop:4}}>{lbl}</div>
-                  </div>):null)}
+            const PH=[['Anterior','front'],['Lateral','side'],['Posterior','back']];
+            const hasPh=PH.some(([,k])=>evalData['post_photo_'+k]);
+            const hasMx=PH.some(([,k])=>(evalData['post_metrics_'+k]||[]).length>0);
+            if(!hasPh&&!hasMx)return null;
+            return(<div className="rpt-sec"><div className="rpt-sec-title">Análise postural por imagem</div>
+              <div style={{display:'flex',gap:16,flexWrap:'wrap'}}>
+                {PH.map(([lbl,k])=>{const ph=evalData['post_photo_'+k],mx=evalData['post_metrics_'+k]||[];if(!ph&&!mx.length)return null;
+                  return(<div key={k} style={{textAlign:'center',minWidth:150}}>
+                    {ph&&<div style={{position:'relative',width:150,borderRadius:8,overflow:'hidden',border:'1px solid #e5e7eb',margin:'0 auto'}}>
+                      <img src={ph} alt="" style={{display:'block',width:'100%'}}/>
+                      {evalData['post_pts_'+k]&&<PostureOverlay view={k} pts={evalData['post_pts_'+k]}/>}
+                    </div>}
+                    <div style={{fontSize:11,fontWeight:700,color:'var(--accent)',marginTop:5}}>{lbl}</div>
+                    {mx.map((x,i)=><div key={i} style={{fontSize:10.5,color:'#374151',lineHeight:1.5}}>{x.l}: <strong>{x.v}{x.u}</strong>{x.badge&&<span className={`badge ${x.badge.c}`} style={{marginLeft:4,fontSize:9,padding:'1px 5px'}}>{x.badge.l}</span>}</div>)}
+                  </div>);})}
               </div></div>);
           })()}
 
           {/* Postural / testes físicos */}
           {(()=>{
             const pAge=age(student.dob);const G=student.gender;
-            const POST=[['Cabeça','post_head'],['Ombros','post_shoulders'],['Coluna torácica','post_thoracic'],['Coluna lombar','post_lumbar'],['Coluna (frontal)','post_spine'],['Pelve','post_pelvis'],['Joelhos','post_knees'],['Pés','post_feet']];
+            const POST=[['Cabeça','post_head'],['Ombros','post_shoulders'],['Escápulas','post_scapula'],['Coluna cervical','post_cervical'],['Coluna torácica','post_thoracic'],['Coluna lombar','post_lumbar'],['Pelve','post_pelvis'],['Joelhos','post_knees'],['Pés','post_feet']];
             const SHORT=[['Isquiotibiais','short_hamstring'],['Iliopsoas','short_iliopsoas'],['Reto femoral','short_rectus'],['Tríceps sural','short_calf'],['Peitoral','short_pec']];
             const hasPost=POST.some(([,k])=>evalData[k])||evalData.post_obs;
             const hasFlex=num(evalData.flex_wells)!=null||SHORT.some(([,k])=>evalData[k])||evalData.flex_obs;
@@ -1806,7 +1933,7 @@ function AdminScreen({onBack}){
     const dl=dleft(c[ap+'_until']);const exp=dl==null||dl<0;
     return(
       <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap',marginTop:8}}>
-        <span style={{fontSize:12,fontWeight:600,width:88}}>{ap==='perf'?'🏋️ Performance':'🥗 Nutrition'}</span>
+        <span style={{fontSize:12,fontWeight:600,width:88}}>{ap==='perf'?' Performance':' Nutrition'}</span>
         <span className={`badge ${exp?'br':dl<=7?'bo':'bg'}`}>{c[ap+'_until']?(exp?'expirado':`${dl}d`):'sem acesso'}</span>
         <button className="btn btn-secondary btn-sm" onClick={()=>setApp_(c,ap,30)}>+30d</button>
         <button className="btn btn-secondary btn-sm" onClick={()=>setApp_(c,ap,365)}>+1 ano</button>
@@ -1824,18 +1951,18 @@ function AdminScreen({onBack}){
       </div>
 
       <div className="card">
-        <div className="sec-title" style={{marginBottom:14}}>🎟️ Gerar código de acesso (venda)</div>
+        <div className="sec-title" style={{marginBottom:14}}> Gerar código de acesso (venda)</div>
         {msg&&<div className={`alert alert-${msg.t==='error'?'error':'success'}`}>{msg.x}</div>}
         <div className="fgrid">
           <div className="fg"><label className="flbl">Código</label>
             <div style={{display:'flex',gap:8}}>
               <input className="fi" value={code} onChange={e=>setCode(e.target.value.toUpperCase())} placeholder="EX: JOAO2026" style={{textTransform:'uppercase',letterSpacing:1}}/>
-              <button className="btn btn-secondary btn-sm" type="button" onClick={gen}>🎲</button></div></div>
+              <button className="btn btn-secondary btn-sm" type="button" onClick={gen}>Gerar</button></div></div>
           <FI label="Nome / referência" value={label} onChange={e=>setLabel(e.target.value)} placeholder="Ex: João Personal"/>
           <div className="fg"><label className="flbl">App liberado</label>
             <select className="fi" value={app} onChange={e=>setApp(e.target.value)}>
-              <option value="perf">🏋️ Performance</option>
-              <option value="nutri">🥗 Nutrition</option>
+              <option value="perf"> Performance</option>
+              <option value="nutri"> Nutrition</option>
               <option value="both">Ambos</option>
             </select></div>
           <FI label="Dias de acesso" type="number" value={days} onChange={e=>setDays(e.target.value)} placeholder="30"/>
@@ -1845,7 +1972,7 @@ function AdminScreen({onBack}){
       </div>
 
       <div className="card">
-        <div className="sec-title" style={{marginBottom:14}}>🔑 Códigos</div>
+        <div className="sec-title" style={{marginBottom:14}}> Códigos</div>
         {invites.length===0?<div className="muted" style={{fontSize:13}}>Nenhum código ainda.</div>:
           <div style={{display:'flex',flexDirection:'column',gap:8}}>
             {invites.map(iv=>(
@@ -1858,7 +1985,7 @@ function AdminScreen({onBack}){
       </div>
 
       <div className="card">
-        <div className="sec-title" style={{marginBottom:14}}>👥 Treinadores ({coaches?coaches.length:'…'})</div>
+        <div className="sec-title" style={{marginBottom:14}}> Treinadores ({coaches?coaches.length:'…'})</div>
         {coaches===null?<div className="spinner"/>:coaches.length===0?<div className="muted" style={{fontSize:13}}>Nenhum treinador ainda.</div>:
           <div style={{display:'flex',flexDirection:'column',gap:10}}>
             {coaches.map(c=>(
@@ -1898,10 +2025,9 @@ function ProtocolsScreen({onBack}){
         <div className="ph-sub">Passo a passo e valores de referência (base: ACSM)</div></div>
       </div>
 
-      <Proto title="🧍 Avaliação postural" open>
+      <Proto title="Avaliação postural" open>
         <ProtoLabel>Objetivo</ProtoLabel>Identificar desalinhamentos e assimetrias nos planos anterior, posterior e lateral.
-        <ProtoLabel>Como fazer</ProtoLabel>
-        <Steps items={[
+        <ProtoLabel>Como fazer</ProtoLabel>        <Steps items={[
           'Posicione o aluno em pé, descalço, postura natural, contra um fundo neutro (ou simetrógrafo).',
           'Vista anterior: observe cabeça, ombros, cristas ilíacas, joelhos e pés (nivelamento e rotações).',
           'Vista posterior: escápulas, coluna (escoliose), pregas glúteas e tornozelos.',
@@ -1910,17 +2036,15 @@ function ProtocolsScreen({onBack}){
         ]}/>
       </Proto>
 
-      <Proto title="💪 Flexão de braço (resistência de MMSS)">
-        <ProtoLabel>Como fazer</ProtoLabel>
-        <Steps items={[
+      <Proto title="Flexão de braço (resistência de MMSS)">
+        <ProtoLabel>Como fazer</ProtoLabel>        <Steps items={[
           'Homens: apoio nas pontas dos pés; mulheres: apoio nos joelhos (flexão modificada), corpo alinhado.',
           'Descer até o cotovelo formar ~90° (queixo próximo ao solo), mantendo o tronco reto.',
           'Subir estendendo completamente os cotovelos — conta 1 repetição.',
           'Executar o máximo de repetições contínuas, sem descanso.',
           'Encerrar quando a técnica falhar por duas repetições seguidas.'
         ]}/>
-        <ProtoLabel>Referência — repetições por idade e sexo</ProtoLabel>
-        <div style={{overflowX:'auto'}}>
+        <ProtoLabel>Referência — repetições por idade e sexo</ProtoLabel>        <div style={{overflowX:'auto'}}>
           <table className="rpt-tbl" style={{minWidth:520,marginTop:6}}><thead>
             <tr><td style={{fontWeight:700}}>Categoria</td>{bands.map(b=><td key={b} style={{fontWeight:700}}>{bandLbl[b]} H / M</td>)}</tr>
           </thead><tbody>
@@ -1931,22 +2055,20 @@ function ProtocolsScreen({onBack}){
         <div style={{fontSize:11,color:'var(--text3)',marginTop:6}}>H = homens · M = mulheres. Fonte: ACSM / Canadian Society for Exercise Physiology.</div>
       </Proto>
 
-      <Proto title="🔩 Abdominal, agachamento e barra fixa">
+      <Proto title="Abdominal, agachamento e barra fixa">
         <ProtoLabel>Abdominal (1 min)</ProtoLabel>Deitado, joelhos flexionados a ~90°; elevar o tronco e voltar. Contar repetições completas em 60 s.
         <ProtoLabel>Agachamento (1 min)</ProtoLabel>Pés na largura dos ombros; descer até coxas ~paralelas ao solo e subir. Contar repetições válidas em 60 s.
         <ProtoLabel>Barra fixa</ProtoLabel>Pegada pronada, braços estendidos; elevar até o queixo passar da barra e descer com controle. Contar o máximo de repetições sem pausa.
       </Proto>
 
-      <Proto title="🤸 Flexibilidade — Banco de Wells &amp; encurtamentos">
-        <ProtoLabel>Banco de Wells (sentar-e-alcançar)</ProtoLabel>
-        <Steps items={[
+      <Proto title="Flexibilidade — Banco de Wells &amp; encurtamentos">
+        <ProtoLabel>Banco de Wells (sentar-e-alcançar)</ProtoLabel>        <Steps items={[
           'Aluno sentado, pernas estendidas e pés apoiados na base do banco (descalço).',
           'Braços estendidos, uma mão sobre a outra; inclinar o tronco lentamente à frente.',
           'Empurrar o cursor o mais longe possível e sustentar ~2 s, sem flexionar os joelhos.',
           'Registrar a maior das 3 tentativas, em centímetros.'
         ]}/>
-        <ProtoLabel>Testes de encurtamento (registre Normal / Encurtado)</ProtoLabel>
-        <Steps items={[
+        <ProtoLabel>Testes de encurtamento (registre Normal / Encurtado)</ProtoLabel>        <Steps items={[
           'Isquiotibiais: elevação da perna estendida (ou ângulo poplíteo) — limitação indica encurtamento.',
           'Iliopsoas / reto femoral (Teste de Thomas): deitado, um joelho ao peito; a coxa oposta que se eleva indica encurtamento.',
           'Tríceps sural: dorsiflexão do tornozelo com joelho estendido.',
@@ -1954,44 +2076,38 @@ function ProtocolsScreen({onBack}){
         ]}/>
       </Proto>
 
-      <Proto title="🏃 Teste incremental de esteira (VO₂máx / resistência)">
-        <ProtoLabel>Protocolo</ProtoLabel>
-        <Steps items={[
+      <Proto title="Teste incremental de esteira (VO₂máx / resistência)">
+        <ProtoLabel>Protocolo</ProtoLabel>        <Steps items={[
           'Aquecer 5 minutos na velocidade inicial (ex.: 6 km/h).',
           'Nesses 5 min, aumentar 0,5 km/h a cada minuto.',
           'A partir do 5º minuto, aumentar 1 km/h a cada minuto.',
           'Manter até a fadiga voluntária (aluno não sustenta o ritmo).',
           'Registrar a velocidade final atingida e o tempo total.'
         ]}/>
-        <ProtoLabel>Estimativa</ProtoLabel>
-        VO₂máx (mL/kg/min) ≈ velocidade final (km/h) × 3,5. O app calcula e classifica por idade e sexo. Também aceita o teste de Cooper (distância em 12 min) como alternativa.
+        <ProtoLabel>Estimativa</ProtoLabel>        VO₂máx (mL/kg/min) ≈ velocidade final (km/h) × 3,5. O app calcula e classifica por idade e sexo. Também aceita o teste de Cooper (distância em 12 min) como alternativa.
       </Proto>
 
-      <Proto title="🏃 Teste de Cooper (alternativa)">
-        <ProtoLabel>Como fazer</ProtoLabel>
-        <Steps items={[
+      <Proto title="Teste de Cooper (alternativa)">
+        <ProtoLabel>Como fazer</ProtoLabel>        <Steps items={[
           'Aquecer 5 minutos em intensidade leve.',
           'Percorrer a maior distância possível em 12 minutos.',
           'Registrar a distância total em metros.'
         ]}/>
-        <ProtoLabel>Cálculo</ProtoLabel>
-        VO₂máx (mL/kg/min) = (distância em metros − 504,9) ÷ 44,73.
+        <ProtoLabel>Cálculo</ProtoLabel>        VO₂máx (mL/kg/min) = (distância em metros − 504,9) ÷ 44,73.
       </Proto>
 
-      <Proto title="🏋️ Teste de 1‑RM (força máxima)">
-        <ProtoLabel>Como fazer</ProtoLabel>
-        <Steps items={[
+      <Proto title="Teste de 1‑RM (força máxima)">
+        <ProtoLabel>Como fazer</ProtoLabel>        <Steps items={[
           'Realizar após familiarização com o exercício (supino, agachamento, terra, etc.).',
           'Aquecer com uma série leve de repetições no próprio exercício.',
           'Escolher uma carga inicial em torno de 50–70% da percebida como máxima.',
           'Aumentar progressivamente (5–10%) a cada tentativa bem-sucedida, com 3 a 5 min de descanso.',
           'O 1‑RM é a maior carga levantada uma única vez com técnica correta (idealmente em até 4 tentativas).'
         ]}/>
-        <ProtoLabel>Estimativa (sem ir à falha máxima)</ProtoLabel>
-        No app, informe carga × repetições e o 1‑RM é estimado pela fórmula de Brzycki.
+        <ProtoLabel>Estimativa (sem ir à falha máxima)</ProtoLabel>        No app, informe carga × repetições e o 1‑RM é estimado pela fórmula de Brzycki.
       </Proto>
 
-      <Proto title="⚡ Potência, velocidade e agilidade">
+      <Proto title="Potência, velocidade e agilidade">
         <ProtoLabel>Salto vertical (CMJ)</ProtoLabel>Com as mãos na cintura, agachar e saltar o mais alto possível; medir a altura alcançada. Potência de pico estimada pela fórmula de Sayers.
         <ProtoLabel>Salto horizontal</ProtoLabel>Pés paralelos, saltar à frente o máximo possível; medir a distância do ponto de saída ao calcanhar mais próximo.
         <ProtoLabel>Impulsão (Sargent / jump-and-reach)</ProtoLabel>Diferença entre o alcance em pé e o alcance no ponto máximo do salto.
@@ -2000,7 +2116,7 @@ function ProtocolsScreen({onBack}){
         <ProtoLabel>Agilidade (T-test)</ProtoLabel>Percurso em "T" com deslocamentos frontal, laterais e ré; registrar o tempo.
       </Proto>
 
-      <Proto title="📚 Referências científicas">
+      <Proto title="Referências científicas">
         <div style={{fontSize:12.5,lineHeight:1.7,color:'var(--text2)'}}>
           <div>• ACSM. Diretrizes do ACSM para os Testes de Esforço e sua Prescrição — normas de flexão de braço, VO₂máx e classificações.</div>
           <div>• Canadian Society for Exercise Physiology (CSEP) — normas de flexão e de sentar-e-alcançar.</div>
@@ -2049,7 +2165,7 @@ function BrandScreen({profile,setProfile,onBack}){
         <div className="breadcrumb" onClick={onBack}>← Dashboard</div>
         <div className="ph-title">Meu perfil / marca</div>
         <div className="ph-sub">Aparece no cabeçalho e na assinatura dos seus relatórios</div></div>
-        <button className="btn btn-primary" disabled={busy} onClick={save}>{busy?'…':'💾 Salvar'}</button>
+        <button className="btn btn-primary" disabled={busy} onClick={save}>{busy?'…':' Salvar'}</button>
       </div>
       {msg&&<div className={`alert alert-${msg.t==='error'?'error':'success'}`}>{msg.x}</div>}
       <div className="card">
@@ -2057,7 +2173,7 @@ function BrandScreen({profile,setProfile,onBack}){
           <div className="fg"><label className="flbl">Logo (aparece no relatório)</label>
             <div style={{display:'flex',gap:10,alignItems:'center'}}>
               <div className="photo-up" style={{width:96,height:96}} onClick={()=>ref.current.click()}>
-                {f.logo_url?<img src={f.logo_url} alt="" style={{objectFit:'contain'}}/>:<div className="photo-ph"><span className="photo-ph-icon">🏷️</span>Logo</div>}</div>
+                {f.logo_url?<img src={f.logo_url} alt="" style={{objectFit:'contain'}}/>:<div className="photo-ph"><span className="photo-ph-icon">Logo</span>Logo</div>}</div>
               {f.logo_url&&<button className="btn btn-ghost btn-sm" onClick={()=>s('logo_url','')}>Remover</button>}
               <input ref={ref} type="file" accept="image/*" style={{display:'none'}} onChange={e=>pickLogo(e.target.files[0])}/>
             </div>
@@ -2165,20 +2281,20 @@ function App({profile,setProfile}){
       <div className={`sidebar ${menu?'open':''}`}>
         <div className="logo-row"><LogoMark size={44}/>
           <div><div className="logo-name">MF Performance</div><div className="logo-sub">Avaliação Física</div></div></div>
-        <button className={`nav-btn ${view==='dashboard'?'active':''}`} onClick={()=>go('dashboard')}><span className="nav-ico">🏠</span>Dashboard</button>
-        <button className="nav-btn" onClick={()=>{setEditStu(null);go('stu-form');}}><span className="nav-ico">👤</span>Novo aluno</button>
-        <button className={`nav-btn ${view==='protocols'?'active':''}`} onClick={()=>go('protocols')}><span className="nav-ico">📋</span>Protocolos</button>
+        <button className={`nav-btn ${view==='dashboard'?'active':''}`} onClick={()=>go('dashboard')}><span className="nav-ico"></span>Dashboard</button>
+        <button className="nav-btn" onClick={()=>{setEditStu(null);go('stu-form');}}><span className="nav-ico"></span>Novo aluno</button>
+        <button className={`nav-btn ${view==='protocols'?'active':''}`} onClick={()=>go('protocols')}><span className="nav-ico"></span>Protocolos</button>
         {selStudent&&<>
           <hr className="nav-divider"/>
           <div className="nav-section">Aluno ativo</div>
-          <button className={`nav-btn ${view==='detail'?'active':''}`} onClick={()=>go('detail')}><span className="nav-ico">📋</span>{selStudent.name.split(' ')[0]}</button>
-          <button className="nav-btn" onClick={()=>{setEditEv(null);setReassess(false);go('ev-form');}}><span className="nav-ico">📐</span>Nova avaliação</button>
-          {sortedStuEvals.length>0&&<button className="nav-btn" onClick={()=>{setEditEv(null);setReassess(true);go('ev-form');}}><span className="nav-ico">🔁</span>Reavaliação</button>}
+          <button className={`nav-btn ${view==='detail'?'active':''}`} onClick={()=>go('detail')}><span className="nav-ico"></span>{selStudent.name.split(' ')[0]}</button>
+          <button className="nav-btn" onClick={()=>{setEditEv(null);setReassess(false);go('ev-form');}}><span className="nav-ico"></span>Nova avaliação</button>
+          {sortedStuEvals.length>0&&<button className="nav-btn" onClick={()=>{setEditEv(null);setReassess(true);go('ev-form');}}><span className="nav-ico"></span>Reavaliação</button>}
         </>}
         <hr className="nav-divider"/>
-        <button className={`nav-btn ${view==='brand'?'active':''}`} onClick={()=>go('brand')}><span className="nav-ico">🏷️</span>Meu perfil / marca</button>
-        {profile.is_admin&&<button className={`nav-btn ${view==='admin'?'active':''}`} onClick={()=>go('admin')}><span className="nav-ico">⚙️</span>Administração</button>}
-        <button className="nav-btn" onClick={exportData}><span className="nav-ico">💾</span>Exportar backup</button>
+        <button className={`nav-btn ${view==='brand'?'active':''}`} onClick={()=>go('brand')}><span className="nav-ico">Logo</span>Meu perfil / marca</button>
+        {profile.is_admin&&<button className={`nav-btn ${view==='admin'?'active':''}`} onClick={()=>go('admin')}><span className="nav-ico"></span>Administração</button>}
+        <button className="nav-btn" onClick={exportData}><span className="nav-ico"></span>Exportar backup</button>
         <div className="sidebar-footer">
           <div style={{display:'flex',alignItems:'center',gap:9,marginBottom:10}}>
             <div className="avatar" style={{width:34,height:34,fontSize:13}}>{initials(profile.name)}</div>
@@ -2186,13 +2302,13 @@ function App({profile,setProfile}){
               {daysLeft!=null&&<div style={{fontSize:10.5,color:daysLeft<=5?'var(--red)':'var(--text3)'}}>Assinatura: {daysLeft} dia{daysLeft!==1?'s':''}</div>}</div>
           </div>
           <button className="btn btn-ghost btn-sm" style={{width:'100%'}} onClick={()=>sb.auth.signOut()}>Sair</button>
-          <div style={{marginTop:8}}>{(students||[]).length} aluno{students.length!==1?'s':''} · {evals.length} avaliaç{evals.length!==1?'ões':'ão'} · ☁️ nuvem</div>
+          <div style={{marginTop:8}}>{(students||[]).length} aluno{students.length!==1?'s':''} · {evals.length} avaliaç{evals.length!==1?'ões':'ão'} ·  nuvem</div>
         </div>
       </div>
 
       <div style={{flex:1,display:'flex',flexDirection:'column',minWidth:0}}>
         <div className="topbar no-print">
-          <button className="hamb" onClick={()=>setMenu(true)}>☰</button>
+          <button className="hamb" onClick={()=>setMenu(true)}>≡</button>
           <LogoMark size={32}/>
           <div style={{fontFamily:'var(--serif)',fontWeight:600,fontSize:16}}>MF Performance</div>
         </div>
@@ -2239,7 +2355,7 @@ function Root(){
     })();return()=>{alive=false;};
   },[session]);
 
-  if(!CONFIGURED||!sb)return(<div className="center-screen"><div className="auth-wrap"><div className="auth-card"><div className="alert alert-warn">⚙️ Falta configurar o Supabase em <code>config.js</code>.</div></div></div></div>);
+  if(!CONFIGURED||!sb)return(<div className="center-screen"><div className="auth-wrap"><div className="auth-card"><div className="alert alert-warn"> Falta configurar o Supabase em <code>config.js</code>.</div></div></div></div>);
   if(session===undefined)return <div className="center-screen"><div className="spinner"/></div>;
   if(!session)return <AuthScreen/>;
   if(profile===undefined)return <div className="center-screen"><div className="spinner"/></div>;
