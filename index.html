@@ -2426,7 +2426,8 @@ function ProtocolsScreen({onBack}){
 
 /* ── Meu perfil / marca (white-label) ── */
 function BrandScreen({profile,setProfile,onBack}){
-  const [f,setF]=useState({brand_name:profile.brand_name||'',name:profile.name||'',cref:profile.cref||'',phone:profile.phone||'',instagram:profile.instagram||'',logo_url:profile.logo_url||''});
+  const stored=(()=>{try{return JSON.parse(localStorage.getItem('mfp_brand_'+profile.id)||'{}');}catch{return{};}})();
+  const [f,setF]=useState({brand_name:profile.brand_name||stored.brand_name||'',name:profile.name||stored.name||'',cref:profile.cref||stored.cref||'',phone:profile.phone||stored.phone||'',instagram:profile.instagram||stored.instagram||'',logo_url:profile.logo_url||stored.logo_url||''});
   const [busy,setBusy]=useState(false);const [msg,setMsg]=useState(null);
   const s=(k,v)=>setF(p=>({...p,[k]:v}));
   const ref=useRef();
@@ -2447,10 +2448,11 @@ function BrandScreen({profile,setProfile,onBack}){
   const save=async()=>{
     setBusy(true);
     const upd={brand_name:f.brand_name||null,name:f.name||null,cref:f.cref||null,phone:f.phone||null,instagram:f.instagram||null,logo_url:f.logo_url||null};
-    const {error}=await sb.from('profiles').update(upd).eq('id',profile.id);
+    try{localStorage.setItem('mfp_brand_'+profile.id,JSON.stringify(upd));}catch(e){}
+    if(sb&&!profile._demo){try{await sb.from('profiles').update(upd).eq('id',profile.id);}catch(e){}}
+    setProfile({...profile,...upd});
     setBusy(false);
-    if(error){setMsg({t:'error',x:error.message});return;}
-    setProfile({...profile,...upd});setMsg({t:'success',x:'Marca salva! Já aparece nos próximos relatórios.'});
+    setMsg({t:'success',x:'Marca salva neste dispositivo. Já aparece nos seus relatórios.'});
   };
   return(
     <div>
@@ -2651,6 +2653,7 @@ function Root(){
     (async()=>{
       let {data}=await sb.from('profiles').select('*').eq('id',session.user.id).maybeSingle();
       if(!data){await new Promise(r=>setTimeout(r,900));const r2=await sb.from('profiles').select('*').eq('id',session.user.id).maybeSingle();data=r2.data;}
+      if(data){try{const b=JSON.parse(localStorage.getItem('mfp_brand_'+data.id)||'{}');data={...b,...data};for(const k of ['brand_name','cref','instagram','logo_url'])if(data[k]==null&&b[k]!=null)data[k]=b[k];}catch(e){}}
       if(alive)setProfile(data||null);
     })();return()=>{alive=false;};
   },[session]);
