@@ -631,6 +631,16 @@ function classifyVO2(gender,ageYrs,vo2){const v=num(vo2);if(v==null)return null;
   return{l:'Fraco',c:'br'};}
 /* 1-RM estimado a partir de carga × repetições (Brzycki) */
 function est1RM(weight,reps){const w=num(weight),r=num(reps);if(!w||!r)return null;if(r<=1)return w;if(r>12)return w*(1+r/30);return +(w/(1.0278-0.0278*r)).toFixed(1);}
+/* Zonas de frequência cardíaca (Tanaka p/ FCmáx; Karvonen se houver FC repouso) */
+function fcZones(ageYrs,restingHR){const a=num(ageYrs);if(a==null)return null;
+  const fcmax=Math.round(208-0.7*a);const rest=num(restingHR);const hrr=rest?fcmax-rest:null;
+  const Z=[['Z1 · Recuperação',.50,.60],['Z2 · Aeróbio leve',.60,.70],['Z3 · Aeróbio',.70,.80],['Z4 · Limiar',.80,.90],['Z5 · VO₂máx',.90,1.0]];
+  const bpm=p=>hrr?Math.round(rest+p*hrr):Math.round(p*fcmax);
+  return {fcmax,rest,method:hrr?'Karvonen (FC reserva)':'% FCmáx',zones:Z.map(([n,lo,hi])=>({n,lo:bpm(lo),hi:bpm(hi)}))};}
+/* Zonas de carga a partir do 1-RM */
+function loadZones(rm){const m=num(rm);if(!m)return null;
+  const R=[['Força máxima','1–3 reps',.90,1.0],['Força','3–5 reps',.85,.90],['Hipertrofia','6–12 reps',.67,.85],['Resistência','15+ reps',.50,.67]];
+  return R.map(([n,reps,lo,hi])=>({n,reps,lo:Math.round(m*lo),hi:Math.round(m*hi)}));}
 
 /* Protocolo incremental de esteira: VO2máx estimado pela velocidade final (VAM ≈ 3.5 × km/h) */
 function incVO2(vFinalKmh){const v=num(vFinalKmh);if(v==null)return null;return +(3.5+3.3333*v).toFixed(1);}
@@ -690,10 +700,15 @@ function Stat({lbl,val,unit,badge}){return(
 function Badge({cls,children}){return<span className={`badge ${cls}`}>{children}</span>;}
 
 /* ── Dashboard ── */
+function reassessInfo(se){if(!se||!se.length)return null;const last=se[0];
+  let base=last.goal_next;if(!base){const d=new Date(last.date+'T00:00:00');d.setDate(d.getDate()+90);base=d.toLocaleDateString('en-CA');}
+  const days=Math.ceil((new Date(base+'T00:00:00')-new Date(new Date().toLocaleDateString('en-CA')+'T00:00:00'))/86400000);
+  return {date:base,days};}
 function Dashboard({students,evals,onSelect,onNew,onDelete}){
   const [q,setQ]=useState('');
   const list=students.filter(s=>s.name.toLowerCase().includes(q.toLowerCase()))
     .sort((a,b)=>a.name.localeCompare(b.name));
+  const reass=students.map(s=>{const se=evals.filter(e=>e.studentId===s.id).sort((a,b)=>new Date(b.date)-new Date(a.date));const r=reassessInfo(se);return r?{s,...r}:null;}).filter(Boolean).filter(x=>x.days<=7).sort((a,b)=>a.days-b.days);
   return(
     <div>
       <div className="abar">
@@ -701,6 +716,14 @@ function Dashboard({students,evals,onSelect,onNew,onDelete}){
           <div className="ph-sub">{students.length} aluno{students.length!==1?'s':''} · {evals.length} avaliaç{evals.length!==1?'ões':'ão'}</div></div>
         <button className="btn btn-primary" onClick={onNew}>＋ Novo aluno</button>
       </div>
+      {reass.length>0&&<div className="alert alert-warn" style={{marginBottom:16}}>
+        <div style={{fontWeight:700,marginBottom:6}}>Reavaliações próximas</div>
+        <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
+          {reass.map(r=><button key={r.s.id} type="button" onClick={()=>onSelect(r.s)}
+            style={{cursor:'pointer',border:'1px solid var(--border2)',background:'var(--bg2)',borderRadius:9,padding:'6px 11px',fontSize:12,fontWeight:600,color:'var(--text)'}}>
+            {r.s.name.split(' ')[0]} · {r.days<0?`vencida há ${Math.abs(r.days)}d`:r.days===0?'hoje':`em ${r.days}d`}</button>)}
+        </div>
+      </div>}
       <div style={{display:'flex',gap:12,marginBottom:22}}>
         <div className="search-wrap"><span className="search-icon"></span>
           <input className="fi" placeholder="Buscar aluno..." value={q} onChange={e=>setQ(e.target.value)}/></div>
@@ -715,12 +738,14 @@ function Dashboard({students,evals,onSelect,onNew,onDelete}){
         {list.map(s=>{
           const se=evals.filter(e=>e.studentId===s.id).sort((a,b)=>new Date(b.date)-new Date(a.date));
           const last=se[0],a=age(s.dob);
+          const ri=reassessInfo(se);
           return(
             <div key={s.id} className="student-card" onClick={()=>onSelect(s)}>
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:11}}>
                 <div className="avatar">{s.photo?<img src={s.photo} alt=""/>:initials(s.name)}</div>
                 <button className="btn-icon btn-sm" title="Excluir" onClick={e=>{e.stopPropagation();if(confirm(`Excluir ${s.name} e todas as avaliações?`))onDelete(s.id);}}>Excluir</button>
               </div>
+              {ri&&ri.days<=7&&<span className={`badge ${ri.days<0?'br':'ba'}`} style={{marginBottom:6}}>{ri.days<0?'Reavaliação vencida':ri.days===0?'Reavaliar hoje':`Reavaliar em ${ri.days}d`}</span>}
               <div className="s-name">{s.name}</div>
               <div className="s-meta">
                 {a?`${a} anos · `:''}{s.gender==='M'?'Masculino':'Feminino'}
@@ -796,11 +821,14 @@ function PlumbPhoto({label,photo,plumb,onPhoto,onPlumb}){
 const POSTURE_VIEWS={
   front:{label:'Anterior',landmarks:[
     {k:'earR',l:'Orelha D',s:'R'},{k:'earL',l:'Orelha E',s:'L'},
+    {k:'jugular',l:'Incisura jugular',s:'C'},
     {k:'acrR',l:'Acrômio D',s:'R'},{k:'acrL',l:'Acrômio E',s:'L'},
+    {k:'axR',l:'Axila D',s:'R'},{k:'axL',l:'Axila E',s:'L'},
+    {k:'waistR',l:'Cintura D',s:'R'},{k:'waistL',l:'Cintura E',s:'L'},
     {k:'asisR',l:'EIAS D',s:'R'},{k:'asisL',l:'EIAS E',s:'L'},
     {k:'kneeR',l:'Joelho D',s:'R'},{k:'kneeL',l:'Joelho E',s:'L'},
     {k:'malR',l:'Maléolo D',s:'R'},{k:'malL',l:'Maléolo E',s:'L'}],
-    pairs:[['earR','earL'],['acrR','acrL'],['asisR','asisL'],['kneeR','kneeL'],['malR','malL']]},
+    pairs:[['earR','earL'],['acrR','acrL'],['axR','axL'],['waistR','waistL'],['asisR','asisL'],['kneeR','kneeL'],['malR','malL']]},
   side:{label:'Lateral',landmarks:[
     {k:'tragus',l:'Trago',s:'C'},{k:'acr',l:'Acrômio',s:'C'},{k:'troch',l:'Trocânter',s:'C'},{k:'fib',l:'Cab. fíbula',s:'C'},{k:'mal',l:'Maléolo',s:'C'}],
     pairs:[]},
@@ -820,8 +848,16 @@ function computePosture(view,pts,asp){
     const s=segAngle(P.acrR,P.acrL,asp);if(s!=null)add('Inclinação dos ombros',Math.abs(s),'°',classifyTilt(s));
     const pe=segAngle(P.asisR,P.asisL,asp);if(pe!=null)add('Inclinação da pelve',Math.abs(pe),'°',classifyTilt(pe));
     const k=segAngle(P.kneeR,P.kneeL,asp);if(k!=null)add('Inclinação dos joelhos',Math.abs(k),'°',classifyTilt(k));
+    // linha de gravidade (plumbo pelo ponto médio dos maléolos)
+    const mid=(P.malR&&P.malL)?(P.malR.x+P.malL.x)/2:null;
+    if(mid!=null){
+      if(P.jugular){const dj=Math.abs((P.jugular.x-mid)*asp*100);add('Desequilíbrio na incisura jugular',dj,'%',classifyTilt(dj/1.2));}
+      const mlDiff=(kR,kL,lbl)=>{if(!P[kR]||!P[kL])return;const dR=Math.abs(P[kR].x-mid)*asp,dL=Math.abs(P[kL].x-mid)*asp;const base=(dR+dL)/2||1;const idx=Math.abs(dL-dR)/base*100;add(lbl,idx,'%',classifyTilt(idx/2));};
+      mlDiff('axR','axL','Diferença médio-lateral na axila');
+      mlDiff('waistR','waistL','Diferença médio-lateral na cintura');
+    }
     // simetria: média do desalinhamento vertical dos pares
-    const prs=[['earR','earL'],['acrR','acrL'],['asisR','asisL'],['kneeR','kneeL'],['malR','malL']];
+    const prs=[['earR','earL'],['acrR','acrL'],['axR','axL'],['waistR','waistL'],['asisR','asisL'],['kneeR','kneeL'],['malR','malL']];
     const ds=prs.filter(([a,b])=>P[a]&&P[b]).map(([a,b])=>Math.abs(P[a].y-P[b].y));
     if(ds.length){const m=ds.reduce((x,y)=>x+y,0)/ds.length;const sym=Math.max(0,Math.min(100,Math.round(100-m*600)));add('Simetria corporal',sym,'%',classifySym(sym));}
   }else if(view==='side'){
@@ -860,7 +896,7 @@ function PostureOverlay({view,pts,active,showLabels}){
 }
 /* Marcação interativa (formulário) */
 const POSTURE_TEMPLATES={
-  front:{earR:{x:.45,y:.09},earL:{x:.55,y:.09},acrR:{x:.37,y:.22},acrL:{x:.63,y:.22},asisR:{x:.43,y:.48},asisL:{x:.57,y:.48},kneeR:{x:.44,y:.72},kneeL:{x:.56,y:.72},malR:{x:.45,y:.94},malL:{x:.55,y:.94}},
+  front:{earR:{x:.45,y:.09},earL:{x:.55,y:.09},jugular:{x:.5,y:.2},acrR:{x:.37,y:.22},acrL:{x:.63,y:.22},axR:{x:.4,y:.3},axL:{x:.6,y:.3},waistR:{x:.42,y:.44},waistL:{x:.58,y:.44},asisR:{x:.43,y:.5},asisL:{x:.57,y:.5},kneeR:{x:.44,y:.72},kneeL:{x:.56,y:.72},malR:{x:.45,y:.94},malL:{x:.55,y:.94}},
   side:{tragus:{x:.53,y:.09},acr:{x:.5,y:.23},troch:{x:.5,y:.5},fib:{x:.5,y:.74},mal:{x:.5,y:.94}},
   back:{c7:{x:.5,y:.15},scapR:{x:.44,y:.28},scapL:{x:.56,y:.28},sacrum:{x:.5,y:.52},malR:{x:.46,y:.94},malL:{x:.54,y:.94}}
 };
@@ -957,6 +993,8 @@ function StudentForm({student,onSave,onCancel}){
           <div className="sec-title">Perfil de treino</div>
           <div className="fgrid">
             <FI label="Objetivo principal" value={f.goal} onChange={e=>s('goal',e.target.value)} placeholder="Hipertrofia, emagrecimento..."/>
+            <FS label="Perfil de avaliação (bateria)" value={f.profile_type||''} onChange={e=>s('profile_type',e.target.value)}>
+              <option value="">— escolher —</option>{PROFILE_TYPES.map(p=><option key={p}>{p}</option>)}</FS>
             <FS label="Nível de atividade física" value={f.activity} onChange={e=>s('activity',e.target.value)}>
               <option>Sedentário</option><option>Levemente ativo</option><option>Moderadamente ativo</option>
               <option>Muito ativo</option><option>Atleta</option></FS>
@@ -1007,6 +1045,14 @@ const EVAL_PRESETS=[
   ['Saúde',['bp','bio','circ','flex','cardio','goals','parecer']],
   ['Performance',['dyn','postural','resist','power','cardio','strength','goals','parecer']]
 ];
+/* Bateria automática conforme o perfil do aluno */
+const PROFILE_TYPES=['Saúde','Condicionamento','Atleta','Personalizado'];
+const PROFILE_PRESET={
+  'Saúde':['bp','bio','circ','postural','flex','cardio','goals','parecer'],
+  'Condicionamento':['bp','bio','skin','circ','postural','resist','flex','cardio','goals','parecer'],
+  'Atleta':['dyn','postural','resist','power','cardio','strength','flex','goals','parecer'],
+  'Personalizado':null
+};
 
 /* Dados fictícios para o modo demo (?demo=1) */
 const DEMO_STUDENTS=[{id:'ds1',name:'João Demonstração',dob:'1992-05-10',gender:'M',phone:'(11) 98888-0000',email:'joao@demo.com',profession:'Engenheiro',goal:'Hipertrofia e perda de gordura',activity:'Muito ativo',schedule:'Seg/Qua/Sex',train_time:'3 anos',photo:'',health:'Hipertensão controlada',meds:'Losartana 50mg',family_hist:'Pai diabético',injuries:'Dor lombar ocasional',smoker:'Não',alcohol:'Social',sleep:'7h, boa',obs:''}];
@@ -1028,7 +1074,7 @@ const DEMO_EVALS=[
 ];
 
 function EvalForm({student,evalData,carryHeight,isReassess,onSave,onCancel}){
-  const [f,setF]=useState(evalData||{...BLANK_EVAL,height:carryHeight||''});
+  const [f,setF]=useState(evalData||{...BLANK_EVAL,height:carryHeight||'',_mods:PROFILE_PRESET[student.profile_type]||undefined});
   const upd=(k,v)=>setF(p=>({...p,[k]:v}));
   const N=(label,key,unit,ph)=>(
     <div className="fg"><label className="flbl">{label}{unit&&<span style={{color:'var(--text3)',marginLeft:3}}>({unit})</span>}</label>
@@ -2027,6 +2073,33 @@ function Report({student,evalData,allEvals,onBack,coach}){
             </div>);
           })()}
 
+          {/* Zonas de treino */}
+          {(()=>{
+            const fz=fcZones(age(student.dob),evalData.resting_hr);
+            const lifts=[['Supino','bench'],['Agachamento','squat'],['Terra','dead']].map(([l,k])=>({l,rm:est1RM(evalData['rm_'+k+'_w'],evalData['rm_'+k+'_r'])})).filter(x=>x.rm);
+            if(!fz&&lifts.length===0)return null;
+            return(<div className="rpt-sec"><div className="rpt-sec-title">Zonas de treino</div>
+              <div className="rpt-grid">
+                {fz&&<div>
+                  <div style={{fontSize:11,fontWeight:700,color:'var(--accent)',marginBottom:5}}>Frequência cardíaca — FCmáx {fz.fcmax} bpm</div>
+                  <table className="rpt-tbl"><tbody>
+                    {fz.zones.map((z,i)=><tr key={i}><td>{z.n}</td><td style={{fontWeight:600}}>{z.lo}–{z.hi} bpm</td></tr>)}
+                  </tbody></table>
+                  <div style={{fontSize:10,color:'#9ca3af',marginTop:4}}>Método: {fz.method}{fz.rest?` · FC repouso ${fz.rest} bpm`:''}.</div>
+                </div>}
+                {lifts.length>0&&<div>
+                  <div style={{fontSize:11,fontWeight:700,color:'var(--accent)',marginBottom:5}}>Cargas por objetivo (% do 1‑RM)</div>
+                  {lifts.map(lf=>(<div key={lf.l} style={{marginBottom:8}}>
+                    <div style={{fontSize:11.5,fontWeight:600}}>{lf.l} · 1‑RM {fmt(lf.rm)} kg</div>
+                    <table className="rpt-tbl"><tbody>
+                      {loadZones(lf.rm).map((z,i)=><tr key={i}><td>{z.n} <span style={{color:'#9ca3af',fontSize:10}}>({z.reps})</span></td><td style={{fontWeight:600}}>{z.lo}–{z.hi} kg</td></tr>)}
+                    </tbody></table>
+                  </div>))}
+                </div>}
+              </div>
+            </div>);
+          })()}
+
           {/* Metas e projeções */}
           {(num(evalData.goal_weight)||num(evalData.goal_fat)||evalData.goal_next)&&(()=>{
             const proj=projectGoals(evalData,d);
@@ -2075,7 +2148,7 @@ function Report({student,evalData,allEvals,onBack,coach}){
 /* ── Mapeamento DB <-> objetos do app ── */
 const STU_COLS=['name','dob','gender','phone','email','profession','goal','activity','schedule','train_time','health','meds','family_hist','injuries','smoker','alcohol','sleep','obs'];
 function stuToRow(s,coachId){const r={coach_id:coachId};STU_COLS.forEach(k=>r[k]=(s[k]===''?null:s[k])??null);r.photo_url=s.photo||null;return r;}
-function rowToStu(r){const s={id:r.id,photo:r.photo_url||''};STU_COLS.forEach(k=>s[k]=r[k]??'');if(!s.gender)s.gender='M';return s;}
+function rowToStu(r){const s={id:r.id,photo:r.photo_url||''};STU_COLS.forEach(k=>s[k]=r[k]??'');if(!s.gender)s.gender='M';try{s.profile_type=localStorage.getItem('mfp_ptype_'+r.id)||'';}catch(e){s.profile_type='';}return s;}
 const EVAL_META=['id','studentId','date','obs'];
 function evalToRow(e,coachId){const data={};Object.keys(e).forEach(k=>{if(!EVAL_META.includes(k))data[k]=e[k];});return{student_id:e.studentId,coach_id:coachId,date:e.date,obs:e.obs||null,data};}
 function rowToEval(r){return{id:r.id,studentId:r.student_id,date:r.date,obs:r.obs||'',...(r.data||{})};}
@@ -2524,14 +2597,15 @@ function App({profile,setProfile}){
   const saveStu=async s=>{
     setSaving(true);
     const exists=(students||[]).some(x=>x.id===s.id);
+    const setPtype=id=>{try{if(s.profile_type)localStorage.setItem('mfp_ptype_'+id,s.profile_type);else localStorage.removeItem('mfp_ptype_'+id);}catch(e){}};
     if(exists){
       const {error}=await sb.from('assess_students').update(stuToRow(s,coachId)).eq('id',s.id);
       setSaving(false);if(error){alert('Erro ao salvar: '+error.message);return;}
-      setStudents(p=>p.map(x=>x.id===s.id?s:x));setSelStudent(s);
+      setPtype(s.id);setStudents(p=>p.map(x=>x.id===s.id?s:x));setSelStudent(s);
     }else{
       const {data,error}=await sb.from('assess_students').insert(stuToRow(s,coachId)).select().single();
       setSaving(false);if(error){alert('Erro ao salvar: '+error.message);return;}
-      const ns=rowToStu(data);setStudents(p=>[...p,ns]);setSelStudent(ns);
+      setPtype(data.id);const ns=rowToStu(data);setStudents(p=>[...p,ns]);setSelStudent(ns);
     }
     go('detail');
   };
