@@ -2,6 +2,9 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co; worker-src 'self'; manifest-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<script>if(self!==top){try{top.location=self.location;}catch(e){document.documentElement.style.display='none';}}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -40,9 +43,9 @@
   --serif2:'Cormorant Garamond',Georgia,serif;
 }
 :root[data-theme="dark"]{
-  --bg:#141110;--bg2:#1d1815;--bg3:#26201b;--bg4:#332a23;
-  --border:#352b25;--border2:#493b32;
-  --text:#efe7dc;--text2:#ac9e90;--text3:#736457;
+  --bg:#141110;--bg2:#1e1916;--bg3:#282219;--bg4:#372d24;
+  --border:#40342c;--border2:#584739;
+  --text:#f2ebe1;--text2:#c3b6a6;--text3:#948674;
   --accent:#8f3147;--accent2:#a03a52;--accent3:#c26079;--accent-dim:rgba(194,96,121,.16);
   --gold:#c2a269;--gold2:#d4b880;--gold-dim:rgba(194,162,105,.16);
   --bone:#efe7dc;--ink:#efe7dc;--cream:#faf4ec;
@@ -279,6 +282,54 @@ textarea.fi{resize:vertical;min-height:70px;line-height:1.5}
 .rpt-page .br{background:#fee2e2;color:#991b1b}
 .rpt-page .bb{background:#dbeafe;color:#1e40af}
 .rpt-page .bo{background:#ffedd5;color:#9a3412}
+/* Achados posturais */
+.post-find{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:12px}
+.post-find-hd{font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;margin-bottom:9px}
+.post-find-list{list-style:none;display:flex;flex-direction:column;gap:7px}
+.post-find-list li{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--text);line-height:1.4}
+.post-find-list li .badge{flex-shrink:0;min-width:74px;text-align:center;justify-content:center}
+.post-find-ok{font-size:12.5px;color:var(--green);font-weight:600;line-height:1.5}
+.rpt-page .post-find{background:#f7f8fa;border:1px solid #e9ebee}
+.rpt-page .post-find-ok{color:#15803d}
+/* Painel de indicadores — cards clínicos premium */
+.ind-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:12px;align-items:stretch}
+.ind-card{background:var(--bg3);border:1px solid var(--border);border-radius:14px;padding:15px 13px 14px;display:flex;flex-direction:column;align-items:center;text-align:center}
+.ind-title{font-size:10.5px;font-weight:600;color:var(--text2);letter-spacing:.5px;text-transform:uppercase;margin-bottom:2px}
+.ind-val{font-family:var(--serif);font-size:29px;font-weight:600;color:var(--text);margin-top:5px;line-height:1;letter-spacing:.2px;font-variant-numeric:tabular-nums}
+.ind-unit{font-family:var(--font);font-size:10.5px;font-weight:600;color:var(--text3);letter-spacing:0}
+.ind-badge{margin-top:9px;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:3px 10px;border-radius:7px;display:inline-flex;line-height:1.4}
+.ind-ref{margin-top:9px;font-size:10px;color:var(--text3);letter-spacing:.1px}
+.ind-ref b{color:var(--text2);font-weight:600}
+.rpt-page .ind-card{background:#fcfbf9;border:1px solid #ecebe6}
+.rpt-page .ind-title{color:#8a8378}
+.rpt-page .ind-val{color:#2a2320}
+.rpt-page .ind-unit{color:#b3a898}
+.rpt-page .ind-ref{color:#9a9186}
+.rpt-page .ind-ref b{color:#6c6459}
+.ind-badge.bg{background:var(--green-dim);color:#86efac}.ind-badge.ba{background:rgba(234,179,8,.14);color:#fde047}.ind-badge.br{background:var(--red-dim);color:#fca5a5}.ind-badge.bb{background:var(--blue-dim);color:#93c5fd}
+.rpt-page .ind-badge.bg{background:#e7f0e0;color:#3f6b32}.rpt-page .ind-badge.ba{background:#f6eed6;color:#8a6d1f}.rpt-page .ind-badge.br{background:#f4e2df;color:#9a473c}.rpt-page .ind-badge.bb{background:#e4ebf2;color:#3f5c78}
+/* Progresso rumo à meta */
+.goal-item{margin-bottom:20px}
+.goal-item:last-child{margin-bottom:0}
+.goal-top{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:8px}
+.goal-lbl{font-size:13px;font-weight:700;color:var(--text)}
+.goal-cur-val{font-size:12px;color:var(--text2);text-align:right}
+.goal-cur-val strong{color:var(--text);font-size:13px}
+.goal-track{position:relative;height:14px;background:var(--bg4);border-radius:8px;overflow:visible}
+.goal-fill{position:absolute;left:0;top:0;height:100%;border-radius:8px;transition:width .4s}
+.goal-cur{position:absolute;top:-3px;width:4px;height:20px;border-radius:3px;transform:translateX(-50%);box-shadow:0 0 0 2px var(--bg2)}
+.goal-scale{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:9px;font-size:11px;color:var(--text2)}
+.goal-scale>span{flex:1}
+.goal-scale>span:nth-child(2){flex:0 0 auto;text-align:center}
+.goal-scale em{font-style:normal;color:var(--text3);font-weight:600;margin-right:2px}
+.goal-scale .goal{font-weight:700;color:#15803d;text-align:right}
+.goal-pct{font-weight:700}
+.goal-meta{margin-top:8px;font-size:11px;color:var(--text2);line-height:1.5}
+.goal-eta strong{color:var(--text)}
+.rpt-page .goal-track{background:#eceef1}
+.rpt-page .goal-cur-val strong{color:#111827}
+.rpt-page .goal-cur{box-shadow:0 0 0 2px #fff}
+.rpt-page .goal-eta strong{color:#111827}
 /* gauge e gráfico */
 .gauge-wrap{margin:6px 0 4px}
 .gauge-bar{position:relative;height:30px;border-radius:7px;overflow:hidden;display:flex}
@@ -491,6 +542,30 @@ function projectGoals(ev,d){
     fat:fat!=null?Math.max(+(fat-fr*weeks).toFixed(1),3):null,
     weight:w?Math.max(+(w-wr*weeks).toFixed(1),35):null}));
   return {weeks,scenarios};
+}
+/* Progresso rumo à meta + estimativa de tempo (ritmo real quando há histórico) */
+function goalProgress({start,cur,goal,dir,startDate,curDate,defRate}){
+  cur=num(cur);goal=num(goal);start=num(start);
+  if(cur==null||goal==null)return null;
+  const reached=dir==='down'?cur<=goal:cur>=goal;
+  const remaining=reached?0:+Math.abs(cur-goal).toFixed(1);
+  let total=null,done=0,pct=null;
+  if(start!=null){
+    total=+Math.abs(start-goal).toFixed(1);
+    done=Math.max(0,dir==='down'?start-cur:cur-start);
+    pct=total>0?Math.max(0,Math.min(100,Math.round(done/total*100))):(reached?100:0);
+  }else pct=reached?100:null;
+  // ritmo: usa a evolução real (início→atual) se houver ≥1 semana e mudança na direção certa
+  let rate=null,basis='estimativa saudável';
+  if(start!=null&&startDate&&curDate){
+    const wk=(new Date(curDate+'T00:00:00')-new Date(startDate+'T00:00:00'))/6048e5;
+    const chg=dir==='down'?start-cur:cur-start;
+    if(wk>=1&&chg>0.05){rate=chg/wk;basis='ritmo atual do aluno';}
+  }
+  if(rate==null)rate=defRate;
+  const weeks=(!reached&&rate>0)?Math.ceil(remaining/rate):0;
+  const eta=weeks>0?new Date(Date.now()+weeks*6048e5):null;
+  return{reached,remaining,total,done:+done.toFixed(1),pct,rate:+rate.toFixed(2),basis,weeks,eta};
 }
 function classifyBMI(b){if(!b)return null;
   if(b<18.5)return{l:'Abaixo do peso',c:'bb'};
@@ -771,14 +846,15 @@ function PostureOverlay({view,pts,active,showLabels}){
   const X=p=>p.x*100,Y=p=>p.y*100;
   let plumb=50;const ml=pts.mal,mr=pts.malR,mll=pts.malL;
   if(view==='side'&&ml)plumb=ml.x*100;else if((view==='front'||view==='back')&&mr&&mll)plumb=(mr.x+mll.x)/2*100;
-  const r=showLabels?2.1:1.5;
+  const r=showLabels?2.8:1.5;
   return(
     <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{position:'absolute',inset:0,width:'100%',height:'100%',pointerEvents:'none'}}>
       <line x1={plumb} y1="0" x2={plumb} y2="100" stroke="rgba(179,67,79,.65)" strokeWidth="0.5" strokeDasharray="1.5 1.2"/>
       {cfg.pairs.map(([a,b],i)=>pts[a]&&pts[b]?<line key={i} x1={X(pts[a])} y1={Y(pts[a])} x2={X(pts[b])} y2={Y(pts[b])} stroke="#b0894f" strokeWidth="0.7"/>:null)}
       {cfg.landmarks.map(l=>{const p=pts[l.k];if(!p)return null;const on=active===l.k;return <g key={l.k}>
-        {on&&<circle cx={X(p)} cy={Y(p)} r={r+2.2} fill="none" stroke="var(--accent)" strokeWidth="0.7" opacity="0.9"/>}
-        <circle cx={X(p)} cy={Y(p)} r={r} fill={ptColor(l.s)} stroke="#fff" strokeWidth="0.5"/>
+        {on&&<circle cx={X(p)} cy={Y(p)} r={r+3} fill="var(--accent)" opacity="0.18"/>}
+        {on&&<circle cx={X(p)} cy={Y(p)} r={r+2.4} fill="none" stroke="var(--accent)" strokeWidth="1" opacity="0.95"/>}
+        <circle cx={X(p)} cy={Y(p)} r={r} fill={ptColor(l.s)} stroke="#fff" strokeWidth={showLabels?0.9:0.5}/>
       </g>;})}
     </svg>);
 }
@@ -801,7 +877,7 @@ function PostureMarker({view,label,photo,pts,onPhoto,onPts,onMetrics}){
   const commit=np=>{const withA={...np,_a:asp};Pref.current=withA;setP(withA);onPts(withA);if(asp)onMetrics(computePosture(view,withA,asp));};
   useEffect(()=>{if(asp&&Object.keys(Pref.current).some(k=>k!=='_a'))onMetrics(computePosture(view,Pref.current,asp));},[asp]);
   const norm=e=>{const r=boxRef.current.getBoundingClientRect();return{x:Math.max(0,Math.min(1,(e.clientX-r.left)/r.width)),y:Math.max(0,Math.min(1,(e.clientY-r.top)/r.height))};};
-  const nearest=c=>{let best=0.06,key=null;cfg.landmarks.forEach(l=>{const p=Pref.current[l.k];if(p){const d=Math.hypot(p.x-c.x,p.y-c.y);if(d<best){best=d;key=l.k;}}});return key;};
+  const nearest=c=>{let best=0.1,key=null;cfg.landmarks.forEach(l=>{const p=Pref.current[l.k];if(p){const d=Math.hypot(p.x-c.x,p.y-c.y);if(d<best){best=d;key=l.k;}}});return key;};
   const down=e=>{e.preventDefault();const c=norm(e);const nk=nearest(c);
     if(nk){drag.current=nk;setActive(nk);try{boxRef.current.setPointerCapture(e.pointerId);}catch(x){}}
     else if(active){const np={...Pref.current,[active]:c};const idx=cfg.landmarks.findIndex(l=>l.k===active);const nx=cfg.landmarks.slice(idx+1).find(l=>!np[l.k]);commit(np);setActive(nx?nx.k:active);}};
@@ -814,10 +890,11 @@ function PostureMarker({view,label,photo,pts,onPhoto,onPts,onMetrics}){
       {photo?<>
         <div ref={boxRef} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}
           style={{position:'relative',borderRadius:12,overflow:'hidden',border:'1px solid var(--border2)',background:'#000',width:'100%',maxWidth:360,margin:'0 auto',cursor:'crosshair',touchAction:'none',userSelect:'none'}}>
-          <img src={photo} alt="" draggable="false" style={{display:'block',width:'100%',pointerEvents:'none'}} onLoad={e=>{const a=e.target.naturalWidth/e.target.naturalHeight;setAsp(a);}}/>
+          <img src={photo} alt="" draggable="false" style={{display:'block',width:'100%',pointerEvents:'none'}} onLoad={e=>{const a=e.target.naturalWidth/e.target.naturalHeight;setAsp(a);
+            if(!Object.keys(Pref.current).some(k=>k!=='_a')){const tp={...POSTURE_TEMPLATES[view],_a:a};Pref.current=tp;setP(tp);onPts(tp);onMetrics(computePosture(view,tp,a));setActive(cfg.landmarks[0].k);}}}/>
           <PostureOverlay view={view} pts={P} active={active} showLabels/>
         </div>
-        <div style={{fontSize:11,color:'var(--text2)',marginTop:5,textAlign:'center'}}>Toque para marcar o ponto ativo · arraste os pontos para ajustar</div>
+        <div style={{fontSize:11.5,color:'var(--text2)',marginTop:6,textAlign:'center',lineHeight:1.5}}>Arraste cada ponto até o marco anatômico correto. Toque num ponto (ou nas etiquetas abaixo) para destacá-lo.</div>
         <div style={{display:'flex',flexWrap:'wrap',gap:5,marginTop:7,justifyContent:'center'}}>
           {cfg.landmarks.map(l=>{const done=!!P[l.k];const on=active===l.k;
             return <button key={l.k} type="button" onClick={()=>setActive(l.k)}
@@ -929,6 +1006,25 @@ const EVAL_PRESETS=[
   ['Composição',['bio','skin','circ','goals','parecer']],
   ['Saúde',['bp','bio','circ','flex','cardio','goals','parecer']],
   ['Performance',['dyn','postural','resist','power','cardio','strength','goals','parecer']]
+];
+
+/* Dados fictícios para o modo demo (?demo=1) */
+const DEMO_STUDENTS=[{id:'ds1',name:'João Demonstração',dob:'1992-05-10',gender:'M',phone:'(11) 98888-0000',email:'joao@demo.com',profession:'Engenheiro',goal:'Hipertrofia e perda de gordura',activity:'Muito ativo',schedule:'Seg/Qua/Sex',train_time:'3 anos',photo:'',health:'Hipertensão controlada',meds:'Losartana 50mg',family_hist:'Pai diabético',injuries:'Dor lombar ocasional',smoker:'Não',alcohol:'Social',sleep:'7h, boa',obs:''}];
+const _dev=(date,w,fat,musc,wat,visc,bmr,mage,bone,shoulders,waist)=>({date,weight:String(w),height:'178',resting_hr:'62',bp_sys:'124',bp_dia:'80',dyn_r:'46',dyn_l:'44',
+  bio_fat:String(fat),bio_muscle:String(musc),bio_muscle_pct:'43',bio_lean:'',bio_water:String(wat),bio_visceral:String(visc),bio_bmr:String(bmr),bio_metabage:String(mage),bio_bone:String(bone),
+  sf_triceps:'11',sf_subscapular:'14',sf_biceps:'6',sf_chest:'9',sf_midaxillary:'11',sf_suprailiac:'15',sf_abdomen:'18',sf_thigh:'12',sf_calf:'9',
+  circ_shoulders:String(shoulders),circ_chest:'104',circ_waist:String(waist),circ_abdomen:String(waist+2),circ_hip:'101',circ_arm_r:'39',circ_arm_l:'38',circ_thigh_r:'60',circ_thigh_l:'59',circ_calf_r:'39',circ_calf_l:'39',
+  res_pushup:'34',res_situp:'40',res_squat:'45',res_pullup:'12',flex_wells:'28',mob_lunge:'11',
+  short_hamstring:'Encurtado leve',short_iliopsoas:'Normal',short_rectus:'Normal',short_calf:'Normal',short_pec:'Encurtado leve',
+  inc_vfinal:'15',inc_time:'11',pw_cmj:'42',pw_horizontal:'230',pw_sargent:'55',pw_medball:'6.2',pw_sprint20:'3.1',pw_agility_t:'10.2',
+  rm_bench_w:'100',rm_bench_r:'5',rm_squat_w:'140',rm_squat_r:'5',rm_dead_w:'160',rm_dead_r:'3',rm_ohp_w:'',rm_ohp_r:'',rm_row_w:'',rm_row_r:'',
+  post_head:'Leve anteriorização',post_shoulders:'Protraídos',post_scapula:'Alada D',post_cervical:'Normal',post_thoracic:'Hipercifose',post_lumbar:'Hiperlordose',post_pelvis:'Anteversão',post_knees:'Normal',post_feet:'Pronado',
+  post_obs:'Padrão de anteriorização com protração de ombros.',flex_obs:'',
+  goal_weight:'75',goal_fat:'14',goal_next:'2026-10-09',pt_strong:'Boa força relativa e preensão manual.',pt_improve:'Mobilidade de quadril e flexibilidade posterior.',pt_strategy:'Fortalecimento de core, mobilidade e ajuste calórico leve.',obs:'Boa evolução geral.',
+  _mods:['bp','dyn','bio','skin','circ','postural','resist','flex','cardio','strength','power','goals','parecer']});
+const DEMO_EVALS=[
+  {id:'de1',studentId:'ds1',..._dev('2026-03-09',84,22,34,52,9,1820,34,3.2,118,92)},
+  {id:'de2',studentId:'ds1',..._dev('2026-07-09',78,16,37,56,6,1760,29,3.3,124,86)}
 ];
 
 function EvalForm({student,evalData,carryHeight,isReassess,onSave,onCancel}){
@@ -1414,29 +1510,37 @@ function arcPath(cx,cy,r,a1,a2){
   const [x1,y1]=P(a1),[x2,y2]=P(a2);
   return `M ${x1.toFixed(2)} ${y1.toFixed(2)} A ${r} ${r} 0 0 ${a1>a2?1:0} ${x2.toFixed(2)} ${y2.toFixed(2)}`;
 }
-/* Medidor semicircular (velocímetro) */
-function Gauge({value,min,max,segments,label,unit,badge,decimals=1,legend}){
+/* Faixa ideal em texto: [lo,hi] dentro da escala [min,max] */
+function fmtIdeal(ideal,min,max,unit){
+  if(!ideal)return null;const[lo,hi]=ideal;const u=unit?' '+unit:'';
+  if(lo<=min)return 'até '+hi+u;
+  if(hi>=max)return lo+u+' ou mais';
+  return lo+'–'+hi+u;
+}
+/* Medidor semicircular clínico: arco fino segmentado + marca em ponto + valor em serifa */
+function Gauge({value,min,max,segments,label,unit,badge,decimals=1,ideal}){
   const v=num(value);if(v==null)return null;
-  const cx=100,cy=96,R=76,sw=15;
+  const cx=110,cy=104,R=86,sw=9,gap=1.6;
   const ang=x=>180-((Math.max(min,Math.min(max,x))-min)/(max-min))*180;
   let prev=min;
-  const arcs=segments.map((s,i)=>{const p=arcPath(cx,cy,R,ang(prev),ang(s.t));prev=s.t;return <path key={i} d={p} stroke={s.c} strokeWidth={sw} fill="none"/>;});
-  const va=ang(v),nx=cx+(R-3)*Math.cos(va*Math.PI/180),ny=cy-(R-3)*Math.sin(va*Math.PI/180);
+  const arcs=segments.map((s,i)=>{const a1=ang(prev),a2=ang(s.t);prev=s.t;
+    const gA=i>0?gap:0,gB=i<segments.length-1?gap:0;
+    return <path key={i} d={arcPath(cx,cy,R,a1-gA,a2+gB)} stroke={s.c} strokeWidth={sw} fill="none" strokeLinecap="round"/>;});
+  const va=ang(v),dx=cx+R*Math.cos(va*Math.PI/180),dy=cy-R*Math.sin(va*Math.PI/180);
+  let zc=segments[segments.length-1].c;for(const s of segments){if(v<=s.t){zc=s.c;break;}}
   return(
-    <div style={{textAlign:'center',minWidth:150}}>
-      <div style={{fontSize:11,color:'#6b7280',fontWeight:600,marginBottom:2}}>{label}</div>
-      <svg viewBox="0 0 200 112" width="100%" style={{maxWidth:180,display:'block',margin:'0 auto'}}>
+    <div className="ind-card">
+      <div className="ind-title">{label}</div>
+      <svg viewBox="0 0 220 120" width="100%" style={{maxWidth:172,display:'block',margin:'2px auto 0'}}>
+        <path d={arcPath(cx,cy,R,180,0)} stroke="#ece7de" strokeWidth={sw} fill="none" strokeLinecap="round"/>
         {arcs}
-        <line x1={cx} y1={cy} x2={nx.toFixed(2)} y2={ny.toFixed(2)} stroke="#111827" strokeWidth="2.5" strokeLinecap="round"/>
-        <circle cx={cx} cy={cy} r="4.5" fill="#111827"/>
-        <text x="18" y={cy+10} fontSize="9" fill="#9ca3af">{min}</text>
-        <text x="182" y={cy+10} fontSize="9" fill="#9ca3af" textAnchor="end">{max}</text>
+        <circle cx={dx.toFixed(2)} cy={dy.toFixed(2)} r="6.5" fill={zc} stroke="#fff" strokeWidth="2.6"/>
+        <text x={cx-R} y={cy+14} fontSize="8.5" fill="#b3a898" textAnchor="middle">{min}</text>
+        <text x={cx+R} y={cy+14} fontSize="8.5" fill="#b3a898" textAnchor="middle">{max}</text>
       </svg>
-      <div style={{fontSize:19,fontWeight:700,color:'#111827',marginTop:-2}}>{fmt(v,decimals)}{unit&&<span style={{fontSize:11,color:'#6b7280'}}> {unit}</span>}</div>
-      {badge&&<span className={`badge ${badge.c}`} style={{marginTop:3,display:'inline-flex'}}>{badge.l}</span>}
-      {legend&&<div style={{display:'flex',justifyContent:'center',gap:8,flexWrap:'wrap',marginTop:4}}>
-        {legend.map((z,i)=><span key={i} style={{fontSize:8.5,color:'#6b7280',display:'inline-flex',alignItems:'center',gap:3}}><span style={{width:7,height:7,borderRadius:2,background:z.c}}/>{z.l}</span>)}
-      </div>}
+      <div className="ind-val">{fmt(v,decimals)}{unit&&<span className="ind-unit"> {unit}</span>}</div>
+      {badge&&<span className={`ind-badge ${badge.c}`}>{badge.l}</span>}
+      {ideal&&<div className="ind-ref">Faixa ideal <b>{fmtIdeal(ideal,min,max,unit)}</b></div>}
     </div>);
 }
 /* Gráfico de linha para evolução */
@@ -1466,18 +1570,20 @@ function TrendChart({label,unit,color='#5a1e2e',points}){
       </svg>
     </div>);
 }
-/* Anel / donut */
-function Donut({pct,color='#5a1e2e',label,center}){
+/* Anel / donut — premium, número central em serifa */
+function Donut({pct,color='#5a1e2e',label,center,badge}){
   const p=num(pct);if(p==null)return null;
-  const R=34,C=2*Math.PI*R,cl=Math.max(0,Math.min(100,p));
+  const R=37,C=2*Math.PI*R,cl=Math.max(0,Math.min(100,p));
   return(
-    <div style={{textAlign:'center',minWidth:110}}>
-      <svg viewBox="0 0 92 92" width="92" height="92">
-        <circle cx="46" cy="46" r={R} fill="none" stroke="#ece8df" strokeWidth="10"/>
-        <circle cx="46" cy="46" r={R} fill="none" stroke={color} strokeWidth="10" strokeLinecap="round" strokeDasharray={C} strokeDashoffset={C*(1-cl/100)} transform="rotate(-90 46 46)"/>
-        <text x="46" y="50" textAnchor="middle" fontSize="18" fontWeight="700" fill="#111827">{center??fmt(p)+'%'}</text>
+    <div className="ind-card" style={{justifyContent:'flex-start'}}>
+      <div className="ind-title">{label}</div>
+      <svg viewBox="0 0 100 100" width="100%" style={{maxWidth:104,margin:'6px auto 2px',display:'block'}}>
+        <circle cx="50" cy="50" r={R} fill="none" stroke="#ece7de" strokeWidth="8"/>
+        <circle cx="50" cy="50" r={R} fill="none" stroke={color} strokeWidth="8" strokeLinecap="round" strokeDasharray={C} strokeDashoffset={C*(1-cl/100)} transform="rotate(-90 50 50)"/>
+        <text x="50" y="50" textAnchor="middle" dominantBaseline="central" fontFamily="'Playfair Display',Georgia,serif" fontSize="24" fontWeight="600" fill="#2a2320">{center??fmt(p)}</text>
+        {center==null&&<text x="50" y="66" textAnchor="middle" fontSize="9" fill="#b3a898">%</text>}
       </svg>
-      <div style={{fontSize:11,color:'#6b7280',fontWeight:600}}>{label}</div>
+      {badge&&<span className={`ind-badge ${badge.c}`}>{badge.l}</span>}
     </div>);
 }
 /* Radar do perfil físico */
@@ -1506,6 +1612,53 @@ function jumpPower(cmj,weightKg){const j=num(cmj),w=num(weightKg);if(!j||!w)retu
 function classifyCMJ(gender,cm){const v=num(cm);if(v==null)return null;const t=gender==='F'?[40,33,27,20]:[55,45,36,28];
   const labs=[{l:'Excelente',c:'bg'},{l:'Bom',c:'bg'},{l:'Médio',c:'bb'},{l:'Regular',c:'ba'}];
   for(let i=0;i<t.length;i++)if(v>=t[i])return labs[i];return{l:'Fraco',c:'br'};}
+
+/* Achados posturais legíveis a partir das classificações por segmento */
+function posturalFindings(ev){
+  const defs=[
+    {k:'post_head',reg:'Cabeça',normal:'Alinhada',map:{'Leve anteriorização':['Anteriorização leve da cabeça','bb'],'Moderada':['Anteriorização moderada da cabeça','ba'],'Grave':['Anteriorização acentuada da cabeça','br']}},
+    {k:'post_shoulders',reg:'Ombros',normal:'Simétricos'},
+    {k:'post_scapula',reg:'Escápulas',normal:'Normal'},
+    {k:'post_cervical',reg:'Coluna cervical',normal:'Normal',note:{'Hiperlordose':'aumento da lordose cervical','Retificada':'retificação da curvatura'}},
+    {k:'post_thoracic',reg:'Coluna torácica',normal:'Normal',note:{'Hipercifose':'aumento da cifose torácica','Retificada':'dorso plano'}},
+    {k:'post_lumbar',reg:'Coluna lombar',normal:'Normal',note:{'Hiperlordose':'aumento da lordose lombar','Retificada':'retificação da curvatura'}},
+    {k:'post_pelvis',reg:'Pelve',normal:'Neutra',note:{'Anteversão':'báscula pélvica anterior','Retroversão':'báscula pélvica posterior'}},
+    {k:'post_knees',reg:'Joelhos',normal:'Normal',note:{'Valgo':'joelhos em X','Varo':'joelhos em O','Recurvato':'hiperextensão (genu recurvatum)','Flexo':'joelhos em flexão'}},
+    {k:'post_feet',reg:'Pés',normal:'Normal',note:{'Pronado':'apoio pronado','Supinado':'apoio supinado','Plano':'pé plano','Cavo':'pé cavo'}}
+  ];
+  const sev=v=>{const s=v.toLowerCase();if(/grave|acentuad|severo/.test(s))return'br';if(/moderad/.test(s))return'ba';return'bb';};
+  const out=[];
+  defs.forEach(d=>{const v=ev[d.k];if(!v||v===d.normal)return;
+    if(d.map&&d.map[v]){out.push({reg:d.reg,txt:d.map[v][0],c:d.map[v][1]});return;}
+    const note=d.note&&d.note[v]?' — '+d.note[v]:'';
+    out.push({reg:d.reg,txt:d.reg+': '+v+note,c:sev(v)});});
+  return out;
+}
+
+/* Barra de progresso: trilha = jornada início→meta (0%→100%), preenchida pelo progresso */
+function GoalBar({label,unit,start,cur,goal,dir,startDate,curDate,defRate}){
+  const g=goalProgress({start,cur,goal,dir,startDate,curDate,defRate});if(!g)return null;
+  const curN=num(cur),goalN=num(goal),startN=num(start);
+  const pct=g.pct;
+  const pctColor=g.reached?'#15803d':pct!=null&&pct>=60?'#2f8f4e':pct!=null&&pct>=30?'#b0894f':'#5a1e2e';
+  return(
+    <div className="goal-item">
+      <div className="goal-top">
+        <span className="goal-lbl">{label}</span>
+        <span className="goal-cur-val">Atual <strong>{fmt(curN)} {unit}</strong>{!g.reached&&<> · faltam {fmt(g.remaining)} {unit}</>}</span>
+      </div>
+      <div className="goal-track">
+        <div className="goal-fill" style={{width:(pct??(g.reached?100:0))+'%',background:pctColor}}/>
+        {pct!=null&&!g.reached&&<div className="goal-cur" style={{left:pct+'%',background:pctColor}}/>}
+      </div>
+      <div className="goal-scale">
+        <span><em>{startN!=null?'Início':'Atual'}</em> {fmt(startN!=null?startN:curN)} {unit}</span>
+        {g.reached?<span className="badge bg">Meta atingida</span>:pct!=null?<span className="goal-pct" style={{color:pctColor}}>{pct}% concluído</span>:<span/>}
+        <span className="goal"><em>Meta</em> {fmt(goalN)} {unit}</span>
+      </div>
+      {!g.reached&&g.weeks>0&&<div className="goal-meta"><span className="goal-eta">Estimativa: <strong>~{g.weeks} {g.weeks===1?'semana':'semanas'}</strong>{g.eta&&<> (até {g.eta.toLocaleDateString('pt-BR')})</>} · {g.basis} ≈ {fmt(g.rate)} {unit}/sem</span></div>}
+    </div>);
+}
 
 /* ── Report ── */
 function Report({student,evalData,allEvals,onBack,coach}){
@@ -1598,19 +1751,20 @@ function Report({student,evalData,allEvals,onBack,coach}){
           {/* Painel visual (medidores + anel) e radar do perfil */}
           {(()=>{
             const pAge=age(student.dob);
-            const bc={bg:'#5a8a4a',ba:'#c99a3a',br:'#c4685e',bb:'#5b7a99',bo:'#b0894f'};
+            const Z={slate:'#7e93a6',sage:'#6f8a54',gold:'#c0a35a',clay:'#bb6a5e'};
+            const bc={bg:Z.sage,ba:Z.gold,br:Z.clay,bb:Z.slate,bo:'#b0894f'};
             const col=cls=>cls?(bc[cls.c]||'#5a1e2e'):'#5a1e2e';
             const musc=num(evalData.bio_muscle)||d.leanMass;
             const ratio=(musc&&d.fatMass)?+(musc/d.fatMass).toFixed(1):null;
             const vo2r=num(evalData.inc_vfinal)?incVO2(evalData.inc_vfinal):(num(evalData.cooper_dist)?cooperVO2(evalData.cooper_dist):num(evalData.vo2max));
             const vo2Clsr=classifyVO2(student.gender,pAge,vo2r);
             const g=[];
-            if(d.bmi)g.push(<Gauge key="imc" label="IMC" value={d.bmi} min={15} max={40} unit="kg/m²" badge={bmiCls} segments={[{t:18.5,c:'#5b7a99'},{t:25,c:'#5a8a4a'},{t:30,c:'#c99a3a'},{t:40,c:'#c4685e'}]} legend={[{l:'Baixo',c:'#5b7a99'},{l:'Normal',c:'#5a8a4a'},{l:'Sobrepeso',c:'#c99a3a'},{l:'Obesidade',c:'#c4685e'}]}/>);
-            if(num(evalData.bio_water))g.push(<Gauge key="ag" label="Água corporal" value={num(evalData.bio_water)} min={40} max={70} unit="%" segments={[{t:50,c:'#c99a3a'},{t:65,c:'#5a8a4a'},{t:70,c:'#5b7a99'}]} legend={[{l:'Baixa',c:'#c99a3a'},{l:'Adequada',c:'#5a8a4a'},{l:'Alta',c:'#5b7a99'}]}/>);
-            if(num(evalData.bio_visceral))g.push(<Gauge key="vi" label="Gordura visceral" value={num(evalData.bio_visceral)} min={1} max={20} decimals={0} segments={[{t:9,c:'#5a8a4a'},{t:14,c:'#c99a3a'},{t:20,c:'#c4685e'}]} legend={[{l:'Saudável',c:'#5a8a4a'},{l:'Elevada',c:'#c99a3a'},{l:'Alto risco',c:'#c4685e'}]}/>);
-            if(ratio)g.push(<Gauge key="ra" label="Músculo/gordura" value={ratio} min={0} max={3} segments={[{t:1,c:'#c4685e'},{t:2,c:'#5a8a4a'},{t:3,c:'#5b7a99'}]}/>);
-            if(num(evalData.resting_hr))g.push(<Gauge key="fc" label="FC repouso" value={num(evalData.resting_hr)} min={40} max={110} decimals={0} unit="bpm" segments={[{t:60,c:'#5a8a4a'},{t:80,c:'#c99a3a'},{t:110,c:'#c4685e'}]} legend={[{l:'Ótima',c:'#5a8a4a'},{l:'Elevada',c:'#c99a3a'},{l:'Alta',c:'#c4685e'}]}/>);
-            if(vo2r!=null)g.push(<Gauge key="vo" label="VO₂máx" value={vo2r} min={20} max={65} unit="mL/kg" badge={vo2Clsr} segments={[{t:30,c:'#c4685e'},{t:42,c:'#c99a3a'},{t:52,c:'#5a8a4a'},{t:65,c:'#5b7a99'}]} legend={[{l:'Fraco',c:'#c4685e'},{l:'Regular',c:'#c99a3a'},{l:'Bom',c:'#5a8a4a'},{l:'Superior',c:'#5b7a99'}]}/>);
+            if(d.bmi)g.push(<Gauge key="imc" label="IMC" value={d.bmi} min={15} max={40} unit="kg/m²" badge={bmiCls} ideal={[18.5,25]} segments={[{t:18.5,c:Z.slate},{t:25,c:Z.sage},{t:30,c:Z.gold},{t:40,c:Z.clay}]}/>);
+            if(num(evalData.bio_water))g.push(<Gauge key="ag" label="Água corporal" value={num(evalData.bio_water)} min={40} max={70} unit="%" ideal={[50,65]} segments={[{t:50,c:Z.gold},{t:65,c:Z.sage},{t:70,c:Z.slate}]}/>);
+            if(num(evalData.bio_visceral))g.push(<Gauge key="vi" label="Gordura visceral" value={num(evalData.bio_visceral)} min={1} max={20} decimals={0} ideal={[1,9]} segments={[{t:9,c:Z.sage},{t:14,c:Z.gold},{t:20,c:Z.clay}]}/>);
+            if(ratio)g.push(<Gauge key="ra" label="Músculo / gordura" value={ratio} min={0} max={3} ideal={[2,3]} segments={[{t:1,c:Z.clay},{t:2,c:Z.gold},{t:3,c:Z.sage}]}/>);
+            if(num(evalData.resting_hr))g.push(<Gauge key="fc" label="FC repouso" value={num(evalData.resting_hr)} min={40} max={110} decimals={0} unit="bpm" ideal={[40,60]} segments={[{t:60,c:Z.sage},{t:80,c:Z.gold},{t:110,c:Z.clay}]}/>);
+            if(vo2r!=null)g.push(<Gauge key="vo" label="VO₂máx" value={vo2r} min={20} max={65} unit="mL/kg" badge={vo2Clsr} ideal={[42,65]} segments={[{t:30,c:Z.clay},{t:42,c:Z.gold},{t:52,c:Z.sage},{t:65,c:Z.slate}]}/>);
             const axes=[
               {label:'Composição',score:scoreOf(fatCls)},
               {label:'Aeróbio',score:scoreOf(vo2Clsr)},
@@ -1623,8 +1777,8 @@ function Report({student,evalData,allEvals,onBack,coach}){
             if(g.length===0&&d.fatPct==null&&!hasRadar)return null;
             return(<>
               {(g.length>0||d.fatPct!=null)&&<div className="rpt-sec"><div className="rpt-sec-title">Painel de indicadores</div>
-                <div style={{display:'flex',flexWrap:'wrap',gap:'18px 20px',alignItems:'flex-start',justifyContent:'center'}}>
-                  {d.fatPct!=null&&<Donut pct={d.fatPct} color={col(fatCls)} label="% Gordura"/>}
+                <div className="ind-grid">
+                  {d.fatPct!=null&&<Donut pct={d.fatPct} color={col(fatCls)} label="% Gordura" badge={fatCls}/>}
                   {g}
                 </div></div>}
               {hasRadar&&<div className="rpt-sec"><div className="rpt-sec-title">Perfil físico</div>
@@ -1789,12 +1943,18 @@ function Report({student,evalData,allEvals,onBack,coach}){
             if(!hasPost&&!hasFlex&&!hasRes&&vo2==null&&!hasRM)return null;
             return(<div className="rpt-grid">
               <div>
-                {hasPost&&<div className="rpt-sec"><div className="rpt-sec-title">Avaliação postural</div>
+                {hasPost&&(()=>{const finds=posturalFindings(evalData);return <div className="rpt-sec"><div className="rpt-sec-title">Avaliação postural</div>
+                  {POST.some(([,k])=>evalData[k])&&<div className="post-find">
+                    <div className="post-find-hd">{finds.length?`Achados posturais (${finds.length})`:'Achados posturais'}</div>
+                    {finds.length?<ul className="post-find-list">
+                      {finds.map((f,i)=><li key={i}><span className={`badge ${f.c}`}>{f.c==='br'?'Acentuado':f.c==='ba'?'Moderado':'Leve'}</span><span>{f.txt}</span></li>)}
+                    </ul>:<div className="post-find-ok">Sem desvios posturais significativos — segmentos avaliados dentro do padrão de normalidade.</div>}
+                  </div>}
                   <table className="rpt-tbl"><tbody>
                     {POST.map(([lbl,k])=>evalData[k]?<tr key={k}><td>{lbl}</td><td style={{textAlign:'left',fontWeight:400}}>{evalData[k]}</td></tr>:null)}
                   </tbody></table>
                   {evalData.post_obs&&<p style={{fontSize:12,color:'var(--text2)',marginTop:8,lineHeight:1.6}}>{evalData.post_obs}</p>}
-                </div>}
+                </div>;})()}
                 {hasFlex&&<div className="rpt-sec"><div className="rpt-sec-title">Flexibilidade &amp; encurtamentos</div>
                   <table className="rpt-tbl"><tbody>
                     {num(evalData.flex_wells)!=null&&<Row lbl="Banco de Wells" val={evalData.flex_wells} unit="cm" badge={wCls} prev={prevEval?.flex_wells}/>}
@@ -1850,6 +2010,27 @@ function Report({student,evalData,allEvals,onBack,coach}){
                 {(student.smoker&&student.smoker!=='Não')&&<tr><td>Fumante</td><td style={{textAlign:'left',fontWeight:400}}>{student.smoker}</td></tr>}
               </tbody></table>
             </div>)}
+
+          {/* Progresso rumo à meta */}
+          {(num(evalData.goal_weight)||num(evalData.goal_fat))&&(()=>{
+            const asc=[...allEvals].sort((a,b)=>new Date(a.date)-new Date(b.date));
+            const baseEv=asc[0];const sameBase=!baseEv||baseEv.id===evalData.id;
+            const baseD=(!sameBase)?derive(student,baseEv):null;
+            const wGoal=num(evalData.goal_weight),wCur=num(evalData.weight);
+            const fGoal=num(evalData.goal_fat),fCur=d.fatPct;
+            const bars=[];
+            if(wGoal!=null&&wCur!=null)bars.push(<GoalBar key="w" label="Peso corporal" unit="kg" dir={wGoal<wCur?'down':'up'}
+              start={sameBase?null:num(baseEv.weight)} cur={wCur} goal={wGoal}
+              startDate={sameBase?null:baseEv.date} curDate={evalData.date} defRate={0.5}/>);
+            if(fGoal!=null&&fCur!=null)bars.push(<GoalBar key="f" label="% Gordura corporal" unit="%" dir={fGoal<fCur?'down':'up'}
+              start={sameBase?null:(baseD?baseD.fatPct:null)} cur={fCur} goal={fGoal}
+              startDate={sameBase?null:baseEv.date} curDate={evalData.date} defRate={0.4}/>);
+            if(!bars.length)return null;
+            return(<div className="rpt-sec"><div className="rpt-sec-title">Progresso rumo à meta</div>
+              {bars}
+              <div style={{fontSize:10.5,color:'#9ca3af',marginTop:12,lineHeight:1.5}}>Estimativa baseada no ritmo real de evolução do aluno quando há histórico; sem histórico, adota um ritmo saudável e sustentável (≈0,5 kg e 0,4% de gordura por semana). É uma orientação — o resultado depende da adesão ao treino e à dieta.</div>
+            </div>);
+          })()}
 
           {/* Metas e projeções */}
           {(num(evalData.goal_weight)||num(evalData.goal_fat)||evalData.goal_next)&&(()=>{
@@ -2284,6 +2465,7 @@ function App({profile,setProfile}){
   const toggleTheme=()=>{const t=theme==='dark'?'light':'dark';setTheme(t);document.documentElement.setAttribute('data-theme',t);try{localStorage.setItem('mfp_theme',t);}catch{}};
 
   useEffect(()=>{let alive=true;(async()=>{
+    if(profile._demo){setStudents(DEMO_STUDENTS);setEvals(DEMO_EVALS);return;}
     const [sr,ar]=await Promise.all([
       sb.from('assess_students').select('*').eq('coach_id',coachId).order('name'),
       sb.from('assessments').select('*').eq('coach_id',coachId)
@@ -2416,6 +2598,8 @@ function App({profile,setProfile}){
 function Root(){
   const [session,setSession]=useState(undefined);
   const [profile,setProfile]=useState(undefined);
+  const demo=typeof location!=='undefined'&&new URLSearchParams(location.search).get('demo')==='1';
+  if(demo)return <App profile={{id:'demo',name:'Ana Trainer',role:'coach',perf_until:'2999-12-31',brand_name:'Studio Performance',cref:'012345-G/SP',phone:'(11) 99999-0000',instagram:'@studio.performance',logo_url:'',is_admin:false,_demo:true}} setProfile={()=>{}}/>;
   useEffect(()=>{
     if(!sb)return;
     sb.auth.getSession().then(({data})=>setSession(data.session||null));
