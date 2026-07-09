@@ -1759,9 +1759,14 @@ function Report({student,evalData,allEvals,onBack,coach}){
             const vo2r=num(evalData.inc_vfinal)?incVO2(evalData.inc_vfinal):(num(evalData.cooper_dist)?cooperVO2(evalData.cooper_dist):num(evalData.vo2max));
             const vo2Clsr=classifyVO2(student.gender,pAge,vo2r);
             const g=[];
+            const fMin=student.gender==='M'?5:10,fMax=student.gender==='M'?35:42;
+            const fSeg=student.gender==='M'?[{t:14,c:Z.sage},{t:18,c:Z.sage},{t:25,c:Z.gold},{t:35,c:Z.clay}]:[{t:21,c:Z.sage},{t:25,c:Z.sage},{t:32,c:Z.gold},{t:42,c:Z.clay}];
+            if(d.fatPct!=null)g.push(<Gauge key="fat" label="% Gordura" value={d.fatPct} min={fMin} max={fMax} unit="%" badge={fatCls} ideal={student.gender==='M'?[6,18]:[14,25]} segments={fSeg}/>);
             if(d.bmi)g.push(<Gauge key="imc" label="IMC" value={d.bmi} min={15} max={40} unit="kg/m²" badge={bmiCls} ideal={[18.5,25]} segments={[{t:18.5,c:Z.slate},{t:25,c:Z.sage},{t:30,c:Z.gold},{t:40,c:Z.clay}]}/>);
-            if(num(evalData.bio_water))g.push(<Gauge key="ag" label="Água corporal" value={num(evalData.bio_water)} min={40} max={70} unit="%" ideal={[50,65]} segments={[{t:50,c:Z.gold},{t:65,c:Z.sage},{t:70,c:Z.slate}]}/>);
-            if(num(evalData.bio_visceral))g.push(<Gauge key="vi" label="Gordura visceral" value={num(evalData.bio_visceral)} min={1} max={20} decimals={0} ideal={[1,9]} segments={[{t:9,c:Z.sage},{t:14,c:Z.gold},{t:20,c:Z.clay}]}/>);
+            if(num(evalData.bio_muscle_pct))g.push(<Gauge key="sk" label="Músculo esquelético" value={num(evalData.bio_muscle_pct)} min={20} max={55} unit="%" badge={classifySkeletal(student.gender,evalData.bio_muscle_pct)} ideal={student.gender==='M'?[33,43]:[24,35]} segments={[{t:(student.gender==='M'?33:24),c:Z.gold},{t:(student.gender==='M'?43:35),c:Z.sage},{t:55,c:Z.slate}]}/>);
+            if(d.ffmi)g.push(<Gauge key="ffmi" label="FFMI (massa magra)" value={d.ffmi} min={15} max={26} unit="kg/m²" badge={classifyFFMI(student.gender,d.ffmi)} ideal={student.gender==='M'?[20,24]:[16,20]} segments={[{t:(student.gender==='M'?18:15),c:Z.gold},{t:(student.gender==='M'?22:19),c:Z.sage},{t:26,c:Z.slate}]}/>);
+            if(num(evalData.bio_water))g.push(<Gauge key="ag" label="Água corporal" value={num(evalData.bio_water)} min={40} max={70} unit="%" badge={classifyWater(student.gender,evalData.bio_water)} ideal={[50,65]} segments={[{t:50,c:Z.gold},{t:65,c:Z.sage},{t:70,c:Z.slate}]}/>);
+            if(num(evalData.bio_visceral))g.push(<Gauge key="vi" label="Gordura visceral" value={num(evalData.bio_visceral)} min={1} max={20} decimals={0} badge={classifyVisceral(evalData.bio_visceral)} ideal={[1,9]} segments={[{t:9,c:Z.sage},{t:14,c:Z.gold},{t:20,c:Z.clay}]}/>);
             if(ratio)g.push(<Gauge key="ra" label="Músculo / gordura" value={ratio} min={0} max={3} ideal={[2,3]} segments={[{t:1,c:Z.clay},{t:2,c:Z.gold},{t:3,c:Z.sage}]}/>);
             if(num(evalData.resting_hr))g.push(<Gauge key="fc" label="FC repouso" value={num(evalData.resting_hr)} min={40} max={110} decimals={0} unit="bpm" ideal={[40,60]} segments={[{t:60,c:Z.sage},{t:80,c:Z.gold},{t:110,c:Z.clay}]}/>);
             if(vo2r!=null)g.push(<Gauge key="vo" label="VO₂máx" value={vo2r} min={20} max={65} unit="mL/kg" badge={vo2Clsr} ideal={[42,65]} segments={[{t:30,c:Z.clay},{t:42,c:Z.gold},{t:52,c:Z.sage},{t:65,c:Z.slate}]}/>);
@@ -1776,24 +1781,14 @@ function Report({student,evalData,allEvals,onBack,coach}){
             const hasRadar=axes.filter(a=>a.score!=null).length>=3;
             if(g.length===0&&d.fatPct==null&&!hasRadar)return null;
             return(<>
-              {(g.length>0||d.fatPct!=null)&&<div className="rpt-sec"><div className="rpt-sec-title">Painel de indicadores</div>
-                <div className="ind-grid">
-                  {d.fatPct!=null&&<Donut pct={d.fatPct} color={col(fatCls)} label="% Gordura" badge={fatCls}/>}
-                  {g}
-                </div></div>}
+              {g.length>0&&<div className="rpt-sec"><div className="rpt-sec-title">Painel de indicadores</div>
+                <div className="ind-grid">{g}</div></div>}
               {hasRadar&&<div className="rpt-sec"><div className="rpt-sec-title">Perfil físico</div>
                 <Radar axes={axes}/>
                 <div style={{fontSize:10.5,color:'#9ca3af',textAlign:'center',marginTop:2}}>Escore 0–100 por domínio, com base nas classificações normativas.</div>
               </div>}
             </>);
           })()}
-
-          {/* Faixa de gordura */}
-          {d.fatPct!=null&&(
-            <div className="rpt-sec">
-              <div className="rpt-sec-title">Faixa de % de gordura corporal{fatCls&&<span style={{marginLeft:'auto',fontWeight:700,textTransform:'none',letterSpacing:0}} className={`badge ${fatCls.c}`}>{fatCls.l}</span>}</div>
-              <FatGauge gender={student.gender} pct={d.fatPct}/>
-            </div>)}
 
           {/* Comparativo */}
           {prevEval&&dp&&(
@@ -2538,21 +2533,21 @@ function App({profile,setProfile}){
       <div className={`sidebar ${menu?'open':''}`}>
         <div className="logo-row"><LogoMark size={44}/>
           <div><div className="logo-name">MF Performance</div><div className="logo-sub">Avaliação Física</div></div></div>
-        <button className={`nav-btn ${view==='dashboard'?'active':''}`} onClick={()=>go('dashboard')}><span className="nav-ico"></span>Dashboard</button>
-        <button className="nav-btn" onClick={()=>{setEditStu(null);go('stu-form');}}><span className="nav-ico"></span>Novo aluno</button>
-        <button className={`nav-btn ${view==='protocols'?'active':''}`} onClick={()=>go('protocols')}><span className="nav-ico"></span>Protocolos</button>
+        <button className={`nav-btn ${view==='dashboard'?'active':''}`} onClick={()=>go('dashboard')}>Dashboard</button>
+        <button className="nav-btn" onClick={()=>{setEditStu(null);go('stu-form');}}>Novo aluno</button>
+        <button className={`nav-btn ${view==='protocols'?'active':''}`} onClick={()=>go('protocols')}>Protocolos</button>
         {selStudent&&<>
           <hr className="nav-divider"/>
           <div className="nav-section">Aluno ativo</div>
-          <button className={`nav-btn ${view==='detail'?'active':''}`} onClick={()=>go('detail')}><span className="nav-ico"></span>{selStudent.name.split(' ')[0]}</button>
-          <button className="nav-btn" onClick={()=>{setEditEv(null);setReassess(false);go('ev-form');}}><span className="nav-ico"></span>Nova avaliação</button>
-          {sortedStuEvals.length>0&&<button className="nav-btn" onClick={()=>{setEditEv(null);setReassess(true);go('ev-form');}}><span className="nav-ico"></span>Reavaliação</button>}
+          <button className={`nav-btn ${view==='detail'?'active':''}`} onClick={()=>go('detail')}>{selStudent.name.split(' ')[0]}</button>
+          <button className="nav-btn" onClick={()=>{setEditEv(null);setReassess(false);go('ev-form');}}>Nova avaliação</button>
+          {sortedStuEvals.length>0&&<button className="nav-btn" onClick={()=>{setEditEv(null);setReassess(true);go('ev-form');}}>Reavaliação</button>}
         </>}
         <hr className="nav-divider"/>
-        <button className={`nav-btn ${view==='brand'?'active':''}`} onClick={()=>go('brand')}><span className="nav-ico"></span>Meu perfil / marca</button>
-        {profile.is_admin&&<button className={`nav-btn ${view==='admin'?'active':''}`} onClick={()=>go('admin')}><span className="nav-ico"></span>Administração</button>}
-        <button className="nav-btn" onClick={exportData}><span className="nav-ico"></span>Exportar backup</button>
-        <button className="nav-btn" onClick={toggleTheme}><span className="nav-ico"></span>{theme==='dark'?'Tema claro':'Tema escuro'}</button>
+        <button className={`nav-btn ${view==='brand'?'active':''}`} onClick={()=>go('brand')}>Meu perfil / marca</button>
+        {profile.is_admin&&<button className={`nav-btn ${view==='admin'?'active':''}`} onClick={()=>go('admin')}>Administração</button>}
+        <button className="nav-btn" onClick={exportData}>Exportar backup</button>
+        <button className="nav-btn" onClick={toggleTheme}>{theme==='dark'?'Tema claro':'Tema escuro'}</button>
         <div className="sidebar-footer">
           <div style={{display:'flex',alignItems:'center',gap:9,marginBottom:10}}>
             <div className="avatar" style={{width:34,height:34,fontSize:13}}>{initials(profile.name)}</div>
@@ -2568,7 +2563,8 @@ function App({profile,setProfile}){
         <div className="topbar no-print">
           <button className="hamb" onClick={()=>setMenu(true)}>≡</button>
           <LogoMark size={32}/>
-          <div style={{fontFamily:'var(--serif)',fontWeight:600,fontSize:16}}>MF Performance</div>
+          <div style={{fontFamily:'var(--serif)',fontWeight:600,fontSize:16,flex:1}}>MF Performance</div>
+          <button className="hamb" onClick={toggleTheme} title="Alternar tema" style={{fontSize:17,fontWeight:600}}>◐</button>
         </div>
         <div className="main">
           {saving&&<div style={{position:'fixed',top:14,right:16,zIndex:80,background:'var(--accent)',color:'var(--cream)',padding:'7px 14px',borderRadius:10,fontSize:12,fontWeight:600,boxShadow:'var(--shadow-lg)'}}>Salvando…</div>}
