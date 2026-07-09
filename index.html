@@ -766,59 +766,74 @@ function computePosture(view,pts,asp){
 }
 function ptColor(s){return s==='R'?'#2563eb':s==='L'?'#c4685e':'#5a1e2e';}
 /* Overlay dos pontos + linhas (compartilhado form/relatório) */
-function PostureOverlay({view,pts}){
+function PostureOverlay({view,pts,active,showLabels}){
   const cfg=POSTURE_VIEWS[view];if(!cfg)return null;
   const X=p=>p.x*100,Y=p=>p.y*100;
   let plumb=50;const ml=pts.mal,mr=pts.malR,mll=pts.malL;
   if(view==='side'&&ml)plumb=ml.x*100;else if((view==='front'||view==='back')&&mr&&mll)plumb=(mr.x+mll.x)/2*100;
+  const r=showLabels?2.1:1.5;
   return(
     <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{position:'absolute',inset:0,width:'100%',height:'100%',pointerEvents:'none'}}>
-      <line x1={plumb} y1="0" x2={plumb} y2="100" stroke="rgba(179,67,79,.6)" strokeWidth="0.5" strokeDasharray="1.5 1.2"/>
-      {cfg.pairs.map(([a,b],i)=>pts[a]&&pts[b]?<line key={i} x1={X(pts[a])} y1={Y(pts[a])} x2={X(pts[b])} y2={Y(pts[b])} stroke="#b0894f" strokeWidth="0.6"/>:null)}
-      {cfg.landmarks.map(l=>{const p=pts[l.k];if(!p)return null;return <g key={l.k}>
-        <circle cx={X(p)} cy={Y(p)} r="1.5" fill={ptColor(l.s)} stroke="#fff" strokeWidth="0.4"/>
+      <line x1={plumb} y1="0" x2={plumb} y2="100" stroke="rgba(179,67,79,.65)" strokeWidth="0.5" strokeDasharray="1.5 1.2"/>
+      {cfg.pairs.map(([a,b],i)=>pts[a]&&pts[b]?<line key={i} x1={X(pts[a])} y1={Y(pts[a])} x2={X(pts[b])} y2={Y(pts[b])} stroke="#b0894f" strokeWidth="0.7"/>:null)}
+      {cfg.landmarks.map(l=>{const p=pts[l.k];if(!p)return null;const on=active===l.k;return <g key={l.k}>
+        {on&&<circle cx={X(p)} cy={Y(p)} r={r+2.2} fill="none" stroke="var(--accent)" strokeWidth="0.7" opacity="0.9"/>}
+        <circle cx={X(p)} cy={Y(p)} r={r} fill={ptColor(l.s)} stroke="#fff" strokeWidth="0.5"/>
       </g>;})}
     </svg>);
 }
 /* Marcação interativa (formulário) */
+const POSTURE_TEMPLATES={
+  front:{earR:{x:.45,y:.09},earL:{x:.55,y:.09},acrR:{x:.37,y:.22},acrL:{x:.63,y:.22},asisR:{x:.43,y:.48},asisL:{x:.57,y:.48},kneeR:{x:.44,y:.72},kneeL:{x:.56,y:.72},malR:{x:.45,y:.94},malL:{x:.55,y:.94}},
+  side:{tragus:{x:.53,y:.09},acr:{x:.5,y:.23},troch:{x:.5,y:.5},fib:{x:.5,y:.74},mal:{x:.5,y:.94}},
+  back:{c7:{x:.5,y:.15},scapR:{x:.44,y:.28},scapL:{x:.56,y:.28},sacrum:{x:.5,y:.52},malR:{x:.46,y:.94},malL:{x:.54,y:.94}}
+};
 function PostureMarker({view,label,photo,pts,onPhoto,onPts,onMetrics}){
   const cfg=POSTURE_VIEWS[view];
-  const P=pts||{};
-  const firstMissing=cfg.landmarks.find(l=>!P[l.k]);
-  const [active,setActive]=useState(firstMissing?firstMissing.k:cfg.landmarks[0].k);
+  const [P,setP]=useState(()=>pts&&Object.keys(pts).length?pts:{});
   const [asp,setAsp]=useState(P._a||null);
-  const ref=useRef();
+  const [active,setActive]=useState(()=>{const fm=cfg.landmarks.find(l=>!P[l.k]);return fm?fm.k:cfg.landmarks[0].k;});
+  const boxRef=useRef();const fileRef=useRef();const drag=useRef(null);const Pref=useRef(P);Pref.current=P;
   const pick=f=>{if(!f)return;const r=new FileReader();r.onload=e=>{const img=new Image();img.onload=()=>{
     const c=document.createElement('canvas');const m=760;let{width:w,height:h}=img;const sc=Math.min(m/w,m/h,1);
     c.width=w*sc;c.height=h*sc;c.getContext('2d').drawImage(img,0,0,c.width,c.height);
     onPhoto(c.toDataURL('image/jpeg',0.75));};img.src=e.target.result;};r.readAsDataURL(f);};
-  useEffect(()=>{if(asp)onMetrics(computePosture(view,P,asp));},[JSON.stringify(P),asp]);
-  const tap=e=>{if(!active)return;const r=e.currentTarget.getBoundingClientRect();
-    const x=+((e.clientX-r.left)/r.width).toFixed(4),y=+((e.clientY-r.top)/r.height).toFixed(4);
-    const np={...P,[active]:{x,y},_a:asp};onPts(np);
-    const idx=cfg.landmarks.findIndex(l=>l.k===active);const nx=cfg.landmarks.slice(idx+1).find(l=>!np[l.k]);setActive(nx?nx.k:null);};
+  const commit=np=>{const withA={...np,_a:asp};Pref.current=withA;setP(withA);onPts(withA);if(asp)onMetrics(computePosture(view,withA,asp));};
+  useEffect(()=>{if(asp&&Object.keys(Pref.current).some(k=>k!=='_a'))onMetrics(computePosture(view,Pref.current,asp));},[asp]);
+  const norm=e=>{const r=boxRef.current.getBoundingClientRect();return{x:Math.max(0,Math.min(1,(e.clientX-r.left)/r.width)),y:Math.max(0,Math.min(1,(e.clientY-r.top)/r.height))};};
+  const nearest=c=>{let best=0.06,key=null;cfg.landmarks.forEach(l=>{const p=Pref.current[l.k];if(p){const d=Math.hypot(p.x-c.x,p.y-c.y);if(d<best){best=d;key=l.k;}}});return key;};
+  const down=e=>{e.preventDefault();const c=norm(e);const nk=nearest(c);
+    if(nk){drag.current=nk;setActive(nk);try{boxRef.current.setPointerCapture(e.pointerId);}catch(x){}}
+    else if(active){const np={...Pref.current,[active]:c};const idx=cfg.landmarks.findIndex(l=>l.k===active);const nx=cfg.landmarks.slice(idx+1).find(l=>!np[l.k]);commit(np);setActive(nx?nx.k:active);}};
+  const move=e=>{if(!drag.current)return;e.preventDefault();const c=norm(e);const np={...Pref.current,[drag.current]:c};Pref.current=np;setP(np);};
+  const up=()=>{if(drag.current){drag.current=null;commit(Pref.current);}};
+  const template=()=>{commit({...POSTURE_TEMPLATES[view]});setActive(null);};
+  const placed=cfg.landmarks.filter(l=>P[l.k]).length;
   return(
-    <div className="fg"><label className="flbl">{label} — toque nos pontos</label>
+    <div className="fg"><label className="flbl">{label} · {placed}/{cfg.landmarks.length} pontos</label>
       {photo?<>
-        <div onClick={tap} style={{position:'relative',borderRadius:12,overflow:'hidden',border:'1px solid var(--border2)',background:'#000',maxWidth:250,cursor:'crosshair',touchAction:'manipulation'}}>
-          <img src={photo} alt="" style={{display:'block',width:'100%'}} onLoad={e=>{const a=e.target.naturalWidth/e.target.naturalHeight;setAsp(a);}}/>
-          <PostureOverlay view={view} pts={P}/>
+        <div ref={boxRef} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}
+          style={{position:'relative',borderRadius:12,overflow:'hidden',border:'1px solid var(--border2)',background:'#000',width:'100%',maxWidth:360,margin:'0 auto',cursor:'crosshair',touchAction:'none',userSelect:'none'}}>
+          <img src={photo} alt="" draggable="false" style={{display:'block',width:'100%',pointerEvents:'none'}} onLoad={e=>{const a=e.target.naturalWidth/e.target.naturalHeight;setAsp(a);}}/>
+          <PostureOverlay view={view} pts={P} active={active} showLabels/>
         </div>
-        <div style={{display:'flex',flexWrap:'wrap',gap:5,marginTop:7,maxWidth:250}}>
+        <div style={{fontSize:11,color:'var(--text2)',marginTop:5,textAlign:'center'}}>Toque para marcar o ponto ativo · arraste os pontos para ajustar</div>
+        <div style={{display:'flex',flexWrap:'wrap',gap:5,marginTop:7,justifyContent:'center'}}>
           {cfg.landmarks.map(l=>{const done=!!P[l.k];const on=active===l.k;
             return <button key={l.k} type="button" onClick={()=>setActive(l.k)}
-              style={{fontSize:10.5,padding:'4px 7px',borderRadius:14,cursor:'pointer',border:'1px solid '+(on?'var(--accent)':done?ptColor(l.s):'var(--border2)'),
+              style={{fontSize:10.5,padding:'5px 9px',borderRadius:14,cursor:'pointer',border:'1px solid '+(on?'var(--accent)':done?ptColor(l.s):'var(--border2)'),
                 background:on?'var(--accent)':done?ptColor(l.s):'transparent',color:on||done?'#fff':'var(--text2)',fontWeight:600}}>
               {done?'✓ ':''}{l.l}</button>;})}
         </div>
-        <div style={{display:'flex',gap:6,marginTop:6}}>
-          <button className="btn btn-ghost btn-sm" type="button" onClick={()=>{onPts({_a:asp});setActive(cfg.landmarks[0].k);}}>Limpar pontos</button>
-          <button className="btn btn-ghost btn-sm" type="button" onClick={()=>{onPhoto('');onPts({});}}>Trocar foto</button>
+        <div style={{display:'flex',gap:6,marginTop:8,justifyContent:'center',flexWrap:'wrap'}}>
+          <button className="btn btn-secondary btn-sm" type="button" onClick={template}>Auto-posicionar</button>
+          <button className="btn btn-ghost btn-sm" type="button" onClick={()=>{commit({});setActive(cfg.landmarks[0].k);}}>Limpar</button>
+          <button className="btn btn-ghost btn-sm" type="button" onClick={()=>{onPhoto('');commit({});}}>Trocar foto</button>
         </div>
       </>:
-        <div className="photo-up" style={{width:'100%',maxWidth:250,height:160}} onClick={()=>ref.current.click()}>
+        <div className="photo-up" style={{width:'100%',maxWidth:360,height:180,margin:'0 auto'}} onClick={()=>fileRef.current.click()}>
           <div className="photo-ph">{label}<br/>toque p/ adicionar foto</div></div>}
-      <input ref={ref} type="file" accept="image/*" capture="environment" style={{display:'none'}} onChange={e=>pick(e.target.files[0])}/>
+      <input ref={fileRef} type="file" accept="image/*" capture="environment" style={{display:'none'}} onChange={e=>pick(e.target.files[0])}/>
     </div>);
 }
 
