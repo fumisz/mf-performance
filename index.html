@@ -699,6 +699,19 @@ const PARQ_QUESTIONS=[
 function parqResult(ev){const any=PARQ_QUESTIONS.some((_,i)=>ev['parq_'+(i+1)]==='Sim');if(!PARQ_QUESTIONS.some((_,i)=>ev['parq_'+(i+1)]))return null;
   return any?{l:'Encaminhar para avaliação médica',c:'br'}:{l:'Liberado (baixo risco)',c:'bg'};}
 
+/* ── Funcional & Performance (Fase 2) ── */
+function classifyTUG(s){const v=num(s);if(v==null)return null;if(v<10)return{l:'Normal',c:'bg'};if(v<14)return{l:'Risco leve de queda',c:'ba'};return{l:'Alto risco de queda',c:'br'};}
+function classifySTS5(s){const v=num(s);if(v==null)return null;if(v<=8)return{l:'Excelente',c:'bg'};if(v<=12)return{l:'Normal',c:'bg'};if(v<=15)return{l:'Regular',c:'ba'};return{l:'Reduzido',c:'br'};}
+function classifyChair30(reps){const v=num(reps);if(v==null)return null;if(v>=20)return{l:'Excelente',c:'bg'};if(v>=15)return{l:'Bom',c:'bg'};if(v>=12)return{l:'Médio',c:'bb'};if(v>=8)return{l:'Regular',c:'ba'};return{l:'Baixo',c:'br'};}
+function classifyPlank(s){const v=num(s);if(v==null)return null;if(v>=120)return{l:'Excelente',c:'bg'};if(v>=60)return{l:'Bom',c:'bg'};if(v>=30)return{l:'Regular',c:'ba'};return{l:'Fraco',c:'br'};}
+function classifyWallSit(s){const v=num(s);if(v==null)return null;if(v>=90)return{l:'Excelente',c:'bg'};if(v>=45)return{l:'Bom',c:'bg'};if(v>=25)return{l:'Regular',c:'ba'};return{l:'Fraco',c:'br'};}
+function classifyDeadHang(s){const v=num(s);if(v==null)return null;if(v>=90)return{l:'Excelente',c:'bg'};if(v>=45)return{l:'Bom',c:'bg'};if(v>=20)return{l:'Regular',c:'ba'};return{l:'Fraco',c:'br'};}
+function rsiCalc(hCm,ctMs){const h=num(hCm),c=num(ctMs);if(!h||!c)return null;return +((h/100)/(c/1000)).toFixed(2);}
+function classifyRSI(v){const x=num(v);if(x==null)return null;if(x>=2.5)return{l:'Excelente',c:'bg'};if(x>=1.5)return{l:'Bom',c:'bg'};if(x>=1.0)return{l:'Moderado',c:'ba'};return{l:'Baixo',c:'br'};}
+function sprintVel(dist,sec){const s=num(sec);if(!s)return null;return +(dist/s).toFixed(2);}
+function yoyoVO2(distM){const d=num(distM);if(!d)return null;return +(d*0.0084+36.4).toFixed(1);}
+function classifyFatigueIndex(pct){const v=num(pct);if(v==null)return null;if(v<=6)return{l:'Baixa fadiga',c:'bg'};if(v<=10)return{l:'Moderada',c:'ba'};return{l:'Alta fadiga',c:'br'};}
+
 /* ── Derived metrics for an eval ── */
 function derive(student,ev){
   const a=age(student.dob)||25;
@@ -1065,23 +1078,25 @@ const BLANK_EVAL={date:new Date().toISOString().slice(0,10),
   circ_shoulders:'',circ_chest:'',circ_waist:'',circ_abdomen:'',circ_hip:'',
   circ_arm_r:'',circ_arm_l:'',circ_thigh_r:'',circ_thigh_l:'',circ_calf_r:'',circ_calf_l:'',
   pw_cmj:'',pw_horizontal:'',pw_sargent:'',pw_medball:'',pw_sprint20:'',pw_agility_t:'',
+  pw_sj:'',pw_dj_h:'',pw_dj_ct:'',pw_sprint5:'',pw_sprint10:'',pw_sprint30:'',pw_illinois:'',pw_505_r:'',pw_505_l:'',pw_rast_fi:'',pw_yoyo:'',pw_beep:'',
+  func_tug:'',func_sts5:'',func_chair30:'',func_wallsit:'',func_plank:'',func_deadhang:'',func_slsts_r:'',func_slsts_l:'',func_obs:'',
   mob_lunge:'',goal_weight:'',goal_fat:'',goal_next:'',pt_strong:'',pt_improve:'',pt_strategy:'',obs:''};
 
 /* Protocolos selecionáveis por avaliação */
-const EVAL_MODULES=[['quest','Questionários'],['bp','Hemodinâmica'],['dyn','Dinamometria'],['bio','Bioimpedância'],['skin','Dobras'],['circ','Circunferências'],['postural','Postural'],['mobility','Mobilidade'],['balance','Equilíbrio'],['resist','Resistência'],['flex','Flexibilidade'],['cardio','Cardio'],['strength','1‑RM'],['power','Potência'],['goals','Metas'],['parecer','Parecer']];
+const EVAL_MODULES=[['quest','Questionários'],['bp','Hemodinâmica'],['dyn','Dinamometria'],['bio','Bioimpedância'],['skin','Dobras'],['circ','Circunferências'],['postural','Postural'],['mobility','Mobilidade'],['balance','Equilíbrio'],['resist','Resistência'],['func','Funcional'],['flex','Flexibilidade'],['cardio','Cardio'],['strength','1‑RM'],['power','Potência'],['goals','Metas'],['parecer','Parecer']];
 const EVAL_PRESETS=[
-  ['Completa',['quest','bp','dyn','bio','skin','circ','postural','mobility','balance','resist','flex','cardio','strength','power','goals','parecer']],
+  ['Completa',['quest','bp','dyn','bio','skin','circ','postural','mobility','balance','resist','func','flex','cardio','strength','power','goals','parecer']],
   ['Só bioimpedância',['bio','goals','parecer']],
   ['Composição',['bio','skin','circ','goals','parecer']],
-  ['Saúde',['quest','bp','bio','circ','postural','mobility','balance','flex','cardio','goals','parecer']],
-  ['Performance',['dyn','postural','mobility','resist','power','cardio','strength','goals','parecer']]
+  ['Saúde',['quest','bp','bio','circ','postural','mobility','balance','func','flex','cardio','goals','parecer']],
+  ['Performance',['dyn','postural','mobility','resist','func','power','cardio','strength','goals','parecer']]
 ];
 /* Bateria automática conforme o perfil do aluno */
 const PROFILE_TYPES=['Saúde','Condicionamento','Atleta','Personalizado'];
 const PROFILE_PRESET={
-  'Saúde':['quest','bp','bio','circ','postural','mobility','balance','flex','cardio','goals','parecer'],
-  'Condicionamento':['quest','bp','bio','skin','circ','postural','mobility','resist','flex','cardio','goals','parecer'],
-  'Atleta':['dyn','postural','mobility','balance','resist','power','cardio','strength','flex','goals','parecer'],
+  'Saúde':['quest','bp','bio','circ','postural','mobility','balance','func','flex','cardio','goals','parecer'],
+  'Condicionamento':['quest','bp','bio','skin','circ','postural','mobility','resist','func','flex','cardio','goals','parecer'],
+  'Atleta':['dyn','postural','mobility','balance','resist','func','power','cardio','strength','flex','goals','parecer'],
   'Personalizado':null
 };
 
@@ -1331,6 +1346,36 @@ function EvalForm({student,evalData,carryHeight,isReassess,onSave,onCancel}){
             </div>);
           })()}
 
+          {has('func')&&<div className="sec"><div className="sec-title">Avaliação funcional</div>
+            <details style={{marginBottom:10}}><summary style={{cursor:'pointer',fontSize:12,color:'var(--text2)'}}>Como realizar</summary>
+              <div style={{fontSize:12,color:'var(--text2)',lineHeight:1.7,marginTop:6}}>
+                <b>TUG</b>: levantar da cadeira, andar 3 m, retornar e sentar — cronometrar (s).<br/>
+                <b>5x Sit-to-Stand</b>: tempo para levantar/sentar 5 vezes o mais rápido possível.<br/>
+                <b>30s Chair Stand</b>: nº de levantadas completas em 30 s.<br/>
+                <b>Wall Sit</b> e <b>Prancha</b>: tempo de sustentação (s).<br/>
+                <b>Dead Hang</b>: tempo pendurado na barra (s).<br/>
+                <b>Single-leg sit-to-stand</b>: nº de repetições unipodais (compara D/E).
+              </div></details>
+            <div className="fgrid2">
+              {N('Timed Up and Go','func_tug','s')}
+              {N('5x Sit-to-Stand','func_sts5','s')}
+              {N('30s Chair Stand','func_chair30','reps')}
+              {N('Wall Sit','func_wallsit','s')}
+              {N('Prancha','func_plank','s')}
+              {N('Dead Hang','func_deadhang','s')}
+              {N('SL sit-to-stand D','func_slsts_r','reps')}
+              {N('SL sit-to-stand E','func_slsts_l','reps')}
+            </div>
+            {badgeLine('TUG',classifyTUG(f.func_tug),f.func_tug,'s')}
+            {badgeLine('5x STS',classifySTS5(f.func_sts5),f.func_sts5,'s')}
+            {badgeLine('30s Chair',classifyChair30(f.func_chair30),f.func_chair30,'reps')}
+            {badgeLine('Prancha',classifyPlank(f.func_plank),f.func_plank,'s')}
+            {badgeLine('Wall Sit',classifyWallSit(f.func_wallsit),f.func_wallsit,'s')}
+            {badgeLine('Dead Hang',classifyDeadHang(f.func_deadhang),f.func_deadhang,'s')}
+            {(()=>{const as=asymmetry(f.func_slsts_r,f.func_slsts_l,15);return as?<div style={{marginTop:6}}><span style={{fontSize:12,color:'var(--text2)'}}>Assimetria SL sit-to-stand — dif. {as.diff}</span> <Badge cls={as.badge.c}>{as.badge.l}</Badge></div>:null;})()}
+            <div style={{marginTop:10}}><FTA label="Observações funcionais" value={f.func_obs||''} onChange={e=>upd('func_obs',e.target.value)}/></div>
+          </div>}
+
           {has('flex')&&<div className="sec"><div className="sec-title">Flexibilidade &amp; encurtamentos</div>
             <div className="fgrid2">
               {N('Banco de Wells','flex_wells','cm')}
@@ -1379,12 +1424,35 @@ function EvalForm({student,evalData,carryHeight,isReassess,onSave,onCancel}){
               {N('Salto horizontal','pw_horizontal','cm')}
               {N('Impulsão (Sargent)','pw_sargent','cm')}
               {N('Arremesso medicine ball','pw_medball','m')}
+              {N('Squat Jump (SJ)','pw_sj','cm')}
+              {N('Drop Jump — altura','pw_dj_h','cm')}
+              {N('Drop Jump — contato','pw_dj_ct','ms')}
+              {N('Arremesso medicine ball','pw_medball','m')}
+            </div>
+            <div style={{fontSize:12.5,fontWeight:700,color:'var(--accent)',marginTop:14,marginBottom:6}}>Velocidade &amp; agilidade</div>
+            <div className="fgrid2">
+              {N('Sprint 5 m','pw_sprint5','s')}
+              {N('Sprint 10 m','pw_sprint10','s')}
               {N('Sprint 20 m','pw_sprint20','s')}
+              {N('Sprint 30 m','pw_sprint30','s')}
               {N('Agilidade (T-test)','pw_agility_t','s')}
+              {N('Illinois','pw_illinois','s')}
+              {N('505 D','pw_505_r','s')}
+              {N('505 E','pw_505_l','s')}
+            </div>
+            <div style={{fontSize:12.5,fontWeight:700,color:'var(--accent)',marginTop:14,marginBottom:6}}>Anaeróbio / aeróbio de campo</div>
+            <div className="fgrid2">
+              {N('RAST — índice de fadiga','pw_rast_fi','%')}
+              {N('Yo-Yo IR1 — distância','pw_yoyo','m')}
+              {N('Beep test — nível.shuttle','pw_beep','')}
             </div>
             {classifyCMJ(student.gender,f.pw_cmj)&&<div className="alert alert-info" style={{marginTop:12}}>
-              Salto vertical: <strong>{f.pw_cmj} cm</strong> — <Badge cls={classifyCMJ(student.gender,f.pw_cmj).c}>{classifyCMJ(student.gender,f.pw_cmj).l}</Badge>
+              Salto vertical (CMJ): <strong>{f.pw_cmj} cm</strong> — <Badge cls={classifyCMJ(student.gender,f.pw_cmj).c}>{classifyCMJ(student.gender,f.pw_cmj).l}</Badge>
               {jumpPower(f.pw_cmj,f.weight)&&<> · Potência de pico estimada: <strong>{jumpPower(f.pw_cmj,f.weight).toLocaleString('pt-BR')} W</strong></>}</div>}
+            {rsiCalc(f.pw_dj_h,f.pw_dj_ct)&&<div className="alert alert-info" style={{marginTop:8}}>RSI (Drop Jump): <strong>{rsiCalc(f.pw_dj_h,f.pw_dj_ct)}</strong> — <Badge cls={classifyRSI(rsiCalc(f.pw_dj_h,f.pw_dj_ct)).c}>{classifyRSI(rsiCalc(f.pw_dj_h,f.pw_dj_ct)).l}</Badge></div>}
+            {yoyoVO2(f.pw_yoyo)&&<div className="alert alert-success" style={{marginTop:8}}>VO₂máx estimado (Yo-Yo IR1): <strong>{yoyoVO2(f.pw_yoyo)} mL/kg/min</strong></div>}
+            {(sprintVel(20,f.pw_sprint20)||sprintVel(30,f.pw_sprint30))&&<div style={{marginTop:8,fontSize:12,color:'var(--text2)'}}>Velocidade média: {sprintVel(20,f.pw_sprint20)&&<>20 m <strong style={{color:'var(--text)'}}>{sprintVel(20,f.pw_sprint20)} m/s</strong> </>}{sprintVel(30,f.pw_sprint30)&&<>· 30 m <strong style={{color:'var(--text)'}}>{sprintVel(30,f.pw_sprint30)} m/s</strong></>}</div>}
+            {classifyFatigueIndex(f.pw_rast_fi)&&<div style={{marginTop:8}}><span style={{fontSize:12,color:'var(--text2)'}}>RAST — fadiga:</span> <Badge cls={classifyFatigueIndex(f.pw_rast_fi).c}>{classifyFatigueIndex(f.pw_rast_fi).l}</Badge></div>}
           </div>}
 
           {has('goals')&&<div className="sec"><div className="sec-title">Metas e projeções</div>
@@ -2297,16 +2365,36 @@ function Report({student,evalData,allEvals,onBack,coach}){
                     {RM.map(([lbl,k])=>{const e1=est1RM(evalData['rm_'+k+'_w'],evalData['rm_'+k+'_r']);
                       return e1?<tr key={k}><td>{lbl}</td><td style={{fontWeight:600}}>{fmt(e1)} kg <span style={{color:'var(--text3)',fontWeight:400,fontSize:11}}>({evalData['rm_'+k+'_w']}kg × {evalData['rm_'+k+'_r']||1})</span></td>{prevEval&&<td/>}</tr>:null;})}
                   </tbody></table></div>}
-                {['pw_cmj','pw_horizontal','pw_sargent','pw_medball','pw_sprint20','pw_agility_t'].some(k=>num(evalData[k]))&&
-                  <div className="rpt-sec"><div className="rpt-sec-title">Potência &amp; velocidade</div>
+                {(()=>{const FUNC=[['Timed Up and Go','func_tug','s',classifyTUG],['5x Sit-to-Stand','func_sts5','s',classifySTS5],['30s Chair Stand','func_chair30','reps',classifyChair30],['Wall Sit','func_wallsit','s',classifyWallSit],['Prancha','func_plank','s',classifyPlank],['Dead Hang','func_deadhang','s',classifyDeadHang]];
+                  if(!FUNC.some(([,k])=>num(evalData[k]))&&!num(evalData.func_slsts_r))return null;
+                  const as=asymmetry(evalData.func_slsts_r,evalData.func_slsts_l,15);
+                  return(<div className="rpt-sec"><div className="rpt-sec-title">Avaliação funcional</div>
+                    <table className="rpt-tbl"><tbody>
+                      {FUNC.map(([lbl,k,u,fn])=>num(evalData[k])?<Row key={k} lbl={lbl} val={evalData[k]} unit={u} badge={fn(evalData[k])} prev={prevEval?.[k]}/>:null)}
+                      {(num(evalData.func_slsts_r)||num(evalData.func_slsts_l))&&<tr><td>SL sit-to-stand (D / E)</td><td style={{fontWeight:600}}>{evalData.func_slsts_r||'—'} / {evalData.func_slsts_l||'—'} reps{as&&as.badge.c==='br'&&<span className="badge br" style={{marginLeft:6}}>Assimetria {as.pct}%</span>}</td>{prevEval&&<td/>}</tr>}
+                    </tbody></table>
+                    {evalData.func_obs&&<p style={{fontSize:12,color:'var(--text2)',marginTop:6,lineHeight:1.6}}>{evalData.func_obs}</p>}
+                  </div>);
+                })()}
+                {['pw_cmj','pw_sj','pw_horizontal','pw_sargent','pw_medball','pw_dj_h','pw_sprint5','pw_sprint10','pw_sprint20','pw_sprint30','pw_agility_t','pw_illinois','pw_505_r','pw_rast_fi','pw_yoyo','pw_beep'].some(k=>num(evalData[k])||evalData[k])&&
+                  <div className="rpt-sec"><div className="rpt-sec-title">Potência, velocidade &amp; agilidade</div>
                   <table className="rpt-tbl"><tbody>
                     <Row lbl="Salto vertical (CMJ)" val={evalData.pw_cmj} unit="cm" badge={classifyCMJ(student.gender,evalData.pw_cmj)} prev={prevEval?.pw_cmj}/>
                     {jumpPower(evalData.pw_cmj,evalData.weight)&&<tr><td>Potência de pico (est.)</td><td style={{fontWeight:600}}>{jumpPower(evalData.pw_cmj,evalData.weight).toLocaleString('pt-BR')} W</td>{prevEval&&<td/>}</tr>}
+                    <Row lbl="Squat Jump (SJ)" val={evalData.pw_sj} unit="cm" prev={prevEval?.pw_sj}/>
                     <Row lbl="Salto horizontal" val={evalData.pw_horizontal} unit="cm" prev={prevEval?.pw_horizontal}/>
-                    <Row lbl="Impulsão (Sargent)" val={evalData.pw_sargent} unit="cm" prev={prevEval?.pw_sargent}/>
+                    {rsiCalc(evalData.pw_dj_h,evalData.pw_dj_ct)&&<tr><td>RSI (Drop Jump)</td><td style={{fontWeight:600}}>{rsiCalc(evalData.pw_dj_h,evalData.pw_dj_ct)}<span className={`badge ${classifyRSI(rsiCalc(evalData.pw_dj_h,evalData.pw_dj_ct)).c}`} style={{marginLeft:6}}>{classifyRSI(rsiCalc(evalData.pw_dj_h,evalData.pw_dj_ct)).l}</span></td>{prevEval&&<td/>}</tr>}
                     <Row lbl="Arremesso medicine ball" val={evalData.pw_medball} unit="m" prev={prevEval?.pw_medball}/>
+                    <Row lbl="Sprint 5 m" val={evalData.pw_sprint5} unit="s" prev={prevEval?.pw_sprint5}/>
+                    <Row lbl="Sprint 10 m" val={evalData.pw_sprint10} unit="s" prev={prevEval?.pw_sprint10}/>
                     <Row lbl="Sprint 20 m" val={evalData.pw_sprint20} unit="s" prev={prevEval?.pw_sprint20}/>
+                    <Row lbl="Sprint 30 m" val={evalData.pw_sprint30} unit="s" prev={prevEval?.pw_sprint30}/>
                     <Row lbl="Agilidade (T-test)" val={evalData.pw_agility_t} unit="s" prev={prevEval?.pw_agility_t}/>
+                    <Row lbl="Illinois" val={evalData.pw_illinois} unit="s" prev={prevEval?.pw_illinois}/>
+                    {(num(evalData.pw_505_r)||num(evalData.pw_505_l))&&<tr><td>505 (D / E)</td><td style={{fontWeight:600}}>{evalData.pw_505_r||'—'} / {evalData.pw_505_l||'—'} s</td>{prevEval&&<td/>}</tr>}
+                    {num(evalData.pw_rast_fi)&&<tr><td>RAST — índice de fadiga</td><td style={{fontWeight:600}}>{evalData.pw_rast_fi}%<span className={`badge ${classifyFatigueIndex(evalData.pw_rast_fi).c}`} style={{marginLeft:6}}>{classifyFatigueIndex(evalData.pw_rast_fi).l}</span></td>{prevEval&&<td/>}</tr>}
+                    {yoyoVO2(evalData.pw_yoyo)&&<tr><td>Yo-Yo IR1 ({evalData.pw_yoyo} m)</td><td style={{fontWeight:600}}>VO₂máx ≈ {yoyoVO2(evalData.pw_yoyo)} mL/kg/min</td>{prevEval&&<td/>}</tr>}
+                    {evalData.pw_beep&&<tr><td>Beep test</td><td style={{fontWeight:600}}>Nível {evalData.pw_beep}</td>{prevEval&&<td/>}</tr>}
                   </tbody></table></div>}
               </div>
             </div>);
