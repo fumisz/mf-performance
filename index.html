@@ -1753,9 +1753,21 @@ function Donut({pct,color='#5a1e2e',label,center,badge}){
 /* Radar do perfil físico */
 function scoreOf(cls){if(!cls)return null;const m={
   'Superior':95,'Excelente':88,'Atlético':92,'Muito bom':80,'Muito boa':85,'Boa massa muscular':78,'Excepcional':96,
-  'Bom':68,'Média':52,'Aceitável':52,'Normal':70,'Saudável':85,'Baixo risco':85,'Regular':45,'Abaixo do ideal':58,'Abaixo':46,
-  'Razoável':40,'Risco moderado':45,'Cuidado (baixo)':52,'Risco aumentado':38,'Fraco':28,'Ruim':18,'Acima do ideal':26,'Alto risco':20,'Risco alto':20};
+  'Bom':68,'Média':52,'Aceitável':52,'Normal':72,'Saudável':85,'Baixo risco':85,'Regular':45,'Abaixo do ideal':58,'Abaixo':46,
+  'Razoável':40,'Risco moderado':45,'Cuidado (baixo)':52,'Risco aumentado':38,'Fraco':28,'Ruim':18,'Acima do ideal':26,'Alto risco':20,'Risco alto':20,
+  'Peso normal':80,'Sobrepeso':45,'Obesidade I':28,'Obesidade II':18,'Obesidade III':10,'Abaixo do peso':55,
+  'Ótima':92,'Limítrofe':52,'HAS Estágio 1':30,'HAS Estágio 2':20,'HAS Estágio 3':12,
+  'Adequada':82,'Baixa':48,'Alta':60,'Alto':82,'Baixo':32,'Elevada':45,
+  'Leve restrição':55,'Restrito':30,'Leve encurtamento':55,'Encurtado':35,'Reduzida':50,'Limitada':30,
+  'Médio':52,'Simétrico':90,'Leve':70,'Moderado':45,'Acentuado':22,
+  'Sem dor':92,'Dor leve':72,'Dor moderada':45,'Dor intensa':22,
+  'Encurtado leve':58,'Encurtado moderado':42,'Encurtado severo':26,'Encurtado bilateral':40,'Encurtado D':45,'Encurtado E':45,
+  'Positivo':30,'Negativo':82};
   return m[cls.l]??null;}
+/* Score de força relativa (1-RM / peso) */
+function relForceScore(gender,rm,weight){const r=num(rm),w=num(weight);if(!r||!w)return null;const rel=r/w;
+  const t=gender==='F'?[1.0,0.8,0.6,0.45]:[1.5,1.2,0.9,0.65];
+  if(rel>=t[0])return 92;if(rel>=t[1])return 76;if(rel>=t[2])return 60;if(rel>=t[3])return 45;return 30;}
 function Radar({axes}){
   const A=axes.filter(a=>a.score!=null);if(A.length<3)return null;
   const n=A.length,cx=125,cy=118,R=80;
@@ -1797,6 +1809,51 @@ function posturalFindings(ev){
     const note=d.note&&d.note[v]?' — '+d.note[v]:'';
     out.push({reg:d.reg,txt:d.reg+': '+v+note,c:sev(v)});});
   return out;
+}
+
+/* ── Resumo executivo: score por domínio (0-100), pontos fortes/fracos, prioridades, recomendações ── */
+function buildExecutive(student,ev,d,prevEval){
+  const G=student.gender,a=age(student.dob);
+  const avg=arr=>{const v=arr.filter(x=>x!=null&&!isNaN(x));return v.length?Math.round(v.reduce((s,x)=>s+x,0)/v.length):null;};
+  const sc=cls=>scoreOf(cls);
+  // domínios
+  const saude=avg([sc(classifyFat(G,a,d.fatPct)),sc(classifyBMI(d.bmi)),sc(classifyBP(ev.bp_sys,ev.bp_dia)),sc(classifyWater(G,ev.bio_water)),sc(classifyVisceral(ev.bio_visceral)),sc(classifyRCQ(G,d.rcq)),sc(classifyWHtR(d.whtr))]);
+  const mobilidade=avg([sc(classifyKneeWall(ev.kneewall_r)),sc(classifyKneeWall(ev.kneewall_l)),sc(classifySLR(ev.slr_r)),sc(classifySLR(ev.slr_l)),sc(classifyThoracicRot(ev.throt_r)),sc(classifyThoracicRot(ev.throt_l))]);
+  const flexibilidade=avg([sc(classifyWells(G,a,ev.flex_wells)),...['short_hamstring','short_iliopsoas','short_rectus','short_calf','short_pec'].map(k=>ev[k]?sc({l:ev[k]}):null)]);
+  const forca=avg([sc(classifyFFMI(G,d.ffmi)),relForceScore(G,est1RM(ev.rm_squat_w,ev.rm_squat_r),ev.weight),relForceScore(G,est1RM(ev.rm_bench_w,ev.rm_bench_r),ev.weight)]);
+  const potencia=sc(classifyCMJ(G,ev.pw_cmj));
+  const vo2=num(ev.inc_vfinal)?incVO2(ev.inc_vfinal):(num(ev.cooper_dist)?cooperVO2(ev.cooper_dist):num(ev.vo2max));
+  const cardio=sc(classifyVO2(G,a,vo2));
+  // postura: 100 menos severidade dos achados
+  const finds=posturalFindings(ev);const postW={br:26,ba:15,bb:8};
+  const postura=(finds.length||['post_head','post_shoulders','post_pelvis'].some(k=>ev[k]))?Math.max(20,Math.min(100,100-finds.reduce((s,f)=>s+(postW[f.c]||10),0))):null;
+  const bal=classifyBalance(a,ev.bal_open_r,ev.bal_closed_r),balL=classifyBalance(a,ev.bal_open_l,ev.bal_closed_l);
+  const equilibrio=avg([sc(bal&&bal.open),sc(bal&&bal.closed),sc(balL&&balL.open),sc(balL&&balL.closed)]);
+  const performance=avg([potencia,cardio,forca]);
+  // risco de lesão (100 = baixo risco)
+  let risco=100;const rl=[];
+  if(parqResult(ev)&&parqResult(ev).c==='br'){risco-=25;rl.push('PAR‑Q+ com resposta positiva (avaliação médica recomendada)');}
+  const eva=classifyEVA(ev.eva);if(eva&&eva.c==='ba')risco-=12;if(eva&&eva.c==='br'){risco-=25;rl.push('Dor atual intensa (EVA)');}
+  finds.filter(f=>f.c==='br').forEach(f=>{risco-=8;});
+  const asyms=[asymmetry(ev.kneewall_r,ev.kneewall_l,null,1.5),asymmetry(ev.slr_r,ev.slr_l,10),asymmetry(ev.yb_ant_r,ev.yb_ant_l,null,4)].filter(x=>x&&x.badge.c==='br');
+  asyms.forEach(()=>risco-=10);if(asyms.length)rl.push('Assimetria(s) funcional(is) detectada(s)');
+  if(equilibrio!=null&&equilibrio<45){risco-=10;rl.push('Equilíbrio reduzido');}
+  risco=Math.max(10,Math.min(100,risco));
+  const domains=[['Saúde',saude],['Mobilidade',mobilidade],['Flexibilidade',flexibilidade],['Força',forca],['Potência',potencia],['Cardiorrespiratório',cardio],['Postura',postura],['Equilíbrio',equilibrio],['Performance',performance],['Risco de lesão (↑=melhor)',risco]].filter(x=>x[1]!=null);
+  const scored=domains.filter(x=>!/Risco/.test(x[0]));
+  const overall=avg([...scored.map(x=>x[1]),risco]);
+  // textos
+  const strengths=domains.filter(x=>x[1]>=75&&!/Risco/.test(x[0])).map(x=>x[0]).slice(0,4);
+  const limitations=domains.filter(x=>x[1]<50&&!/Risco/.test(x[0])).map(x=>x[0]);
+  const priorities=[...scored].sort((x,y)=>x[1]-y[1]).filter(x=>x[1]<62).slice(0,3).map(x=>x[0]);
+  const recTrain={'Força':'Priorizar treino de força (cargas 75–90% 1‑RM, progressão semanal).','Potência':'Incluir pliometria e trabalho de velocidade/potência.','Cardiorrespiratório':'Adicionar treino aeróbio (zonas Z2–Z3) 2–3× por semana.','Saúde':'Ajuste de composição corporal com déficit calórico leve e treino resistido.','Performance':'Periodizar força + potência + condicionamento específico.','Equilíbrio':'Trabalho proprioceptivo e de estabilização unilateral.'};
+  const trainingRecs=priorities.map(p=>recTrain[p]).filter(Boolean);
+  const mobilityRecs=[];
+  if(mobilidade!=null&&mobilidade<62)mobilityRecs.push('Programa de mobilidade articular focado nos segmentos restritos.');
+  const ka=asymmetry(ev.kneewall_r,ev.kneewall_l,null,1.5);if(ka&&ka.badge.c==='br')mobilityRecs.push(`Mobilidade de tornozelo (dorsiflexão) — priorizar lado ${ka.side==='D'?'esquerdo':'direito'}.`);
+  ['short_hamstring','short_iliopsoas','short_rectus','short_calf','short_pec'].forEach(k=>{if(ev[k]&&/Encurtado/.test(ev[k])){const nm={short_hamstring:'isquiotibiais',short_iliopsoas:'iliopsoas',short_rectus:'reto femoral',short_calf:'tríceps sural',short_pec:'peitoral'}[k];mobilityRecs.push('Alongamento/liberação de '+nm+'.');}});
+  finds.filter(f=>f.c!=='bb').slice(0,2).forEach(f=>mobilityRecs.push('Corretivo postural para '+f.reg.toLowerCase()+'.'));
+  return {domains,overall,strengths,limitations,priorities,trainingRecs,mobilityRecs:mobilityRecs.slice(0,5),riskFlags:rl};
 }
 
 /* Barra de progresso: trilha = jornada início→meta (0%→100%), preenchida pelo progresso */
@@ -1900,6 +1957,53 @@ function Report({student,evalData,allEvals,onBack,coach}){
         </div>
 
         <div className="rpt-body">
+          {/* Resumo executivo + Score geral */}
+          {(()=>{
+            const ex=buildExecutive(student,evalData,d,prevEval);
+            if(ex.overall==null)return null;
+            const sColor=v=>v>=75?'#2f8f4e':v>=55?'#b0894f':v>=40?'#c98a3a':'#b3434f';
+            const oc=sColor(ex.overall);const R=40,C=2*Math.PI*R;
+            return(<div className="rpt-sec"><div className="rpt-sec-title">Resumo executivo</div>
+              <div style={{display:'flex',gap:20,flexWrap:'wrap',alignItems:'center'}}>
+                <div style={{textAlign:'center',minWidth:130}}>
+                  <svg viewBox="0 0 110 110" width="120" height="120">
+                    <circle cx="55" cy="55" r={R} fill="none" stroke="#ece7de" strokeWidth="9"/>
+                    <circle cx="55" cy="55" r={R} fill="none" stroke={oc} strokeWidth="9" strokeLinecap="round" strokeDasharray={C} strokeDashoffset={C*(1-ex.overall/100)} transform="rotate(-90 55 55)"/>
+                    <text x="55" y="52" textAnchor="middle" fontFamily="'Playfair Display',Georgia,serif" fontSize="30" fontWeight="600" fill="#2a2320">{ex.overall}</text>
+                    <text x="55" y="70" textAnchor="middle" fontSize="9" fill="#8a8378">SCORE / 100</text>
+                  </svg>
+                </div>
+                <div style={{flex:1,minWidth:220}}>
+                  {ex.domains.map(([lbl,v])=>{const c=sColor(v);const isRisk=/Risco/.test(lbl);return(
+                    <div key={lbl} style={{display:'flex',alignItems:'center',gap:8,marginBottom:5}}>
+                      <span style={{fontSize:11,color:'#5b6470',width:150,textAlign:'right'}}>{lbl}</span>
+                      <div style={{flex:1,height:8,background:'#eee9e1',borderRadius:5,overflow:'hidden'}}><div style={{width:v+'%',height:'100%',background:c,borderRadius:5}}/></div>
+                      <span style={{fontSize:11,fontWeight:700,color:c,width:24}}>{v}</span>
+                    </div>);})}
+                </div>
+              </div>
+              {(ex.strengths.length>0||ex.limitations.length>0)&&<div className="rpt-grid" style={{marginTop:14}}>
+                <div>
+                  <div style={{fontSize:11,fontWeight:700,color:'#2f8f4e',textTransform:'uppercase',letterSpacing:.4,marginBottom:4}}>Pontos fortes</div>
+                  <div style={{fontSize:12.5,lineHeight:1.6}}>{ex.strengths.length?ex.strengths.join(' · '):'—'}</div>
+                </div>
+                <div>
+                  <div style={{fontSize:11,fontWeight:700,color:'#b3434f',textTransform:'uppercase',letterSpacing:.4,marginBottom:4}}>Limitações / atenção</div>
+                  <div style={{fontSize:12.5,lineHeight:1.6}}>{ex.limitations.length?ex.limitations.join(' · '):'—'}</div>
+                </div>
+              </div>}
+              {ex.priorities.length>0&&<div style={{marginTop:12}}>
+                <div style={{fontSize:11,fontWeight:700,color:'var(--accent)',textTransform:'uppercase',letterSpacing:.4,marginBottom:4}}>Prioridades de intervenção</div>
+                <ol style={{margin:'0 0 0 18px',fontSize:12.5,lineHeight:1.7}}>{ex.priorities.map((p,i)=><li key={i}>{p}</li>)}</ol>
+              </div>}
+              {ex.riskFlags.length>0&&<div className="alert alert-warn" style={{marginTop:12}}><strong>Alertas de risco:</strong> {ex.riskFlags.join(' · ')}.</div>}
+              {(ex.trainingRecs.length>0||ex.mobilityRecs.length>0)&&<div className="rpt-grid" style={{marginTop:12}}>
+                {ex.trainingRecs.length>0&&<div><div style={{fontSize:11,fontWeight:700,color:'var(--accent)',textTransform:'uppercase',letterSpacing:.4,marginBottom:4}}>Recomendações de treino</div><ul style={{margin:'0 0 0 16px',fontSize:12.5,lineHeight:1.7}}>{ex.trainingRecs.map((r,i)=><li key={i}>{r}</li>)}</ul></div>}
+                {ex.mobilityRecs.length>0&&<div><div style={{fontSize:11,fontWeight:700,color:'var(--accent)',textTransform:'uppercase',letterSpacing:.4,marginBottom:4}}>Recomendações de mobilidade</div><ul style={{margin:'0 0 0 16px',fontSize:12.5,lineHeight:1.7}}>{ex.mobilityRecs.map((r,i)=><li key={i}>{r}</li>)}</ul></div>}
+              </div>}
+            </div>);
+          })()}
+
           {/* Resumo */}
           <div className="stat-grid" style={{marginBottom:24}}>
             {d.bmi&&<Stat lbl="IMC" val={fmt(d.bmi)} unit="kg/m²" badge={bmiCls}/>}
