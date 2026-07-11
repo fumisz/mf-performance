@@ -668,6 +668,37 @@ function classifyWells(gender,ageYrs,cm){const v=num(cm);if(v==null)return null;
   for(let i=0;i<t.length;i++)if(v>=t[i])return labs[i];
   return{l:'Ruim',c:'br'};}
 
+/* ── Mobilidade / Equilíbrio / Questionários ── */
+/* Assimetria bilateral: retorna {diff, pct, side, badge} */
+function asymmetry(r,l,thrPct=10,thrAbs=null){const R=num(r),L=num(l);if(R==null||L==null)return null;
+  const diff=+(Math.abs(R-L)).toFixed(1);const base=Math.max(Math.abs(R),Math.abs(L))||1;const pct=+((diff/base)*100).toFixed(1);
+  const side=R>L?'D':(L>R?'E':'—');
+  const over=thrAbs!=null?diff>thrAbs:pct>thrPct;
+  return {diff,pct,side,badge:over?{l:`Assimetria ${pct}% (${side}>)`,c:'br'}:{l:'Simétrico',c:'bg'}};}
+function classifyKneeWall(cm){const v=num(cm);if(v==null)return null;if(v>=10)return{l:'Normal',c:'bg'};if(v>=8)return{l:'Leve restrição',c:'ba'};return{l:'Restrito',c:'br'};}
+function classifySLR(deg){const v=num(deg);if(v==null)return null;if(v>=80)return{l:'Normal',c:'bg'};if(v>=70)return{l:'Leve encurtamento',c:'ba'};return{l:'Encurtado',c:'br'};}
+function classifyThoracicRot(deg){const v=num(deg);if(v==null)return null;if(v>=45)return{l:'Normal',c:'bg'};if(v>=35)return{l:'Reduzida',c:'ba'};return{l:'Limitada',c:'br'};}
+/* Equilíbrio unipodal por faixa etária (s) — mínimos [olhos abertos, olhos fechados] */
+function classifyBalance(ageYrs,secOpen,secClosed){const a=num(ageYrs)||30;
+  const openMin=a<40?45:a<60?40:a<70?30:20, closedMin=a<40?25:a<60?20:a<70?12:6;
+  const cl=(v,m)=>{v=num(v);if(v==null)return null;if(v>=m)return{l:'Bom',c:'bg'};if(v>=m*0.6)return{l:'Regular',c:'ba'};return{l:'Baixo',c:'br'};};
+  return {open:cl(secOpen,openMin),closed:cl(secClosed,closedMin)};}
+/* Y-Balance: composto e risco (assimetria anterior > 4 cm = maior risco de lesão) */
+function ybComposite(ant,pm,pl){const a=num(ant),p=num(pm),l=num(pl);if(a==null||p==null||l==null)return null;return +(a+p+l).toFixed(1);}
+function classifyEVA(v){const x=num(v);if(x==null)return null;if(x===0)return{l:'Sem dor',c:'bg'};if(x<=3)return{l:'Dor leve',c:'bb'};if(x<=6)return{l:'Dor moderada',c:'ba'};return{l:'Dor intensa',c:'br'};}
+function classifyScale10(v,inv){const x=num(v);if(x==null)return null;const s=inv?10-x:x;if(s<=3)return{l:'Baixo',c:'bg'};if(s<=6)return{l:'Moderado',c:'ba'};return{l:'Alto',c:'br'};}
+const PARQ_QUESTIONS=[
+  'Algum médico já disse que você possui problema cardíaco e que só deveria fazer atividade física supervisionada?',
+  'Você sente dor no peito ao praticar atividade física?',
+  'No último mês, sentiu dor no peito ao praticar atividade física?',
+  'Você perde o equilíbrio por tontura ou já perdeu a consciência?',
+  'Tem algum problema ósseo/articular que poderia piorar com atividade física?',
+  'Toma atualmente medicamento para pressão arterial ou problema cardíaco?',
+  'Sabe de algum outro motivo pelo qual não deveria praticar atividade física?'
+];
+function parqResult(ev){const any=PARQ_QUESTIONS.some((_,i)=>ev['parq_'+(i+1)]==='Sim');if(!PARQ_QUESTIONS.some((_,i)=>ev['parq_'+(i+1)]))return null;
+  return any?{l:'Encaminhar para avaliação médica',c:'br'}:{l:'Liberado (baixo risco)',c:'bg'};}
+
 /* ── Derived metrics for an eval ── */
 function derive(student,ev){
   const a=age(student.dob)||25;
@@ -1037,20 +1068,20 @@ const BLANK_EVAL={date:new Date().toISOString().slice(0,10),
   mob_lunge:'',goal_weight:'',goal_fat:'',goal_next:'',pt_strong:'',pt_improve:'',pt_strategy:'',obs:''};
 
 /* Protocolos selecionáveis por avaliação */
-const EVAL_MODULES=[['bp','Hemodinâmica'],['dyn','Dinamometria'],['bio','Bioimpedância'],['skin','Dobras'],['circ','Circunferências'],['postural','Postural'],['resist','Resistência'],['flex','Flexibilidade'],['cardio','Cardio'],['strength','1‑RM'],['power','Potência'],['goals','Metas'],['parecer','Parecer']];
+const EVAL_MODULES=[['quest','Questionários'],['bp','Hemodinâmica'],['dyn','Dinamometria'],['bio','Bioimpedância'],['skin','Dobras'],['circ','Circunferências'],['postural','Postural'],['mobility','Mobilidade'],['balance','Equilíbrio'],['resist','Resistência'],['flex','Flexibilidade'],['cardio','Cardio'],['strength','1‑RM'],['power','Potência'],['goals','Metas'],['parecer','Parecer']];
 const EVAL_PRESETS=[
-  ['Completa',['bp','dyn','bio','skin','circ','postural','resist','flex','cardio','strength','power','goals','parecer']],
+  ['Completa',['quest','bp','dyn','bio','skin','circ','postural','mobility','balance','resist','flex','cardio','strength','power','goals','parecer']],
   ['Só bioimpedância',['bio','goals','parecer']],
   ['Composição',['bio','skin','circ','goals','parecer']],
-  ['Saúde',['bp','bio','circ','flex','cardio','goals','parecer']],
-  ['Performance',['dyn','postural','resist','power','cardio','strength','goals','parecer']]
+  ['Saúde',['quest','bp','bio','circ','postural','mobility','balance','flex','cardio','goals','parecer']],
+  ['Performance',['dyn','postural','mobility','resist','power','cardio','strength','goals','parecer']]
 ];
 /* Bateria automática conforme o perfil do aluno */
 const PROFILE_TYPES=['Saúde','Condicionamento','Atleta','Personalizado'];
 const PROFILE_PRESET={
-  'Saúde':['bp','bio','circ','postural','flex','cardio','goals','parecer'],
-  'Condicionamento':['bp','bio','skin','circ','postural','resist','flex','cardio','goals','parecer'],
-  'Atleta':['dyn','postural','resist','power','cardio','strength','flex','goals','parecer'],
+  'Saúde':['quest','bp','bio','circ','postural','mobility','balance','flex','cardio','goals','parecer'],
+  'Condicionamento':['quest','bp','bio','skin','circ','postural','mobility','resist','flex','cardio','goals','parecer'],
+  'Atleta':['dyn','postural','mobility','balance','resist','power','cardio','strength','flex','goals','parecer'],
   'Personalizado':null
 };
 
@@ -1212,6 +1243,93 @@ function EvalForm({student,evalData,carryHeight,isReassess,onSave,onCancel}){
             {badgeLine('Agachamento',sqCls,f.res_squat,'reps')}
             {badgeLine('Barra fixa',puuCls,f.res_pullup,'reps')}
           </div>}
+
+          {has('mobility')&&(()=>{
+            const asymRow=(lbl,r,l,thrPct,thrAbs)=>{const a=asymmetry(f[r],f[l],thrPct,thrAbs);return a?<div style={{marginTop:6}}><span style={{fontSize:12,color:'var(--text2)'}}>{lbl} — dif. {a.diff} ({a.pct}%)</span> <Badge cls={a.badge.c}>{a.badge.l}</Badge></div>:null;};
+            return(<div className="sec"><div className="sec-title">Mobilidade articular</div>
+              <details style={{marginBottom:10}}><summary style={{cursor:'pointer',fontSize:12,color:'var(--text2)'}}>Como realizar cada teste</summary>
+                <div style={{fontSize:12,color:'var(--text2)',lineHeight:1.7,marginTop:6}}>
+                  <b>Knee to Wall</b>: distância máxima do hálux à parede mantendo o joelho tocando a parede e o calcanhar no chão (dorsiflexão).<br/>
+                  <b>SLR</b>: em decúbito dorsal, eleve a perna estendida; registre o ângulo do quadril.<br/>
+                  <b>Rotação torácica</b>: sentado/quadrupede, gire o tronco; registre a amplitude (°).<br/>
+                  <b>Thomas</b>: joelho ao peito; a coxa oposta que se eleva indica encurtamento de iliopsoas.<br/>
+                  <b>Ober</b>: decúbito lateral; a coxa que não desce indica encurtamento do TFL/banda IT.<br/>
+                  <b>Ely</b>: em prono, flexione o joelho; elevação do quadril indica encurtamento do reto femoral.<br/>
+                  <b>FABER</b>: flexão-abdução-rotação externa; dor indica quadril/sacroilíaca.<br/>
+                  <b>FADIR</b>: flexão-adução-rotação interna; dor sugere impacto femoroacetabular.<br/>
+                  <b>Mobilidade de ombro</b>: teste "mão nas costas" (Apley); compare os lados.<br/>
+                  <b>Overhead squat</b>: agachamento com barra acima da cabeça; observe compensações.
+                </div></details>
+              <div className="fgrid2">
+                {N('Knee to Wall D','kneewall_r','cm')}{N('Knee to Wall E','kneewall_l','cm')}
+                {N('SLR D','slr_r','°')}{N('SLR E','slr_l','°')}
+                {N('Rotação torácica D','throt_r','°')}{N('Rotação torácica E','throt_l','°')}
+                {SEL('Thomas D','thomas_r',['Normal','Encurtado'])}{SEL('Thomas E','thomas_l',['Normal','Encurtado'])}
+                {SEL('Ober D','ober_r',['Normal','Encurtado'])}{SEL('Ober E','ober_l',['Normal','Encurtado'])}
+                {SEL('Ely D','ely_r',['Normal','Encurtado'])}{SEL('Ely E','ely_l',['Normal','Encurtado'])}
+                {SEL('FABER D','faber_r',['Negativo','Positivo'])}{SEL('FABER E','faber_l',['Negativo','Positivo'])}
+                {SEL('FADIR D','fadir_r',['Negativo','Positivo'])}{SEL('FADIR E','fadir_l',['Negativo','Positivo'])}
+                {SEL('Mob. ombro D','shldr_r',['Normal','Restrito'])}{SEL('Mob. ombro E','shldr_l',['Normal','Restrito'])}
+                {SEL('Overhead squat','ohs',['Bom','Compensações leves','Compensações moderadas','Restrito'])}
+              </div>
+              {badgeLine('Knee to Wall D',classifyKneeWall(f.kneewall_r),f.kneewall_r,'cm')}
+              {badgeLine('Knee to Wall E',classifyKneeWall(f.kneewall_l),f.kneewall_l,'cm')}
+              {badgeLine('SLR D',classifySLR(f.slr_r),f.slr_r,'°')}
+              {badgeLine('SLR E',classifySLR(f.slr_l),f.slr_l,'°')}
+              {asymRow('Assimetria dorsiflexão','kneewall_r','kneewall_l',null,1.5)}
+              {asymRow('Assimetria SLR','slr_r','slr_l',10,null)}
+              <div style={{marginTop:10}}><FTA label="Observações de mobilidade" value={f.mob_obs||''} onChange={e=>upd('mob_obs',e.target.value)} placeholder="Restrições, dor, compensações..."/></div>
+            </div>);
+          })()}
+
+          {has('balance')&&(()=>{
+            const bAge=age(student.dob);
+            const bo=classifyBalance(bAge,f.bal_open_r,f.bal_closed_r);
+            const boL=classifyBalance(bAge,f.bal_open_l,f.bal_closed_l);
+            const ybR=ybComposite(f.yb_ant_r,f.yb_pm_r,f.yb_pl_r),ybL=ybComposite(f.yb_ant_l,f.yb_pm_l,f.yb_pl_l);
+            const antAsym=asymmetry(f.yb_ant_r,f.yb_ant_l,null,4);
+            return(<div className="sec"><div className="sec-title">Equilíbrio</div>
+              <details style={{marginBottom:10}}><summary style={{cursor:'pointer',fontSize:12,color:'var(--text2)'}}>Como realizar</summary>
+                <div style={{fontSize:12,color:'var(--text2)',lineHeight:1.7,marginTop:6}}>
+                  <b>Apoio unipodal</b>: tempo (s) em pé sobre uma perna, mãos na cintura; olhos abertos e depois fechados.<br/>
+                  <b>Y-Balance / SEBT</b>: alcance máximo com o pé livre nas direções anterior, póstero-medial e póstero-lateral (cm). Diferença anterior &gt; 4 cm entre lados indica maior risco de lesão.
+                </div></details>
+              <div className="fgrid2">
+                {N('Unipodal olhos abertos D','bal_open_r','s')}{N('Unipodal olhos abertos E','bal_open_l','s')}
+                {N('Unipodal olhos fechados D','bal_closed_r','s')}{N('Unipodal olhos fechados E','bal_closed_l','s')}
+              </div>
+              <div style={{fontSize:12.5,fontWeight:700,color:'var(--accent)',marginTop:12,marginBottom:6}}>Y-Balance (alcance, cm)</div>
+              <div className="fgrid2">
+                {N('Anterior D','yb_ant_r','cm')}{N('Anterior E','yb_ant_l','cm')}
+                {N('Póstero-medial D','yb_pm_r','cm')}{N('Póstero-medial E','yb_pm_l','cm')}
+                {N('Póstero-lateral D','yb_pl_r','cm')}{N('Póstero-lateral E','yb_pl_l','cm')}
+              </div>
+              {bo?.open&&<div style={{marginTop:8}}><span style={{fontSize:12,color:'var(--text2)'}}>Olhos abertos D:</span> <Badge cls={bo.open.c}>{bo.open.l}</Badge>{boL?.open&&<> · <span style={{fontSize:12,color:'var(--text2)'}}>E:</span> <Badge cls={boL.open.c}>{boL.open.l}</Badge></>}</div>}
+              {ybR!=null&&<div style={{marginTop:6,fontSize:12,color:'var(--text2)'}}>Composto Y-Balance: D <strong style={{color:'var(--text)'}}>{ybR} cm</strong>{ybL!=null&&<> · E <strong style={{color:'var(--text)'}}>{ybL} cm</strong></>}</div>}
+              {antAsym&&<div style={{marginTop:6}}><span style={{fontSize:12,color:'var(--text2)'}}>Assimetria anterior — {antAsym.diff} cm</span> <Badge cls={antAsym.badge.c}>{antAsym.pct>0&&antAsym.diff>4?'Risco de lesão aumentado':antAsym.badge.l}</Badge></div>}
+              <div style={{marginTop:10}}><FTA label="Observações de equilíbrio" value={f.bal_obs||''} onChange={e=>upd('bal_obs',e.target.value)}/></div>
+            </div>);
+          })()}
+
+          {has('quest')&&(()=>{
+            const pq=parqResult(f);const evaC=classifyEVA(f.eva);
+            return(<div className="sec"><div className="sec-title">Questionários</div>
+              <div style={{fontSize:12.5,fontWeight:700,color:'var(--accent)',marginBottom:6}}>PAR‑Q+ (prontidão para atividade física)</div>
+              <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                {PARQ_QUESTIONS.map((q,i)=><div key={i} style={{display:'flex',gap:10,alignItems:'center',justifyContent:'space-between',flexWrap:'wrap'}}>
+                  <span style={{fontSize:12.5,flex:1,minWidth:180}}>{i+1}. {q}</span>
+                  <select className="fi" style={{width:110}} value={f['parq_'+(i+1)]||''} onChange={e=>upd('parq_'+(i+1),e.target.value)}>
+                    <option value="">—</option><option>Não</option><option>Sim</option></select></div>)}
+              </div>
+              {pq&&<div className={`alert alert-${pq.c==='br'?'warn':'success'}`} style={{marginTop:10}}>PAR‑Q+: <strong>{pq.l}</strong></div>}
+              <div className="fgrid2" style={{marginTop:12}}>
+                {N('EVA — dor (0–10)','eva','')}{N('Escala de fadiga (0–10)','fatigue','')}{N('Escala de estresse (0–10)','stress','')}
+              </div>
+              {evaC&&<div style={{marginTop:8}}><span style={{fontSize:12,color:'var(--text2)'}}>Dor (EVA):</span> <Badge cls={evaC.c}>{evaC.l}</Badge>
+                {classifyScale10(f.fatigue)&&<> · Fadiga: <Badge cls={classifyScale10(f.fatigue).c}>{classifyScale10(f.fatigue).l}</Badge></>}
+                {classifyScale10(f.stress)&&<> · Estresse: <Badge cls={classifyScale10(f.stress).c}>{classifyScale10(f.stress).l}</Badge></>}</div>}
+            </div>);
+          })()}
 
           {has('flex')&&<div className="sec"><div className="sec-title">Flexibilidade &amp; encurtamentos</div>
             <div className="fgrid2">
@@ -1968,6 +2086,20 @@ function Report({student,evalData,allEvals,onBack,coach}){
               </div></div>);
           })()}
 
+          {/* Questionários / prontidão */}
+          {(()=>{
+            const pq=parqResult(evalData);const anyQ=pq||num(evalData.eva)!=null||num(evalData.fatigue)!=null||num(evalData.stress)!=null;
+            if(!anyQ)return null;
+            return(<div className="rpt-sec"><div className="rpt-sec-title">Prontidão e questionários</div>
+              <table className="rpt-tbl"><tbody>
+                {pq&&<tr><td>PAR‑Q+</td><td style={{fontWeight:600}}>{pq.l}<span className={`badge ${pq.c}`} style={{marginLeft:6}}>{pq.c==='br'?'Atenção':'OK'}</span></td></tr>}
+                {num(evalData.eva)!=null&&<Row lbl="Dor (EVA 0–10)" val={evalData.eva} unit="" badge={classifyEVA(evalData.eva)} prev={prevEval?.eva}/>}
+                {num(evalData.fatigue)!=null&&<Row lbl="Fadiga (0–10)" val={evalData.fatigue} unit="" badge={classifyScale10(evalData.fatigue)} prev={prevEval?.fatigue}/>}
+                {num(evalData.stress)!=null&&<Row lbl="Estresse (0–10)" val={evalData.stress} unit="" badge={classifyScale10(evalData.stress)} prev={prevEval?.stress}/>}
+              </tbody></table>
+            </div>);
+          })()}
+
           {/* Postural / testes físicos */}
           {(()=>{
             const pAge=age(student.dob);const G=student.gender;
@@ -2003,6 +2135,43 @@ function Report({student,evalData,allEvals,onBack,coach}){
                   </tbody></table>
                   {evalData.flex_obs&&<p style={{fontSize:12,color:'var(--text2)',marginTop:8,lineHeight:1.6}}>{evalData.flex_obs}</p>}
                 </div>}
+                {(()=>{
+                  const MOBN=[['Knee to Wall','kneewall',classifyKneeWall,'cm'],['SLR','slr',classifySLR,'°'],['Rotação torácica','throt',classifyThoracicRot,'°']];
+                  const MOBS=[['Thomas','thomas'],['Ober','ober'],['Ely','ely'],['FABER','faber'],['FADIR','fadir'],['Mob. ombro','shldr']];
+                  const hasMob=MOBN.some(([,k])=>num(evalData[k+'_r'])||num(evalData[k+'_l']))||MOBS.some(([,k])=>evalData[k+'_r']||evalData[k+'_l'])||evalData.ohs;
+                  if(!hasMob)return null;
+                  const bcell=(cls)=>cls?<span className={`badge ${cls.c}`} style={{marginLeft:6}}>{cls.l}</span>:null;
+                  return(<div className="rpt-sec"><div className="rpt-sec-title">Mobilidade articular</div>
+                    <table className="rpt-tbl"><tbody>
+                      <tr><td></td><td style={{fontWeight:700,color:'#6b7280'}}>Direito</td><td style={{fontWeight:700,color:'#6b7280'}}>Esquerdo</td></tr>
+                      {MOBN.map(([lbl,k,fn,u])=>(num(evalData[k+'_r'])||num(evalData[k+'_l']))?<tr key={k}><td>{lbl}</td>
+                        <td>{evalData[k+'_r']?`${evalData[k+'_r']} ${u}`:'—'}{bcell(fn(evalData[k+'_r']))}</td>
+                        <td>{evalData[k+'_l']?`${evalData[k+'_l']} ${u}`:'—'}{bcell(fn(evalData[k+'_l']))}</td></tr>:null)}
+                      {MOBS.map(([lbl,k])=>(evalData[k+'_r']||evalData[k+'_l'])?<tr key={k}><td>{lbl}</td><td>{evalData[k+'_r']||'—'}</td><td>{evalData[k+'_l']||'—'}</td></tr>:null)}
+                      {evalData.ohs&&<tr><td>Overhead squat</td><td colSpan="2" style={{textAlign:'left',fontWeight:400}}>{evalData.ohs}</td></tr>}
+                    </tbody></table>
+                    {(()=>{const a=asymmetry(evalData.kneewall_r,evalData.kneewall_l,null,1.5);return a&&a.badge.c==='br'?<p style={{fontSize:11.5,color:'#9a3540',marginTop:6}}>Assimetria de dorsiflexão de {a.diff} cm ({a.side} maior) — priorizar mobilidade do lado restrito.</p>:null;})()}
+                    {evalData.mob_obs&&<p style={{fontSize:12,color:'var(--text2)',marginTop:6,lineHeight:1.6}}>{evalData.mob_obs}</p>}
+                  </div>);
+                })()}
+                {(()=>{
+                  const bAge=age(student.dob);const bo=classifyBalance(bAge,evalData.bal_open_r,evalData.bal_closed_r),boL=classifyBalance(bAge,evalData.bal_open_l,evalData.bal_closed_l);
+                  const ybR=ybComposite(evalData.yb_ant_r,evalData.yb_pm_r,evalData.yb_pl_r),ybL=ybComposite(evalData.yb_ant_l,evalData.yb_pm_l,evalData.yb_pl_l);
+                  const antAsym=asymmetry(evalData.yb_ant_r,evalData.yb_ant_l,null,4);
+                  const hasBal=['bal_open_r','bal_open_l','bal_closed_r','bal_closed_l'].some(k=>num(evalData[k]))||ybR!=null||ybL!=null;
+                  if(!hasBal)return null;
+                  const bc=cls=>cls?<span className={`badge ${cls.c}`} style={{marginLeft:6}}>{cls.l}</span>:null;
+                  return(<div className="rpt-sec"><div className="rpt-sec-title">Equilíbrio</div>
+                    <table className="rpt-tbl"><tbody>
+                      <tr><td></td><td style={{fontWeight:700,color:'#6b7280'}}>Direito</td><td style={{fontWeight:700,color:'#6b7280'}}>Esquerdo</td></tr>
+                      {(num(evalData.bal_open_r)||num(evalData.bal_open_l))&&<tr><td>Unipodal olhos abertos</td><td>{evalData.bal_open_r?evalData.bal_open_r+' s':'—'}{bc(bo?.open)}</td><td>{evalData.bal_open_l?evalData.bal_open_l+' s':'—'}{bc(boL?.open)}</td></tr>}
+                      {(num(evalData.bal_closed_r)||num(evalData.bal_closed_l))&&<tr><td>Unipodal olhos fechados</td><td>{evalData.bal_closed_r?evalData.bal_closed_r+' s':'—'}{bc(bo?.closed)}</td><td>{evalData.bal_closed_l?evalData.bal_closed_l+' s':'—'}{bc(boL?.closed)}</td></tr>}
+                      {(ybR!=null||ybL!=null)&&<tr><td>Y-Balance (composto)</td><td style={{fontWeight:600}}>{ybR!=null?ybR+' cm':'—'}</td><td style={{fontWeight:600}}>{ybL!=null?ybL+' cm':'—'}</td></tr>}
+                    </tbody></table>
+                    {antAsym&&antAsym.diff>4&&<p style={{fontSize:11.5,color:'#9a3540',marginTop:6}}>Assimetria anterior de {antAsym.diff} cm ({antAsym.side} maior) — risco de lesão aumentado; incluir trabalho proprioceptivo unilateral.</p>}
+                    {evalData.bal_obs&&<p style={{fontSize:12,color:'var(--text2)',marginTop:6,lineHeight:1.6}}>{evalData.bal_obs}</p>}
+                  </div>);
+                })()}
                 {(vo2!=null)&&<div className="rpt-sec"><div className="rpt-sec-title">Cardiorrespiratório</div>
                   <table className="rpt-tbl"><tbody>
                     {num(evalData.inc_vfinal)&&<Row lbl="Esteira — vel. final" val={evalData.inc_vfinal} unit="km/h" prev={prevEval?.inc_vfinal}/>}
@@ -2148,7 +2317,7 @@ function Report({student,evalData,allEvals,onBack,coach}){
 /* ── Mapeamento DB <-> objetos do app ── */
 const STU_COLS=['name','dob','gender','phone','email','profession','goal','activity','schedule','train_time','health','meds','family_hist','injuries','smoker','alcohol','sleep','obs'];
 function stuToRow(s,coachId){const r={coach_id:coachId};STU_COLS.forEach(k=>r[k]=(s[k]===''?null:s[k])??null);r.photo_url=s.photo||null;return r;}
-function rowToStu(r){const s={id:r.id,photo:r.photo_url||''};STU_COLS.forEach(k=>s[k]=r[k]??'');if(!s.gender)s.gender='M';try{s.profile_type=localStorage.getItem('mfp_ptype_'+r.id)||'';}catch(e){s.profile_type='';}return s;}
+function rowToStu(r){const s={id:r.id,photo:r.photo_url||'',created_at:r.created_at||null};STU_COLS.forEach(k=>s[k]=r[k]??'');if(!s.gender)s.gender='M';try{s.profile_type=localStorage.getItem('mfp_ptype_'+r.id)||'';}catch(e){s.profile_type='';}return s;}
 const EVAL_META=['id','studentId','date','obs'];
 function evalToRow(e,coachId){const data={};Object.keys(e).forEach(k=>{if(!EVAL_META.includes(k))data[k]=e[k];});return{student_id:e.studentId,coach_id:coachId,date:e.date,obs:e.obs||null,data};}
 function rowToEval(r){return{id:r.id,studentId:r.student_id,date:r.date,obs:r.obs||'',...(r.data||{})};}
