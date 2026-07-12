@@ -193,7 +193,7 @@ textarea.fi{resize:vertical;min-height:70px;line-height:1.5}
 
 /* ── Report ── */
 .rpt-page{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
-.rpt-header{background:linear-gradient(135deg,#16161a 0%,#0e0e11 100%);padding:26px 30px;border-bottom:3px solid var(--accent);position:relative}
+.rpt-header{background:linear-gradient(135deg,#2a1620 0%,#160c11 100%);padding:30px 34px;border-bottom:3px solid var(--gold);position:relative}
 .rpt-head-top{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap}
 .rpt-head-id{text-align:right;font-size:10.5px;color:var(--text3);line-height:1.6;letter-spacing:.4px}
 .rpt-student-block{display:flex;align-items:center;gap:16px;margin-top:20px;padding-top:18px;border-top:1px solid var(--border)}
@@ -201,7 +201,7 @@ textarea.fi{resize:vertical;min-height:70px;line-height:1.5}
 .rpt-photo img{width:100%;height:100%;object-fit:cover}
 .rpt-student-name{font-size:20px;font-weight:800;letter-spacing:-.3px}
 .rpt-student-info{font-size:12px;color:var(--text2);margin-top:4px;line-height:1.6}
-.rpt-body{padding:26px 30px}
+.rpt-body{padding:30px 34px}
 .rpt-sec{margin-bottom:26px}
 .rpt-sec-title{font-size:12px;font-weight:700;color:var(--accent);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.6px;display:flex;align-items:center;gap:7px}
 .rpt-tbl{width:100%;border-collapse:collapse;font-size:12.5px}
@@ -244,8 +244,10 @@ textarea.fi{resize:vertical;min-height:70px;line-height:1.5}
   --text:#1f2430;--text2:#5b6470;--text3:#9ca3af;--accent:#5a1e2e;--gold:#b0894f;
   --bg2:#ffffff;--bg3:#f7f8fa;--border:#e9ebee;--border2:#e0e2e6;--cream:#ffffff}
 .rpt-page .rpt-body{color:#1f2430}
-.rpt-page .rpt-sec-title{color:#fff;background:var(--accent);border:none;padding:7px 12px;border-radius:6px;margin-bottom:12px;font-size:11.5px;letter-spacing:.7px;box-shadow:none}
-.rpt-page .rpt-tbl td{color:#1f2430;border-bottom:1px solid #eef0f2;font-size:13px}
+.rpt-page .rpt-sec{margin-bottom:26px}
+.rpt-page .rpt-sec-title{color:var(--accent);background:none;border:none;border-bottom:1px solid #e7e2d9;padding:0 0 7px 0;margin-bottom:15px;font-size:11.5px;font-weight:700;letter-spacing:1.4px;box-shadow:none;position:relative}
+.rpt-page .rpt-sec-title::after{content:'';position:absolute;left:0;bottom:-1px;width:36px;height:2px;background:var(--gold)}
+.rpt-page .rpt-tbl td{color:#1f2430;border-bottom:1px solid #eef0f2;font-size:13px;padding:9px 10px}
 .rpt-page .rpt-tbl td:first-child{color:#6b7280}
 .rpt-page .rpt-tbl td:nth-child(2){color:#111827}
 .rpt-page .delta.d-good{color:#15803d}
@@ -356,7 +358,7 @@ textarea.fi{resize:vertical;min-height:70px;line-height:1.5}
   body{background:#fff;font-size:11px}
   .rpt-page{border:none;border-radius:0}
   .rpt-body{padding:16px 4px}
-  .rpt-header{background:#111114!important;border-bottom:3px solid #f97316!important}
+  .rpt-header{background:#1c0f16!important;border-bottom:3px solid #b0894f!important}
   .rpt-sec{break-inside:avoid}
   .evo-card,.cmp-card,.stat{break-inside:avoid}
 }
