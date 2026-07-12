@@ -262,6 +262,9 @@ textarea.fi{resize:vertical;min-height:70px;line-height:1.5}
 .rpt-cover-meta{margin-top:12px;font-size:13px;color:rgba(255,255,255,.62);letter-spacing:.3px;line-height:1.8}
 .rpt-cover-meta strong{color:#fff;font-weight:600}
 .rpt-cover-foot{margin-top:38px;padding-top:16px;border-top:1px solid rgba(255,255,255,.12);display:flex;justify-content:space-between;font-size:10.5px;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,.4);position:relative;z-index:1;flex-wrap:wrap;gap:8px}
+.rpt-runhead{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 34px;border-bottom:1px solid #ece7de;background:#fbfaf7;flex-wrap:wrap}
+.rpt-runhead .rh-brand{font-size:13px;font-weight:800;letter-spacing:1px;color:var(--accent)}
+.rpt-runhead .rh-meta{font-size:10.5px;letter-spacing:1.2px;text-transform:uppercase;color:#9a9186}
 .rpt-page .rpt-tbl td{color:#1f2430;border-bottom:1px solid #eef0f2;font-size:13px;padding:9px 10px}
 .rpt-page .rpt-tbl td:first-child{color:#6b7280}
 .rpt-page .rpt-tbl td:nth-child(2){color:#111827}
@@ -373,7 +376,7 @@ textarea.fi{resize:vertical;min-height:70px;line-height:1.5}
   body{background:#fff;font-size:11px}
   .rpt-page{border:none;border-radius:0}
   .rpt-body{padding:16px 4px}
-  .rpt-header{background:#1c0f16!important;border-bottom:3px solid #b0894f!important}
+  .rpt-runhead{background:#fbfaf7!important;border-bottom:1px solid #ece7de!important}
   .rpt-cover{page-break-after:always;break-after:page;min-height:calc(100vh - 22mm);padding:52px 44px 40px}
   .rpt-sec{break-inside:avoid}
   .evo-card,.cmp-card,.stat{break-inside:avoid}
@@ -468,16 +471,28 @@ function Lifter({bone='var(--accent)',cut='var(--bg)'}){
     </g>);
 }
 
-/* Brasão completo: MF · levantador · PERFORMANCE */
+/* Emblema elegante: monograma MF em roundel com anel dourado e barra */
 function LogoLifter({size=120}){
   return(
-    <svg viewBox="0 0 220 256" height={size} width={size*0.88} style={{flexShrink:0}} aria-label="MF Performance">
-      <text x="110" y="50" textAnchor="middle" fontSize="62" fontWeight="800" fill="var(--accent)"
-        fontFamily="Arial Black,Helvetica,sans-serif" letterSpacing="-2">MF</text>
-      <g transform="translate(0,8)"><Lifter/></g>
-      <text x="110" y="240" textAnchor="middle" fontSize="25" fontWeight="800" fill="var(--accent)"
-        fontFamily="Arial Black,Helvetica,sans-serif" letterSpacing="1">PERFORMANCE</text>
-      <line x1="74" y1="250" x2="146" y2="250" stroke="var(--gold)" strokeWidth="2"/>
+    <svg viewBox="0 0 200 232" height={size} width={size*0.86} style={{flexShrink:0}} aria-label="MF Performance">
+      {/* roundel */}
+      <circle cx="100" cy="86" r="72" fill="none" stroke="var(--accent)" strokeWidth="2.5"/>
+      <circle cx="100" cy="86" r="64" fill="none" stroke="var(--gold)" strokeWidth="1"/>
+      {/* monograma serif MF entrelaçado */}
+      <text x="100" y="104" textAnchor="middle" fontSize="70" fontWeight="600"
+        fontFamily="'Playfair Display',Georgia,serif" fill="var(--accent)" letterSpacing="-3">MF</text>
+      {/* barra minimalista sob o monograma */}
+      <g stroke="var(--gold)" strokeWidth="3" strokeLinecap="round">
+        <line x1="66" y1="128" x2="134" y2="128"/>
+      </g>
+      <g fill="var(--gold)">
+        <rect x="60" y="123" width="4" height="10" rx="2"/>
+        <rect x="136" y="123" width="4" height="10" rx="2"/>
+      </g>
+      {/* wordmark */}
+      <text x="100" y="192" textAnchor="middle" fontSize="21" fontWeight="700" fill="var(--accent)"
+        fontFamily="'Cormorant Garamond',Georgia,serif" letterSpacing="7">PERFORMANCE</text>
+      <line x1="52" y1="206" x2="148" y2="206" stroke="var(--gold)" strokeWidth="1"/>
     </svg>
   );
 }
@@ -2164,32 +2179,12 @@ function Report({student,evalData,allEvals,onBack,coach}){
             </div>
           </div>);
         })()}
-        <div className="rpt-header">
-          <div className="rpt-head-top">
-            <div style={{display:'flex',alignItems:'center',gap:14}}>
-              {coach?.logo_url?<img src={coach.logo_url} alt="" style={{height:56,maxWidth:120,objectFit:'contain'}}/>:<LogoMark size={58}/>}
-              <div><div style={{fontSize:21,fontWeight:800,letterSpacing:'.5px',color:'#fff'}}>{(coach?.brand_name||'MF PERFORMANCE').toUpperCase()}</div>
-                <div style={{fontSize:10.5,color:'#9ca3af',letterSpacing:'2px',textTransform:'uppercase',marginTop:2}}>Avaliação Física &amp; Performance</div></div>
-            </div>
-            <div className="rpt-head-id">
-              Relatório nº {reportNo}<br/>
-              {prevEval?'Avaliação comparativa':'Avaliação física'}<br/>
-              Emitido em {new Date().toLocaleDateString('pt-BR')}
-            </div>
+        <div className="rpt-runhead">
+          <div style={{display:'flex',alignItems:'center',gap:10}}>
+            {coach?.logo_url?<img src={coach.logo_url} alt="" style={{height:26,maxWidth:80,objectFit:'contain'}}/>:<LogoMark size={26}/>}
+            <span className="rh-brand">{(coach?.brand_name||'MF PERFORMANCE').toUpperCase()}</span>
           </div>
-          <div className="rpt-student-block">
-            <div className="rpt-photo">{student.photo?<img src={student.photo} alt=""/>:<div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100%',fontWeight:700,fontSize:20,color:'var(--accent)'}}>{initials(student.name)}</div>}</div>
-            <div style={{flex:1}}>
-              <div className="rpt-student-name">{student.name}</div>
-              <div className="rpt-student-info">
-                {age(student.dob)?`${age(student.dob)} anos · `:''}{student.gender==='M'?'Masculino':'Feminino'}
-                {student.profession&&` · ${student.profession}`}{student.activity&&` · ${student.activity}`}<br/>
-                Avaliado em <strong style={{color:'var(--text2)'}}>{fmtDate(evalData.date)}</strong>
-                {student.goal&&<> · Objetivo: <strong style={{color:'var(--accent)'}}>{student.goal}</strong></>}
-                {prevEval&&<> · Comparado com <strong style={{color:'var(--text2)'}}>{fmtDate(prevEval.date)}</strong></>}
-              </div>
-            </div>
-          </div>
+          <div className="rh-meta">{student.name} · {fmtDate(evalData.date)} · Nº {reportNo}</div>
         </div>
 
         <div className="rpt-body">
