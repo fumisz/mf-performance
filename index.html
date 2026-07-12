@@ -711,6 +711,16 @@ function classifyRSI(v){const x=num(v);if(x==null)return null;if(x>=2.5)return{l
 function sprintVel(dist,sec){const s=num(sec);if(!s)return null;return +(dist/s).toFixed(2);}
 function yoyoVO2(distM){const d=num(distM);if(!d)return null;return +(d*0.0084+36.4).toFixed(1);}
 function classifyFatigueIndex(pct){const v=num(pct);if(v==null)return null;if(v<=6)return{l:'Baixa fadiga',c:'bg'};if(v<=10)return{l:'Moderada',c:'ba'};return{l:'Alta fadiga',c:'br'};}
+/* Qualidade do movimento (nota 1-5) */
+function classifyMove(v){const x=num(v);if(x==null)return null;if(x>=5)return{l:'Excelente',c:'bg'};if(x>=4)return{l:'Bom',c:'bg'};if(x>=3)return{l:'Adequado',c:'bb'};if(x>=2)return{l:'Deficiente',c:'ba'};return{l:'Disfuncional',c:'br'};}
+/* Painel de assimetrias — cruza todos os pares D/E existentes */
+function asymmetryPanel(ev){
+  const pairs=[
+    ['Preensão manual','dyn_r','dyn_l',10],['Braço (perímetro)','circ_arm_r','circ_arm_l',5],['Coxa (perímetro)','circ_thigh_r','circ_thigh_l',5],['Panturrilha (perímetro)','circ_calf_r','circ_calf_l',5],
+    ['Dorsiflexão (Knee to Wall)','kneewall_r','kneewall_l',15],['Elevação de perna (SLR)','slr_r','slr_l',10],['Rotação torácica','throt_r','throt_l',15],
+    ['Equilíbrio unipodal','bal_open_r','bal_open_l',15],['Y-Balance anterior','yb_ant_r','yb_ant_l',10],['Sentar-levantar unipodal','func_slsts_r','func_slsts_l',15],['Teste 505','pw_505_r','pw_505_l',8]
+  ];
+  return pairs.map(([lbl,r,l,thr])=>{const a=asymmetry(ev[r],ev[l],thr);return a?{lbl,r:ev[r],l:ev[l],...a}:null;}).filter(Boolean);}
 
 /* ── Derived metrics for an eval ── */
 function derive(student,ev){
@@ -728,6 +738,61 @@ function derive(student,ev){
   const tmb=num(ev.bio_bmr)||tmbCalc(leanMass,ev.weight,ev.height,a,student.gender);
   const get=gastoTotal(tmb,student.activity);
   return {bmi:b,jp,fatPct,leanMass,fatMass,rcq,dynAvg,weight:w,whtr:wh,ffmi:ffmiV,tmb,get};
+}
+
+/* ── Mapa corporal (screening de lesões) ── */
+const BODY_REGIONS=[
+  {k:'cervical',l:'Cervical',x:50,y:9},
+  {k:'shoulder_r',l:'Ombro D',x:35,y:19},{k:'shoulder_l',l:'Ombro E',x:65,y:19},
+  {k:'thoracic',l:'Coluna torácica',x:50,y:24},
+  {k:'elbow_r',l:'Cotovelo D',x:30,y:34},{k:'elbow_l',l:'Cotovelo E',x:70,y:34},
+  {k:'lumbar',l:'Coluna lombar',x:50,y:38},
+  {k:'wrist_r',l:'Punho D',x:26,y:47},{k:'wrist_l',l:'Punho E',x:74,y:47},
+  {k:'hip_r',l:'Quadril D',x:43,y:46},{k:'hip_l',l:'Quadril E',x:57,y:46},
+  {k:'knee_r',l:'Joelho D',x:44,y:68},{k:'knee_l',l:'Joelho E',x:56,y:68},
+  {k:'ankle_r',l:'Tornozelo D',x:45,y:88},{k:'ankle_l',l:'Tornozelo E',x:55,y:88},
+  {k:'foot_r',l:'Pé D',x:44,y:95},{k:'foot_l',l:'Pé E',x:56,y:95}
+];
+function evaColor(v){const x=num(v);if(x==null||x===0)return '#9aae8a';if(x<=3)return '#c9b45a';if(x<=6)return '#cf8f45';return '#c05045';}
+function BodyMap({value,onChange}){
+  const map=value||{};
+  const [active,setActive]=useState(null);
+  const set=(k,patch)=>{const cur=map[k]||{eva:'',note:''};const nv={...map,[k]:{...cur,...patch}};if((nv[k].eva===''||nv[k].eva==null)&&!nv[k].note){delete nv[k];}onChange(nv);};
+  const cur=active?(map[active]||{eva:'',note:''}):null;
+  const lbl=active?(BODY_REGIONS.find(r=>r.k===active)||{}).l:'';
+  return(
+    <div style={{display:'flex',gap:16,flexWrap:'wrap',alignItems:'flex-start'}}>
+      <div style={{position:'relative',width:170,flexShrink:0}}>
+        <svg viewBox="0 0 100 100" width="170" style={{display:'block'}}>
+          <g fill="none" stroke="var(--border2)" strokeWidth="1.1" strokeLinejoin="round" strokeLinecap="round">
+            <circle cx="50" cy="7" r="5"/>
+            <path d="M42 13 Q50 16 58 13 L64 20 66 40 60 41 58 26 57 55 53 92 47 92 43 55 42 26 40 41 34 40 36 20 Z"/>
+            <path d="M36 20 L26 48 M64 20 L74 48"/>
+          </g>
+          {BODY_REGIONS.map(r=>{const m=map[r.k];const on=active===r.k;return(
+            <circle key={r.k} cx={r.x} cy={r.y} r={on?3.6:2.8} fill={m?evaColor(m.eva):'rgba(160,150,135,.35)'}
+              stroke={on?'var(--accent)':'#fff'} strokeWidth={on?1.2:0.8} style={{cursor:'pointer'}} onClick={()=>setActive(r.k)}/>);})}
+        </svg>
+      </div>
+      <div style={{flex:1,minWidth:190}}>
+        <div style={{fontSize:12,color:'var(--text2)',marginBottom:8}}>Toque em uma região para registrar dor/lesão.</div>
+        {active?<div className="card" style={{padding:'12px 14px'}}>
+          <div style={{fontWeight:600,marginBottom:8}}>{lbl}</div>
+          <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:8}}>
+            <span style={{fontSize:12,color:'var(--text2)'}}>Dor (EVA)</span>
+            <input type="range" min="0" max="10" step="1" value={cur.eva===''?0:cur.eva} onChange={e=>set(active,{eva:e.target.value})} style={{flex:1}}/>
+            <span style={{fontWeight:700,width:18}}>{cur.eva===''?'0':cur.eva}</span>
+          </div>
+          <input className="fi" placeholder="Descrição (ex: tendinite, entorse antiga...)" value={cur.note} onChange={e=>set(active,{note:e.target.value})}/>
+          {(cur.eva!==''&&cur.eva!=null)||cur.note?<button className="btn btn-ghost btn-sm" style={{marginTop:8}} onClick={()=>{const nv={...map};delete nv[active];onChange(nv);setActive(null);}}>Remover marca</button>:null}
+        </div>:null}
+        {Object.keys(map).length>0&&<div style={{marginTop:10,display:'flex',flexWrap:'wrap',gap:6}}>
+          {Object.entries(map).map(([k,m])=>{const r=BODY_REGIONS.find(x=>x.k===k);if(!r)return null;return(
+            <button key={k} type="button" onClick={()=>setActive(k)} style={{fontSize:11,fontWeight:600,padding:'4px 9px',borderRadius:14,border:'1px solid var(--border2)',background:'var(--bg2)',color:'var(--text)',cursor:'pointer',display:'inline-flex',alignItems:'center',gap:5}}>
+              <span style={{width:8,height:8,borderRadius:'50%',background:evaColor(m.eva)}}/>{r.l}{m.eva?` · EVA ${m.eva}`:''}</button>);})}
+        </div>}
+      </div>
+    </div>);
 }
 
 /* ── UI primitives ── */
@@ -1080,23 +1145,25 @@ const BLANK_EVAL={date:new Date().toISOString().slice(0,10),
   pw_cmj:'',pw_horizontal:'',pw_sargent:'',pw_medball:'',pw_sprint20:'',pw_agility_t:'',
   pw_sj:'',pw_dj_h:'',pw_dj_ct:'',pw_sprint5:'',pw_sprint10:'',pw_sprint30:'',pw_illinois:'',pw_505_r:'',pw_505_l:'',pw_rast_fi:'',pw_yoyo:'',pw_beep:'',
   func_tug:'',func_sts5:'',func_chair30:'',func_wallsit:'',func_plank:'',func_deadhang:'',func_slsts_r:'',func_slsts_l:'',func_obs:'',
+  injury_current:'',injury_history:'',inj_surgery:'',inj_fracture:'',inj_sprain:'',inj_tendinitis:'',inj_hernia:'',inj_muscle:'',inj_details:'',injury_map:{},
+  mq_squat:'',mq_lunge:'',mq_pushup:'',mq_deadlift:'',mq_run:'',mq_jump:'',mq_obs:'',
   mob_lunge:'',goal_weight:'',goal_fat:'',goal_next:'',pt_strong:'',pt_improve:'',pt_strategy:'',obs:''};
 
 /* Protocolos selecionáveis por avaliação */
-const EVAL_MODULES=[['quest','Questionários'],['bp','Hemodinâmica'],['dyn','Dinamometria'],['bio','Bioimpedância'],['skin','Dobras'],['circ','Circunferências'],['postural','Postural'],['mobility','Mobilidade'],['balance','Equilíbrio'],['resist','Resistência'],['func','Funcional'],['flex','Flexibilidade'],['cardio','Cardio'],['strength','1‑RM'],['power','Potência'],['goals','Metas'],['parecer','Parecer']];
+const EVAL_MODULES=[['quest','Questionários'],['injury','Lesões'],['bp','Hemodinâmica'],['dyn','Dinamometria'],['bio','Bioimpedância'],['skin','Dobras'],['circ','Circunferências'],['postural','Postural'],['mobility','Mobilidade'],['balance','Equilíbrio'],['resist','Resistência'],['func','Funcional'],['movement','Qualidade do movimento'],['flex','Flexibilidade'],['cardio','Cardio'],['strength','1‑RM'],['power','Potência'],['goals','Metas'],['parecer','Parecer']];
 const EVAL_PRESETS=[
-  ['Completa',['quest','bp','dyn','bio','skin','circ','postural','mobility','balance','resist','func','flex','cardio','strength','power','goals','parecer']],
+  ['Completa',['quest','injury','bp','dyn','bio','skin','circ','postural','mobility','balance','resist','func','movement','flex','cardio','strength','power','goals','parecer']],
   ['Só bioimpedância',['bio','goals','parecer']],
   ['Composição',['bio','skin','circ','goals','parecer']],
-  ['Saúde',['quest','bp','bio','circ','postural','mobility','balance','func','flex','cardio','goals','parecer']],
-  ['Performance',['dyn','postural','mobility','resist','func','power','cardio','strength','goals','parecer']]
+  ['Saúde',['quest','injury','bp','bio','circ','postural','mobility','balance','func','flex','cardio','goals','parecer']],
+  ['Performance',['injury','dyn','postural','mobility','resist','func','movement','power','cardio','strength','goals','parecer']]
 ];
 /* Bateria automática conforme o perfil do aluno */
 const PROFILE_TYPES=['Saúde','Condicionamento','Atleta','Personalizado'];
 const PROFILE_PRESET={
-  'Saúde':['quest','bp','bio','circ','postural','mobility','balance','func','flex','cardio','goals','parecer'],
-  'Condicionamento':['quest','bp','bio','skin','circ','postural','mobility','resist','func','flex','cardio','goals','parecer'],
-  'Atleta':['dyn','postural','mobility','balance','resist','func','power','cardio','strength','flex','goals','parecer'],
+  'Saúde':['quest','injury','bp','bio','circ','postural','mobility','balance','func','flex','cardio','goals','parecer'],
+  'Condicionamento':['quest','injury','bp','bio','skin','circ','postural','mobility','resist','func','movement','flex','cardio','goals','parecer'],
+  'Atleta':['injury','dyn','postural','mobility','balance','resist','func','movement','power','cardio','strength','flex','goals','parecer'],
   'Personalizado':null
 };
 
@@ -1375,6 +1442,35 @@ function EvalForm({student,evalData,carryHeight,isReassess,onSave,onCancel}){
             {(()=>{const as=asymmetry(f.func_slsts_r,f.func_slsts_l,15);return as?<div style={{marginTop:6}}><span style={{fontSize:12,color:'var(--text2)'}}>Assimetria SL sit-to-stand — dif. {as.diff}</span> <Badge cls={as.badge.c}>{as.badge.l}</Badge></div>:null;})()}
             <div style={{marginTop:10}}><FTA label="Observações funcionais" value={f.func_obs||''} onChange={e=>upd('func_obs',e.target.value)}/></div>
           </div>}
+
+          {has('injury')&&<div className="sec"><div className="sec-title">Histórico e screening de lesões</div>
+            <BodyMap value={f.injury_map} onChange={v=>upd('injury_map',v)}/>
+            <div className="fgrid2" style={{marginTop:14}}>
+              {SEL('Cirurgias prévias','inj_surgery',['Não','Sim'])}
+              {SEL('Fraturas','inj_fracture',['Não','Sim'])}
+              {SEL('Entorses','inj_sprain',['Não','Sim'])}
+              {SEL('Tendinites','inj_tendinitis',['Não','Sim'])}
+              {SEL('Hérnias','inj_hernia',['Não','Sim'])}
+              {SEL('Lesões musculares','inj_muscle',['Não','Sim'])}
+            </div>
+            <div style={{marginTop:12}}><FTA label="Dor atual" value={f.injury_current||''} onChange={e=>upd('injury_current',e.target.value)} placeholder="Localização, tipo, quando ocorre..."/></div>
+            <div style={{marginTop:10}}><FTA label="Histórico de dor / lesões" value={f.injury_history||''} onChange={e=>upd('injury_history',e.target.value)}/></div>
+            <div style={{marginTop:10}}><FTA label="Detalhes (cirurgias, fraturas, datas...)" value={f.inj_details||''} onChange={e=>upd('inj_details',e.target.value)}/></div>
+          </div>}
+
+          {has('movement')&&(()=>{
+            const MOV=[['Agachamento','mq_squat'],['Afundo (lunge)','mq_lunge'],['Flexão (push-up)','mq_pushup'],['Levantamento terra','mq_deadlift'],['Corrida','mq_run'],['Salto','mq_jump']];
+            return(<div className="sec"><div className="sec-title">Qualidade do movimento</div>
+              <div style={{fontSize:12,color:'var(--text2)',marginBottom:10}}>Nota de 1 (disfuncional) a 5 (excelente) para cada padrão.</div>
+              <div className="fgrid2">
+                {MOV.map(([lbl,k])=>(
+                  <div className="fg" key={k}><label className="flbl">{lbl}</label>
+                    <select className="fi" value={f[k]||''} onChange={e=>upd(k,e.target.value)}>
+                      <option value="">—</option>{[1,2,3,4,5].map(n=><option key={n} value={n}>{n+' — '+classifyMove(n).l}</option>)}</select></div>))}
+              </div>
+              <div style={{marginTop:10}}><FTA label="Observações do movimento" value={f.mq_obs||''} onChange={e=>upd('mq_obs',e.target.value)} placeholder="Compensações, valgo dinâmico, dominância..."/></div>
+            </div>);
+          })()}
 
           {has('flex')&&<div className="sec"><div className="sec-title">Flexibilidade &amp; encurtamentos</div>
             <div className="fgrid2">
@@ -1921,7 +2017,15 @@ function buildExecutive(student,ev,d,prevEval){
   const ka=asymmetry(ev.kneewall_r,ev.kneewall_l,null,1.5);if(ka&&ka.badge.c==='br')mobilityRecs.push(`Mobilidade de tornozelo (dorsiflexão) — priorizar lado ${ka.side==='D'?'esquerdo':'direito'}.`);
   ['short_hamstring','short_iliopsoas','short_rectus','short_calf','short_pec'].forEach(k=>{if(ev[k]&&/Encurtado/.test(ev[k])){const nm={short_hamstring:'isquiotibiais',short_iliopsoas:'iliopsoas',short_rectus:'reto femoral',short_calf:'tríceps sural',short_pec:'peitoral'}[k];mobilityRecs.push('Alongamento/liberação de '+nm+'.');}});
   finds.filter(f=>f.c!=='bb').slice(0,2).forEach(f=>mobilityRecs.push('Corretivo postural para '+f.reg.toLowerCase()+'.'));
-  return {domains,overall,strengths,limitations,priorities,trainingRecs,mobilityRecs:mobilityRecs.slice(0,5),riskFlags:rl};
+  // síntese em linguagem natural
+  const first=n=>student.name.split(' ')[0]||'O avaliado';
+  const nivel=overall>=80?'excelente':overall>=65?'bom':overall>=50?'moderado':'a desenvolver';
+  let syn=`${first()} apresenta condicionamento geral ${nivel} (${overall}/100)`;
+  if(strengths.length)syn+=`, com destaque para ${strengths.slice(0,2).map(s=>s.toLowerCase()).join(' e ')}`;
+  if(priorities.length)syn+=`. A conduta deve priorizar ${priorities.map(p=>p.toLowerCase()).join(', ')}`;
+  if(rl.length)syn+=`, com atenção a ${rl[0].toLowerCase()}`;
+  syn+='.';
+  return {synthesis:syn,domains,overall,strengths,limitations,priorities,trainingRecs,mobilityRecs:mobilityRecs.slice(0,5),riskFlags:rl};
 }
 
 /* Barra de progresso: trilha = jornada início→meta (0%→100%), preenchida pelo progresso */
@@ -2032,6 +2136,7 @@ function Report({student,evalData,allEvals,onBack,coach}){
             const sColor=v=>v>=75?'#2f8f4e':v>=55?'#b0894f':v>=40?'#c98a3a':'#b3434f';
             const oc=sColor(ex.overall);const R=40,C=2*Math.PI*R;
             return(<div className="rpt-sec"><div className="rpt-sec-title">Resumo executivo</div>
+              {ex.synthesis&&<p style={{fontSize:15,lineHeight:1.7,color:'#2a2320',marginBottom:14,fontFamily:'var(--serif2)'}}>{ex.synthesis}</p>}
               <div style={{display:'flex',gap:20,flexWrap:'wrap',alignItems:'center'}}>
                 <div style={{textAlign:'center',minWidth:130}}>
                   <svg viewBox="0 0 110 110" width="120" height="120">
@@ -2121,7 +2226,7 @@ function Report({student,evalData,allEvals,onBack,coach}){
                 <div className="ind-grid">{g}</div></div>}
               {hasRadar&&<div className="rpt-sec"><div className="rpt-sec-title">Perfil físico</div>
                 <Radar axes={axes}/>
-                <div style={{fontSize:10.5,color:'#9ca3af',textAlign:'center',marginTop:2}}>Escore 0–100 por domínio, com base nas classificações normativas.</div>
+                <div style={{fontSize:10.5,color:'#9ca3af',textAlign:'center',marginTop:2}}>Perfil físico por domínio (0–100).</div>
               </div>}
             </>);
           })()}
@@ -2397,6 +2502,58 @@ function Report({student,evalData,allEvals,onBack,coach}){
                     {evalData.pw_beep&&<tr><td>Beep test</td><td style={{fontWeight:600}}>Nível {evalData.pw_beep}</td>{prevEval&&<td/>}</tr>}
                   </tbody></table></div>}
               </div>
+            </div>);
+          })()}
+
+          {/* Screening de lesões */}
+          {(()=>{
+            const map=evalData.injury_map||{};const marks=Object.keys(map).length;
+            const hist=[['Cirurgias','inj_surgery'],['Fraturas','inj_fracture'],['Entorses','inj_sprain'],['Tendinites','inj_tendinitis'],['Hérnias','inj_hernia'],['Lesões musculares','inj_muscle']].filter(([,k])=>evalData[k]==='Sim');
+            if(!marks&&!hist.length&&!evalData.injury_current&&!evalData.injury_history)return null;
+            return(<div className="rpt-sec"><div className="rpt-sec-title">Histórico e screening de lesões</div>
+              <div style={{display:'flex',gap:18,flexWrap:'wrap',alignItems:'flex-start'}}>
+                {marks>0&&<svg viewBox="0 0 100 100" width="120" style={{flexShrink:0}}>
+                  <g fill="none" stroke="#cfc8bd" strokeWidth="1.1" strokeLinejoin="round" strokeLinecap="round">
+                    <circle cx="50" cy="7" r="5"/><path d="M42 13 Q50 16 58 13 L64 20 66 40 60 41 58 26 57 55 53 92 47 92 43 55 42 26 40 41 34 40 36 20 Z"/><path d="M36 20 L26 48 M64 20 L74 48"/>
+                  </g>
+                  {BODY_REGIONS.map(r=>{const m=map[r.k];return m?<circle key={r.k} cx={r.x} cy={r.y} r="3" fill={evaColor(m.eva)} stroke="#fff" strokeWidth="0.7"/>:null;})}
+                </svg>}
+                <div style={{flex:1,minWidth:200}}>
+                  {marks>0&&<table className="rpt-tbl" style={{marginBottom:8}}><tbody>
+                    {Object.entries(map).map(([k,m])=>{const r=BODY_REGIONS.find(x=>x.k===k);if(!r)return null;return(
+                      <tr key={k}><td>{r.l}</td><td style={{textAlign:'left',fontWeight:500}}>{m.eva?`EVA ${m.eva}/10`:'—'}{m.note?` · ${m.note}`:''}</td></tr>);})}
+                  </tbody></table>}
+                  {hist.length>0&&<div style={{fontSize:12.5,marginBottom:6}}><strong>Histórico:</strong> {hist.map(h=>h[0]).join(' · ')}.</div>}
+                  {evalData.injury_current&&<p style={{fontSize:12,color:'var(--text2)',lineHeight:1.6}}><strong style={{color:'var(--text)'}}>Dor atual:</strong> {evalData.injury_current}</p>}
+                  {evalData.injury_history&&<p style={{fontSize:12,color:'var(--text2)',lineHeight:1.6}}>{evalData.injury_history}</p>}
+                  {evalData.inj_details&&<p style={{fontSize:12,color:'var(--text2)',lineHeight:1.6}}>{evalData.inj_details}</p>}
+                </div>
+              </div>
+            </div>);
+          })()}
+
+          {/* Assimetrias */}
+          {(()=>{
+            const rows=asymmetryPanel(evalData);if(rows.length<2)return null;
+            return(<div className="rpt-sec"><div className="rpt-sec-title">Painel de assimetrias</div>
+              <table className="rpt-tbl"><tbody>
+                <tr><td></td><td style={{fontWeight:700,color:'#6b7280'}}>D / E</td><td style={{fontWeight:700,color:'#6b7280'}}>Diferença</td></tr>
+                {rows.map((r,i)=><tr key={i}><td>{r.lbl}</td><td>{r.r||'—'} / {r.l||'—'}</td>
+                  <td style={{fontWeight:600}}>{r.pct}%<span className={`badge ${r.badge.c}`} style={{marginLeft:6}}>{r.badge.c==='br'?`${r.side} maior`:'OK'}</span></td></tr>)}
+              </tbody></table>
+              {rows.some(r=>r.badge.c==='br')&&<p style={{fontSize:11.5,color:'#9a3540',marginTop:6,lineHeight:1.5}}>Assimetrias acima do limiar sugerem trabalho unilateral corretivo do lado deficitário e reavaliação em 6–8 semanas.</p>}
+            </div>);
+          })()}
+
+          {/* Qualidade do movimento */}
+          {(()=>{
+            const MOV=[['Agachamento','mq_squat'],['Afundo','mq_lunge'],['Flexão','mq_pushup'],['Levantamento terra','mq_deadlift'],['Corrida','mq_run'],['Salto','mq_jump']];
+            if(!MOV.some(([,k])=>num(evalData[k])))return null;
+            return(<div className="rpt-sec"><div className="rpt-sec-title">Qualidade do movimento</div>
+              <table className="rpt-tbl"><tbody>
+                {MOV.map(([lbl,k])=>num(evalData[k])?<tr key={k}><td>{lbl}</td><td style={{fontWeight:600}}>{evalData[k]}/5<span className={`badge ${classifyMove(evalData[k]).c}`} style={{marginLeft:6}}>{classifyMove(evalData[k]).l}</span></td>{prevEval&&<td/>}</tr>:null)}
+              </tbody></table>
+              {evalData.mq_obs&&<p style={{fontSize:12,color:'var(--text2)',marginTop:6,lineHeight:1.6}}>{evalData.mq_obs}</p>}
             </div>);
           })()}
 
