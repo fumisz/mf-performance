@@ -247,6 +247,21 @@ textarea.fi{resize:vertical;min-height:70px;line-height:1.5}
 .rpt-page .rpt-sec{margin-bottom:26px}
 .rpt-page .rpt-sec-title{color:var(--accent);background:none;border:none;border-bottom:1px solid #e7e2d9;padding:0 0 7px 0;margin-bottom:15px;font-size:11.5px;font-weight:700;letter-spacing:1.4px;box-shadow:none;position:relative}
 .rpt-page .rpt-sec-title::after{content:'';position:absolute;left:0;bottom:-1px;width:36px;height:2px;background:var(--gold)}
+/* ── Capa dedicada ── */
+.rpt-cover{position:relative;background:linear-gradient(160deg,#1c0f16 0%,#0e070b 100%);color:#fff;padding:60px 54px 48px;display:flex;flex-direction:column;min-height:620px;overflow:hidden}
+.rpt-cover::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,var(--gold),#e2c58a,var(--gold))}
+.rpt-cover::after{content:'';position:absolute;right:-120px;bottom:-140px;width:420px;height:420px;border:1px solid rgba(176,137,79,.16);border-radius:50%}
+.rpt-cover-brand{display:flex;align-items:center;gap:16px;position:relative;z-index:1}
+.rpt-cover-brand .cv-name{font-size:23px;font-weight:800;letter-spacing:.6px;color:#fff}
+.rpt-cover-brand .cv-tag{font-size:10.5px;color:var(--gold);letter-spacing:3px;text-transform:uppercase;margin-top:3px}
+.rpt-cover-kick{margin-top:auto;position:relative;z-index:1;font-size:12px;letter-spacing:4px;text-transform:uppercase;color:rgba(255,255,255,.5)}
+.rpt-cover-title{position:relative;z-index:1;font-family:var(--serif2);font-size:30px;line-height:1.15;font-weight:600;color:#fff;margin:8px 0 34px}
+.rpt-cover-title .cv-gold{color:var(--gold)}
+.rpt-cover-main{display:flex;align-items:flex-end;justify-content:space-between;gap:30px;position:relative;z-index:1;flex-wrap:wrap}
+.rpt-cover-name{font-family:var(--serif2);font-size:40px;font-weight:600;color:#fff;line-height:1.05;letter-spacing:.3px}
+.rpt-cover-meta{margin-top:12px;font-size:13px;color:rgba(255,255,255,.62);letter-spacing:.3px;line-height:1.8}
+.rpt-cover-meta strong{color:#fff;font-weight:600}
+.rpt-cover-foot{margin-top:38px;padding-top:16px;border-top:1px solid rgba(255,255,255,.12);display:flex;justify-content:space-between;font-size:10.5px;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,.4);position:relative;z-index:1;flex-wrap:wrap;gap:8px}
 .rpt-page .rpt-tbl td{color:#1f2430;border-bottom:1px solid #eef0f2;font-size:13px;padding:9px 10px}
 .rpt-page .rpt-tbl td:first-child{color:#6b7280}
 .rpt-page .rpt-tbl td:nth-child(2){color:#111827}
@@ -359,6 +374,7 @@ textarea.fi{resize:vertical;min-height:70px;line-height:1.5}
   .rpt-page{border:none;border-radius:0}
   .rpt-body{padding:16px 4px}
   .rpt-header{background:#1c0f16!important;border-bottom:3px solid #b0894f!important}
+  .rpt-cover{page-break-after:always;break-after:page;min-height:calc(100vh - 22mm);padding:52px 44px 40px}
   .rpt-sec{break-inside:avoid}
   .evo-card,.cmp-card,.stat{break-inside:avoid}
 }
@@ -2102,6 +2118,52 @@ function Report({student,evalData,allEvals,onBack,coach}){
       </div>
 
       <div className="rpt-page" id="rpt">
+        {/* Capa dedicada — página 1 */}
+        {(()=>{
+          const ex=buildExecutive(student,evalData,d,prevEval);
+          const sColor=v=>v>=75?'#7bbf92':v>=55?'#d8b573':v>=40?'#d8a35a':'#d47a83';
+          const oc=ex.overall!=null?sColor(ex.overall):'#b0894f';
+          const R=52,C=2*Math.PI*R;
+          return(
+          <div className="rpt-cover">
+            <div className="rpt-cover-brand">
+              {coach?.logo_url?<img src={coach.logo_url} alt="" style={{height:60,maxWidth:130,objectFit:'contain'}}/>:<LogoLifter size={64}/>}
+              <div><div className="cv-name">{(coach?.brand_name||'MF PERFORMANCE').toUpperCase()}</div>
+                <div className="cv-tag">Avaliação Física &amp; Performance</div></div>
+            </div>
+            <div style={{marginTop:44}}>
+              <div className="rpt-cover-kick">Relatório de</div>
+              <div className="rpt-cover-title">Avaliação Física<br/><span className="cv-gold">{prevEval?'Comparativa':'Individual'}</span></div>
+            </div>
+            <div className="rpt-cover-main">
+              <div>
+                <div className="rpt-cover-name">{student.name}</div>
+                <div className="rpt-cover-meta">
+                  {age(student.dob)?`${age(student.dob)} anos · `:''}{student.gender==='M'?'Masculino':'Feminino'}
+                  {student.activity&&` · ${student.activity}`}<br/>
+                  Avaliado em <strong>{fmtDate(evalData.date)}</strong>
+                  {prevEval&&<> · comparado com <strong>{fmtDate(prevEval.date)}</strong></>}
+                  {student.goal&&<><br/>Objetivo: <strong>{student.goal}</strong></>}
+                </div>
+              </div>
+              {ex.overall!=null&&(
+                <div style={{textAlign:'center'}}>
+                  <svg viewBox="0 0 130 130" width="150" height="150">
+                    <circle cx="65" cy="65" r={R} fill="none" stroke="rgba(255,255,255,.13)" strokeWidth="8"/>
+                    <circle cx="65" cy="65" r={R} fill="none" stroke={oc} strokeWidth="8" strokeLinecap="round" strokeDasharray={C} strokeDashoffset={C*(1-ex.overall/100)} transform="rotate(-90 65 65)"/>
+                    <text x="65" y="63" textAnchor="middle" fontFamily="'Playfair Display',Georgia,serif" fontSize="40" fontWeight="600" fill="#fff">{ex.overall}</text>
+                    <text x="65" y="82" textAnchor="middle" fontSize="9" letterSpacing="2" fill="rgba(255,255,255,.55)">SCORE / 100</text>
+                  </svg>
+                  <div style={{fontSize:10.5,letterSpacing:3,textTransform:'uppercase',color:'rgba(255,255,255,.5)',marginTop:2}}>Score Geral</div>
+                </div>
+              )}
+            </div>
+            <div className="rpt-cover-foot">
+              <span>Relatório nº {reportNo}</span>
+              <span>Emitido em {new Date().toLocaleDateString('pt-BR')}</span>
+            </div>
+          </div>);
+        })()}
         <div className="rpt-header">
           <div className="rpt-head-top">
             <div style={{display:'flex',alignItems:'center',gap:14}}>
