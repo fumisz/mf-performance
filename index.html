@@ -130,6 +130,36 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:1
 .avatar img{width:100%;height:100%;object-fit:cover}
 .s-name{font-size:15.5px;font-weight:600;margin-bottom:3px}
 .s-meta{font-size:12px;color:var(--text2);line-height:1.6}
+/* ── Dashboard KPIs / filtros / distribuições ── */
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px}
+.kpi{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:15px 16px;position:relative;overflow:hidden}
+.kpi::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent)}
+.kpi.k-warn::before{background:var(--gold)}.kpi.k-bad::before{background:var(--red)}.kpi.k-good::before{background:#2f8f4e}
+.kpi-lbl{font-size:10.5px;letter-spacing:.6px;text-transform:uppercase;color:var(--text3);font-weight:600}
+.kpi-val{font-family:var(--serif);font-size:30px;font-weight:600;line-height:1.1;margin-top:4px;color:var(--text)}
+.kpi-val small{font-size:14px;color:var(--text3);font-weight:400;font-family:var(--sans,inherit)}
+.kpi-sub{font-size:11.5px;color:var(--text2);margin-top:3px}
+.kpi-sub .up{color:#2f8f4e;font-weight:600}.kpi-sub .down{color:var(--red);font-weight:600}
+.dash-panels{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px}
+.dash-panel{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:15px 16px}
+.dash-panel h4{font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:var(--text3);margin-bottom:11px;font-weight:700}
+.distrow{display:flex;align-items:center;gap:9px;margin-bottom:8px;font-size:12px}
+.distrow .dl{width:104px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0}
+.distrow .dt{flex:1;height:8px;background:var(--bg3);border-radius:5px;overflow:hidden}
+.distrow .df{height:100%;border-radius:5px}
+.distrow .dv{width:26px;text-align:right;color:var(--text);font-weight:600;flex-shrink:0}
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{cursor:pointer;border:1px solid var(--border2);background:var(--bg2);border-radius:20px;padding:6px 13px;font-size:12px;font-weight:600;color:var(--text2);transition:all .12s;white-space:nowrap}
+.chip:hover{border-color:var(--accent)}
+.chip.active{background:var(--accent);color:var(--cream);border-color:var(--accent)}
+.chip .cn{opacity:.7;font-weight:500;margin-left:4px}
+.sc-card{margin-top:10px;padding-top:11px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px}
+.sc-num{font-family:var(--serif);font-size:22px;font-weight:600;line-height:1}
+.sc-lbl{font-size:9.5px;letter-spacing:.5px;text-transform:uppercase;color:var(--text3)}
+.sc-delta{font-size:11.5px;font-weight:600}
+.sc-delta.up{color:#2f8f4e}.sc-delta.down{color:var(--red)}.sc-delta.flat{color:var(--text3)}
+.card-actions{display:flex;gap:6px;margin-top:10px}
+.card-actions .btn{flex:1;padding:6px 8px;font-size:11.5px}
 
 /* ── Stat cards ── */
 .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:11px;margin-bottom:22px}
@@ -173,6 +203,7 @@ textarea.fi{resize:vertical;min-height:70px;line-height:1.5}
 .alert-info{background:var(--blue-dim);border:1px solid rgba(59,130,246,.25);color:#93c5fd}
 .alert-success{background:var(--green-dim);border:1px solid rgba(34,197,94,.25);color:#86efac}
 .alert-warn{background:rgba(234,179,8,.1);border:1px solid rgba(234,179,8,.25);color:#fde047}
+.alert-danger{background:rgba(220,38,38,.1);border:1px solid rgba(220,38,38,.3);color:#fca5a5}
 
 /* ── Search ── */
 .search-wrap{position:relative;flex:1;max-width:360px;min-width:200px}
@@ -846,53 +877,155 @@ function reassessInfo(se){if(!se||!se.length)return null;const last=se[0];
   let base=last.goal_next;if(!base){const d=new Date(last.date+'T00:00:00');d.setDate(d.getDate()+90);base=d.toLocaleDateString('en-CA');}
   const days=Math.ceil((new Date(base+'T00:00:00')-new Date(new Date().toLocaleDateString('en-CA')+'T00:00:00'))/86400000);
   return {date:base,days};}
-function Dashboard({students,evals,onSelect,onNew,onDelete}){
+/* Score geral (0-100) de uma avaliação; tolerante a dados faltando */
+function evalOverall(student,ev,prevEv){try{const d=derive(student,ev);const ex=buildExecutive(student,ev,d,prevEv);return ex&&ex.overall!=null?ex.overall:null;}catch(e){return null;}}
+const scoreColor=v=>v==null?'var(--text3)':v>=75?'#2f8f4e':v>=55?'#b0894f':v>=40?'#c98a3a':'#b3434f';
+
+function Dashboard({students,evals,onSelect,onNew,onDelete,onReassess,onSchedule}){
   const [q,setQ]=useState('');
-  const list=students.filter(s=>s.name.toLowerCase().includes(q.toLowerCase()))
-    .sort((a,b)=>a.name.localeCompare(b.name));
-  const reass=students.map(s=>{const se=evals.filter(e=>e.studentId===s.id).sort((a,b)=>new Date(b.date)-new Date(a.date));const r=reassessInfo(se);return r?{s,...r}:null;}).filter(Boolean).filter(x=>x.days<=7).sort((a,b)=>a.days-b.days);
+  const [filter,setFilter]=useState('todos');
+  const [sortBy,setSortBy]=useState('urgencia');
+
+  const rows=React.useMemo(()=>students.map(s=>{
+    const se=evals.filter(e=>e.studentId===s.id).sort((a,b)=>new Date(b.date)-new Date(a.date));
+    const asc=[...se].reverse();
+    const scoreHist=asc.map((e,i)=>evalOverall(s,e,asc[i-1]));
+    const last=se[0];
+    const lastScore=scoreHist.length?scoreHist[scoreHist.length-1]:null;
+    const prevScore=scoreHist.length>1?scoreHist[scoreHist.length-2]:null;
+    const scoreDelta=(lastScore!=null&&prevScore!=null)?lastScore-prevScore:null;
+    const ri=reassessInfo(se);
+    const daysSince=last?Math.floor((new Date(todayStr()+'T00:00:00')-new Date(last.date+'T00:00:00'))/86400000):null;
+    let status;
+    if(se.length===0)status={l:'Sem avaliação',c:'bb',rank:2};
+    else if(ri&&ri.days<0)status={l:`Reavaliação vencida há ${Math.abs(ri.days)}d`,c:'br',rank:0};
+    else if(ri&&ri.days<=7)status={l:ri.days===0?'Reavaliar hoje':`Reavaliar em ${ri.days}d`,c:'ba',rank:1};
+    else if(daysSince!=null&&daysSince>120)status={l:'Inativo',c:'ba',rank:3};
+    else status={l:'Em dia',c:'bg',rank:5};
+    const active=daysSince!=null&&daysSince<=90;
+    return{s,se,last,scoreHist:scoreHist.filter(v=>v!=null),lastScore,scoreDelta,ri,daysSince,status,active};
+  }),[students,evals]);
+
+  const now=new Date(todayStr()+'T00:00:00');
+  const kpi=React.useMemo(()=>{
+    const withEval=rows.filter(r=>r.se.length>0);
+    const active=rows.filter(r=>r.active).length;
+    const noEval=rows.filter(r=>r.se.length===0).length;
+    const overdue=rows.filter(r=>r.ri&&r.ri.days<0).length;
+    const week=rows.filter(r=>r.ri&&r.ri.days>=0&&r.ri.days<=7).length;
+    const month=rows.filter(r=>r.ri&&r.ri.days>7&&r.ri.days<=30).length;
+    const ym=todayStr().slice(0,7);
+    const evalsMonth=evals.filter(e=>e.date&&e.date.slice(0,7)===ym).length;
+    const scores=withEval.map(r=>r.lastScore).filter(v=>v!=null);
+    const avg=scores.length?Math.round(scores.reduce((a,b)=>a+b,0)/scores.length):null;
+    const deltas=rows.map(r=>r.scoreDelta).filter(v=>v!=null);
+    const avgDelta=deltas.length?Math.round(deltas.reduce((a,b)=>a+b,0)/deltas.length):null;
+    return{active,noEval,overdue,week,month,evalsMonth,avg,avgDelta,total:rows.length};
+  },[rows,evals]);
+
+  const goals=React.useMemo(()=>{const m={};rows.forEach(r=>{const g=(r.s.goal||'Sem objetivo').trim()||'Sem objetivo';m[g]=(m[g]||0)+1;});return Object.entries(m).sort((a,b)=>b[1]-a[1]).slice(0,5);},[rows]);
+  const bands=React.useMemo(()=>{const b=[['Excelente (75+)',0,'#2f8f4e'],['Bom (55–74)',0,'#b0894f'],['Regular (40–54)',0,'#c98a3a'],['Baixo (<40)',0,'#b3434f']];rows.forEach(r=>{const v=r.lastScore;if(v==null)return;if(v>=75)b[0][1]++;else if(v>=55)b[1][1]++;else if(v>=40)b[2][1]++;else b[3][1]++;});return b;},[rows]);
+
+  const filtered=rows.filter(r=>r.s.name.toLowerCase().includes(q.toLowerCase()))
+    .filter(r=>{if(filter==='reavaliar')return r.ri&&r.ri.days<=7;if(filter==='sem')return r.se.length===0;if(filter==='ativos')return r.active;return true;})
+    .sort((a,b)=>{
+      if(sortBy==='nome')return a.s.name.localeCompare(b.s.name);
+      if(sortBy==='recente')return new Date(b.last?.date||0)-new Date(a.last?.date||0);
+      if(sortBy==='score')return (b.lastScore??-1)-(a.lastScore??-1);
+      return a.status.rank-b.status.rank||(a.ri?.days??999)-(b.ri?.days??999)||a.s.name.localeCompare(b.s.name);
+    });
+
+  const chips=[['todos','Todos',kpi.total],['reavaliar','Reavaliar',kpi.overdue+kpi.week],['ativos','Ativos',kpi.active],['sem','Sem avaliação',kpi.noEval]];
+
   return(
     <div>
       <div className="abar">
-        <div><div className="ph-title">Alunos</div>
+        <div><div className="ph-title">Painel do treinador</div>
           <div className="ph-sub">{students.length} aluno{students.length!==1?'s':''} · {evals.length} avaliaç{evals.length!==1?'ões':'ão'}</div></div>
         <button className="btn btn-primary" onClick={onNew}>＋ Novo aluno</button>
       </div>
-      {reass.length>0&&<div className="alert alert-warn" style={{marginBottom:16}}>
-        <div style={{fontWeight:700,marginBottom:6}}>Reavaliações próximas</div>
-        <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
-          {reass.map(r=><button key={r.s.id} type="button" onClick={()=>onSelect(r.s)}
-            style={{cursor:'pointer',border:'1px solid var(--border2)',background:'var(--bg2)',borderRadius:9,padding:'6px 11px',fontSize:12,fontWeight:600,color:'var(--text)'}}>
-            {r.s.name.split(' ')[0]} · {r.days<0?`vencida há ${Math.abs(r.days)}d`:r.days===0?'hoje':`em ${r.days}d`}</button>)}
-        </div>
-      </div>}
-      <div style={{display:'flex',gap:12,marginBottom:22}}>
-        <div className="search-wrap"><span className="search-icon"></span>
-          <input className="fi" placeholder="Buscar aluno..." value={q} onChange={e=>setQ(e.target.value)}/></div>
+
+      {students.length>0&&<>
+      <div className="kpi-row">
+        <div className={`kpi ${kpi.active?'k-good':''}`}><div className="kpi-lbl">Alunos ativos</div>
+          <div className="kpi-val">{kpi.active}<small> / {kpi.total}</small></div>
+          <div className="kpi-sub">avaliados nos últimos 90 dias</div></div>
+        <div className={`kpi ${kpi.overdue?'k-bad':kpi.week?'k-warn':''}`}><div className="kpi-lbl">Reavaliações</div>
+          <div className="kpi-val">{kpi.overdue+kpi.week}</div>
+          <div className="kpi-sub">{kpi.overdue>0&&<span className="down">{kpi.overdue} vencida{kpi.overdue!==1?'s':''}</span>}{kpi.overdue>0&&kpi.week>0&&' · '}{kpi.week>0&&`${kpi.week} esta semana`}{kpi.overdue+kpi.week===0&&'nenhuma pendente'}</div></div>
+        <div className="kpi"><div className="kpi-lbl">Avaliações no mês</div>
+          <div className="kpi-val">{kpi.evalsMonth}</div>
+          <div className="kpi-sub">{kpi.month>0?`${kpi.month} a vencer em 30d`:'produtividade do mês'}</div></div>
+        <div className="kpi"><div className="kpi-lbl">Score médio</div>
+          <div className="kpi-val" style={{color:scoreColor(kpi.avg)}}>{kpi.avg??'—'}</div>
+          <div className="kpi-sub">{kpi.avgDelta!=null?(kpi.avgDelta>0?<span className="up">▲ +{kpi.avgDelta} vs. anterior</span>:kpi.avgDelta<0?<span className="down">▼ {kpi.avgDelta} vs. anterior</span>:'estável vs. anterior'):'da carteira'}</div></div>
+        <div className={`kpi ${kpi.noEval?'k-warn':''}`}><div className="kpi-lbl">Sem avaliação</div>
+          <div className="kpi-val">{kpi.noEval}</div>
+          <div className="kpi-sub">{kpi.noEval>0?'cadastrados e nunca avaliados':'todos avaliados'}</div></div>
       </div>
-      {list.length===0&&!q&&<div className="empty"><div className="empty-icon"></div>
+
+      <div className="dash-panels">
+        <div className="dash-panel"><h4>Alunos por objetivo</h4>
+          {goals.length===0?<div className="s-meta">Sem dados</div>:goals.map(([g,n])=>(
+            <div className="distrow" key={g}><span className="dl" title={g}>{g}</span>
+              <span className="dt"><span className="df" style={{width:(n/kpi.total*100)+'%',background:'var(--accent)'}}/></span>
+              <span className="dv">{n}</span></div>))}
+        </div>
+        <div className="dash-panel"><h4>Distribuição de score</h4>
+          {bands.every(b=>b[1]===0)?<div className="s-meta">Sem avaliações pontuadas ainda</div>:bands.map(([l,n,c])=>(
+            <div className="distrow" key={l}><span className="dl">{l}</span>
+              <span className="dt"><span className="df" style={{width:(kpi.total?n/kpi.total*100:0)+'%',background:c}}/></span>
+              <span className="dv">{n}</span></div>))}
+        </div>
+      </div>
+      </>}
+
+      <div style={{display:'flex',gap:12,marginBottom:12,flexWrap:'wrap',alignItems:'center'}}>
+        <div className="search-wrap" style={{flex:1,minWidth:180}}><span className="search-icon"></span>
+          <input className="fi" placeholder="Buscar aluno..." value={q} onChange={e=>setQ(e.target.value)}/></div>
+        <select className="fi" style={{width:'auto',minWidth:170}} value={sortBy} onChange={e=>setSortBy(e.target.value)}>
+          <option value="urgencia">Ordenar: urgência</option>
+          <option value="recente">Ordenar: mais recente</option>
+          <option value="score">Ordenar: maior score</option>
+          <option value="nome">Ordenar: nome</option>
+        </select>
+      </div>
+      <div className="chips" style={{marginBottom:20}}>
+        {chips.map(([k,l,n])=><button key={k} type="button" className={`chip ${filter===k?'active':''}`} onClick={()=>setFilter(k)}>{l}<span className="cn">{n}</span></button>)}
+      </div>
+
+      {students.length===0&&<div className="empty"><div className="empty-icon"></div>
         <div className="empty-title">Nenhum aluno cadastrado</div>
         <p style={{marginBottom:16,fontSize:13}}>Comece adicionando o primeiro aluno</p>
         <button className="btn btn-primary" onClick={onNew}>＋ Novo aluno</button></div>}
-      {list.length===0&&q&&<div className="empty"><div className="empty-icon"></div>
-        <div className="empty-title">Nenhum resultado para "{q}"</div></div>}
+      {students.length>0&&filtered.length===0&&<div className="empty"><div className="empty-icon"></div>
+        <div className="empty-title">Nenhum aluno neste filtro</div></div>}
+
       <div className="student-grid">
-        {list.map(s=>{
-          const se=evals.filter(e=>e.studentId===s.id).sort((a,b)=>new Date(b.date)-new Date(a.date));
-          const last=se[0],a=age(s.dob);
-          const ri=reassessInfo(se);
+        {filtered.map(({s,se,last,scoreHist,lastScore,scoreDelta,status})=>{
+          const a=age(s.dob);
           return(
             <div key={s.id} className="student-card" onClick={()=>onSelect(s)}>
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:11}}>
                 <div className="avatar">{s.photo?<img src={s.photo} alt=""/>:initials(s.name)}</div>
                 <button className="btn-icon btn-sm" title="Excluir" onClick={e=>{e.stopPropagation();if(confirm(`Excluir ${s.name} e todas as avaliações?`))onDelete(s.id);}}>Excluir</button>
               </div>
-              {ri&&ri.days<=7&&<span className={`badge ${ri.days<0?'br':'ba'}`} style={{marginBottom:6}}>{ri.days<0?'Reavaliação vencida':ri.days===0?'Reavaliar hoje':`Reavaliar em ${ri.days}d`}</span>}
+              <span className={`badge ${status.c}`} style={{marginBottom:6,display:'inline-block'}}>{status.l}</span>
               <div className="s-name">{s.name}</div>
               <div className="s-meta">
                 {a?`${a} anos · `:''}{s.gender==='M'?'Masculino':'Feminino'}
-                {s.goal&&<><br/><span style={{color:'var(--accent)'}}> {s.goal}</span></>}
+                {s.goal&&<><br/><span style={{color:'var(--accent)'}}>{s.goal}</span></>}
                 <br/>{se.length>0?`${se.length} ${se.length>1?'avaliações':'avaliação'} · ${fmtDate(last.date)}`:'Sem avaliações'}
+              </div>
+              {(lastScore!=null||scoreHist.length>=2)&&<div className="sc-card">
+                <div>{lastScore!=null&&<><span className="sc-num" style={{color:scoreColor(lastScore)}}>{lastScore}</span> <span className="sc-lbl">Score / 100</span></>}
+                  {scoreDelta!=null&&scoreDelta!==0&&<div className={`sc-delta ${scoreDelta>0?'up':'down'}`}>{scoreDelta>0?'▲ +':'▼ '}{scoreDelta} vs. anterior</div>}</div>
+                {scoreHist.length>=2&&<div style={{width:96}}><Sparkline values={scoreHist} color={scoreColor(lastScore)} w={96} h={34}/></div>}
+              </div>}
+              <div className="card-actions" onClick={e=>e.stopPropagation()}>
+                {se.length>0?<button className="btn btn-secondary" onClick={()=>onReassess(s)}>Reavaliar</button>
+                  :<button className="btn btn-secondary" onClick={()=>onSelect(s)}>Avaliar</button>}
+                <button className="btn btn-ghost" onClick={()=>onSchedule(s)}>Agendar</button>
               </div>
             </div>);
         })}
@@ -3139,6 +3272,181 @@ function BrandScreen({profile,setProfile,onBack}){
     </div>);
 }
 
+/* ── Agenda / agendamento de avaliações ── */
+function fmtSlot(iso){try{const d=new Date(iso);return d.toLocaleString('pt-BR',{weekday:'short',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});}catch{return iso;}}
+function slotDayKey(iso){try{const d=new Date(iso);return d.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'});}catch{return '';}}
+function slotTime(iso){try{return new Date(iso).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});}catch{return '';}}
+
+function AgendaScreen({coach,students,preStudent,onBack}){
+  const demo=!!coach._demo;
+  const [slots,setSlots]=useState(demo?[]:null);
+  const [date,setDate]=useState('');
+  const [times,setTimes]=useState('08:00, 09:00, 10:00');
+  const [dur,setDur]=useState(60);
+  const [busy,setBusy]=useState(false);
+  const [msg,setMsg]=useState(null);
+  const [linkStu,setLinkStu]=useState(preStudent?preStudent.id:'');
+
+  const load=async()=>{if(demo){return;}
+    const {data,error}=await sb.from('assess_slots').select('*').eq('coach_id',coach.id).order('starts_at');
+    if(error){setMsg({t:'err',m:'Erro ao carregar agenda: '+error.message});setSlots([]);return;}
+    setSlots(data||[]);};
+  useEffect(()=>{load();},[]);
+
+  const addSlots=async()=>{
+    if(!date){setMsg({t:'err',m:'Escolha uma data.'});return;}
+    const tl=times.split(',').map(t=>t.trim()).filter(Boolean);
+    if(!tl.length){setMsg({t:'err',m:'Informe ao menos um horário.'});return;}
+    const rows=tl.map(t=>{const iso=new Date(`${date}T${t}:00`).toISOString();return{coach_id:coach.id,starts_at:iso,duration_min:+dur,status:'open'};});
+    if(demo){setSlots(p=>[...p,...rows.map((r,i)=>({...r,id:'d'+Date.now()+i}))].sort((a,b)=>new Date(a.starts_at)-new Date(b.starts_at)));setMsg({t:'ok',m:'Horários adicionados (demo, não salvos).'});return;}
+    setBusy(true);const {error}=await sb.from('assess_slots').insert(rows);setBusy(false);
+    if(error){setMsg({t:'err',m:'Erro ao salvar: '+error.message});return;}
+    setMsg({t:'ok',m:`${rows.length} horário(s) adicionado(s).`});load();
+  };
+  const delSlot=async(id)=>{
+    if(demo){setSlots(p=>p.filter(s=>s.id!==id));return;}
+    const {error}=await sb.from('assess_slots').delete().eq('id',id);
+    if(error){setMsg({t:'err',m:'Erro ao remover: '+error.message});return;}
+    setSlots(p=>p.filter(s=>s.id!==id));
+  };
+
+  const base=location.origin+location.pathname;
+  const stu=students.find(s=>s.id===linkStu);
+  const link=base+'?agendar='+coach.id+(linkStu?'&aluno='+linkStu:'');
+  const openCount=(slots||[]).filter(s=>s.status==='open'&&new Date(s.starts_at)>=new Date()).length;
+  const copyLink=()=>{navigator.clipboard?.writeText(link).then(()=>setMsg({t:'ok',m:'Link copiado.'})).catch(()=>setMsg({t:'ok',m:link}));};
+  const waLink=()=>{
+    const phone=(stu?.phone||'').replace(/\D/g,'');
+    const txt=encodeURIComponent(`Olá${stu?', '+stu.name.split(' ')[0]:''}! Segue o link para você escolher o horário da sua avaliação física:\n${link}`);
+    window.open(phone?`https://wa.me/55${phone}?text=${txt}`:`https://wa.me/?text=${txt}`,'_blank');
+  };
+
+  const grouped=(()=>{const g={};(slots||[]).forEach(s=>{const k=slotDayKey(s.starts_at);(g[k]=g[k]||[]).push(s);});return Object.entries(g);})();
+
+  return(
+    <div>
+      <div className="abar">
+        <div><div className="breadcrumb" onClick={onBack}>← Painel</div>
+          <div className="ph-title">Agenda de avaliações</div>
+          <div className="ph-sub">{openCount} horário{openCount!==1?'s':''} disponível{openCount!==1?'is':''}</div></div>
+      </div>
+
+      {msg&&<div className={`alert ${msg.t==='err'?'alert-danger':'alert-success'}`} style={{marginBottom:14}}>{msg.m}</div>}
+      {demo&&<div className="alert alert-warn" style={{marginBottom:14}}>Modo demonstração: os horários não são salvos.</div>}
+
+      <div className="dash-panel" style={{marginBottom:16}}>
+        <h4>Enviar link de agendamento</h4>
+        <p className="s-meta" style={{marginBottom:10}}>O aluno abre o link, vê seus horários livres e confirma um. Você recebe o horário marcado aqui na agenda.</p>
+        <div style={{display:'flex',gap:10,flexWrap:'wrap',alignItems:'center',marginBottom:10}}>
+          <select className="fi" style={{width:'auto',minWidth:200}} value={linkStu} onChange={e=>setLinkStu(e.target.value)}>
+            <option value="">Link geral (qualquer aluno)</option>
+            {students.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+          <button className="btn btn-secondary" onClick={copyLink}>Copiar link</button>
+          <button className="btn btn-primary" onClick={waLink}>Enviar por WhatsApp</button>
+        </div>
+        <div style={{fontSize:11.5,color:'var(--text3)',wordBreak:'break-all',background:'var(--bg3)',padding:'8px 10px',borderRadius:8}}>{link}</div>
+      </div>
+
+      <div className="dash-panel" style={{marginBottom:16}}>
+        <h4>Adicionar horários livres</h4>
+        <div style={{display:'flex',gap:10,flexWrap:'wrap',alignItems:'flex-end'}}>
+          <div className="fg" style={{margin:0}}><label className="flbl">Data</label>
+            <input className="fi" type="date" value={date} min={todayStr()} onChange={e=>setDate(e.target.value)}/></div>
+          <div className="fg" style={{margin:0,flex:1,minWidth:160}}><label className="flbl">Horários (separados por vírgula)</label>
+            <input className="fi" value={times} onChange={e=>setTimes(e.target.value)} placeholder="08:00, 09:00, 10:00"/></div>
+          <div className="fg" style={{margin:0}}><label className="flbl">Duração</label>
+            <select className="fi" value={dur} onChange={e=>setDur(e.target.value)} style={{width:110}}>
+              <option value={30}>30 min</option><option value={45}>45 min</option><option value={60}>60 min</option><option value={90}>90 min</option></select></div>
+          <button className="btn btn-primary" disabled={busy} onClick={addSlots}>Adicionar</button>
+        </div>
+      </div>
+
+      {slots===null?<div className="center-screen"><div className="spinner"/></div>:
+       slots.length===0?<div className="empty"><div className="empty-title">Nenhum horário na agenda</div>
+         <p className="s-meta">Adicione horários livres acima para o aluno poder agendar.</p></div>:
+       grouped.map(([day,ss])=>(
+        <div key={day} style={{marginBottom:16}}>
+          <div style={{fontSize:12,fontWeight:700,textTransform:'capitalize',color:'var(--text2)',marginBottom:8}}>{day}</div>
+          <div style={{display:'flex',flexWrap:'wrap',gap:9}}>
+            {ss.map(s=>(
+              <div key={s.id} style={{border:'1px solid var(--border2)',borderRadius:10,padding:'9px 12px',background:s.status==='booked'?'var(--bg3)':'var(--bg2)',minWidth:150}}>
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}>
+                  <span style={{fontWeight:700,fontSize:14}}>{slotTime(s.starts_at)}</span>
+                  <button className="btn-icon btn-sm" title="Remover" onClick={()=>delSlot(s.id)}>×</button>
+                </div>
+                <div style={{fontSize:11,color:'var(--text3)'}}>{s.duration_min} min</div>
+                {s.status==='booked'?<span className="badge bg" style={{marginTop:5,display:'inline-block'}}>{s.student_name||'Agendado'}</span>
+                  :<span className="badge bb" style={{marginTop:5,display:'inline-block'}}>Livre</span>}
+              </div>))}
+          </div>
+        </div>))}
+    </div>);
+}
+
+/* ── Página pública de agendamento (aluno) ── */
+function BookingPage({coachId,studentId}){
+  const [data,setData]=useState(undefined);
+  const [name,setName]=useState('');
+  const [picked,setPicked]=useState(null);
+  const [done,setDone]=useState(null);
+  const [busy,setBusy]=useState(false);
+  const [err,setErr]=useState(null);
+
+  useEffect(()=>{(async()=>{
+    if(!sb){setData(null);return;}
+    const {data:d,error}=await sb.rpc('assess_open_slots',{p_coach:coachId,p_student:studentId||null});
+    if(error){setErr(error.message);setData(null);return;}
+    setData(d||{});if(d&&d.student_name)setName(d.student_name);
+  })();},[]);
+
+  const confirm=async()=>{
+    if(!picked)return;if(!name.trim()){setErr('Informe seu nome.');return;}
+    setBusy(true);setErr(null);
+    const {data:r,error}=await sb.rpc('assess_book_slot',{p_slot:picked,p_name:name.trim(),p_student:studentId||null});
+    setBusy(false);
+    if(error){setErr(error.message);return;}
+    if(r&&r.ok===false){setErr(r.message||'Este horário não está mais disponível.');
+      const {data:d}=await sb.rpc('assess_open_slots',{p_coach:coachId,p_student:studentId||null});setData(d||{});setPicked(null);return;}
+    setDone(r);
+  };
+
+  const brand=(data&&data.brand)||'MF Performance';
+  return(
+    <div className="center-screen" style={{padding:'24px 14px',alignItems:'flex-start'}}>
+      <div className="auth-card" style={{maxWidth:460,width:'100%'}}>
+        <div style={{display:'flex',justifyContent:'center',marginBottom:12}}><LogoLifter size={92}/></div>
+        <div style={{textAlign:'center',marginBottom:6}}><div style={{fontFamily:'var(--serif)',fontSize:20,fontWeight:600}}>{brand}</div>
+          <div className="s-meta">Agendamento de Avaliação Física</div></div>
+
+        {data===undefined&&<div className="center-screen" style={{minHeight:120}}><div className="spinner"/></div>}
+        {data===null&&<div className="alert alert-danger" style={{marginTop:14}}>Não foi possível carregar os horários.{err?' ('+err+')':''}</div>}
+
+        {done?<div style={{textAlign:'center',marginTop:16}}>
+            <div className="badge bg" style={{fontSize:14,padding:'8px 16px'}}>Agendamento confirmado</div>
+            <p style={{marginTop:14,fontSize:15,lineHeight:1.6}}>Sua avaliação foi marcada para<br/><strong style={{fontSize:17}}>{fmtSlot(done.starts_at)}</strong></p>
+            <p className="s-meta" style={{marginTop:8}}>Guarde esta data. Em caso de imprevisto, avise seu treinador.</p>
+          </div>
+         :data&&<>
+          <div className="fg" style={{marginTop:16}}><label className="flbl">Seu nome</label>
+            <input className="fi" value={name} onChange={e=>setName(e.target.value)} placeholder="Nome completo"/></div>
+          <div className="flbl" style={{marginBottom:8}}>Escolha um horário disponível</div>
+          {(!data.slots||data.slots.length===0)?<div className="alert alert-warn">Nenhum horário disponível no momento. Fale com seu treinador.</div>:
+            <div style={{display:'flex',flexDirection:'column',gap:8,maxHeight:320,overflowY:'auto'}}>
+              {data.slots.map(s=>(
+                <button key={s.id} type="button" onClick={()=>setPicked(s.id)}
+                  style={{textAlign:'left',border:'1.5px solid '+(picked===s.id?'var(--accent)':'var(--border2)'),background:picked===s.id?'var(--bg3)':'var(--bg2)',borderRadius:10,padding:'11px 13px',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                  <span style={{fontWeight:600,textTransform:'capitalize'}}>{fmtSlot(s.starts_at)}</span>
+                  <span className="s-meta">{s.duration_min} min</span>
+                </button>))}
+            </div>}
+          {err&&<div className="alert alert-danger" style={{marginTop:12}}>{err}</div>}
+          <button className="btn btn-primary" style={{width:'100%',marginTop:16}} disabled={busy||!picked} onClick={confirm}>{busy?'Confirmando…':'Confirmar agendamento'}</button>
+        </>}
+      </div>
+    </div>);
+}
+
 /* ── App ── */
 function App({profile,setProfile}){
   const coachId=profile.id;
@@ -3232,6 +3540,7 @@ function App({profile,setProfile}){
           <div><div className="logo-name">MF Performance</div><div className="logo-sub">Avaliação Física</div></div></div>
         <button className={`nav-btn ${view==='dashboard'?'active':''}`} onClick={()=>go('dashboard')}>Dashboard</button>
         <button className="nav-btn" onClick={()=>{setEditStu(null);go('stu-form');}}>Novo aluno</button>
+        <button className={`nav-btn ${view==='agenda'?'active':''}`} onClick={()=>{setSelStudent(null);go('agenda');}}>Agenda</button>
         <button className={`nav-btn ${view==='protocols'?'active':''}`} onClick={()=>go('protocols')}>Protocolos</button>
         {selStudent&&<>
           <hr className="nav-divider"/>
@@ -3269,7 +3578,10 @@ function App({profile,setProfile}){
           {view==='protocols'&&<ProtocolsScreen onBack={()=>go('dashboard')}/>}
           {view==='brand'&&<BrandScreen profile={profile} setProfile={setProfile} onBack={()=>go('dashboard')}/>}
           {view==='dashboard'&&<Dashboard students={students} evals={evals}
-            onSelect={s=>{setSelStudent(s);go('detail');}} onNew={()=>{setEditStu(null);go('stu-form');}} onDelete={delStu}/>}
+            onSelect={s=>{setSelStudent(s);go('detail');}} onNew={()=>{setEditStu(null);go('stu-form');}} onDelete={delStu}
+            onReassess={s=>{setSelStudent(s);setEditEv(null);setReassess(true);go('ev-form');}}
+            onSchedule={s=>{setSelStudent(s);go('agenda');}}/>}
+          {view==='agenda'&&<AgendaScreen coach={profile} students={students} preStudent={selStudent} onBack={()=>go('dashboard')}/>}
           {view==='stu-form'&&<StudentForm student={editStu} onSave={saveStu} onCancel={()=>go(selStudent?'detail':'dashboard')}/>}
           {view==='detail'&&selStudent&&<StudentDetail student={selStudent} evals={stuEvals}
             onNewEval={()=>{setEditEv(null);setReassess(false);go('ev-form');}}
@@ -3291,7 +3603,10 @@ function App({profile,setProfile}){
 function Root(){
   const [session,setSession]=useState(undefined);
   const [profile,setProfile]=useState(undefined);
-  const demo=typeof location!=='undefined'&&new URLSearchParams(location.search).get('demo')==='1';
+  const qs=typeof location!=='undefined'?new URLSearchParams(location.search):new URLSearchParams();
+  const agendar=qs.get('agendar');
+  if(agendar)return <BookingPage coachId={agendar} studentId={qs.get('aluno')||null}/>;
+  const demo=qs.get('demo')==='1';
   if(demo)return <App profile={{id:'demo',name:'Ana Trainer',role:'coach',perf_until:'2999-12-31',brand_name:'Studio Performance',cref:'012345-G/SP',phone:'(11) 99999-0000',instagram:'@studio.performance',logo_url:'',is_admin:false,_demo:true}} setProfile={()=>{}}/>;
   useEffect(()=>{
     if(!sb)return;
