@@ -204,6 +204,13 @@ textarea.fi{resize:vertical;min-height:70px;line-height:1.5}
 .alert-success{background:var(--green-dim);border:1px solid rgba(34,197,94,.25);color:#86efac}
 .alert-warn{background:rgba(234,179,8,.1);border:1px solid rgba(234,179,8,.25);color:#fde047}
 .alert-danger{background:rgba(220,38,38,.1);border:1px solid rgba(220,38,38,.3);color:#fca5a5}
+/* ── Anti-captura (dissuasão em telas do aluno) ── */
+.nc-on,.nc-on *{-webkit-user-select:none;-moz-user-select:none;user-select:none;-webkit-touch-callout:none}
+.nc-on img{-webkit-user-drag:none;user-drag:none;pointer-events:none}
+.nc-hidden .nc-guard{filter:blur(24px)}
+.nc-guard{transition:filter .12s}
+.nc-flash::after{content:'Captura de tela não permitida';position:fixed;inset:0;z-index:99999;background:#0b0b0e;color:#fff;display:flex;align-items:center;justify-content:center;font-size:17px;letter-spacing:.5px;text-align:center;padding:20px}
+@media print{.nc-on .nc-guard{display:none!important}.nc-on::after{content:'Conteúdo protegido — impressão desativada';display:block;padding:40px;text-align:center;font-size:16px}}
 
 /* ── Search ── */
 .search-wrap{position:relative;flex:1;max-width:360px;min-width:200px}
@@ -647,6 +654,37 @@ function jp7(gender,ageYrs,sf){
     ?1.112-(0.00043499*sum)+(0.00000055*sum*sum)-(0.00028826*a)
     :1.097-(0.00046971*sum)+(0.00000056*sum*sum)-(0.00012828*a);
   return (495/bd)-450;}
+
+/* Protocolos de dobras cutâneas — o treinador escolhe. Todos usam Siri (%G = 495/DC − 450),
+   exceto Faulkner que já retorna o percentual. Referências: Jackson & Pollock (1978/1980),
+   Guedes (1994) e Faulkner (1968). Sítios variam por protocolo e sexo. */
+const SF_LABELS={sf_triceps:'tríceps',sf_subscapular:'subescapular',sf_biceps:'bíceps',sf_chest:'tórax',sf_midaxillary:'axilar média',sf_suprailiac:'suprailíaca',sf_abdomen:'abdominal',sf_thigh:'coxa',sf_calf:'panturrilha'};
+const SF_PROTOCOLS={
+  jp7:{label:'Jackson-Pollock — 7 dobras',short:'JP7',n:7,
+    sites:{M:['sf_chest','sf_midaxillary','sf_triceps','sf_subscapular','sf_abdomen','sf_suprailiac','sf_thigh'],
+           F:['sf_chest','sf_midaxillary','sf_triceps','sf_subscapular','sf_abdomen','sf_suprailiac','sf_thigh']}},
+  jp3:{label:'Jackson-Pollock — 3 dobras',short:'JP3',n:3,
+    sites:{M:['sf_chest','sf_abdomen','sf_thigh'],F:['sf_triceps','sf_suprailiac','sf_thigh']}},
+  guedes3:{label:'Guedes — 3 dobras',short:'Guedes',n:3,
+    sites:{M:['sf_triceps','sf_suprailiac','sf_abdomen'],F:['sf_subscapular','sf_suprailiac','sf_thigh']}},
+  faulkner4:{label:'Faulkner — 4 dobras',short:'Faulkner',n:4,
+    sites:{M:['sf_triceps','sf_subscapular','sf_suprailiac','sf_abdomen'],F:['sf_triceps','sf_subscapular','sf_suprailiac','sf_abdomen']}}
+};
+function sfSites(protocol,gender){const P=SF_PROTOCOLS[protocol]||SF_PROTOCOLS.jp7;return P.sites[gender==='F'?'F':'M'];}
+function sfBodyFat(gender,ageYrs,ev,protocol){
+  protocol=protocol&&SF_PROTOCOLS[protocol]?protocol:'jp7';
+  const G=gender==='F'?'F':'M';
+  const keys=sfSites(protocol,G);
+  const vals=keys.map(k=>num(ev[k]));
+  if(vals.some(v=>v==null))return null;
+  const S=vals.reduce((x,y)=>x+y,0),a=num(ageYrs)||0;
+  let bd=null,fat=null;
+  if(protocol==='jp7'){bd=G==='M'?1.112-0.00043499*S+0.00000055*S*S-0.00028826*a:1.097-0.00046971*S+0.00000056*S*S-0.00012828*a;}
+  else if(protocol==='jp3'){bd=G==='M'?1.10938-0.0008267*S+0.0000016*S*S-0.0002574*a:1.0994921-0.0009929*S+0.0000023*S*S-0.0001392*a;}
+  else if(protocol==='guedes3'){bd=G==='M'?1.1714-0.0671*Math.log10(S):1.1665-0.0706*Math.log10(S);}
+  else if(protocol==='faulkner4'){fat=S*0.153+5.783;}
+  if(fat==null&&bd)fat=(495/bd)-450;
+  return (fat!=null&&isFinite(fat))?+fat.toFixed(1):null;}
 function classifyBP(s,d){const sv=num(s),dv=num(d);if(!sv||!dv)return null;
   if(sv<120&&dv<80)return{l:'Ótima',c:'bg'};
   if(sv<130&&dv<85)return{l:'Normal',c:'bg'};
@@ -790,7 +828,7 @@ function asymmetryPanel(ev){
 function derive(student,ev){
   const a=age(student.dob)||25;
   const b=bmi(ev.weight,ev.height);
-  const jp=jp7(student.gender,a,ev);
+  const jp=sfBodyFat(student.gender,a,ev,ev.sf_protocol);
   const fatPct=num(ev.bio_fat)??(jp!=null?+jp.toFixed(1):null);
   const w=num(ev.weight);
   const leanMass=num(ev.bio_lean)??((w&&fatPct!=null)?+(w*(1-fatPct/100)).toFixed(1):null);
@@ -906,7 +944,6 @@ function Dashboard({students,evals,onSelect,onNew,onDelete,onReassess,onSchedule
     return{s,se,last,scoreHist:scoreHist.filter(v=>v!=null),lastScore,scoreDelta,ri,daysSince,status,active};
   }),[students,evals]);
 
-  const now=new Date(todayStr()+'T00:00:00');
   const kpi=React.useMemo(()=>{
     const withEval=rows.filter(r=>r.se.length>0);
     const active=rows.filter(r=>r.active).length;
@@ -1305,6 +1342,7 @@ function StudentForm({student,onSave,onCancel}){
 const BLANK_EVAL={date:new Date().toISOString().slice(0,10),
   weight:'',height:'',bp_sys:'',bp_dia:'',resting_hr:'',dyn_r:'',dyn_l:'',
   bio_fat:'',bio_muscle:'',bio_muscle_pct:'',bio_lean:'',bio_water:'',bio_visceral:'',bio_bmr:'',bio_metabage:'',bio_bone:'',
+  sf_protocol:'jp7',
   sf_triceps:'',sf_subscapular:'',sf_biceps:'',sf_chest:'',sf_midaxillary:'',sf_suprailiac:'',sf_abdomen:'',sf_thigh:'',sf_calf:'',
   circ_shoulders:'',circ_chest:'',circ_waist:'',circ_abdomen:'',circ_hip:'',
   circ_arm_r:'',circ_arm_l:'',circ_thigh_r:'',circ_thigh_l:'',circ_calf_r:'',circ_calf_l:'',
@@ -1419,13 +1457,20 @@ function EvalForm({student,evalData,carryHeight,isReassess,onSave,onCancel}){
             {N('Massa óssea','bio_bone','kg','3.2')}{N('Gordura visceral','bio_visceral','nível','5')}
             {N('Taxa metab. basal (TMB)','bio_bmr','kcal','1750')}{N('Idade metabólica','bio_metabage','anos','28')}</div>
         </div>}
-        {has('skin')&&<div className="sec"><div className="sec-title">Dobras cutâneas</div>
-          <div className="alert alert-info">Preencha as 7 dobras com ★ (tórax, axilar, tríceps, subescapular, abdominal, suprailíaca e coxa) para o cálculo automático de % de gordura — protocolo Jackson-Pollock 7.</div>
-          <div className="fgrid2">{N('Tríceps ★','sf_triceps','mm')}{N('Subescapular ★','sf_subscapular','mm')}{N('Bíceps','sf_biceps','mm')}
-            {N('Tórax/Peitoral ★','sf_chest','mm')}{N('Axilar média ★','sf_midaxillary','mm')}{N('Suprailíaca ★','sf_suprailiac','mm')}
-            {N('Abdominal ★','sf_abdomen','mm')}{N('Coxa ★','sf_thigh','mm')}{N('Panturrilha','sf_calf','mm')}</div>
-          {d.jp!=null&&<div className="alert alert-success" style={{marginTop:13}}>% Gordura (JP7): <strong>{fmt(d.jp)}%</strong>{fatCls&&<> — <Badge cls={fatCls.c}>{fatCls.l}</Badge></>}</div>}
-        </div>}
+        {has('skin')&&(()=>{
+          const proto=f.sf_protocol||'jp7';const req=sfSites(proto,student.gender);const isReq=k=>req.includes(k);
+          const star=k=>isReq(k)?' ★':'';
+          return <div className="sec"><div className="sec-title">Dobras cutâneas</div>
+          <div className="fg" style={{maxWidth:340}}><label className="flbl">Protocolo</label>
+            <select className="fi" value={proto} onChange={e=>upd('sf_protocol',e.target.value)}>
+              {Object.entries(SF_PROTOCOLS).map(([k,p])=><option key={k} value={k}>{p.label}</option>)}
+            </select></div>
+          <div className="alert alert-info">Preencha as dobras com ★ ({req.map(k=>SF_LABELS[k]).join(', ')}) para o cálculo automático de % de gordura — protocolo {SF_PROTOCOLS[proto].label}{student.gender==='F'?' (feminino)':' (masculino)'}.</div>
+          <div className="fgrid2">{N('Tríceps'+star('sf_triceps'),'sf_triceps','mm')}{N('Subescapular'+star('sf_subscapular'),'sf_subscapular','mm')}{N('Bíceps'+star('sf_biceps'),'sf_biceps','mm')}
+            {N('Tórax/Peitoral'+star('sf_chest'),'sf_chest','mm')}{N('Axilar média'+star('sf_midaxillary'),'sf_midaxillary','mm')}{N('Suprailíaca'+star('sf_suprailiac'),'sf_suprailiac','mm')}
+            {N('Abdominal'+star('sf_abdomen'),'sf_abdomen','mm')}{N('Coxa'+star('sf_thigh'),'sf_thigh','mm')}{N('Panturrilha'+star('sf_calf'),'sf_calf','mm')}</div>
+          {d.jp!=null&&<div className="alert alert-success" style={{marginTop:13}}>% Gordura ({SF_PROTOCOLS[proto].short}): <strong>{fmt(d.jp)}%</strong>{fatCls&&<> — <Badge cls={fatCls.c}>{fatCls.l}</Badge></>}</div>}
+        </div>;})()}
         {has('circ')&&<div className="sec"><div className="sec-title">Circunferências</div>
           <div className="fgrid2">{N('Ombros','circ_shoulders','cm')}{N('Tórax','circ_chest','cm')}{N('Cintura','circ_waist','cm')}
             {N('Abdômen','circ_abdomen','cm')}{N('Quadril','circ_hip','cm')}{N('Braço dir. contraído','circ_arm_r','cm')}
@@ -2512,7 +2557,7 @@ function Report({student,evalData,allEvals,onBack,coach}){
                     <Row lbl="Abdominal" val={evalData.sf_abdomen} unit="mm" prev={prevEval?.sf_abdomen}/>
                     <Row lbl="Coxa" val={evalData.sf_thigh} unit="mm" prev={prevEval?.sf_thigh}/>
                     <Row lbl="Panturrilha" val={evalData.sf_calf} unit="mm" prev={prevEval?.sf_calf}/>
-                    {d.jp!=null&&<Row lbl="% Gordura (JP7)" val={fmt(d.jp)} unit="%" badge={fatCls} strong prev={dp&&dp.jp!=null?fmt(dp.jp):null}/>}
+                    {d.jp!=null&&<Row lbl={`% Gordura (${(SF_PROTOCOLS[evalData.sf_protocol||'jp7']||SF_PROTOCOLS.jp7).short})`} val={fmt(d.jp)} unit="%" badge={fatCls} strong prev={dp&&dp.jp!=null?fmt(dp.jp):null}/>}
                   </tbody></table>
                 </div>)}
               {hasCirc&&(
@@ -3063,15 +3108,22 @@ function ProtocolsScreen({onBack}){
       </div>
       <div className="alert alert-info" style={{marginBottom:14}}>Cada protocolo tem um botão <b>Ver vídeo-aulas no YouTube</b> que abre uma busca com o termo técnico daquele teste — sempre trazendo conteúdo atualizado de canais de educação física.</div>
 
-      <Proto title="Dobras cutâneas (Jackson-Pollock)" search="protocolo dobras cutâneas Jackson Pollock 7 dobras técnica adipômetro">
+      <Proto title="Dobras cutâneas (JP7, JP3, Guedes, Faulkner)" search="protocolo dobras cutâneas Jackson Pollock Guedes Faulkner 3 7 dobras técnica adipômetro">
         <ProtoLabel>Como fazer</ProtoLabel>
         <Steps items={[
           'Marque o ponto de cada dobra do lado direito do corpo.',
           'Pince a dobra com os dedos ~1 cm acima do ponto e aplique o adipômetro perpendicular à dobra.',
           'Leia após ~2 segundos; repita 2–3 vezes e use a média.',
-          'Some as 7 dobras (JP7) para o cálculo do percentual de gordura.'
+          'Some as dobras do protocolo escolhido para o cálculo do percentual de gordura.'
         ]}/>
-        <ProtoLabel>No app</ProtoLabel>Informe as 7 dobras ★ e o % de gordura é calculado automaticamente.
+        <ProtoLabel>Protocolos disponíveis no app</ProtoLabel>
+        <div style={{fontSize:12.5,lineHeight:1.7,color:'var(--text2)'}}>
+          <div>• <b>Jackson-Pollock 7 dobras</b> — tórax, axilar média, tríceps, subescapular, abdominal, suprailíaca e coxa (ambos os sexos). Densidade → Siri.</div>
+          <div>• <b>Jackson-Pollock 3 dobras</b> — homens: tórax, abdominal, coxa; mulheres: tríceps, suprailíaca, coxa. Densidade → Siri.</div>
+          <div>• <b>Guedes 3 dobras</b> — homens: tríceps, suprailíaca, abdominal; mulheres: subescapular, suprailíaca, coxa. Referência brasileira.</div>
+          <div>• <b>Faulkner 4 dobras</b> — tríceps, subescapular, suprailíaca, abdominal. Fórmula direta de % de gordura (prática e difundida no Brasil).</div>
+          <div style={{marginTop:6,color:'var(--text3)',fontSize:11}}>Escolha o protocolo no topo da seção “Dobras cutâneas”. As dobras marcadas com ★ são as exigidas pelo protocolo/sexo selecionado; o cálculo é automático.</div>
+        </div>
       </Proto>
 
       <Proto title="Perimetria (circunferências)" search="medida de circunferências perimetria avaliação física técnica fita métrica">
@@ -3314,7 +3366,11 @@ function AgendaScreen({coach,students,preStudent,onBack}){
   const stu=students.find(s=>s.id===linkStu);
   const link=base+'?agendar='+coach.id+(linkStu?'&aluno='+linkStu:'');
   const openCount=(slots||[]).filter(s=>s.status==='open'&&new Date(s.starts_at)>=new Date()).length;
-  const copyLink=()=>{navigator.clipboard?.writeText(link).then(()=>setMsg({t:'ok',m:'Link copiado.'})).catch(()=>setMsg({t:'ok',m:link}));};
+  const copyLink=()=>{
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(link).then(()=>setMsg({t:'ok',m:'Link copiado.'})).catch(()=>setMsg({t:'ok',m:'Copie o link abaixo:'}));
+    }else setMsg({t:'ok',m:'Copie o link abaixo:'});
+  };
   const waLink=()=>{
     const phone=(stu?.phone||'').replace(/\D/g,'');
     const txt=encodeURIComponent(`Olá${stu?', '+stu.name.split(' ')[0]:''}! Segue o link para você escolher o horário da sua avaliação física:\n${link}`);
@@ -3384,8 +3440,42 @@ function AgendaScreen({coach,students,preStudent,onBack}){
     </div>);
 }
 
+/* ── Dissuasão de captura de tela nas páginas do aluno ──
+   Observação honesta: não existe bloqueio 100% de screenshot em navegador
+   (o SO faz a captura fora do controle da página). Isto reduce o casual:
+   bloqueia menu/seleção/arrastar, impressão e Ctrl+P/S/C, borra ao trocar
+   de app/aba e ao apertar PrintScreen (limpando a área de transferência). */
+function useAntiCapture(active=true){
+  useEffect(()=>{
+    if(!active)return;
+    const b=document.body;b.classList.add('nc-on');
+    const noMenu=e=>e.preventDefault();
+    const flash=()=>{b.classList.add('nc-flash');setTimeout(()=>b.classList.remove('nc-flash'),1300);};
+    const keyGuard=e=>{
+      const k=(e.key||'');
+      if(k==='PrintScreen'){try{navigator.clipboard&&navigator.clipboard.writeText&&navigator.clipboard.writeText(' ');}catch(_){}flash();e.preventDefault();return;}
+      if((e.ctrlKey||e.metaKey)&&['p','s','c','u'].includes(k.toLowerCase())){e.preventDefault();}
+    };
+    const vis=()=>b.classList.toggle('nc-hidden',document.hidden);
+    const blur=()=>b.classList.add('nc-hidden');
+    const focus=()=>b.classList.remove('nc-hidden');
+    document.addEventListener('contextmenu',noMenu);
+    document.addEventListener('keydown',keyGuard,true);
+    document.addEventListener('visibilitychange',vis);
+    window.addEventListener('blur',blur);window.addEventListener('focus',focus);
+    return()=>{
+      document.removeEventListener('contextmenu',noMenu);
+      document.removeEventListener('keydown',keyGuard,true);
+      document.removeEventListener('visibilitychange',vis);
+      window.removeEventListener('blur',blur);window.removeEventListener('focus',focus);
+      b.classList.remove('nc-on','nc-hidden','nc-flash');
+    };
+  },[active]);
+}
+
 /* ── Página pública de agendamento (aluno) ── */
 function BookingPage({coachId,studentId}){
+  useAntiCapture(true);
   const [data,setData]=useState(undefined);
   const [name,setName]=useState('');
   const [picked,setPicked]=useState(null);
@@ -3413,7 +3503,7 @@ function BookingPage({coachId,studentId}){
 
   const brand=(data&&data.brand)||'MF Performance';
   return(
-    <div className="center-screen" style={{padding:'24px 14px',alignItems:'flex-start'}}>
+    <div className="center-screen nc-guard" style={{padding:'24px 14px',alignItems:'flex-start'}}>
       <div className="auth-card" style={{maxWidth:460,width:'100%'}}>
         <div style={{display:'flex',justifyContent:'center',marginBottom:12}}><LogoLifter size={92}/></div>
         <div style={{textAlign:'center',marginBottom:6}}><div style={{fontFamily:'var(--serif)',fontSize:20,fontWeight:600}}>{brand}</div>
