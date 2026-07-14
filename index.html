@@ -3338,6 +3338,7 @@ function AgendaScreen({coach,students,preStudent,onBack}){
   const [busy,setBusy]=useState(false);
   const [msg,setMsg]=useState(null);
   const [linkStu,setLinkStu]=useState(preStudent?preStudent.id:'');
+  const [linkKind,setLinkKind]=useState('agendar');
 
   const load=async()=>{if(demo){return;}
     const {data,error}=await sb.from('assess_slots').select('*').eq('coach_id',coach.id).order('starts_at');
@@ -3364,7 +3365,7 @@ function AgendaScreen({coach,students,preStudent,onBack}){
 
   const base=location.origin+location.pathname;
   const stu=students.find(s=>s.id===linkStu);
-  const link=base+'?agendar='+coach.id+(linkStu?'&aluno='+linkStu:'');
+  const link=base+'?'+(linkKind==='ficha'?'ficha':'agendar')+'='+coach.id+(linkStu?'&aluno='+linkStu:'');
   const openCount=(slots||[]).filter(s=>s.status==='open'&&new Date(s.starts_at)>=new Date()).length;
   const copyLink=()=>{
     if(navigator.clipboard&&navigator.clipboard.writeText){
@@ -3373,8 +3374,10 @@ function AgendaScreen({coach,students,preStudent,onBack}){
   };
   const waLink=()=>{
     const phone=(stu?.phone||'').replace(/\D/g,'');
-    const txt=encodeURIComponent(`Olá${stu?', '+stu.name.split(' ')[0]:''}! Segue o link para você escolher o horário da sua avaliação física:\n${link}`);
-    window.open(phone?`https://wa.me/55${phone}?text=${txt}`:`https://wa.me/?text=${txt}`,'_blank');
+    const msgTxt=linkKind==='ficha'
+      ?`Olá${stu?', '+stu.name.split(' ')[0]:''}! Preencha sua ficha de avaliação online por aqui:\n${link}`
+      :`Olá${stu?', '+stu.name.split(' ')[0]:''}! Segue o link para você escolher o horário da sua avaliação física:\n${link}`;
+    window.open(phone?`https://wa.me/55${phone}?text=${encodeURIComponent(msgTxt)}`:`https://wa.me/?text=${encodeURIComponent(msgTxt)}`,'_blank');
   };
 
   const grouped=(()=>{const g={};(slots||[]).forEach(s=>{const k=slotDayKey(s.starts_at);(g[k]=g[k]||[]).push(s);});return Object.entries(g);})();
@@ -3391,8 +3394,12 @@ function AgendaScreen({coach,students,preStudent,onBack}){
       {demo&&<div className="alert alert-warn" style={{marginBottom:14}}>Modo demonstração: os horários não são salvos.</div>}
 
       <div className="dash-panel" style={{marginBottom:16}}>
-        <h4>Enviar link de agendamento</h4>
-        <p className="s-meta" style={{marginBottom:10}}>O aluno abre o link, vê seus horários livres e confirma um. Você recebe o horário marcado aqui na agenda.</p>
+        <h4>Enviar link para o aluno</h4>
+        <div className="chips" style={{marginBottom:10}}>
+          <button type="button" className={`chip ${linkKind==='agendar'?'active':''}`} onClick={()=>setLinkKind('agendar')}>Agendamento</button>
+          <button type="button" className={`chip ${linkKind==='ficha'?'active':''}`} onClick={()=>setLinkKind('ficha')}>Ficha remota (online)</button>
+        </div>
+        <p className="s-meta" style={{marginBottom:10}}>{linkKind==='ficha'?'O aluno preenche a ficha (medidas, fotos, PAR-Q, rotina) e você recebe em Fichas online para importar como avaliação.':'O aluno abre o link, vê seus horários livres e confirma um. Você recebe o horário marcado aqui na agenda.'}</p>
         <div style={{display:'flex',gap:10,flexWrap:'wrap',alignItems:'center',marginBottom:10}}>
           <select className="fi" style={{width:'auto',minWidth:200}} value={linkStu} onChange={e=>setLinkStu(e.target.value)}>
             <option value="">Link geral (qualquer aluno)</option>
@@ -3537,6 +3544,211 @@ function BookingPage({coachId,studentId}){
     </div>);
 }
 
+/* ── Uploader de foto compacto (ficha remota) ── */
+function IntakePhoto({label,value,onChange}){
+  const ref=useRef();
+  const pick=file=>{if(!file)return;const r=new FileReader();r.onload=e=>{const img=new Image();
+    img.onload=()=>{const c=document.createElement('canvas');const m=900;let w=img.naturalWidth||img.width,h=img.naturalHeight||img.height;
+      const sc=Math.min(m/w,m/h,1);c.width=Math.round(w*sc);c.height=Math.round(h*sc);
+      c.getContext('2d').drawImage(img,0,0,c.width,c.height);onChange(c.toDataURL('image/jpeg',0.7));};
+    img.src=e.target.result;};r.readAsDataURL(file);};
+  return(
+    <div className="fg" style={{margin:0}}><label className="flbl">{label}</label>
+      {value?<div style={{position:'relative',maxWidth:150}}>
+        <img src={value} alt="" style={{width:'100%',borderRadius:10,border:'1px solid var(--border2)'}}/>
+        <button type="button" className="btn-icon btn-sm" style={{position:'absolute',top:4,right:4,background:'var(--bg2)'}} onClick={()=>onChange('')}>×</button>
+      </div>:
+      <div className="photo-up" style={{width:150,height:120}} onClick={()=>ref.current.click()}>
+        <div className="photo-ph"><span className="photo-ph-icon">Foto</span>toque</div></div>}
+      <input ref={ref} type="file" accept="image/*" capture="environment" style={{display:'none'}} onChange={e=>pick(e.target.files[0])}/>
+    </div>);
+}
+
+/* ── Página pública: ficha de avaliação remota (aluno preenche) ── */
+function RemoteIntakePage({coachId,studentId}){
+  const [info,setInfo]=useState(undefined);
+  const [f,setF]=useState({gender:'M'});
+  const [photos,setPhotos]=useState({front:'',side:'',back:''});
+  const [busy,setBusy]=useState(false);
+  const [done,setDone]=useState(false);
+  const [err,setErr]=useState(null);
+  const u=(k,v)=>setF(p=>({...p,[k]:v}));
+
+  useEffect(()=>{(async()=>{
+    if(!sb){setInfo(null);return;}
+    const {data,error}=await sb.rpc('assess_intake_info',{p_coach:coachId,p_student:studentId||null});
+    if(error){setErr(error.message);setInfo(null);return;}
+    setInfo(data||{});if(data&&data.student_name)u('name',data.student_name);
+  })();},[]);
+
+  const NI=(label,key,unit,ph)=>(
+    <div className="fg"><label className="flbl">{label}{unit&&<span style={{color:'var(--text3)',marginLeft:3}}>({unit})</span>}</label>
+      <input className="fi" type="number" inputMode="decimal" step="0.1" value={f[key]||''} onChange={e=>u(key,e.target.value)} placeholder={ph||''}/></div>);
+
+  const submit=async()=>{
+    if(!(f.name||'').trim()){setErr('Informe seu nome.');window.scrollTo(0,0);return;}
+    setBusy(true);setErr(null);
+    const evalKeys=['weight','height','resting_hr','bp_sys','bp_dia','circ_shoulders','circ_chest','circ_waist','circ_abdomen','circ_hip','circ_arm_r','circ_arm_l','circ_thigh_r','circ_thigh_l','circ_calf_r','circ_calf_l','eva','fatigue','stress'];
+    const evalData={};evalKeys.forEach(k=>{if(f[k]!=null&&f[k]!=='')evalData[k]=f[k];});
+    for(let i=1;i<=PARQ_QUESTIONS.length;i++)if(f['parq_'+i])evalData['parq_'+i]=f['parq_'+i];
+    const student={gender:f.gender||'M',dob:f.dob||'',goal:f.goal||'',activity:f.activity||'',schedule:f.schedule||'',health:f.health||'',meds:f.meds||'',injuries:f.injuries||'',sleep:f.sleep||''};
+    const payload={name:f.name.trim(),student,eval:evalData,photos};
+    const {data:r,error}=await sb.rpc('assess_submit_intake',{p_coach:coachId,p_name:f.name.trim(),p_data:payload,p_student:studentId||null});
+    setBusy(false);
+    if(error){setErr(error.message);return;}
+    if(r&&r.ok===false){setErr(r.message||'Não foi possível enviar.');return;}
+    setDone(true);window.scrollTo(0,0);
+  };
+
+  const brand=(info&&info.brand)||'MF Performance';
+  const PARQ_YN=i=>(
+    <div className="fg"><label className="flbl" style={{fontWeight:500,lineHeight:1.4}}>{i+1}. {PARQ_QUESTIONS[i]}</label>
+      <select className="fi" style={{maxWidth:140}} value={f['parq_'+(i+1)]||''} onChange={e=>u('parq_'+(i+1),e.target.value)}>
+        <option value="">—</option><option value="Não">Não</option><option value="Sim">Sim</option></select></div>);
+
+  if(done)return(
+    <div className="center-screen" style={{padding:'24px 14px'}}><div className="auth-card" style={{maxWidth:460,textAlign:'center'}}>
+      <div style={{display:'flex',justifyContent:'center',marginBottom:12}}><LogoLifter size={92}/></div>
+      <div className="badge bg" style={{fontSize:14,padding:'8px 16px'}}>Ficha enviada</div>
+      <p style={{marginTop:14,fontSize:15,lineHeight:1.6}}>Recebemos suas informações. Seu treinador vai analisar e montar sua avaliação.</p>
+    </div></div>);
+
+  return(
+    <div style={{maxWidth:640,margin:'0 auto',padding:'22px 14px'}}>
+      <div style={{textAlign:'center',marginBottom:16}}>
+        <div style={{display:'flex',justifyContent:'center',marginBottom:8}}><LogoLifter size={88}/></div>
+        <div style={{fontFamily:'var(--serif)',fontSize:21,fontWeight:600}}>{brand}</div>
+        <div className="s-meta">Ficha de Avaliação — Consultoria Online</div>
+      </div>
+      {info===undefined&&<div className="center-screen" style={{minHeight:120}}><div className="spinner"/></div>}
+      {info===null&&<div className="alert alert-danger">Não foi possível abrir a ficha.{err?' ('+err+')':''}</div>}
+      {info&&<>
+        {err&&<div className="alert alert-danger">{err}</div>}
+        <div className="sec"><div className="sec-title">Identificação</div>
+          <div className="fgrid2">
+            <div className="fg"><label className="flbl">Nome completo</label><input className="fi" value={f.name||''} onChange={e=>u('name',e.target.value)}/></div>
+            <div className="fg"><label className="flbl">Sexo</label>
+              <select className="fi" value={f.gender} onChange={e=>u('gender',e.target.value)}><option value="M">Masculino</option><option value="F">Feminino</option></select></div>
+            <div className="fg"><label className="flbl">Data de nascimento</label><input className="fi" type="date" value={f.dob||''} onChange={e=>u('dob',e.target.value)}/></div>
+            <div className="fg"><label className="flbl">Objetivo principal</label><input className="fi" value={f.goal||''} onChange={e=>u('goal',e.target.value)} placeholder="Ex.: emagrecimento, hipertrofia"/></div>
+          </div>
+        </div>
+        <div className="sec"><div className="sec-title">Medidas (você mesmo mede)</div>
+          <div className="alert alert-info">Peso em jejum, sem calçado. Circunferências com fita justa (sem apertar), relaxado. Cintura na menor curvatura; quadril na parte mais larga; braço relaxado.</div>
+          <div className="fgrid2">{NI('Peso','weight','kg')}{NI('Altura','height','cm')}
+            {NI('Cintura','circ_waist','cm')}{NI('Quadril','circ_hip','cm')}{NI('Abdômen','circ_abdomen','cm')}
+            {NI('Tórax','circ_chest','cm')}{NI('Braço direito','circ_arm_r','cm')}{NI('Braço esquerdo','circ_arm_l','cm')}
+            {NI('Coxa direita','circ_thigh_r','cm')}{NI('Coxa esquerda','circ_thigh_l','cm')}</div>
+        </div>
+        <div className="sec"><div className="sec-title">Prontidão para atividade física (PAR-Q+)</div>
+          {PARQ_QUESTIONS.map((_,i)=><React.Fragment key={i}>{PARQ_YN(i)}</React.Fragment>)}
+        </div>
+        <div className="sec"><div className="sec-title">Saúde &amp; rotina</div>
+          <div className="fgrid2">
+            <div className="fg"><label className="flbl">Nível de atividade</label>
+              <select className="fi" value={f.activity||''} onChange={e=>u('activity',e.target.value)}>
+                <option value="">—</option><option>Sedentário</option><option>Levemente ativo</option><option>Moderadamente ativo</option><option>Muito ativo</option><option>Extremamente ativo</option></select></div>
+            <div className="fg"><label className="flbl">Frequência semanal de treino</label><input className="fi" value={f.schedule||''} onChange={e=>u('schedule',e.target.value)} placeholder="Ex.: 3x por semana"/></div>
+            {NI('Dor atual (0–10)','eva','')}{NI('Fadiga (0–10)','fatigue','')}{NI('Estresse (0–10)','stress','')}
+            <div className="fg"><label className="flbl">Qualidade do sono</label><input className="fi" value={f.sleep||''} onChange={e=>u('sleep',e.target.value)} placeholder="Ex.: 7h, boa"/></div>
+          </div>
+          <div className="fg"><label className="flbl">Problemas de saúde / condições</label><textarea className="fi" rows="2" value={f.health||''} onChange={e=>u('health',e.target.value)}/></div>
+          <div className="fg"><label className="flbl">Medicamentos em uso</label><textarea className="fi" rows="2" value={f.meds||''} onChange={e=>u('meds',e.target.value)}/></div>
+          <div className="fg"><label className="flbl">Lesões / dores</label><textarea className="fi" rows="2" value={f.injuries||''} onChange={e=>u('injuries',e.target.value)}/></div>
+        </div>
+        <div className="sec"><div className="sec-title">Fotos (opcional)</div>
+          <div className="alert alert-info">Fotos de corpo inteiro, roupa justa, fundo neutro. Ajudam na análise postural e de evolução.</div>
+          <div style={{display:'flex',gap:12,flexWrap:'wrap'}}>
+            <IntakePhoto label="Frente" value={photos.front} onChange={v=>setPhotos(p=>({...p,front:v}))}/>
+            <IntakePhoto label="Lado" value={photos.side} onChange={v=>setPhotos(p=>({...p,side:v}))}/>
+            <IntakePhoto label="Costas" value={photos.back} onChange={v=>setPhotos(p=>({...p,back:v}))}/>
+          </div>
+        </div>
+        <button className="btn btn-primary" style={{width:'100%',marginTop:8}} disabled={busy} onClick={submit}>{busy?'Enviando…':'Enviar ficha'}</button>
+        <p className="s-meta" style={{textAlign:'center',marginTop:10}}>Seus dados vão direto para o seu treinador.</p>
+      </>}
+    </div>);
+}
+
+/* ── Caixa de entrada: fichas remotas recebidas (treinador) ── */
+function IntakeInbox({coach,students,onImport,onBack}){
+  const demo=!!coach._demo;
+  const [items,setItems]=useState(demo?[]:null);
+  const [sel,setSel]=useState(null);
+  const [busy,setBusy]=useState(false);
+  const [msg,setMsg]=useState(null);
+  const load=async()=>{if(demo){setItems([]);return;}
+    const {data,error}=await sb.from('assess_intakes').select('*').eq('coach_id',coach.id).eq('status','pending').order('created_at',{ascending:false});
+    if(error){setMsg({t:'err',m:'Erro ao carregar: '+error.message});setItems([]);return;}
+    setItems(data||[]);};
+  useEffect(()=>{load();},[]);
+  const doImport=async(it)=>{setBusy(true);const stu=await onImport(it);setBusy(false);
+    if(stu){setItems(p=>p.filter(x=>x.id!==it.id));setSel(null);setMsg({t:'ok',m:`Ficha importada como avaliação de ${stu.name}.`});}};
+  const doArchive=async(it)=>{if(demo){setItems(p=>p.filter(x=>x.id!==it.id));setSel(null);return;}
+    const {error}=await sb.from('assess_intakes').update({status:'archived'}).eq('id',it.id);
+    if(error){setMsg({t:'err',m:'Erro: '+error.message});return;}
+    setItems(p=>p.filter(x=>x.id!==it.id));setSel(null);};
+
+  const Field=({l,v})=>v?<div style={{marginBottom:6}}><span className="s-meta">{l}: </span><strong>{v}</strong></div>:null;
+  if(sel){
+    const d=sel.data||{},ps=d.student||{},ed=d.eval||{},ph=d.photos||{};
+    const existing=students.find(s=>s.id===sel.student_id);
+    const circ=[['Cintura',ed.circ_waist],['Quadril',ed.circ_hip],['Abdômen',ed.circ_abdomen],['Tórax',ed.circ_chest],['Braço D',ed.circ_arm_r],['Braço E',ed.circ_arm_l],['Coxa D',ed.circ_thigh_r],['Coxa E',ed.circ_thigh_l]].filter(x=>x[1]);
+    const parqYes=PARQ_QUESTIONS.map((q,i)=>ed['parq_'+(i+1)]==='Sim'?i+1:null).filter(Boolean);
+    return(
+      <div>
+        <div className="abar"><div><div className="breadcrumb" onClick={()=>setSel(null)}>← Fichas recebidas</div>
+          <div className="ph-title">{sel.student_name||'Ficha remota'}</div>
+          <div className="ph-sub">Enviada em {fmtDate((sel.created_at||'').slice(0,10))}{existing?' · aluno já cadastrado':' · aluno novo'}</div></div>
+          <div className="bgroup">
+            <button className="btn btn-ghost" onClick={()=>doArchive(sel)}>Arquivar</button>
+            <button className="btn btn-primary" disabled={busy} onClick={()=>doImport(sel)}>{busy?'Importando…':existing?'Importar avaliação':'Criar aluno + avaliação'}</button>
+          </div>
+        </div>
+        <div className="dash-panels">
+          <div className="dash-panel"><h4>Dados &amp; medidas</h4>
+            <Field l="Sexo" v={ps.gender==='F'?'Feminino':'Masculino'}/><Field l="Nascimento" v={ps.dob&&fmtDate(ps.dob)}/><Field l="Objetivo" v={ps.goal}/>
+            <Field l="Peso" v={ed.weight&&ed.weight+' kg'}/><Field l="Altura" v={ed.height&&ed.height+' cm'}/>
+            {circ.length>0&&<div style={{marginTop:6}}><span className="s-meta">Circunferências: </span>{circ.map(c=>c[0]+' '+c[1]).join(' · ')}</div>}
+          </div>
+          <div className="dash-panel"><h4>Saúde &amp; rotina</h4>
+            <Field l="Atividade" v={ps.activity}/><Field l="Frequência" v={ps.schedule}/><Field l="Sono" v={ps.sleep}/>
+            <Field l="Dor (EVA)" v={ed.eva}/><Field l="Fadiga" v={ed.fatigue}/><Field l="Estresse" v={ed.stress}/>
+            <Field l="Saúde" v={ps.health}/><Field l="Medicamentos" v={ps.meds}/><Field l="Lesões" v={ps.injuries}/>
+            <div style={{marginTop:6}}><span className="s-meta">PAR-Q: </span>{parqYes.length?<span className="badge br">{parqYes.length} resposta(s) "Sim" — encaminhar avaliação médica</span>:<span className="badge bg">Sem respostas positivas</span>}</div>
+          </div>
+        </div>
+        {(ph.front||ph.side||ph.back)&&<div className="dash-panel"><h4>Fotos</h4>
+          <div style={{display:'flex',gap:12,flexWrap:'wrap'}}>
+            {['front','side','back'].map(k=>ph[k]?<img key={k} src={ph[k]} alt="" style={{width:150,borderRadius:10,border:'1px solid var(--border)'}}/>:null)}
+          </div></div>}
+        {msg&&<div className={`alert ${msg.t==='err'?'alert-danger':'alert-success'}`} style={{marginTop:12}}>{msg.m}</div>}
+      </div>);
+  }
+
+  return(
+    <div>
+      <div className="abar"><div><div className="breadcrumb" onClick={onBack}>← Painel</div>
+        <div className="ph-title">Fichas recebidas</div>
+        <div className="ph-sub">Consultoria online · avaliações enviadas pelos alunos</div></div>
+      </div>
+      {msg&&<div className={`alert ${msg.t==='err'?'alert-danger':'alert-success'}`} style={{marginBottom:14}}>{msg.m}</div>}
+      {demo&&<div className="alert alert-warn" style={{marginBottom:14}}>Modo demonstração: sem fichas reais.</div>}
+      {items===null?<div className="center-screen"><div className="spinner"/></div>:
+       items.length===0?<div className="empty"><div className="empty-title">Nenhuma ficha pendente</div>
+         <p className="s-meta">Envie o link de ficha remota para seus alunos (botão na Agenda ou no card do aluno).</p></div>:
+       <div className="student-grid">
+         {items.map(it=>{const d=it.data||{},ed=d.eval||{};const has=[];if(ed.weight||ed.circ_waist)has.push('Medidas');if((d.photos||{}).front||(d.photos||{}).side)has.push('Fotos');if(PARQ_QUESTIONS.some((_,i)=>ed['parq_'+(i+1)]))has.push('PAR-Q');if(d.student?.health||d.student?.meds)has.push('Anamnese');
+           return(
+           <div key={it.id} className="student-card" onClick={()=>{setSel(it);setMsg(null);}}>
+             <span className="badge ba" style={{marginBottom:6,display:'inline-block'}}>Pendente</span>
+             <div className="s-name">{it.student_name||'Aluno'}</div>
+             <div className="s-meta">Enviada em {fmtDate((it.created_at||'').slice(0,10))}<br/>{has.join(' · ')||'Sem dados'}</div>
+           </div>);})}
+       </div>}
+    </div>);
+}
+
 /* ── App ── */
 function App({profile,setProfile}){
   const coachId=profile.id;
@@ -3563,6 +3775,12 @@ function App({profile,setProfile}){
     setStudents((sr.data||[]).map(rowToStu));
     setEvals((ar.data||[]).map(rowToEval));
   })();return()=>{alive=false;};},[coachId]);
+
+  const [intakeCount,setIntakeCount]=useState(0);
+  useEffect(()=>{if(profile._demo||!sb)return;let alive=true;(async()=>{
+    const {count}=await sb.from('assess_intakes').select('id',{count:'exact',head:true}).eq('coach_id',coachId).eq('status','pending');
+    if(alive&&count!=null)setIntakeCount(count);
+  })();return()=>{alive=false;};},[coachId,view]);
 
   const stuEvals=selStudent?evals.filter(e=>e.studentId===selStudent.id):[];
   const sortedStuEvals=[...stuEvals].sort((a,b)=>new Date(b.date)-new Date(a.date));
@@ -3609,6 +3827,27 @@ function App({profile,setProfile}){
     if(error){alert('Erro ao excluir: '+error.message);return;}
     setEvals(p=>p.filter(e=>e.id!==id));
   };
+  const importIntake=async(it)=>{
+    const d=it.data||{},ps=d.student||{},ed=d.eval||{},ph=d.photos||{};
+    let stu=students.find(s=>s.id===it.student_id);
+    if(!stu){
+      const ns={name:it.student_name||ps.name||'Aluno',gender:ps.gender||'M',dob:ps.dob||'',phone:'',email:'',profession:'',
+        goal:ps.goal||'',activity:ps.activity||'',schedule:ps.schedule||'',train_time:'',
+        health:ps.health||'',meds:ps.meds||'',family_hist:'',injuries:ps.injuries||'',smoker:'Não',alcohol:'Não',sleep:ps.sleep||'',
+        obs:'Cadastro criado a partir de ficha remota.',photo:ph.front||''};
+      const {data,error}=await sb.from('assess_students').insert(stuToRow(ns,coachId)).select().single();
+      if(error){alert('Erro ao criar aluno: '+error.message);return null;}
+      stu=rowToStu(data);setStudents(p=>[...p,stu]);
+    }
+    const ev={...BLANK_EVAL,studentId:stu.id,date:todayStr(),...ed,
+      post_photo_front:ph.front||'',post_photo_side:ph.side||'',post_photo_back:ph.back||'',
+      obs:'Avaliação a partir de ficha remota enviada em '+fmtDate((it.created_at||'').slice(0,10))+'.'};
+    const {data:er,error:ee}=await sb.from('assessments').insert(evalToRow(ev,coachId)).select().single();
+    if(ee){alert('Erro ao importar avaliação: '+ee.message);return null;}
+    setEvals(p=>[...p,rowToEval(er)]);
+    await sb.from('assess_intakes').update({status:'imported'}).eq('id',it.id);
+    return stu;
+  };
   const exportData=()=>{
     const data={app:'MF Performance',v:2,exportedAt:new Date().toISOString(),coach:profile.name,students,evals};
     const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
@@ -3631,6 +3870,7 @@ function App({profile,setProfile}){
         <button className={`nav-btn ${view==='dashboard'?'active':''}`} onClick={()=>go('dashboard')}>Dashboard</button>
         <button className="nav-btn" onClick={()=>{setEditStu(null);go('stu-form');}}>Novo aluno</button>
         <button className={`nav-btn ${view==='agenda'?'active':''}`} onClick={()=>{setSelStudent(null);go('agenda');}}>Agenda</button>
+        <button className={`nav-btn ${view==='intakes'?'active':''}`} onClick={()=>{setSelStudent(null);go('intakes');}}>Fichas online{intakeCount>0&&<span style={{marginLeft:6,background:'var(--gold)',color:'#1c0f16',borderRadius:10,padding:'0 7px',fontSize:11,fontWeight:700}}>{intakeCount}</span>}</button>
         <button className={`nav-btn ${view==='protocols'?'active':''}`} onClick={()=>go('protocols')}>Protocolos</button>
         {selStudent&&<>
           <hr className="nav-divider"/>
@@ -3672,6 +3912,7 @@ function App({profile,setProfile}){
             onReassess={s=>{setSelStudent(s);setEditEv(null);setReassess(true);go('ev-form');}}
             onSchedule={s=>{setSelStudent(s);go('agenda');}}/>}
           {view==='agenda'&&<AgendaScreen coach={profile} students={students} preStudent={selStudent} onBack={()=>go('dashboard')}/>}
+          {view==='intakes'&&<IntakeInbox coach={profile} students={students} onImport={importIntake} onBack={()=>go('dashboard')}/>}
           {view==='stu-form'&&<StudentForm student={editStu} onSave={saveStu} onCancel={()=>go(selStudent?'detail':'dashboard')}/>}
           {view==='detail'&&selStudent&&<StudentDetail student={selStudent} evals={stuEvals}
             onNewEval={()=>{setEditEv(null);setReassess(false);go('ev-form');}}
@@ -3696,6 +3937,8 @@ function Root(){
   const qs=typeof location!=='undefined'?new URLSearchParams(location.search):new URLSearchParams();
   const agendar=qs.get('agendar');
   if(agendar)return <BookingPage coachId={agendar} studentId={qs.get('aluno')||null}/>;
+  const ficha=qs.get('ficha');
+  if(ficha)return <RemoteIntakePage coachId={ficha} studentId={qs.get('aluno')||null}/>;
   const demo=qs.get('demo')==='1';
   if(demo)return <App profile={{id:'demo',name:'Ana Trainer',role:'coach',perf_until:'2999-12-31',brand_name:'Studio Performance',cref:'012345-G/SP',phone:'(11) 99999-0000',instagram:'@studio.performance',logo_url:'',is_admin:false,_demo:true}} setProfile={()=>{}}/>;
   useEffect(()=>{
