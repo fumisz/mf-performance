@@ -3919,8 +3919,20 @@ function TechReview({assess,studentName,history,coach,onBack,onSave,onDelete}){
   const [audioBlob,setAudioBlob]=useState(null);
   const [videoFile,setVideoFile]=useState(null);
   const [busy,setBusy]=useState(false);const [msg,setMsg]=useState(null);const [openHist,setOpenHist]=useState(null);
+  const [aiBusy,setAiBusy]=useState(false);const [aiErr,setAiErr]=useState(null);
   const items=assess.items||{};const exs=assess.exercises||[];
   const vidRef=useRef();
+  const genAI=async()=>{
+    setAiBusy(true);setAiErr(null);
+    try{
+      if(coach._demo){await new Promise(r=>setTimeout(r,600));setFb(p=>({...p,ai_summary:'Comparado com a avaliação anterior, houve melhora na estabilidade do joelho e maior amplitude no agachamento, com melhor controle excêntrico. Ainda recomenda-se trabalhar mobilidade de tornozelo e controle do tronco. Esta é uma análise de apoio e não substitui a avaliação do profissional.'}));setAiBusy(false);return;}
+      const {data,error}=await sb.functions.invoke('tech-ai-summary',{body:{assessId:assess.id}});
+      if(error)throw new Error(error.message||'Falha ao chamar a IA.');
+      if(!data||data.ok===false)throw new Error((data&&data.message)||'A IA não retornou um resumo.');
+      setFb(p=>({...p,ai_summary:data.summary||''}));
+    }catch(e){setAiErr('Erro: '+(e.message||e));}
+    setAiBusy(false);
+  };
   const save=async(markReviewed)=>{
     setBusy(true);setMsg(null);
     try{
@@ -3979,7 +3991,14 @@ function TechReview({assess,studentName,history,coach,onBack,onSave,onDelete}){
           {fb.video_path&&!videoFile&&<div className="s-meta" style={{marginTop:4}}>Vídeo de feedback já salvo.</div>}
           <input ref={vidRef} type="file" accept="video/*" capture="environment" style={{display:'none'}} onChange={e=>{const f=e.target.files[0];if(f)setVideoFile(f);}}/>
         </div>
-        <div className="alert alert-info" style={{marginTop:10}}>Análise automática por IA: disponível após configurar o serviço (em breve). Por ora, o resumo é seu.</div>
+        <div style={{marginTop:12,paddingTop:12,borderTop:'1px solid var(--border)'}}>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,flexWrap:'wrap'}}>
+            <label className="flbl" style={{margin:0}}>Resumo por IA <span style={{color:'var(--text3)',fontWeight:400}}>(apoio — não substitui sua avaliação)</span></label>
+            <button type="button" className="btn btn-secondary btn-sm" disabled={aiBusy||assess.status==='requested'} onClick={genAI}>{aiBusy?'Gerando…':fb.ai_summary?'Regerar':'Gerar resumo'}</button>
+          </div>
+          {aiErr&&<div className="alert alert-danger" style={{marginTop:8}}>{aiErr}</div>}
+          {(fb.ai_summary||aiBusy)&&<textarea className="fi" rows="4" style={{marginTop:8}} value={fb.ai_summary||''} placeholder={aiBusy?'A IA está analisando…':''} onChange={e=>setFb(p=>({...p,ai_summary:e.target.value}))}/>}
+        </div>
       </div>
     </div>);
 }
