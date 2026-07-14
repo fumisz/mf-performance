@@ -160,6 +160,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:1
 .sc-delta.up{color:#2f8f4e}.sc-delta.down{color:var(--red)}.sc-delta.flat{color:var(--text3)}
 .card-actions{display:flex;gap:6px;margin-top:10px}
 .card-actions .btn{flex:1;padding:6px 8px;font-size:11.5px}
+@media(max-width:680px){.tech-grid{grid-template-columns:1fr!important}}
 
 /* ── Stat cards ── */
 .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:11px;margin-bottom:22px}
@@ -1798,7 +1799,7 @@ function EvalForm({student,evalData,carryHeight,isReassess,onSave,onCancel}){
 }
 
 /* ── StudentDetail ── */
-function StudentDetail({student,evals,onNewEval,onReassess,onEditEval,onDeleteEval,onReport,onBack,onEdit}){
+function StudentDetail({student,evals,onNewEval,onReassess,onEditEval,onDeleteEval,onReport,onBack,onEdit,onTech}){
   const a=age(student.dob);
   const sorted=[...evals].sort((x,y)=>new Date(y.date)-new Date(x.date));
   const last=sorted[0];
@@ -1815,6 +1816,7 @@ function StudentDetail({student,evals,onNewEval,onReassess,onEditEval,onDeleteEv
         </div>
         <div className="bgroup">
           <button className="btn btn-ghost btn-sm" onClick={onEdit}>Editar Editar ficha</button>
+          <button className="btn btn-ghost btn-sm" onClick={onTech}>Avaliação técnica</button>
           {sorted.length>0&&<button className="btn btn-secondary" onClick={onReassess}> Reavaliação</button>}
           <button className="btn btn-primary" onClick={onNewEval}>＋ Nova avaliação</button>
         </div>
@@ -3749,6 +3751,403 @@ function IntakeInbox({coach,students,onImport,onBack}){
     </div>);
 }
 
+/* ══════════════ Avaliação Técnica por Vídeo ══════════════ */
+const TECH_EXERCISES=[
+  {key:'agachamento',label:'Agachamento Livre'},{key:'leg_press',label:'Leg Press'},
+  {key:'supino',label:'Supino'},{key:'remada',label:'Remada'},
+  {key:'desenvolvimento',label:'Desenvolvimento'},{key:'terra',label:'Levantamento Terra'},
+  {key:'afundo',label:'Afundo'},{key:'stiff',label:'Stiff'}
+];
+const TECH_ERRORS={
+  agachamento:['Joelhos entrando para dentro (valgo)','Calcanhares levantando','Pouca amplitude','Retroversão pélvica (butt wink)','Excesso de inclinação do tronco','Falta de estabilidade','Descontrole excêntrico','Valgo dinâmico'],
+  terra:['Lombar em flexão (perda do neutro)','Barra afastada do corpo','Quadril sobe antes do tronco','Hiperextensão no topo','Falta de ativação dorsal','Joelhos travam cedo'],
+  supino:['Cotovelos muito abertos','Perda de retração escapular','Ponte lombar excessiva','Amplitude incompleta','Trajetória da barra desalinhada','Descontrole excêntrico'],
+  remada:['Uso de impulso (roubo)','Falta de retração escapular','Tronco oscilando','Amplitude curta','Punho quebrado'],
+  desenvolvimento:['Hiperextensão lombar','Amplitude incompleta','Cotovelos muito à frente','Falta de estabilidade de core','Elevação dos ombros (trapézio)'],
+  leg_press:['Quadril sai do apoio','Joelhos para dentro','Amplitude curta','Extensão travada dos joelhos','Posicionamento dos pés inadequado'],
+  afundo:['Joelho ultrapassa muito a ponta do pé','Valgo do joelho','Tronco muito inclinado','Passada curta','Instabilidade / perda de equilíbrio'],
+  stiff:['Lombar fletida','Joelhos muito estendidos','Sem alongar posterior de coxa','Barra afastada do corpo','Hiperextensão no topo']
+};
+const TECH_ERRORS_GENERIC=['Amplitude incompleta','Falta de estabilidade','Descontrole excêntrico','Compensação postural','Ritmo/tempo inadequado','Respiração incorreta'];
+const techErrors=k=>TECH_ERRORS[k]||TECH_ERRORS_GENERIC;
+const techExLabel=k=>{const e=TECH_EXERCISES.find(x=>x.key===k);return e?e.label:k;};
+async function techUpload(file,coachId,assessId,sub){
+  const ext=((file.name||'').split('.').pop()||'mp4').toLowerCase().replace(/[^a-z0-9]/g,'')||'mp4';
+  const path=`${coachId}/${assessId}/${sub}/${uid()}${Date.now().toString(36)}.${ext}`;
+  const {error}=await sb.storage.from('assess-videos').upload(path,file,{contentType:file.type||'video/mp4',upsert:false});
+  if(error)throw error;return path;}
+async function techSignedUrl(path){if(!path)return null;try{const {data}=await sb.storage.from('assess-videos').createSignedUrl(path,3600);return data?data.signedUrl:null;}catch(e){return null;}}
+function techScores(a){return Object.values(a||{}).map(x=>num(x&&x.score)).filter(v=>v!=null);}
+function techAvg(a){const s=techScores(a);return s.length?+(s.reduce((x,y)=>x+y,0)/s.length).toFixed(1):null;}
+const techScoreColor=v=>v==null?'var(--text3)':v>=8?'#2f8f4e':v>=6?'#b0894f':v>=4?'#c98a3a':'#b3434f';
+
+/* Player que resolve a signed URL sob demanda (profissional autenticado) */
+function TechPlayer({path,url,poster,compact}){
+  const [src,setSrc]=useState(url||null);
+  useEffect(()=>{let a=true;if(!url&&path)techSignedUrl(path).then(u=>{if(a)setSrc(u);});return()=>{a=false;};},[path,url]);
+  if(url&&/youtube|youtu\.be|drive\.google/.test(url))
+    return <a className="btn btn-secondary btn-sm" href={url} target="_blank" rel="noopener">Abrir vídeo ↗</a>;
+  if(!src)return <div style={{height:compact?120:200,display:'flex',alignItems:'center',justifyContent:'center',background:'var(--bg3)',borderRadius:10,color:'var(--text3)',fontSize:12}}>{path?'carregando vídeo…':'sem vídeo'}</div>;
+  return <video src={src} controls playsInline preload="metadata" style={{width:'100%',borderRadius:10,background:'#000',maxHeight:compact?220:420}}/>;
+}
+
+/* ── Página pública: aluno grava/envia os vídeos ── */
+function TechVideoInput({label,file,note,onFile,onNote}){
+  const ref=useRef();const [preview,setPreview]=useState(null);
+  useEffect(()=>{if(!file){setPreview(null);return;}const u=URL.createObjectURL(file);setPreview(u);return()=>URL.revokeObjectURL(u);},[file]);
+  return(
+    <div className="sec" style={{marginBottom:12}}>
+      <div className="sec-title">{label}</div>
+      {preview?<>
+        <video src={preview} controls playsInline style={{width:'100%',maxWidth:320,borderRadius:10,background:'#000'}}/>
+        <div style={{display:'flex',gap:8,marginTop:8}}>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={()=>{onFile(null);}}>Regravar / trocar</button>
+        </div>
+      </>:
+        <div className="photo-up" style={{width:'100%',maxWidth:320,height:120}} onClick={()=>ref.current.click()}>
+          <div className="photo-ph"><span className="photo-ph-icon">Vídeo</span>gravar ou enviar da galeria</div></div>}
+      <input ref={ref} type="file" accept="video/*" capture="environment" style={{display:'none'}} onChange={e=>{const f=e.target.files[0];if(f)onFile(f);}}/>
+      <div className="fg" style={{marginTop:8}}><label className="flbl">Observação (opcional)</label>
+        <input className="fi" value={note||''} onChange={e=>onNote(e.target.value)} placeholder="Ex.: senti desconforto no ombro"/></div>
+    </div>);
+}
+function TechIntakePage({token}){
+  const [info,setInfo]=useState(undefined);
+  const [files,setFiles]=useState({});
+  const [notes,setNotes]=useState({});
+  const [busy,setBusy]=useState(false);
+  const [prog,setProg]=useState('');
+  const [done,setDone]=useState(false);
+  const [err,setErr]=useState(null);
+  useEffect(()=>{(async()=>{
+    if(!sb){setInfo(null);return;}
+    const {data,error}=await sb.rpc('tech_get',{p_token:token});
+    if(error||!data||data.ok===false){setErr(error?error.message:'Avaliação não encontrada.');setInfo(null);return;}
+    setInfo(data);setNotes(()=>{const n={};(data.exercises||[]).forEach(ex=>{const it=(data.items||{})[ex.key];if(it&&it.note)n[ex.key]=it.note;});return n;});
+  })();},[]);
+  const exs=(info&&info.exercises)||[];
+  const submit=async()=>{
+    const missing=exs.filter(ex=>!files[ex.key]);
+    if(missing.length===exs.length){setErr('Envie ao menos um vídeo.');return;}
+    setBusy(true);setErr(null);
+    try{
+      const items={...(info.items||{})};
+      let i=0;for(const ex of exs){const f=files[ex.key];if(f){i++;setProg(`Enviando ${i}/${exs.filter(e=>files[e.key]).length}: ${ex.label}…`);
+        const path=await techUpload(f,info.coach_id,info.id,ex.key);
+        items[ex.key]={...(items[ex.key]||{}),video_path:path,note:notes[ex.key]||''};}
+        else if(notes[ex.key]){items[ex.key]={...(items[ex.key]||{}),note:notes[ex.key]};}}
+      setProg('Finalizando…');
+      const {data:r,error}=await sb.rpc('tech_submit',{p_token:token,p_items:items});
+      if(error||(r&&r.ok===false))throw new Error(error?error.message:(r&&r.message)||'Falha ao enviar.');
+      setDone(true);window.scrollTo(0,0);
+    }catch(e){setErr('Erro: '+(e.message||e));}
+    setBusy(false);setProg('');
+  };
+  const brand=(info&&info.brand)||'MF Performance';
+  if(done)return(
+    <div className="center-screen" style={{padding:'24px 14px'}}><div className="auth-card" style={{maxWidth:460,textAlign:'center'}}>
+      <div style={{display:'flex',justifyContent:'center',marginBottom:12}}><LogoLifter size={92}/></div>
+      <div className="badge bg" style={{fontSize:14,padding:'8px 16px'}}>Vídeos enviados</div>
+      <p style={{marginTop:14,fontSize:15,lineHeight:1.6}}>Seu treinador vai analisar a execução e te dar o retorno técnico.</p>
+    </div></div>);
+  return(
+    <div style={{maxWidth:640,margin:'0 auto',padding:'22px 14px'}}>
+      <div style={{textAlign:'center',marginBottom:16}}>
+        <div style={{display:'flex',justifyContent:'center',marginBottom:8}}><LogoLifter size={88}/></div>
+        <div style={{fontFamily:'var(--serif)',fontSize:21,fontWeight:600}}>{brand}</div>
+        <div className="s-meta">Avaliação Técnica{info&&info.title?' — '+info.title:''}</div>
+      </div>
+      {info===undefined&&<div className="center-screen" style={{minHeight:120}}><div className="spinner"/></div>}
+      {info===null&&<div className="alert alert-danger">Não foi possível abrir a avaliação.{err?' ('+err+')':''}</div>}
+      {info&&info.status==='reviewed'&&<div className="alert alert-warn">Esta avaliação já foi concluída pelo seu treinador.</div>}
+      {info&&<>
+        <div className="alert alert-info">Grave cada exercício de um ângulo que mostre o corpo inteiro (de lado costuma ser melhor). Você pode gravar na hora ou enviar da galeria, revisar e regravar antes de enviar.</div>
+        {err&&<div className="alert alert-danger">{err}</div>}
+        {exs.map(ex=><TechVideoInput key={ex.key} label={ex.label} file={files[ex.key]} note={notes[ex.key]}
+          onFile={f=>setFiles(p=>({...p,[ex.key]:f}))} onNote={v=>setNotes(p=>({...p,[ex.key]:v}))}/>)}
+        {prog&&<div className="alert alert-info">{prog}</div>}
+        <button className="btn btn-primary" style={{width:'100%',marginTop:8}} disabled={busy} onClick={submit}>{busy?'Enviando…':'Enviar avaliação'}</button>
+        <p className="s-meta" style={{textAlign:'center',marginTop:10}}>Os vídeos vão direto e em segurança para o seu treinador.</p>
+      </>}
+    </div>);
+}
+
+/* Gravador de áudio (feedback do profissional) via MediaRecorder */
+function AudioRecorder({onBlob,existingUrl}){
+  const [recing,setRecing]=useState(false);const [url,setUrl]=useState(existingUrl||null);
+  const mr=useRef(null),chunks=useRef([]);
+  const start=async()=>{try{const stream=await navigator.mediaDevices.getUserMedia({audio:true});chunks.current=[];
+    const m=new MediaRecorder(stream);mr.current=m;m.ondataavailable=e=>{if(e.data.size)chunks.current.push(e.data);};
+    m.onstop=()=>{const b=new Blob(chunks.current,{type:chunks.current[0]?.type||'audio/webm'});setUrl(URL.createObjectURL(b));onBlob(b);stream.getTracks().forEach(t=>t.stop());};
+    m.start();setRecing(true);}catch(e){alert('Não foi possível acessar o microfone.');}};
+  const stop=()=>{if(mr.current&&recing){mr.current.stop();setRecing(false);}};
+  return(<div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}}>
+    {!recing?<button type="button" className="btn btn-secondary btn-sm" onClick={start}>● Gravar áudio</button>
+      :<button type="button" className="btn btn-primary btn-sm" onClick={stop}>■ Parar</button>}
+    {url&&<audio src={url} controls style={{height:34}}/>}
+    {url&&!recing&&<button type="button" className="btn btn-ghost btn-sm" onClick={()=>{setUrl(null);onBlob(null);}}>×</button>}
+  </div>);
+}
+
+/* Painel de análise de um exercício */
+function TechItemAnalysis({exKey,an,onChange}){
+  const a=an||{};const errs=techErrors(exKey);const selErr=a.errors||[];
+  const toggleErr=e=>onChange({...a,errors:selErr.includes(e)?selErr.filter(x=>x!==e):[...selErr,e]});
+  return(<div style={{marginTop:10}}>
+    <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:10,flexWrap:'wrap'}}>
+      <label className="flbl" style={{margin:0}}>Nota técnica</label>
+      <input type="range" min="0" max="10" step="0.1" value={a.score??5} onChange={e=>onChange({...a,score:+e.target.value})} style={{flex:1,minWidth:140}}/>
+      <span style={{fontFamily:'var(--serif)',fontSize:22,fontWeight:600,color:techScoreColor(a.score),minWidth:44,textAlign:'right'}}>{a.score!=null?fmt(a.score):'—'}</span>
+    </div>
+    <label className="flbl">Erros comuns</label>
+    <div style={{display:'flex',flexWrap:'wrap',gap:7,marginBottom:10}}>
+      {errs.map(e=><button key={e} type="button" className={`chip ${selErr.includes(e)?'active':''}`} onClick={()=>toggleErr(e)}>{e}</button>)}
+    </div>
+    <div className="fgrid2">
+      <div className="fg"><label className="flbl">Pontos positivos</label><textarea className="fi" rows="2" value={a.positives||''} onChange={e=>onChange({...a,positives:e.target.value})}/></div>
+      <div className="fg"><label className="flbl">Pontos a corrigir</label><textarea className="fi" rows="2" value={a.corrections||''} onChange={e=>onChange({...a,corrections:e.target.value})}/></div>
+    </div>
+    <div className="fg"><label className="flbl">Recomendações</label><textarea className="fi" rows="2" value={a.recs||''} onChange={e=>onChange({...a,recs:e.target.value})}/></div>
+    <div className="fg"><label className="flbl">Observações gerais</label><textarea className="fi" rows="2" value={a.notes||''} onChange={e=>onChange({...a,notes:e.target.value})}/></div>
+  </div>);
+}
+
+/* Revisão de uma avaliação técnica */
+function TechReview({assess,studentName,history,coach,onBack,onSave,onDelete}){
+  const [an,setAn]=useState(assess.analysis||{});
+  const [fb,setFb]=useState(assess.feedback||{});
+  const [audioBlob,setAudioBlob]=useState(null);
+  const [videoFile,setVideoFile]=useState(null);
+  const [busy,setBusy]=useState(false);const [msg,setMsg]=useState(null);const [openHist,setOpenHist]=useState(null);
+  const items=assess.items||{};const exs=assess.exercises||[];
+  const vidRef=useRef();
+  const save=async(markReviewed)=>{
+    setBusy(true);setMsg(null);
+    try{
+      const fb2={...fb};
+      if(audioBlob){const p=await techUpload(new File([audioBlob],'fb.webm',{type:audioBlob.type}),coach.id,assess.id,'feedback');fb2.audio_path=p;}
+      if(audioBlob===false)fb2.audio_path=null;
+      if(videoFile){const p=await techUpload(videoFile,coach.id,assess.id,'feedback');fb2.video_path=p;}
+      const patch={analysis:an,feedback:fb2};if(markReviewed){patch.status='reviewed';patch.reviewed_at=new Date().toISOString();}
+      await onSave(assess.id,patch);setFb(fb2);setAudioBlob(null);setVideoFile(null);
+      setMsg({t:'ok',m:markReviewed?'Avaliação concluída e salva.':'Análise salva.'});
+    }catch(e){setMsg({t:'err',m:'Erro ao salvar: '+(e.message||e)});}
+    setBusy(false);
+  };
+  return(
+    <div>
+      <div className="abar"><div><div className="breadcrumb" onClick={onBack}>← Avaliações técnicas</div>
+        <div className="ph-title">{assess.title||'Avaliação técnica'}</div>
+        <div className="ph-sub">{studentName} · {fmtDate((assess.created_at||'').slice(0,10))} · <span className={`badge ${assess.status==='reviewed'?'bg':assess.status==='submitted'?'bb':'ba'}`}>{assess.status==='reviewed'?'Concluída':assess.status==='submitted'?'Enviada':'Aguardando aluno'}</span></div></div>
+        <div className="bgroup">
+          <button className="btn btn-ghost" onClick={()=>{if(confirm('Excluir esta avaliação técnica e seus vídeos?'))onDelete(assess.id);}}>Excluir</button>
+          <button className="btn btn-secondary" disabled={busy} onClick={()=>save(false)}>Salvar</button>
+          <button className="btn btn-primary" disabled={busy} onClick={()=>save(true)}>{busy?'Salvando…':'Concluir'}</button>
+        </div>
+      </div>
+      {msg&&<div className={`alert ${msg.t==='err'?'alert-danger':'alert-success'}`}>{msg.m}</div>}
+      {assess.status==='requested'&&<div className="alert alert-warn">O aluno ainda não enviou os vídeos.</div>}
+
+      {exs.map(ex=>{const it=items[ex.key]||{};const hist=(history||[]).map(h=>({date:h.created_at,score:(h.analysis||{})[ex.key]?.score,notes:(h.analysis||{})[ex.key]?.notes})).filter(h=>h.score!=null);
+        return(
+        <div key={ex.key} className="dash-panel" style={{marginBottom:14}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:8}}>
+            <h4 style={{margin:0}}>{ex.label}</h4>
+            {hist.length>0&&<button type="button" className="btn btn-ghost btn-sm" onClick={()=>setOpenHist(openHist===ex.key?null:ex.key)}>Histórico ({hist.length})</button>}
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:'minmax(0,1fr) minmax(0,1.1fr)',gap:16,marginTop:10,alignItems:'start'}} className="tech-grid">
+            <div>
+              {(it.video_path||it.video_url)?<TechPlayer path={it.video_path} url={it.video_url}/>:<div style={{padding:20,textAlign:'center',color:'var(--text3)',background:'var(--bg3)',borderRadius:10,fontSize:12}}>Sem vídeo enviado</div>}
+              {it.note&&<div style={{marginTop:8,fontSize:12.5,color:'var(--text2)'}}><b>Aluno:</b> {it.note}</div>}
+              {openHist===ex.key&&<div style={{marginTop:10,borderTop:'1px solid var(--border)',paddingTop:8}}>
+                {hist.map((h,i)=><div key={i} style={{display:'flex',justifyContent:'space-between',fontSize:12,padding:'3px 0'}}>
+                  <span className="s-meta">{fmtDate((h.date||'').slice(0,10))}</span><span style={{fontWeight:600,color:techScoreColor(h.score)}}>{fmt(h.score)}</span></div>)}
+              </div>}
+            </div>
+            <TechItemAnalysis exKey={ex.key} an={an[ex.key]} onChange={v=>setAn(p=>({...p,[ex.key]:v}))}/>
+          </div>
+        </div>);})}
+
+      <div className="dash-panel" style={{marginBottom:14}}><h4>Feedback ao aluno</h4>
+        <div className="fg"><label className="flbl">Mensagem (texto)</label><textarea className="fi" rows="3" value={fb.text||''} onChange={e=>setFb(p=>({...p,text:e.target.value}))} placeholder="Resumo do retorno técnico…"/></div>
+        <label className="flbl">Áudio</label>
+        <AudioRecorder existingUrl={null} onBlob={b=>setAudioBlob(b===null?false:b)}/>
+        {fb.audio_path&&!audioBlob&&<div className="s-meta" style={{marginTop:4}}>Áudio já salvo nesta avaliação.</div>}
+        <div className="fg" style={{marginTop:10}}><label className="flbl">Vídeo curto demonstrativo</label>
+          {videoFile?<div className="s-meta">Vídeo selecionado: {videoFile.name} <button className="btn btn-ghost btn-sm" onClick={()=>setVideoFile(null)}>×</button></div>
+            :<button type="button" className="btn btn-secondary btn-sm" onClick={()=>vidRef.current.click()}>Gravar / enviar vídeo</button>}
+          {fb.video_path&&!videoFile&&<div className="s-meta" style={{marginTop:4}}>Vídeo de feedback já salvo.</div>}
+          <input ref={vidRef} type="file" accept="video/*" capture="environment" style={{display:'none'}} onChange={e=>{const f=e.target.files[0];if(f)setVideoFile(f);}}/>
+        </div>
+        <div className="alert alert-info" style={{marginTop:10}}>Análise automática por IA: disponível após configurar o serviço (em breve). Por ora, o resumo é seu.</div>
+      </div>
+    </div>);
+}
+
+/* Comparação entre duas avaliações */
+function TechCompare({list,students,preStudent,onBack}){
+  const withVid=list.filter(a=>Object.values(a.items||{}).some(it=>it&&(it.video_path||it.video_url)));
+  const [aId,setAId]=useState(withVid[withVid.length-1]?.id||'');
+  const [bId,setBId]=useState(withVid[0]?.id||'');
+  const A=list.find(x=>x.id===aId),B=list.find(x=>x.id===bId);
+  const commonEx=(A&&B)?(A.exercises||[]).filter(e=>(B.exercises||[]).some(x=>x.key===e.key)):[];
+  const [exKey,setExKey]=useState('');
+  const ex=exKey||commonEx[0]?.key;
+  const itA=A&&(A.items||{})[ex],itB=B&&(B.items||{})[ex];
+  const scA=A&&(A.analysis||{})[ex]?.score,scB=B&&(B.analysis||{})[ex]?.score;
+  const diff=(scA!=null&&scB!=null)?+(scB-scA).toFixed(1):null;
+  const opt=a=>`${students.find(s=>s.id===a.student_id)?.name||'Aluno'} · ${a.title||fmtDate((a.created_at||'').slice(0,10))}`;
+  return(
+    <div>
+      <div className="abar"><div><div className="breadcrumb" onClick={onBack}>← Avaliações técnicas</div>
+        <div className="ph-title">Comparar avaliações</div></div></div>
+      <div className="dash-panel" style={{marginBottom:14}}>
+        <div className="fgrid2">
+          <div className="fg"><label className="flbl">Avaliação A (antes)</label><select className="fi" value={aId} onChange={e=>setAId(e.target.value)}>{withVid.map(a=><option key={a.id} value={a.id}>{opt(a)}</option>)}</select></div>
+          <div className="fg"><label className="flbl">Avaliação B (depois)</label><select className="fi" value={bId} onChange={e=>setBId(e.target.value)}>{withVid.map(a=><option key={a.id} value={a.id}>{opt(a)}</option>)}</select></div>
+        </div>
+        {commonEx.length>0&&<div className="fg"><label className="flbl">Exercício</label><select className="fi" style={{maxWidth:280}} value={ex} onChange={e=>setExKey(e.target.value)}>{commonEx.map(e=><option key={e.key} value={e.key}>{e.label}</option>)}</select></div>}
+      </div>
+      {diff!=null&&<div className="kpi-row" style={{marginBottom:14}}>
+        <div className="kpi"><div className="kpi-lbl">Nota A</div><div className="kpi-val" style={{color:techScoreColor(scA)}}>{fmt(scA)}</div></div>
+        <div className="kpi"><div className="kpi-lbl">Nota B</div><div className="kpi-val" style={{color:techScoreColor(scB)}}>{fmt(scB)}</div></div>
+        <div className={`kpi ${diff>0?'k-good':diff<0?'k-bad':''}`}><div className="kpi-lbl">Evolução</div><div className="kpi-val" style={{color:diff>0?'#2f8f4e':diff<0?'var(--red)':'var(--text3)'}}>{diff>0?'+':''}{fmt(diff)}</div></div>
+      </div>}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}} className="tech-grid">
+        {[[A,itA,scA,'A'],[B,itB,scB,'B']].map(([av,it,sc],i)=>(
+          <div key={i} className="dash-panel"><h4>{i===0?'Antes':'Depois'} — {av?opt(av):''}</h4>
+            {it&&(it.video_path||it.video_url)?<TechPlayer path={it.video_path} url={it.video_url} compact/>:<div style={{padding:16,textAlign:'center',color:'var(--text3)',fontSize:12}}>Sem vídeo</div>}
+            <div style={{marginTop:8}}><span className="s-meta">Nota: </span><b style={{color:techScoreColor(sc)}}>{sc!=null?fmt(sc):'—'}</b></div>
+            {av&&(av.analysis||{})[ex]?.notes&&<div style={{fontSize:12.5,marginTop:6,color:'var(--text2)'}}>{(av.analysis||{})[ex].notes}</div>}
+          </div>))}
+      </div>
+    </div>);
+}
+
+/* Hub das avaliações técnicas (lista + dashboard + criação) */
+function TechScreen({coach,students,preStudent,onBack}){
+  const demo=!!coach._demo;
+  const [list,setList]=useState(demo?[]:null);
+  const [mode,setMode]=useState('list');
+  const [selId,setSelId]=useState(null);
+  const [stuFilter,setStuFilter]=useState(preStudent?preStudent.id:'');
+  const [msg,setMsg]=useState(null);
+  // criação
+  const [cStu,setCStu]=useState(preStudent?preStudent.id:'');
+  const [cTitle,setCTitle]=useState('Avaliação inicial');
+  const [cEx,setCEx]=useState(TECH_EXERCISES.slice(0,4).map(e=>e.key));
+  const [linkRow,setLinkRow]=useState(null);
+
+  const load=async()=>{if(demo){setList([]);return;}
+    const {data,error}=await sb.from('assess_tech').select('*').eq('coach_id',coach.id).order('created_at',{ascending:false});
+    if(error){setMsg({t:'err',m:'Erro ao carregar: '+error.message});setList([]);return;}setList(data||[]);};
+  useEffect(()=>{load();},[]);
+  const savePatch=async(id,patch)=>{setList(p=>p.map(x=>x.id===id?{...x,...patch}:x));if(!demo){const {error}=await sb.from('assess_tech').update(patch).eq('id',id);if(error)throw error;}};
+  const del=async(id)=>{setList(p=>p.filter(x=>x.id!==id));if(!demo)await sb.from('assess_tech').delete().eq('id',id);setMode('list');setSelId(null);};
+
+  const filtered=(list||[]).filter(a=>!stuFilter||a.student_id===stuFilter);
+  const sel=(list||[]).find(a=>a.id===selId);
+  const stuName=id=>students.find(x=>x.id===id)?.name||'Aluno';
+  const base=location.origin+location.pathname;
+
+  const create=async()=>{
+    if(!cStu){setMsg({t:'err',m:'Escolha o aluno.'});return;}
+    if(!cEx.length){setMsg({t:'err',m:'Escolha ao menos um exercício.'});return;}
+    const exercises=cEx.map(k=>({key:k,label:techExLabel(k)}));
+    if(demo){const row={id:'d'+Date.now(),token:'demo-token',coach_id:coach.id,student_id:cStu,title:cTitle,status:'requested',exercises,items:{},analysis:{},feedback:{},created_at:new Date().toISOString()};setList(p=>[row,...p]);setLinkRow(row);setMode('list');return;}
+    const {data,error}=await sb.from('assess_tech').insert({coach_id:coach.id,student_id:cStu,title:cTitle,status:'requested',exercises}).select().single();
+    if(error){setMsg({t:'err',m:'Erro: '+error.message});return;}
+    setList(p=>[data,...p]);setLinkRow(data);setMode('list');setMsg({t:'ok',m:'Avaliação criada. Envie o link para o aluno gravar.'});
+  };
+  const rowLink=r=>base+'?tecnica='+r.token;
+  const sendWa=r=>{const s=students.find(x=>x.id===r.student_id);const phone=(s?.phone||'').replace(/\D/g,'');const txt=encodeURIComponent(`Olá${s?', '+s.name.split(' ')[0]:''}! Grave seus exercícios para avaliação técnica por aqui:\n${rowLink(r)}`);window.open(phone?`https://wa.me/55${phone}?text=${txt}`:`https://wa.me/?text=${txt}`,'_blank');};
+  const copy=r=>{const l=rowLink(r);if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(l).then(()=>setMsg({t:'ok',m:'Link copiado.'})).catch(()=>{});};
+
+  if(mode==='review'&&sel)return <TechReview assess={sel} studentName={stuName(sel.student_id)} coach={coach}
+    history={(list||[]).filter(a=>a.student_id===sel.student_id&&a.id!==sel.id).sort((a,b)=>new Date(a.created_at)-new Date(b.created_at))}
+    onBack={()=>{setMode('list');setSelId(null);}} onSave={savePatch} onDelete={del}/>;
+  if(mode==='compare')return <TechCompare list={filtered.length>1?filtered:(list||[])} students={students} preStudent={preStudent} onBack={()=>setMode('list')}/>;
+
+  // dashboard resumo
+  const withV=filtered.filter(a=>a.status!=='requested');
+  const totalVids=filtered.reduce((s,a)=>s+Object.values(a.items||{}).filter(it=>it&&(it.video_path||it.video_url)).length,0);
+  const allScores=filtered.flatMap(a=>techScores(a.analysis));
+  const avgScore=allScores.length?+(allScores.reduce((x,y)=>x+y,0)/allScores.length).toFixed(1):null;
+  const exSet=new Set(filtered.flatMap(a=>(a.exercises||[]).map(e=>e.key)));
+  const evo=[...filtered].filter(a=>techAvg(a.analysis)!=null).sort((a,b)=>new Date(a.created_at)-new Date(b.created_at)).map(a=>techAvg(a.analysis));
+  const pending=filtered.filter(a=>a.status==='submitted').length;
+
+  return(
+    <div>
+      <div className="abar"><div><div className="breadcrumb" onClick={onBack}>← Painel</div>
+        <div className="ph-title">Avaliação Técnica por Vídeo</div>
+        <div className="ph-sub">Execução dos exercícios · histórico técnico</div></div>
+        <div className="bgroup">
+          <button className="btn btn-secondary" onClick={()=>setMode('compare')}>Comparar</button>
+          <button className="btn btn-primary" onClick={()=>{setLinkRow(null);setMode('create');}}>Nova avaliação técnica</button>
+        </div>
+      </div>
+      {msg&&<div className={`alert ${msg.t==='err'?'alert-danger':'alert-success'}`}>{msg.m}</div>}
+      {demo&&<div className="alert alert-warn">Modo demonstração: dados não são salvos.</div>}
+
+      {mode==='create'?<div className="dash-panel" style={{marginBottom:16}}>
+        <h4>Nova avaliação técnica</h4>
+        <div className="fgrid2">
+          <div className="fg"><label className="flbl">Aluno</label><select className="fi" value={cStu} onChange={e=>setCStu(e.target.value)}><option value="">Selecione…</option>{students.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
+          <div className="fg"><label className="flbl">Título</label><input className="fi" value={cTitle} onChange={e=>setCTitle(e.target.value)} placeholder="Ex.: Reavaliação 30 dias"/></div>
+        </div>
+        <label className="flbl">Exercícios a gravar</label>
+        <div style={{display:'flex',flexWrap:'wrap',gap:7,marginBottom:12}}>
+          {TECH_EXERCISES.map(e=><button key={e.key} type="button" className={`chip ${cEx.includes(e.key)?'active':''}`} onClick={()=>setCEx(p=>p.includes(e.key)?p.filter(x=>x!==e.key):[...p,e.key])}>{e.label}</button>)}
+        </div>
+        <div className="bgroup"><button className="btn btn-ghost" onClick={()=>setMode('list')}>Cancelar</button>
+          <button className="btn btn-primary" onClick={create}>Criar e gerar link</button></div>
+      </div>:<>
+
+      {students.length>0&&<div style={{display:'flex',gap:10,marginBottom:14,flexWrap:'wrap',alignItems:'center'}}>
+        <select className="fi" style={{width:'auto',minWidth:200}} value={stuFilter} onChange={e=>setStuFilter(e.target.value)}>
+          <option value="">Todos os alunos</option>{students.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select>
+      </div>}
+
+      {filtered.length>0&&<div className="kpi-row">
+        <div className="kpi"><div className="kpi-lbl">Avaliações</div><div className="kpi-val">{filtered.length}</div><div className="kpi-sub">{pending>0?`${pending} para revisar`:'realizadas'}</div></div>
+        <div className="kpi"><div className="kpi-lbl">Vídeos enviados</div><div className="kpi-val">{totalVids}</div></div>
+        <div className="kpi"><div className="kpi-lbl">Exercícios avaliados</div><div className="kpi-val">{exSet.size}</div></div>
+        <div className="kpi"><div className="kpi-lbl">Nota técnica média</div><div className="kpi-val" style={{color:techScoreColor(avgScore)}}>{avgScore??'—'}</div>
+          {evo.length>=2&&<div style={{marginTop:6}}><Sparkline values={evo} color={techScoreColor(avgScore)} w={110} h={30}/></div>}</div>
+      </div>}
+
+      {linkRow&&<div className="dash-panel" style={{marginBottom:16}}>
+        <h4>Enviar link para {stuName(linkRow.student_id)}</h4>
+        <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:8}}>
+          <button className="btn btn-secondary" onClick={()=>copy(linkRow)}>Copiar link</button>
+          <button className="btn btn-primary" onClick={()=>sendWa(linkRow)}>Enviar por WhatsApp</button>
+        </div>
+        <div style={{fontSize:11.5,color:'var(--text3)',wordBreak:'break-all',background:'var(--bg3)',padding:'8px 10px',borderRadius:8}}>{rowLink(linkRow)}</div>
+      </div>}
+
+      {list===null?<div className="center-screen"><div className="spinner"/></div>:
+       filtered.length===0?<div className="empty"><div className="empty-title">Nenhuma avaliação técnica</div>
+         <p className="s-meta">Crie uma avaliação e envie o link para o aluno gravar os exercícios.</p></div>:
+       <div className="student-grid">
+        {filtered.map(a=>{const nv=Object.values(a.items||{}).filter(it=>it&&(it.video_path||it.video_url)).length;const avg=techAvg(a.analysis);
+          return(
+          <div key={a.id} className="student-card" onClick={()=>{setSelId(a.id);setMode('review');}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+              <span className={`badge ${a.status==='reviewed'?'bg':a.status==='submitted'?'bb':'ba'}`} style={{marginBottom:6}}>{a.status==='reviewed'?'Concluída':a.status==='submitted'?'Enviada':'Aguardando'}</span>
+              {avg!=null&&<span style={{fontFamily:'var(--serif)',fontSize:20,fontWeight:600,color:techScoreColor(avg)}}>{fmt(avg)}</span>}
+            </div>
+            <div className="s-name">{a.title||'Avaliação técnica'}</div>
+            <div className="s-meta">{stuName(a.student_id)}<br/>{fmtDate((a.created_at||'').slice(0,10))} · {nv}/{(a.exercises||[]).length} vídeos</div>
+            <div className="card-actions" onClick={e=>e.stopPropagation()}>
+              <button className="btn btn-ghost" onClick={()=>{setLinkRow(a);window.scrollTo(0,0);}}>Link</button>
+            </div>
+          </div>);})}
+       </div>}
+      </>}
+    </div>);
+}
+
 /* ── App ── */
 function App({profile,setProfile}){
   const coachId=profile.id;
@@ -3871,6 +4270,7 @@ function App({profile,setProfile}){
         <button className="nav-btn" onClick={()=>{setEditStu(null);go('stu-form');}}>Novo aluno</button>
         <button className={`nav-btn ${view==='agenda'?'active':''}`} onClick={()=>{setSelStudent(null);go('agenda');}}>Agenda</button>
         <button className={`nav-btn ${view==='intakes'?'active':''}`} onClick={()=>{setSelStudent(null);go('intakes');}}>Fichas online{intakeCount>0&&<span style={{marginLeft:6,background:'var(--gold)',color:'#1c0f16',borderRadius:10,padding:'0 7px',fontSize:11,fontWeight:700}}>{intakeCount}</span>}</button>
+        <button className={`nav-btn ${view==='tech'?'active':''}`} onClick={()=>{setSelStudent(null);go('tech');}}>Avaliação técnica</button>
         <button className={`nav-btn ${view==='protocols'?'active':''}`} onClick={()=>go('protocols')}>Protocolos</button>
         {selStudent&&<>
           <hr className="nav-divider"/>
@@ -3913,13 +4313,14 @@ function App({profile,setProfile}){
             onSchedule={s=>{setSelStudent(s);go('agenda');}}/>}
           {view==='agenda'&&<AgendaScreen coach={profile} students={students} preStudent={selStudent} onBack={()=>go('dashboard')}/>}
           {view==='intakes'&&<IntakeInbox coach={profile} students={students} onImport={importIntake} onBack={()=>go('dashboard')}/>}
+          {view==='tech'&&<TechScreen coach={profile} students={students} preStudent={selStudent} onBack={()=>go('dashboard')}/>}
           {view==='stu-form'&&<StudentForm student={editStu} onSave={saveStu} onCancel={()=>go(selStudent?'detail':'dashboard')}/>}
           {view==='detail'&&selStudent&&<StudentDetail student={selStudent} evals={stuEvals}
             onNewEval={()=>{setEditEv(null);setReassess(false);go('ev-form');}}
             onReassess={()=>{setEditEv(null);setReassess(true);go('ev-form');}}
             onEditEval={ev=>{setEditEv(ev);setReassess(false);go('ev-form');}}
             onDeleteEval={delEv} onReport={ev=>{setSelEval(ev);go('report');}}
-            onBack={()=>go('dashboard')} onEdit={()=>{setEditStu(selStudent);go('stu-form');}}/>}
+            onBack={()=>go('dashboard')} onEdit={()=>{setEditStu(selStudent);go('stu-form');}} onTech={()=>go('tech')}/>}
           {view==='ev-form'&&selStudent&&<EvalForm student={selStudent} evalData={editEv}
             carryHeight={reassess?lastHeight:''} isReassess={reassess&&!editEv}
             onSave={saveEv} onCancel={()=>go('detail')}/>}
@@ -3939,6 +4340,8 @@ function Root(){
   if(agendar)return <BookingPage coachId={agendar} studentId={qs.get('aluno')||null}/>;
   const ficha=qs.get('ficha');
   if(ficha)return <RemoteIntakePage coachId={ficha} studentId={qs.get('aluno')||null}/>;
+  const tecnica=qs.get('tecnica');
+  if(tecnica)return <TechIntakePage token={tecnica}/>;
   const demo=qs.get('demo')==='1';
   if(demo)return <App profile={{id:'demo',name:'Ana Trainer',role:'coach',perf_until:'2999-12-31',brand_name:'Studio Performance',cref:'012345-G/SP',phone:'(11) 99999-0000',instagram:'@studio.performance',logo_url:'',is_admin:false,_demo:true}} setProfile={()=>{}}/>;
   useEffect(()=>{
