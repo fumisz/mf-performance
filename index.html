@@ -603,6 +603,16 @@ function tmbCalc(leanKg,weight,heightCm,ageYrs,gender){
 }
 const ACTIVITY_FACTOR={'Sedentário':1.2,'Levemente ativo':1.375,'Moderadamente ativo':1.55,'Muito ativo':1.725,'Atleta':1.9};
 function gastoTotal(tmb,activity){const t=num(tmb);if(!t)return null;return Math.round(t*(ACTIVITY_FACTOR[activity]||1.375));}
+/* Ingestão hídrica diária recomendada (mL/dia). Base ~35 mL/kg para adultos,
+   ajustada por idade (idosos menos; crianças/adolescentes mais) + acréscimo por
+   nível de atividade (perda hídrica no exercício). Referência de apoio. */
+function hydrationMl(weightKg,activity,ageYrs){
+  const w=num(weightKg);if(!w)return null;
+  const a=num(ageYrs)||30;
+  const perKg=a>=65?30:a<18?40:35;
+  const bonus={'Sedentário':0,'Levemente ativo':250,'Moderadamente ativo':500,'Muito ativo':750,'Atleta':1000};
+  const ml=w*perKg+(bonus[activity]??250);
+  return Math.round(ml/50)*50;}
 /* Projeção de metas até a próxima reavaliação (fácil/razoável/difícil) */
 function projectGoals(ev,d){
   if(!ev.goal_next||!ev.date)return null;
@@ -840,7 +850,8 @@ function derive(student,ev){
   const ffmiV=ffmi(leanMass,ev.height);
   const tmb=num(ev.bio_bmr)||tmbCalc(leanMass,ev.weight,ev.height,a,student.gender);
   const get=gastoTotal(tmb,student.activity);
-  return {bmi:b,jp,fatPct,leanMass,fatMass,rcq,dynAvg,weight:w,whtr:wh,ffmi:ffmiV,tmb,get};
+  const hidr=hydrationMl(ev.weight,student.activity,a);
+  return {bmi:b,jp,fatPct,leanMass,fatMass,rcq,dynAvg,weight:w,whtr:wh,ffmi:ffmiV,tmb,get,hidr};
 }
 
 /* ── Mapa corporal (screening de lesões) ── */
@@ -1415,13 +1426,14 @@ function EvalForm({student,evalData,carryHeight,isReassess,onSave,onCancel}){
           <button className="btn btn-primary" onClick={()=>onSave({...f,id:evalData?.id||uid()})}> Salvar avaliação</button>
         </div>
       </div>
-      {(d.bmi||bpCls||d.fatPct||d.dynAvg)&&(
+      {(d.bmi||bpCls||d.fatPct||d.dynAvg||d.hidr)&&(
         <div className="stat-grid">
           {d.bmi&&<Stat lbl="IMC" val={fmt(d.bmi)} unit="kg/m²" badge={bmiCls}/>}
           {bpCls&&<Stat lbl="Pressão arterial" val={`${f.bp_sys}/${f.bp_dia}`} unit="mmHg" badge={bpCls}/>}
           {d.fatPct!=null&&<Stat lbl="% Gordura" val={fmt(d.fatPct)} unit="%" badge={fatCls}/>}
           {d.dynAvg&&<Stat lbl="Preensão média" val={fmt(d.dynAvg)} unit="kgf"/>}
           {d.rcq&&<Stat lbl="Cintura/Quadril" val={fmt(d.rcq,2)}/>}
+          {d.hidr&&<Stat lbl="Hidratação/dia" val={(d.hidr/1000).toFixed(1).replace('.',',')} unit="L"/>}
         </div>)}
       <div className="card" style={{marginBottom:16}}>
         <div className="sec-title" style={{marginBottom:12}}> Protocolos desta avaliação</div>
@@ -1933,6 +1945,7 @@ function shareWhatsApp(student,evalData,prevEval){
   if(d.leanMass!=null)L.push(` Massa magra: ${d.leanMass} kg`);
   if(evalData.bp_sys&&evalData.bp_dia)L.push(` Pressão: ${evalData.bp_sys}/${evalData.bp_dia} mmHg`);
   if(d.dynAvg)L.push(` Preensão: ${d.dynAvg} kgf`);
+  if(d.hidr)L.push(` Hidratação: ${(d.hidr/1000).toFixed(1).replace('.',',')} L/dia (~${Math.round(d.hidr/250)} copos)`);
   if(prevEval){
     const hi=buildHighlights(student,evalData,prevEval);
     if(hi.length){L.push('');L.push(`*Evolução desde ${fmtDate(prevEval.date)}:*`);hi.forEach(h=>L.push(`${h.ico} ${h.txt}`));}
@@ -2525,12 +2538,13 @@ function Report({student,evalData,allEvals,onBack,coach}){
                     {d.dynAvg&&<Row lbl="Média preensão" val={d.dynAvg} unit="kgf" prev={dp?.dynAvg}/>}
                   </tbody></table>
                 </div>)}
-              {d.tmb&&(
+              {(d.tmb||d.hidr)&&(
                 <div className="rpt-sec"><div className="rpt-sec-title">Indicadores metabólicos</div>
                   <table className="rpt-tbl"><tbody>
-                    <Row lbl="Taxa metabólica basal" val={d.tmb.toLocaleString('pt-BR')} unit="kcal" prev={dp?.tmb}/>
+                    {d.tmb&&<Row lbl="Taxa metabólica basal" val={d.tmb.toLocaleString('pt-BR')} unit="kcal" prev={dp?.tmb}/>}
                     {d.get&&<Row lbl="Gasto energético total" val={d.get.toLocaleString('pt-BR')} unit="kcal/dia" prev={dp?.get}/>}
                     {num(evalData.bio_metabage)&&<Row lbl="Idade metabólica" val={evalData.bio_metabage} unit="anos" prev={prevEval?.bio_metabage}/>}
+                    {d.hidr&&<Row lbl="Hidratação recomendada" val={(d.hidr/1000).toFixed(1).replace('.',',')} unit={`L/dia · ~${Math.round(d.hidr/250)} copos`} strong prev={dp?.hidr?(dp.hidr/1000).toFixed(1).replace('.',','):null}/>}
                   </tbody></table>
                 </div>)}
               {hasBio&&(
