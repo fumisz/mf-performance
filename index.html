@@ -4181,6 +4181,21 @@ function TechScreen({coach,students,preStudent,onBack}){
     </div>);
 }
 
+/* ── Offline (IndexedDB): cache de leitura + fila de gravação ── */
+const IDB=(()=>{
+  let dbp=null;
+  const db=()=>{if(dbp)return dbp;dbp=new Promise((res,rej)=>{try{const r=indexedDB.open('mfp-offline',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);}catch(e){rej(e);}});return dbp;};
+  const get=async k=>{try{const d=await db();return await new Promise((res,rej)=>{const t=d.transaction('kv','readonly').objectStore('kv').get(k);t.onsuccess=()=>res(t.result);t.onerror=()=>rej(t.error);});}catch(e){return undefined;}};
+  const set=async(k,v)=>{try{const d=await db();await new Promise((res,rej)=>{const q=d.transaction('kv','readwrite').objectStore('kv').put(v,k);q.onsuccess=()=>res();q.onerror=()=>rej(q.error);});}catch(e){}};
+  return {get,set};
+})();
+const isLocalId=id=>typeof id==='string'&&id.startsWith('local-');
+const offSnapLoad=c=>IDB.get('snap-'+c);
+const offSnapSave=(c,students,evals)=>IDB.set('snap-'+c,{students,evals,ts:Date.now()});
+const offQueueLoad=async c=>(await IDB.get('queue-'+c))||[];
+const offQueueSave=(c,q)=>IDB.set('queue-'+c,q);
+const isNetErr=e=>!navigator.onLine||(e&&/network|fetch|Failed to fetch|timeout/i.test(e.message||''));
+
 /* ── App ── */
 function App({profile,setProfile}){
   const coachId=profile.id;
@@ -4194,19 +4209,69 @@ function App({profile,setProfile}){
   const [reassess,setReassess]=useState(false);
   const [menu,setMenu]=useState(false);
   const [saving,setSaving]=useState(false);
+  const [online,setOnline]=useState(typeof navigator!=='undefined'?navigator.onLine:true);
+  const [pending,setPending]=useState(0);
+  const [loadedOffline,setLoadedOffline]=useState(false);
+  const queueRef=useRef([]);
+  const flushingRef=useRef(false);
   const [theme,setTheme]=useState(()=>{try{return localStorage.getItem('mfp_theme')||'light';}catch{return 'light';}});
   const toggleTheme=()=>{const t=theme==='dark'?'light':'dark';setTheme(t);document.documentElement.setAttribute('data-theme',t);try{localStorage.setItem('mfp_theme',t);}catch{}};
 
-  useEffect(()=>{let alive=true;(async()=>{
-    if(profile._demo){setStudents(DEMO_STUDENTS);setEvals(DEMO_EVALS);return;}
+  const enqueue=async item=>{
+    let q=[...queueRef.current];
+    if(item.op==='stu-insert'||item.op==='ev-insert'){q=q.filter(x=>x.id!==item.id);q.push(item);}
+    else if(item.op==='stu-update'){const ins=q.find(x=>x.id===item.id&&x.op==='stu-insert');if(ins)ins.row=item.row;else{q=q.filter(x=>!(x.id===item.id&&x.op==='stu-update'));q.push(item);}}
+    else if(item.op==='ev-update'){const ins=q.find(x=>x.id===item.id&&x.op==='ev-insert');if(ins)ins.row=item.row;else{q=q.filter(x=>!(x.id===item.id&&x.op==='ev-update'));q.push(item);}}
+    else if(item.op==='stu-delete'){if(isLocalId(item.id))q=q.filter(x=>x.id!==item.id&&!(x.row&&x.row.student_id===item.id));else q.push(item);}
+    else if(item.op==='ev-delete'){if(isLocalId(item.id))q=q.filter(x=>x.id!==item.id);else q.push(item);}
+    queueRef.current=q;await offQueueSave(coachId,q);setPending(q.length);
+  };
+  const reloadFromServer=async()=>{
     const [sr,ar]=await Promise.all([
       sb.from('assess_students').select('*').eq('coach_id',coachId).order('name'),
       sb.from('assessments').select('*').eq('coach_id',coachId)
     ]);
-    if(!alive)return;
-    setStudents((sr.data||[]).map(rowToStu));
-    setEvals((ar.data||[]).map(rowToEval));
+    if(sr.error||ar.error)throw(sr.error||ar.error);
+    const st=(sr.data||[]).map(rowToStu),ev=(ar.data||[]).map(rowToEval);
+    setStudents(st);setEvals(ev);offSnapSave(coachId,st,ev);setLoadedOffline(false);
+  };
+  const flushQueue=async()=>{
+    if(flushingRef.current||profile._demo||!navigator.onLine||!queueRef.current.length)return;
+    flushingRef.current=true;
+    try{
+      let q=[...queueRef.current];const idMap={};
+      while(q.length){
+        const it=q[0];let drop=true;
+        try{
+          if(it.op==='stu-insert'){const {data,error}=await sb.from('assess_students').insert(it.row).select().single();if(error)throw error;idMap[it.id]=data.id;}
+          else if(it.op==='stu-update'){const rid=idMap[it.id]||it.id;const {error}=await sb.from('assess_students').update(it.row).eq('id',rid);if(error)throw error;}
+          else if(it.op==='stu-delete'){const rid=idMap[it.id]||it.id;if(!isLocalId(rid)){const {error}=await sb.from('assess_students').delete().eq('id',rid);if(error)throw error;}}
+          else if(it.op==='ev-insert'){const row={...it.row};if(isLocalId(row.student_id))row.student_id=idMap[row.student_id]||row.student_id;const {data,error}=await sb.from('assessments').insert(row).select().single();if(error)throw error;idMap[it.id]=data.id;}
+          else if(it.op==='ev-update'){const rid=idMap[it.id]||it.id;const row={...it.row};if(isLocalId(row.student_id))row.student_id=idMap[row.student_id]||row.student_id;const {error}=await sb.from('assessments').update(row).eq('id',rid);if(error)throw error;}
+          else if(it.op==='ev-delete'){const rid=idMap[it.id]||it.id;if(!isLocalId(rid)){const {error}=await sb.from('assessments').delete().eq('id',rid);if(error)throw error;}}
+        }catch(e){if(isNetErr(e)){break;}drop=true;/* erro definitivo: descarta pra não travar a fila */}
+        if(!drop)break;
+        q.shift();queueRef.current=q;await offQueueSave(coachId,q);setPending(q.length);
+      }
+      if(!q.length){try{await reloadFromServer();}catch(e){}}
+    }finally{flushingRef.current=false;}
+  };
+  useEffect(()=>{let alive=true;(async()=>{
+    if(profile._demo){setStudents(DEMO_STUDENTS);setEvals(DEMO_EVALS);return;}
+    queueRef.current=await offQueueLoad(coachId);setPending(queueRef.current.length);
+    if(navigator.onLine){
+      try{await reloadFromServer();if(!alive)return;flushQueue();return;}catch(e){}
+    }
+    const snap=await offSnapLoad(coachId);if(!alive)return;
+    if(snap){setStudents(snap.students||[]);setEvals(snap.evals||[]);}else setStudents([]);
+    setLoadedOffline(true);
   })();return()=>{alive=false;};},[coachId]);
+  // cache espelha o estado atual (inclui registros locais pendentes)
+  useEffect(()=>{if(profile._demo||students===null)return;offSnapSave(coachId,students,evals);},[students,evals]);
+  // reconexão → sincroniza
+  useEffect(()=>{const on=()=>{setOnline(true);flushQueue();};const off=()=>setOnline(false);
+    window.addEventListener('online',on);window.addEventListener('offline',off);
+    return()=>{window.removeEventListener('online',on);window.removeEventListener('offline',off);};},[coachId]);
 
   const [intakeCount,setIntakeCount]=useState(0);
   useEffect(()=>{if(profile._demo||!sb)return;let alive=true;(async()=>{
@@ -4219,45 +4284,46 @@ function App({profile,setProfile}){
   const lastHeight=sortedStuEvals[0]?.height||'';
   const go=v=>{setView(v);setMenu(false);};
 
+  const setPtype=(id,pt)=>{try{if(pt)localStorage.setItem('mfp_ptype_'+id,pt);else localStorage.removeItem('mfp_ptype_'+id);}catch(e){}};
+  const applyStuOffline=(s,exists)=>{
+    if(exists){setPtype(s.id,s.profile_type);setStudents(p=>p.map(x=>x.id===s.id?s:x));enqueue({op:'stu-update',id:s.id,row:stuToRow(s,coachId)});setSelStudent(s);return;}
+    const id='local-'+uid();const stu={...s,id};setPtype(id,s.profile_type);setStudents(p=>[...p,stu]);enqueue({op:'stu-insert',id,row:stuToRow(stu,coachId)});setSelStudent(stu);
+  };
   const saveStu=async s=>{
-    setSaving(true);
     const exists=(students||[]).some(x=>x.id===s.id);
-    const setPtype=id=>{try{if(s.profile_type)localStorage.setItem('mfp_ptype_'+id,s.profile_type);else localStorage.removeItem('mfp_ptype_'+id);}catch(e){}};
-    if(exists){
-      const {error}=await sb.from('assess_students').update(stuToRow(s,coachId)).eq('id',s.id);
-      setSaving(false);if(error){alert('Erro ao salvar: '+error.message);return;}
-      setPtype(s.id);setStudents(p=>p.map(x=>x.id===s.id?s:x));setSelStudent(s);
-    }else{
-      const {data,error}=await sb.from('assess_students').insert(stuToRow(s,coachId)).select().single();
-      setSaving(false);if(error){alert('Erro ao salvar: '+error.message);return;}
-      setPtype(data.id);const ns=rowToStu(data);setStudents(p=>[...p,ns]);setSelStudent(ns);
-    }
-    go('detail');
+    if(!navigator.onLine){applyStuOffline(s,exists);go('detail');return;}
+    setSaving(true);
+    try{
+      if(exists){const {error}=await sb.from('assess_students').update(stuToRow(s,coachId)).eq('id',s.id);if(error)throw error;setPtype(s.id,s.profile_type);setStudents(p=>p.map(x=>x.id===s.id?s:x));setSelStudent(s);}
+      else{const {data,error}=await sb.from('assess_students').insert(stuToRow(s,coachId)).select().single();if(error)throw error;setPtype(data.id,s.profile_type);const ns=rowToStu(data);setStudents(p=>[...p,ns]);setSelStudent(ns);}
+      setSaving(false);go('detail');
+    }catch(e){setSaving(false);if(isNetErr(e)){applyStuOffline(s,exists);go('detail');}else alert('Erro ao salvar: '+e.message);}
   };
   const delStu=async id=>{
-    const {error}=await sb.from('assess_students').delete().eq('id',id);
-    if(error){alert('Erro ao excluir: '+error.message);return;}
-    setStudents(p=>p.filter(s=>s.id!==id));setEvals(p=>p.filter(e=>e.studentId!==id));setSelStudent(null);go('dashboard');
+    if(!navigator.onLine||isLocalId(id)){setStudents(p=>p.filter(s=>s.id!==id));setEvals(p=>p.filter(e=>e.studentId!==id));enqueue({op:'stu-delete',id});setSelStudent(null);go('dashboard');return;}
+    try{const {error}=await sb.from('assess_students').delete().eq('id',id);if(error)throw error;
+      setStudents(p=>p.filter(s=>s.id!==id));setEvals(p=>p.filter(e=>e.studentId!==id));setSelStudent(null);go('dashboard');
+    }catch(e){if(isNetErr(e)){setStudents(p=>p.filter(s=>s.id!==id));setEvals(p=>p.filter(x=>x.studentId!==id));enqueue({op:'stu-delete',id});setSelStudent(null);go('dashboard');}else alert('Erro ao excluir: '+e.message);}
+  };
+  const applyEvOffline=(ev,exists)=>{
+    if(exists){setEvals(p=>p.map(x=>x.id===ev.id?ev:x));enqueue({op:'ev-update',id:ev.id,row:evalToRow(ev,coachId)});return;}
+    const id='local-'+uid();const nev={...ev,id};setEvals(p=>[...p,nev]);enqueue({op:'ev-insert',id,row:evalToRow(nev,coachId)});
   };
   const saveEv=async e=>{
-    setSaving(true);
     const ev={...e,studentId:selStudent.id};
     const exists=evals.some(x=>x.id===ev.id);
-    if(exists){
-      const {error}=await sb.from('assessments').update(evalToRow(ev,coachId)).eq('id',ev.id);
-      setSaving(false);if(error){alert('Erro ao salvar: '+error.message);return;}
-      setEvals(p=>p.map(x=>x.id===ev.id?ev:x));
-    }else{
-      const {data,error}=await sb.from('assessments').insert(evalToRow(ev,coachId)).select().single();
-      setSaving(false);if(error){alert('Erro ao salvar: '+error.message);return;}
-      setEvals(p=>[...p,rowToEval(data)]);
-    }
-    go('detail');
+    if(!navigator.onLine){applyEvOffline(ev,exists);go('detail');return;}
+    setSaving(true);
+    try{
+      if(exists){const {error}=await sb.from('assessments').update(evalToRow(ev,coachId)).eq('id',ev.id);if(error)throw error;setEvals(p=>p.map(x=>x.id===ev.id?ev:x));}
+      else{const {data,error}=await sb.from('assessments').insert(evalToRow(ev,coachId)).select().single();if(error)throw error;setEvals(p=>[...p,rowToEval(data)]);}
+      setSaving(false);go('detail');
+    }catch(err){setSaving(false);if(isNetErr(err)){applyEvOffline(ev,exists);go('detail');}else alert('Erro ao salvar: '+err.message);}
   };
   const delEv=async id=>{
-    const {error}=await sb.from('assessments').delete().eq('id',id);
-    if(error){alert('Erro ao excluir: '+error.message);return;}
-    setEvals(p=>p.filter(e=>e.id!==id));
+    if(!navigator.onLine||isLocalId(id)){setEvals(p=>p.filter(e=>e.id!==id));enqueue({op:'ev-delete',id});return;}
+    try{const {error}=await sb.from('assessments').delete().eq('id',id);if(error)throw error;setEvals(p=>p.filter(e=>e.id!==id));}
+    catch(e){if(isNetErr(e)){setEvals(p=>p.filter(x=>x.id!==id));enqueue({op:'ev-delete',id});}else alert('Erro ao excluir: '+e.message);}
   };
   const importIntake=async(it)=>{
     const d=it.data||{},ps=d.student||{},ed=d.eval||{},ph=d.photos||{};
@@ -4335,6 +4401,11 @@ function App({profile,setProfile}){
           <div style={{fontFamily:'var(--serif)',fontWeight:600,fontSize:16,flex:1}}>MF Performance</div>
           <button className="hamb" onClick={toggleTheme} title="Alternar tema" style={{fontSize:17,fontWeight:600}}>◐</button>
         </div>
+        {(!online||pending>0||loadedOffline)&&<div className="no-print" style={{padding:'8px 14px',fontSize:12.5,fontWeight:600,display:'flex',alignItems:'center',gap:10,flexWrap:'wrap',background:!online?'rgba(220,38,38,.12)':'rgba(176,137,79,.14)',color:!online?'#dc2626':'var(--gold)',borderBottom:'1px solid var(--border)'}}>
+          <span>{!online?'● Offline — trabalhando no aparelho':loadedOffline?'● Dados em cache (sem conexão ao carregar)':'● Online'}</span>
+          {pending>0&&<span style={{color:'var(--text2)'}}>{pending} alteraç{pending>1?'ões':'ão'} pendente{pending>1?'s':''} de sincronizar</span>}
+          {online&&pending>0&&<button className="btn btn-secondary btn-sm" onClick={flushQueue}>Sincronizar agora</button>}
+        </div>}
         <div className="main">
           {saving&&<div style={{position:'fixed',top:14,right:16,zIndex:80,background:'var(--accent)',color:'var(--cream)',padding:'7px 14px',borderRadius:10,fontSize:12,fontWeight:600,boxShadow:'var(--shadow-lg)'}}>Salvando…</div>}
           {view==='admin'&&profile.is_admin&&<AdminScreen onBack={()=>go('dashboard')}/>}
