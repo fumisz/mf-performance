@@ -2978,18 +2978,25 @@ function rowToEval(r){return{id:r.id,studentId:r.student_id,date:r.date,obs:r.ob
 /* ── Tela de autenticação (treinadores) ── */
 function AuthScreen(){
   const [mode,setMode]=useState('login');
+  const [acct,setAcct]=useState('coach');
   const [name,setName]=useState('');const [email,setEmail]=useState('');const [pass,setPass]=useState('');const [acode,setAcode]=useState('');
   const [busy,setBusy]=useState(false);const [msg,setMsg]=useState(null);
+  const isAluno=acct==='aluno';
   async function submit(e){
     e.preventDefault();setMsg(null);
     if(!email||!pass){setMsg({type:'error',text:'Preencha e-mail e senha.'});return;}
     if(mode==='signup'&&!name.trim()){setMsg({type:'error',text:'Informe seu nome.'});return;}
-    if(mode==='signup'&&!acode.trim()){setMsg({type:'error',text:'Informe o código de acesso de treinador.'});return;}
+    if(mode==='signup'&&!acode.trim()){setMsg({type:'error',text:isAluno?'Informe o código do seu treinador.':'Informe o código de acesso de treinador.'});return;}
     setBusy(true);
     try{
       if(mode==='login'){
         const {error}=await sb.auth.signInWithPassword({email:email.trim(),password:pass});
         if(error)throw error;
+      }else if(isAluno){
+        const {data,error}=await sb.auth.signUp({email:email.trim(),password:pass,
+          options:{data:{role:'student',name:name.trim(),coach_code:acode.trim()}}});
+        if(error)throw error;
+        if(data.user&&!data.session){setMsg({type:'success',text:'Conta criada! Confirme pelo e-mail e faça login. Use o mesmo e-mail que seu treinador cadastrou.'});setMode('login');setBusy(false);return;}
       }else{
         const {data:ok}=await sb.rpc('coach_invite_valid',{p_code:acode.trim()});
         if(!ok){setMsg({type:'error',text:'Código de acesso inválido ou esgotado. Fale com o administrador.'});setBusy(false);return;}
@@ -3021,8 +3028,13 @@ function AuthScreen(){
           {msg&&<div className={`alert alert-${msg.type==='error'?'error':msg.type==='success'?'success':'info'}`}>{msg.text}</div>}
           <form onSubmit={submit} style={{display:'flex',flexDirection:'column',gap:13}}>
             {mode==='signup'&&<>
+              <div className="seg" style={{marginBottom:2}}>
+                <button type="button" className={acct==='coach'?'on':''} onClick={()=>{setAcct('coach');setMsg(null);}}>Sou treinador</button>
+                <button type="button" className={acct==='aluno'?'on':''} onClick={()=>{setAcct('aluno');setMsg(null);}}>Sou aluno</button>
+              </div>
               <FI label="Nome" value={name} onChange={e=>setName(e.target.value)} placeholder="Seu nome"/>
-              <FI label="Código de acesso (treinador)" value={acode} onChange={e=>setAcode(e.target.value.toUpperCase())} placeholder="Fornecido pelo administrador" style={{textTransform:'uppercase',letterSpacing:1}}/>
+              <FI label={isAluno?'Código do seu treinador':'Código de acesso (treinador)'} value={acode} onChange={e=>setAcode(e.target.value.toUpperCase())} placeholder={isAluno?'Peça ao seu treinador':'Fornecido pelo administrador'} style={{textTransform:'uppercase',letterSpacing:1}}/>
+              {isAluno&&<div className="alert alert-info" style={{marginTop:-4}}>Use o <b>mesmo e-mail</b> que seu treinador cadastrou na sua ficha.</div>}
             </>}
             <FI label="E-mail" type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="email@exemplo.com" autoComplete="email"/>
             <FI label="Senha" type="password" value={pass} onChange={e=>setPass(e.target.value)} placeholder="••••••" autoComplete={mode==='login'?'current-password':'new-password'}/>
@@ -4610,6 +4622,111 @@ function App({profile,setProfile}){
     </div>);
 }
 
+/* ══════════════ App do ALUNO — execução do treino ══════════════ */
+const _DEMO_ALUNO_DIVS=[{id:'d1',nome:'A — Membros inferiores'},{id:'d2',nome:'B — Membros superiores'}];
+const _DEMO_ALUNO_SERIES={
+  d1:[{id:'s1',exercicio_id:'x1',exercicio_nome:'Agachamento Livre',tipo_serie:'Valida',qtd_series:3,faixa_reps:'8-12',intervalo_seg_min:90},
+      {id:'s2',exercicio_id:'x2',exercicio_nome:'Leg Press',tipo_serie:'Valida',qtd_series:3,faixa_reps:'10-15',intervalo_seg_min:60}],
+  d2:[{id:'s3',exercicio_id:'x3',exercicio_nome:'Supino',tipo_serie:'Valida',qtd_series:4,faixa_reps:'8-10',intervalo_seg_min:90}]};
+
+function TrainExec({student,divisao,demo,best,onBack,onSaved}){
+  const [series,setSeries]=useState(demo?(_DEMO_ALUNO_SERIES[divisao.id]||[]):null);
+  const [vals,setVals]=useState({});
+  const [done,setDone]=useState({});
+  const [rest,setRest]=useState(0);
+  useEffect(()=>{if(demo)return;(async()=>{const {data}=await sb.from('train_serie_prescrita').select('*').eq('divisao_id',divisao.id).order('ordem');setSeries(data||[]);})();},[]);
+  useEffect(()=>{if(rest<=0)return;const t=setInterval(()=>setRest(r=>r<=1?0:r-1),1000);return()=>clearInterval(t);},[rest>0]);
+  const setV=(k,f,v)=>setVals(p=>({...p,[k]:{...(p[k]||{}),[f]:v}}));
+  const concluir=async(s,i)=>{
+    const k=s.id+'_'+i;const v=vals[k]||{};const carga=num(v.carga),reps=num(v.reps);
+    if(carga==null){return;}
+    const isPr=s.tipo_serie==='Valida'&&carga>(best[s.exercicio_id]||0);
+    setDone(p=>({...p,[k]:{carga,reps,isPr}}));setRest(s.intervalo_seg_min||60);
+    if(onSaved)onSaved(s.exercicio_id,carga);
+    if(!demo){try{await sb.from('train_historico').insert({coach_id:student.coach_id,student_id:student.id,divisao_id:divisao.id,exercicio_id:s.exercicio_id,exercicio_nome:s.exercicio_nome,data_treino:todayStr(),indice_serie:i+1,tipo_serie:s.tipo_serie,carga,reps,is_pr:isPr});}catch(e){}}
+  };
+  const mm=Math.floor(rest/60), ssg=String(rest%60).padStart(2,'0');
+  return(<div>
+    <div className="abar"><div><div className="breadcrumb" onClick={onBack}>← Meus treinos</div>
+      <div className="ph-title">{divisao.nome||'Treino'}</div></div></div>
+    {rest>0&&<div style={{position:'sticky',top:0,zIndex:30,background:'var(--accent)',color:'var(--cream)',padding:'10px 14px',borderRadius:10,marginBottom:14,display:'flex',alignItems:'center',justifyContent:'space-between',fontWeight:700}}>
+      <span>Descanso: {mm}:{ssg}</span>
+      <div style={{display:'flex',gap:8}}><button className="btn btn-ghost btn-sm" style={{color:'#fff'}} onClick={()=>setRest(r=>r+30)}>+30s</button><button className="btn btn-ghost btn-sm" style={{color:'#fff'}} onClick={()=>setRest(0)}>Pular</button></div>
+    </div>}
+    {series===null?<div className="center-screen"><div className="spinner"/></div>:
+     series.length===0?<div className="empty"><div className="empty-title">Sem exercícios nesta divisão</div></div>:
+     series.map(s=>{const bmax=best[s.exercicio_id];
+      return(<div key={s.id} className="dash-panel" style={{marginBottom:12}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8,flexWrap:'wrap',gap:6}}>
+          <h4 style={{margin:0}}>{s.exercicio_nome} <span className="badge" style={{background:'transparent',border:'1px solid '+tierColor(s.tipo_serie),color:tierColor(s.tipo_serie),fontWeight:600}}>{s.tipo_serie}</span></h4>
+          <span className="s-meta">{s.qtd_series}× {s.faixa_reps}{bmax?` · recorde ${bmax}kg`:''}</span>
+        </div>
+        {Array.from({length:s.qtd_series}).map((_,i)=>{const k=s.id+'_'+i;const dn=done[k];
+          return(<div key={i} style={{display:'flex',alignItems:'center',gap:8,marginBottom:6,flexWrap:'wrap'}}>
+            <span className="s-meta" style={{width:52}}>Série {i+1}</span>
+            {dn?<span style={{fontWeight:600}}>{dn.carga}kg × {dn.reps||'-'} reps {dn.isPr&&<span className="badge bg" style={{marginLeft:6}}>🏆 PR</span>}</span>
+              :<>
+              <input className="fi" type="number" inputMode="decimal" style={{width:82}} placeholder="kg" value={(vals[k]||{}).carga||''} onChange={e=>setV(k,'carga',e.target.value)}/>
+              <input className="fi" type="number" inputMode="numeric" style={{width:82}} placeholder="reps" value={(vals[k]||{}).reps||''} onChange={e=>setV(k,'reps',e.target.value)}/>
+              <button className="btn btn-primary btn-sm" onClick={()=>concluir(s,i)}>✓</button>
+            </>}
+          </div>);})}
+      </div>);})}
+  </div>);
+}
+
+function StudentApp({profile}){
+  const demo=!!profile._demo;
+  const [theme,setTheme]=useState(()=>{try{return localStorage.getItem('mfp_theme')||'light';}catch{return 'light';}});
+  useEffect(()=>{try{document.documentElement.setAttribute('data-theme',theme);}catch(e){}},[theme]);
+  const toggleTheme=()=>{const t=theme==='dark'?'light':'dark';setTheme(t);try{localStorage.setItem('mfp_theme',t);}catch{}};
+  const [stu,setStu]=useState(demo?{id:'ds1',name:'Aluna Demo',gender:'F',coach_id:'demo'}:undefined);
+  const [divs,setDivs]=useState(demo?_DEMO_ALUNO_DIVS:null);
+  const [best,setBest]=useState({});
+  const [exec,setExec]=useState(null);
+  useEffect(()=>{if(demo)return;(async()=>{
+    try{await sb.rpc('aluno_link');}catch(e){}
+    const {data:sr}=await sb.from('assess_students').select('*').eq('user_id',profile.id).limit(1);
+    const s=(sr&&sr[0])?rowToStu(sr[0]):null;setStu(s);
+    if(s){
+      const {data:dv}=await sb.from('train_divisao').select('*').eq('student_id',s.id).order('ordem');setDivs(dv||[]);
+      const {data:hi}=await sb.from('train_historico').select('exercicio_id,carga').eq('student_id',s.id).eq('tipo_serie','Valida');
+      const b={};(hi||[]).forEach(h=>{if(h.exercicio_id&&(b[h.exercicio_id]==null||h.carga>b[h.exercicio_id]))b[h.exercicio_id]=h.carga;});setBest(b);
+    }
+  })();},[]);
+  const hr=new Date().getHours();const saud=hr<12?'Bom dia':hr<18?'Boa tarde':'Boa noite';
+
+  const shell=inner=>(<div className="app"><div style={{flex:1,display:'flex',flexDirection:'column',minWidth:0}}>
+    <div className="topbar no-print"><LogoMark size={32}/>
+      <div style={{fontFamily:'var(--serif)',fontWeight:600,fontSize:16,flex:1}}>MF Performance</div>
+      <button className="hamb" onClick={toggleTheme} title="Tema" style={{fontSize:17,fontWeight:600}}>◐</button>
+      {!demo&&<button className="hamb" onClick={()=>sb.auth.signOut()} title="Sair" style={{fontSize:13,fontWeight:600,width:'auto',padding:'0 10px'}}>Sair</button>}
+    </div>
+    <div className="main">{inner}</div>
+  </div></div>);
+
+  if(stu===undefined)return shell(<div className="center-screen"><div className="spinner"/></div>);
+  if(stu===null)return shell(<div className="empty" style={{marginTop:40}}>
+    <div className="empty-title">Conta ainda não vinculada</div>
+    <p className="s-meta">Peça ao seu treinador para cadastrar você com o mesmo e-mail que você usou no login. Assim seus treinos aparecem aqui.</p>
+    <button className="btn btn-secondary" style={{marginTop:12}} onClick={()=>location.reload()}>Já pediu? Recarregar</button>
+  </div>);
+  if(exec)return shell(<TrainExec student={stu} divisao={exec} demo={demo} best={best} onBack={()=>setExec(null)} onSaved={(exId,carga)=>setBest(b=>({...b,[exId]:Math.max(b[exId]||0,carga)}))}/>);
+
+  return shell(<div>
+    <div className="abar"><div><div className="ph-title">{saud}, {stu.name.split(' ')[0]}</div>
+      <div className="ph-sub">Seu treino de hoje</div></div></div>
+    {(divs||[]).length===0?<div className="empty" style={{marginTop:20}}><div className="empty-title">Sem ficha ainda</div>
+      <p className="s-meta">Seu treinador ainda não montou sua ficha de treino.</p></div>:
+     <div className="student-grid">{(divs||[]).map(dv=>(
+      <div key={dv.id} className="student-card" onClick={()=>setExec(dv)}>
+        <span className="badge bb" style={{marginBottom:8,display:'inline-block'}}>Treino</span>
+        <div className="s-name">{dv.nome||'Divisão'}</div>
+        <div className="s-meta">Toque para executar</div>
+      </div>))}</div>}
+  </div>);
+}
+
 /* ── Root: sessão + perfil + portão de assinatura ── */
 function Root(){
   const [session,setSession]=useState(undefined);
@@ -4621,6 +4738,7 @@ function Root(){
   if(ficha)return <RemoteIntakePage coachId={ficha} studentId={qs.get('aluno')||null}/>;
   const tecnica=qs.get('tecnica');
   if(tecnica)return <TechIntakePage token={tecnica}/>;
+  if(qs.get('aluno')==='1')return <StudentApp profile={{id:'aluno-demo',name:'Aluna Demo',role:'student',_demo:true}}/>;
   const demo=qs.get('demo')==='1';
   if(demo)return <App profile={{id:'demo',name:'Ana Trainer',role:'coach',perf_until:'2999-12-31',brand_name:'Studio Performance',cref:'012345-G/SP',phone:'(11) 99999-0000',instagram:'@studio.performance',logo_url:'',is_admin:false,_demo:true}} setProfile={()=>{}}/>;
   useEffect(()=>{
@@ -4644,7 +4762,8 @@ function Root(){
   if(!session)return <AuthScreen/>;
   if(profile===undefined)return <div className="center-screen"><div className="spinner"/></div>;
   if(profile===null)return <BlockScreen title="Não foi possível carregar seu perfil">Saia e entre novamente.</BlockScreen>;
-  if(profile.role!=='coach')return <BlockScreen title="Acesso exclusivo para treinadores">Este app de avaliação física é para treinadores. Sua conta é de aluno.</BlockScreen>;
+  if(profile.role==='student')return <StudentApp profile={profile}/>;
+  if(profile.role!=='coach')return <BlockScreen title="Perfil não reconhecido">Saia e entre novamente, ou fale com o suporte.</BlockScreen>;
   const sub=profile.perf_until;
   const expired=!sub||new Date(sub+'T00:00:00')<new Date(todayStr()+'T00:00:00');
   if(expired)return <BlockScreen title={sub?'Assinatura expirada':'Assinatura pendente'}>
