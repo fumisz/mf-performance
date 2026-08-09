@@ -508,6 +508,10 @@ textarea.fi{resize:vertical;min-height:70px;line-height:1.5}
 .lv-cel h2{font-size:30px;font-weight:900;letter-spacing:1px;margin:12px 0 4px;background:linear-gradient(90deg,#fbbf24,#f59e0b);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 .lv-confetti{position:fixed;top:-12px;width:10px;height:14px;border-radius:2px;z-index:121;animation:lvfall linear forwards}
 @keyframes lvfall{to{transform:translateY(105vh) rotate(720deg);opacity:.9}}
+.lv-glow{animation:lvglow 1.3s ease infinite}
+@keyframes lvglow{0%,100%{filter:drop-shadow(0 0 6px rgba(74,222,128,.5))}50%{filter:drop-shadow(0 0 20px rgba(74,222,128,.95))}}
+.lv-waterbtn{flex:1;background:var(--lvc2);border:1px solid var(--lvbd);color:var(--lvtx);border-radius:13px;padding:13px 6px;font-weight:700;font-size:13.5px;cursor:pointer}
+.lv-waterbtn:active{transform:scale(.96)}
 </style>
 </head>
 <body>
@@ -4909,11 +4913,72 @@ function EvolScreen({student,demo,onBack}){
   </div>);
 }
 
+function HydraScreen({student,demo,onBack}){
+  const BTL='M31 8 h28 v9 q17 6 17 25 v82 q0 12 -12 12 h-38 q-12 0 -12 -12 v-82 q0 -19 17 -25 z';
+  const [meta,setMeta]=useState(2500);
+  const [today,setToday]=useState(demo?1750:0);
+  const [week,setWeek]=useState(demo?[['Seg',2400],['Ter',1800],['Qua',2600],['Qui',2200],['Sex',2500],['Sáb',1200],['Dom',1750]]:null);
+  const [cel,setCel]=useState(false);const hitRef=useRef(false);
+  const cap=500;
+  useEffect(()=>{if(demo)return;(async()=>{
+    let w=null;try{const {data:av}=await sb.from('assessments').select('data,date').order('date',{ascending:false}).limit(1);if(av&&av[0])w=av[0].data&&av[0].data.weight;}catch(e){}
+    const m=w?Math.round(num(w)*35/50)*50:2500;setMeta(m);
+    const monday=new Date();monday.setDate(monday.getDate()-((monday.getDay()+6)%7));const mk=monday.toISOString().slice(0,10);
+    const {data:hs}=await sb.from('train_hidratacao').select('data,total_ml').gte('data',mk).order('data');
+    const map={};(hs||[]).forEach(h=>map[h.data]=h.total_ml);
+    const labels=['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];const wk=[];
+    for(let i=0;i<7;i++){const d=new Date(monday);d.setDate(d.getDate()+i);const ds=d.toISOString().slice(0,10);wk.push([labels[i],map[ds]||0]);}
+    setWeek(wk);setToday(map[todayStr()]||0);
+  })();},[]);
+  const add=async(ml)=>{const nt=today+ml;setToday(nt);
+    if(nt>=meta&&!hitRef.current){hitRef.current=true;setCel(true);try{navigator.vibrate&&navigator.vibrate([40,40,120]);}catch(e){}setTimeout(()=>setCel(false),2600);}
+    if(!demo){try{const {data}=await sb.rpc('hidratar',{p_ml:ml});if(data!=null)setToday(data);}catch(e){}}};
+  const pct=Math.min(1,meta?today/meta:0);const full=today>=meta&&today>0;
+  const fillY=118-pct*(118-8);
+  const weekMax=Math.max(meta,...((week||[]).map(w=>w[1])),1);
+  return(<div className="lv-wrap">
+    {cel&&<><div className="lv-cel"><div className="lv-trophy" style={{filter:'drop-shadow(0 0 24px rgba(74,222,128,.8))'}}>💧</div><h2 style={{background:'linear-gradient(90deg,#4ade80,#22d3ee)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>META BATIDA!</h2><div className="lv-sub" style={{marginTop:6}}>Hidratação em dia. Performance e recuperação garantidas.</div></div>
+      {Array.from({length:22}).map((_,i)=><div key={i} className="lv-confetti" style={{left:Math.random()*100+'vw',background:['#4ade80','#22d3ee','#38bdf8'][i%3],animationDuration:(1.1+Math.random()*.9)+'s',animationDelay:(Math.random()*.3)+'s'}}/>)}</>}
+    <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14}}>
+      <button className="lv-ghost" onClick={onBack}>‹ Voltar</button>
+      <div className="lv-title" style={{flex:1}}>Hidratação</div>
+    </div>
+    <div className="lv-card" style={{display:'flex',gap:16,alignItems:'center'}}>
+      <svg viewBox="0 0 90 132" width="96" className={full?'lv-glow':''}>
+        <defs><clipPath id="btlc"><path d={BTL}/></clipPath></defs>
+        <g clipPath="url(#btlc)"><rect x="0" y="0" width="90" height="132" fill="#12121a"/>
+          <rect x="0" y={fillY} width="90" height={132-fillY} fill={full?'#4ade80':'#38bdf8'} opacity="0.9"/>
+          <ellipse cx="30" cy={fillY+2} rx="7" ry="2.5" fill="#fff" opacity=".15"/><ellipse cx="58" cy={fillY+5} rx="5" ry="2" fill="#fff" opacity=".12"/></g>
+        <path d={BTL} fill="none" stroke={full?'#4ade80':'#5b6b8a'} strokeWidth="2.5"/>
+      </svg>
+      <div style={{flex:1}}>
+        <div style={{fontSize:26,fontWeight:800}}>{(today/1000).toFixed(2).replace('.',',')}<span style={{color:'var(--lvt2)',fontSize:15,fontWeight:600}}> / {(meta/1000).toFixed(2).replace('.',',')} L</span></div>
+        <div className="lv-sub">{full?'✅ meta do dia batida!':`faltam ${((meta-today)/1000).toFixed(2).replace('.',',')} L`}</div>
+        <div className="lv-freq" style={{marginTop:10}}><i style={{width:(pct*100)+'%',background:full?'linear-gradient(90deg,#22d3ee,#4ade80)':'linear-gradient(90deg,#38bdf8,#818cf8)'}}/></div>
+      </div>
+    </div>
+    <div style={{display:'flex',gap:10,marginBottom:16}}>
+      <button className="lv-waterbtn" onClick={()=>add(250)}>+250 ml</button>
+      <button className="lv-waterbtn" onClick={()=>add(500)}>+500 ml</button>
+      <button className="lv-waterbtn" onClick={()=>add(cap)}>✓ Garrafa</button>
+    </div>
+    <div className="lv-card"><div className="lv-kick" style={{marginBottom:10}}>Semana</div>
+      {week===null?<div className="center-screen" style={{minHeight:80}}><div className="spinner"/></div>:
+      <svg viewBox="0 0 300 120" style={{width:'100%',display:'block'}}>
+        <line x1="0" y1={100-(meta/weekMax)*90} x2="300" y2={100-(meta/weekMax)*90} stroke="#4ade80" strokeWidth="1" strokeDasharray="4 3" opacity=".6"/>
+        {week.map(([l,ml],i)=>{const h=(ml/weekMax)*90;const x=14+i*42;const hit=ml>=meta;return(<g key={i}>
+          <rect x={x} y={100-h} width="24" height={h} rx="4" fill={hit?'#4ade80':'#38bdf8'} opacity=".9"/>
+          <text x={x+12} y={114} textAnchor="middle" fontSize="9" fill="#6c6c7c">{l}</text></g>);})}
+      </svg>}
+    </div>
+  </div>);
+}
+
 function StudentApp({profile}){
   const demo=!!profile._demo;
   const [stu,setStu]=useState(demo?{id:'ds1',name:'Laryssa Araujo',gender:'F',coach_id:'demo'}:undefined);
   const [divs,setDivs]=useState(demo?_DEMO_ALUNO_DIVS:null);
-  const [best,setBest]=useState({});const [exec,setExec]=useState(null);const [evol,setEvol]=useState(false);const [freq,setFreq]=useState({done:0,meta:4});
+  const [best,setBest]=useState({});const [exec,setExec]=useState(null);const [evol,setEvol]=useState(false);const [hydra,setHydra]=useState(false);const [freq,setFreq]=useState({done:0,meta:4});
   const [code,setCode]=useState('');const [linkErr,setLinkErr]=useState(null);const [linking,setLinking]=useState(false);
   const doLink=async()=>{const c=code.trim().toUpperCase();if(!c)return;setLinking(true);setLinkErr(null);
     const {data,error}=await sb.rpc('aluno_link',{p_code:c});setLinking(false);
@@ -4951,6 +5016,7 @@ function StudentApp({profile}){
   </div></div>);
   if(exec)return shell(<TrainExec student={stu} divisao={exec} demo={demo} best={best} onBack={()=>setExec(null)} onSaved={(exId,carga)=>setBest(b=>({...b,[exId]:Math.max(b[exId]||0,carga)}))}/>);
   if(evol)return shell(<EvolScreen student={stu} demo={demo} onBack={()=>setEvol(false)}/>);
+  if(hydra)return shell(<HydraScreen student={stu} demo={demo} onBack={()=>setHydra(false)}/>);
 
   const list=divs||[];const pct=Math.min(100,Math.round((freq.done/(freq.meta||1))*100));
   return shell(<div className="lv-wrap">
@@ -4962,10 +5028,15 @@ function StudentApp({profile}){
       <div style={{fontSize:24,fontWeight:800,marginTop:4}}>{freq.done} <span style={{color:'var(--lvt2)',fontSize:14,fontWeight:600}}>de {freq.meta} treinos</span></div>
       <div className="lv-freq"><i style={{width:pct+'%'}}/></div>
     </div>
-    <div className="lv-treino" style={{marginBottom:14}} onClick={()=>setEvol(true)}>
-      <div className="lv-avatar" style={{width:38,height:38,fontSize:18,background:'var(--lvc2)'}}>📈</div>
-      <div style={{flex:1}}><div style={{fontWeight:700}}>Minha evolução</div><div className="lv-sub">Cargas, volume e recordes</div></div>
-      <span style={{color:'var(--lvt3)'}}>›</span>
+    <div style={{display:'flex',gap:10,marginBottom:14}}>
+      <div className="lv-treino" style={{flex:1,margin:0}} onClick={()=>setHydra(true)}>
+        <div className="lv-avatar" style={{width:38,height:38,fontSize:18,background:'var(--lvc2)'}}>💧</div>
+        <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700}}>Hidratação</div><div className="lv-sub">Meta do dia</div></div>
+      </div>
+      <div className="lv-treino" style={{flex:1,margin:0}} onClick={()=>setEvol(true)}>
+        <div className="lv-avatar" style={{width:38,height:38,fontSize:18,background:'var(--lvc2)'}}>📈</div>
+        <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700}}>Evolução</div><div className="lv-sub">Cargas e recordes</div></div>
+      </div>
     </div>
     {list.length===0?<div className="lv-card" style={{textAlign:'center',color:'var(--lvt2)'}}>Seu treinador ainda não montou sua ficha de treino.</div>:<>
       <div className="lv-card lv-hero">
