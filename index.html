@@ -1857,7 +1857,7 @@ function PhotoCompare({student,evals,onClose}){
     </div>);
 }
 
-function StudentDetail({student,evals,onNewEval,onReassess,onEditEval,onDeleteEval,onReport,onBack,onEdit,onTech}){
+function StudentDetail({student,evals,onNewEval,onReassess,onEditEval,onDeleteEval,onReport,onBack,onEdit,onTech,onTrain}){
   const [cmp,setCmp]=useState(false);
   const photoEvals=evals.filter(e=>e.post_photo_front||e.post_photo_side||e.post_photo_back).length;
   const a=age(student.dob);
@@ -1877,6 +1877,7 @@ function StudentDetail({student,evals,onNewEval,onReassess,onEditEval,onDeleteEv
         </div>
         <div className="bgroup">
           <button className="btn btn-ghost btn-sm" onClick={onEdit}>Editar Editar ficha</button>
+          <button className="btn btn-ghost btn-sm" onClick={onTrain}>Treino</button>
           <button className="btn btn-ghost btn-sm" onClick={onTech}>Avaliação técnica</button>
           {photoEvals>=2&&<button className="btn btn-ghost btn-sm" onClick={()=>setCmp(true)}>Comparar fotos</button>}
           {sorted.length>0&&<button className="btn btn-secondary" onClick={onReassess}> Reavaliação</button>}
@@ -4231,6 +4232,128 @@ function TechScreen({coach,students,preStudent,onBack}){
     </div>);
 }
 
+/* ══════════════ Módulo Treino — montador de ficha (coach) ══════════════ */
+const TRAIN_TIERS=['Aquecimento','Preparatoria','Valida'];
+const tierColor=t=>t==='Valida'?'#2f8f4e':t==='Preparatoria'?'#b0894f':'#8a8378';
+function TrainScreen({coach,students,preStudent,onBack}){
+  const demo=!!coach._demo;
+  const [stu,setStu]=useState(preStudent||null);
+  const [q,setQ]=useState('');
+  const [lib,setLib]=useState([]);
+  const [divs,setDivs]=useState(null);
+  const [series,setSeries]=useState({});   // divisaoId -> [serie]
+  const [openId,setOpenId]=useState(null);
+  const [nd,setNd]=useState('');
+  const [msg,setMsg]=useState(null);
+  const blankEx={nome:'',tipo_serie:'Valida',qtd_series:3,faixa_reps:'8-12',intervalo_seg_min:60};
+  const [ex,setEx]=useState(blankEx);
+
+  useEffect(()=>{(async()=>{
+    if(demo){setLib([{id:'x1',nome:'Agachamento Livre'},{id:'x2',nome:'Leg Press'},{id:'x3',nome:'Cadeira Extensora'},{id:'x4',nome:'Stiff'}]);return;}
+    const {data}=await sb.from('train_exercicios').select('id,nome,grupo_muscular').order('nome');setLib(data||[]);
+  })();},[]);
+  const loadDivs=async s=>{if(demo){setDivs([]);return;}const {data,error}=await sb.from('train_divisao').select('*').eq('student_id',s.id).order('ordem');if(error){setMsg({t:'err',m:'Erro: '+error.message});setDivs([]);return;}setDivs(data||[]);};
+  useEffect(()=>{if(stu)loadDivs(stu);else setDivs(null);},[stu&&stu.id]);
+  const loadSeries=async id=>{if(demo)return;const {data}=await sb.from('train_serie_prescrita').select('*').eq('divisao_id',id).order('ordem');setSeries(p=>({...p,[id]:data||[]}));};
+  const toggleDiv=id=>{const n=openId===id?null:id;setOpenId(n);if(n&&!series[n])loadSeries(n);};
+
+  const addDiv=async()=>{
+    const nome=(nd||'').trim();if(!nome){return;}
+    const ordem=(divs||[]).length;
+    if(demo){const row={id:'d'+Date.now(),student_id:stu.id,nome,ordem};setDivs(p=>[...p,row]);setNd('');setSeries(p=>({...p,[row.id]:[]}));setOpenId(row.id);return;}
+    const {data,error}=await sb.from('train_divisao').insert({coach_id:coach.id,student_id:stu.id,nome,ordem}).select().single();
+    if(error){setMsg({t:'err',m:'Erro: '+error.message});return;}
+    setDivs(p=>[...p,data]);setNd('');setSeries(p=>({...p,[data.id]:[]}));setOpenId(data.id);
+  };
+  const delDiv=async id=>{if(!confirm('Excluir esta divisão e seus exercícios?'))return;
+    setDivs(p=>p.filter(d=>d.id!==id));if(!demo)await sb.from('train_divisao').delete().eq('id',id);};
+  const addEx=async divId=>{
+    const nome=(ex.nome||'').trim();if(!nome){return;}
+    const cur=series[divId]||[];const ordem=cur.length;
+    let exId=lib.find(x=>x.nome.toLowerCase()===nome.toLowerCase())?.id||null;
+    if(demo){const row={id:'s'+Date.now(),divisao_id:divId,exercicio_id:exId,exercicio_nome:nome,tipo_serie:ex.tipo_serie,qtd_series:+ex.qtd_series,faixa_reps:ex.faixa_reps,intervalo_seg_min:+ex.intervalo_seg_min,ordem};setSeries(p=>({...p,[divId]:[...cur,row]}));setEx(blankEx);return;}
+    if(!exId){const {data:nx}=await sb.from('train_exercicios').insert({coach_id:coach.id,nome}).select('id,nome').single();if(nx){exId=nx.id;setLib(p=>[...p,nx]);}}
+    const {data,error}=await sb.from('train_serie_prescrita').insert({coach_id:coach.id,divisao_id:divId,exercicio_id:exId,exercicio_nome:nome,tipo_serie:ex.tipo_serie,qtd_series:+ex.qtd_series,faixa_reps:ex.faixa_reps,intervalo_seg_min:+ex.intervalo_seg_min,ordem}).select().single();
+    if(error){setMsg({t:'err',m:'Erro: '+error.message});return;}
+    setSeries(p=>({...p,[divId]:[...cur,data]}));setEx(blankEx);
+  };
+  const delEx=async(divId,id)=>{setSeries(p=>({...p,[divId]:(p[divId]||[]).filter(s=>s.id!==id)}));if(!demo)await sb.from('train_serie_prescrita').delete().eq('id',id);};
+
+  // seleção de aluno
+  if(!stu){
+    const list=students.filter(s=>s.name.toLowerCase().includes(q.toLowerCase())).sort((a,b)=>a.name.localeCompare(b.name));
+    return(<div>
+      <div className="abar"><div><div className="breadcrumb" onClick={onBack}>← Painel</div>
+        <div className="ph-title">Treino</div><div className="ph-sub">Escolha o aluno para montar a ficha</div></div></div>
+      {demo&&<div className="alert alert-warn">Modo demonstração: as fichas não são salvas.</div>}
+      <div className="search-wrap" style={{marginBottom:16}}><span className="search-icon"></span>
+        <input className="fi" placeholder="Buscar aluno..." value={q} onChange={e=>setQ(e.target.value)}/></div>
+      <div className="student-grid">{list.map(s=>(
+        <div key={s.id} className="student-card" onClick={()=>setStu(s)}>
+          <div className="avatar" style={{marginBottom:10}}>{s.photo?<img src={s.photo} alt=""/>:initials(s.name)}</div>
+          <div className="s-name">{s.name}</div>
+          <div className="s-meta">{s.goal||'Montar ficha de treino'}</div>
+        </div>))}</div>
+    </div>);
+  }
+
+  return(<div>
+    <div className="abar"><div><div className="breadcrumb" onClick={()=>{setStu(null);setOpenId(null);}}>← Treino</div>
+      <div className="ph-title">Ficha de {stu.name.split(' ')[0]}</div>
+      <div className="ph-sub">{(divs||[]).length} divisã{(divs||[]).length===1?'o':'es'}</div></div>
+    </div>
+    {msg&&<div className={`alert ${msg.t==='err'?'alert-danger':'alert-success'}`}>{msg.m}</div>}
+
+    <datalist id="trainlib">{lib.map(x=><option key={x.id} value={x.nome}/>)}</datalist>
+
+    <div className="dash-panel" style={{marginBottom:16}}>
+      <h4>Nova divisão</h4>
+      <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>
+        <input className="fi" style={{flex:1,minWidth:180}} placeholder="Ex.: A — Membros inferiores" value={nd} onChange={e=>setNd(e.target.value)}/>
+        <button className="btn btn-primary" onClick={addDiv}>Adicionar divisão</button>
+      </div>
+    </div>
+
+    {divs===null?<div className="center-screen"><div className="spinner"/></div>:
+     divs.length===0?<div className="empty"><div className="empty-title">Nenhuma divisão ainda</div><p className="s-meta">Crie a divisão A acima e comece a adicionar exercícios.</p></div>:
+     divs.map(dv=>{const ss=series[dv.id]||[];const open=openId===dv.id;
+      return(<div key={dv.id} className="dash-panel" style={{marginBottom:12}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,cursor:'pointer'}} onClick={()=>toggleDiv(dv.id)}>
+          <h4 style={{margin:0}}>{dv.nome||'Divisão'}</h4>
+          <div style={{display:'flex',alignItems:'center',gap:10}}>
+            <span className="s-meta">{ss.length} exercício{ss.length!==1?'s':''}</span>
+            <button className="btn-icon btn-sm" onClick={e=>{e.stopPropagation();delDiv(dv.id);}}>×</button>
+            <span style={{color:'var(--text3)'}}>{open?'▾':'▸'}</span>
+          </div>
+        </div>
+        {open&&<div style={{marginTop:12}}>
+          {ss.length>0&&<table className="rpt-tbl" style={{width:'100%',marginBottom:10}}><tbody>
+            {ss.map(s=>(<tr key={s.id}>
+              <td style={{fontWeight:600}}>{s.exercicio_nome}</td>
+              <td><span className="badge" style={{background:'transparent',color:tierColor(s.tipo_serie),border:'1px solid '+tierColor(s.tipo_serie)}}>{s.tipo_serie}</span></td>
+              <td>{s.qtd_series}× {s.faixa_reps}</td>
+              <td>{s.intervalo_seg_min}s desc.</td>
+              <td style={{textAlign:'right'}}><button className="btn-icon btn-sm" onClick={()=>delEx(dv.id,s.id)}>×</button></td>
+            </tr>))}
+          </tbody></table>}
+          <div style={{display:'flex',gap:8,flexWrap:'wrap',alignItems:'flex-end',background:'var(--bg3)',padding:10,borderRadius:10}}>
+            <div className="fg" style={{margin:0,flex:1,minWidth:150}}><label className="flbl">Exercício</label>
+              <input className="fi" list="trainlib" value={ex.nome} onChange={e=>setEx(p=>({...p,nome:e.target.value}))} placeholder="Nome do exercício"/></div>
+            <div className="fg" style={{margin:0}}><label className="flbl">Tipo</label>
+              <select className="fi" style={{width:120}} value={ex.tipo_serie} onChange={e=>setEx(p=>({...p,tipo_serie:e.target.value}))}>{TRAIN_TIERS.map(t=><option key={t} value={t}>{t}</option>)}</select></div>
+            <div className="fg" style={{margin:0}}><label className="flbl">Séries</label>
+              <input className="fi" type="number" style={{width:70}} value={ex.qtd_series} onChange={e=>setEx(p=>({...p,qtd_series:e.target.value}))}/></div>
+            <div className="fg" style={{margin:0}}><label className="flbl">Reps</label>
+              <input className="fi" style={{width:80}} value={ex.faixa_reps} onChange={e=>setEx(p=>({...p,faixa_reps:e.target.value}))}/></div>
+            <div className="fg" style={{margin:0}}><label className="flbl">Descanso (s)</label>
+              <input className="fi" type="number" style={{width:90}} value={ex.intervalo_seg_min} onChange={e=>setEx(p=>({...p,intervalo_seg_min:e.target.value}))}/></div>
+            <button className="btn btn-secondary" onClick={()=>addEx(dv.id)}>Adicionar</button>
+          </div>
+        </div>}
+      </div>);})}
+  </div>);
+}
+
 /* ── Offline (IndexedDB): cache de leitura + fila de gravação ── */
 const IDB=(()=>{
   let dbp=null;
@@ -4419,6 +4542,7 @@ function App({profile,setProfile}){
         <button className="nav-btn" onClick={()=>{setEditStu(null);go('stu-form');}}>Novo aluno</button>
         <button className={`nav-btn ${view==='agenda'?'active':''}`} onClick={()=>{setSelStudent(null);go('agenda');}}>Agenda</button>
         <button className={`nav-btn ${view==='intakes'?'active':''}`} onClick={()=>{setSelStudent(null);go('intakes');}}>Fichas online{intakeCount>0&&<span style={{marginLeft:6,background:'var(--gold)',color:'#1c0f16',borderRadius:10,padding:'0 7px',fontSize:11,fontWeight:700}}>{intakeCount}</span>}</button>
+        <button className={`nav-btn ${view==='train'?'active':''}`} onClick={()=>{setSelStudent(null);go('train');}}>Treino</button>
         <button className={`nav-btn ${view==='tech'?'active':''}`} onClick={()=>{setSelStudent(null);go('tech');}}>Avaliação técnica</button>
         <button className={`nav-btn ${view==='protocols'?'active':''}`} onClick={()=>go('protocols')}>Protocolos</button>
         {selStudent&&<>
@@ -4468,13 +4592,14 @@ function App({profile,setProfile}){
           {view==='agenda'&&<AgendaScreen coach={profile} students={students} preStudent={selStudent} onBack={()=>go('dashboard')}/>}
           {view==='intakes'&&<IntakeInbox coach={profile} students={students} onImport={importIntake} onBack={()=>go('dashboard')}/>}
           {view==='tech'&&<TechScreen coach={profile} students={students} preStudent={selStudent} onBack={()=>go('dashboard')}/>}
+          {view==='train'&&<TrainScreen coach={profile} students={students} preStudent={selStudent} onBack={()=>go('dashboard')}/>}
           {view==='stu-form'&&<StudentForm student={editStu} onSave={saveStu} onCancel={()=>go(selStudent?'detail':'dashboard')}/>}
           {view==='detail'&&selStudent&&<StudentDetail student={selStudent} evals={stuEvals}
             onNewEval={()=>{setEditEv(null);setReassess(false);go('ev-form');}}
             onReassess={()=>{setEditEv(null);setReassess(true);go('ev-form');}}
             onEditEval={ev=>{setEditEv(ev);setReassess(false);go('ev-form');}}
             onDeleteEval={delEv} onReport={ev=>{setSelEval(ev);go('report');}}
-            onBack={()=>go('dashboard')} onEdit={()=>{setEditStu(selStudent);go('stu-form');}} onTech={()=>go('tech')}/>}
+            onBack={()=>go('dashboard')} onEdit={()=>{setEditStu(selStudent);go('stu-form');}} onTech={()=>go('tech')} onTrain={()=>go('train')}/>}
           {view==='ev-form'&&selStudent&&<EvalForm student={selStudent} evalData={editEv}
             carryHeight={reassess?lastHeight:''} isReassess={reassess&&!editEv}
             onSave={saveEv} onCancel={()=>go('detail')}/>}
