@@ -4323,9 +4323,60 @@ function TechScreen({coach,students,preStudent,onBack}){
 /* ══════════════ Módulo Treino — montador de ficha (coach) ══════════════ */
 const TRAIN_TIERS=['Aquecimento','Preparatoria','Valida'];
 const tierColor=t=>t==='Valida'?'#2f8f4e':t==='Preparatoria'?'#b0894f':'#8a8378';
+const TRAIN_GRUPOS=['Peito','Costas','Ombro','Bíceps','Tríceps','Antebraço','Quadríceps','Posterior de Coxa','Glúteos','Adutores','Abdutores','Panturrilha','Abdômen','Lombar','Cardio','Mobilidade'];
+const openVideo=(url,name)=>{const u=(url&&url.trim())?url.trim():('https://www.youtube.com/results?search_query='+encodeURIComponent((name||'exercício')+' execução técnica'));window.open(u,'_blank');};
+
+/* Biblioteca de exercícios do treinador (com vídeo) */
+function ExerciseLibrary({coach,onBack}){
+  const demo=!!coach._demo;
+  const [lib,setLib]=useState(demo?[{id:'x1',nome:'Agachamento Livre',grupo_muscular:'Quadríceps',coach_id:null},{id:'x2',nome:'Supino Reto',grupo_muscular:'Peito',coach_id:null}]:null);
+  const [q,setQ]=useState('');const [msg,setMsg]=useState(null);
+  const [nf,setNf]=useState({nome:'',grupo_muscular:'Peito',video_url:''});
+  const load=async()=>{if(demo)return;const {data}=await sb.from('train_exercicios').select('*').order('grupo_muscular').order('nome');setLib(data||[]);};
+  useEffect(()=>{load();},[]);
+  const add=async()=>{const nome=(nf.nome||'').trim();if(!nome)return;
+    if(demo){setLib(p=>[{id:'d'+Date.now(),nome,grupo_muscular:nf.grupo_muscular,video_url:nf.video_url,coach_id:coach.id},...p]);setNf({nome:'',grupo_muscular:nf.grupo_muscular,video_url:''});return;}
+    const {data,error}=await sb.from('train_exercicios').insert({coach_id:coach.id,nome,grupo_muscular:nf.grupo_muscular,video_url:nf.video_url||null}).select().single();
+    if(error){setMsg({t:'err',m:'Erro: '+error.message});return;}
+    setLib(p=>[data,...p]);setNf({nome:'',grupo_muscular:nf.grupo_muscular,video_url:''});setMsg({t:'ok',m:'Exercício adicionado.'});
+  };
+  const setVideo=async(ex)=>{const url=prompt('Cole o link do vídeo (YouTube) de "'+ex.nome+'":',ex.video_url||'');if(url===null)return;
+    setLib(p=>p.map(x=>x.id===ex.id?{...x,video_url:url}:x));if(!demo)await sb.from('train_exercicios').update({video_url:url||null}).eq('id',ex.id);};
+  const del=async(ex)=>{if(ex.coach_id!==coach.id)return;if(!confirm('Remover "'+ex.nome+'"?'))return;setLib(p=>p.filter(x=>x.id!==ex.id));if(!demo)await sb.from('train_exercicios').delete().eq('id',ex.id);};
+  const list=(lib||[]).filter(e=>e.nome.toLowerCase().includes(q.toLowerCase()));
+  const groups=(()=>{const g={};list.forEach(e=>{(g[e.grupo_muscular||'Outros']=g[e.grupo_muscular||'Outros']||[]).push(e);});return Object.entries(g);})();
+  return(<div>
+    <div className="abar"><div><div className="breadcrumb" onClick={onBack}>← Treino</div>
+      <div className="ph-title">Biblioteca de exercícios</div>
+      <div className="ph-sub">{(lib||[]).length} exercícios · adicione vídeos</div></div></div>
+    {msg&&<div className={`alert ${msg.t==='err'?'alert-danger':'alert-success'}`}>{msg.m}</div>}
+    <div className="dash-panel" style={{marginBottom:16}}><h4>Adicionar exercício</h4>
+      <div style={{display:'flex',gap:10,flexWrap:'wrap',alignItems:'flex-end'}}>
+        <div className="fg" style={{margin:0,flex:1,minWidth:150}}><label className="flbl">Nome</label><input className="fi" value={nf.nome} onChange={e=>setNf(p=>({...p,nome:e.target.value}))} placeholder="Ex.: Cadeira Extensora"/></div>
+        <div className="fg" style={{margin:0}}><label className="flbl">Grupo</label><select className="fi" style={{width:150}} value={nf.grupo_muscular} onChange={e=>setNf(p=>({...p,grupo_muscular:e.target.value}))}>{TRAIN_GRUPOS.map(g=><option key={g}>{g}</option>)}</select></div>
+        <div className="fg" style={{margin:0,flex:1,minWidth:150}}><label className="flbl">Vídeo (link, opcional)</label><input className="fi" value={nf.video_url} onChange={e=>setNf(p=>({...p,video_url:e.target.value}))} placeholder="https://youtube.com/..."/></div>
+        <button className="btn btn-primary" onClick={add}>Adicionar</button>
+      </div>
+    </div>
+    <div className="search-wrap" style={{marginBottom:14}}><span className="search-icon"></span>
+      <input className="fi" placeholder="Buscar exercício..." value={q} onChange={e=>setQ(e.target.value)}/></div>
+    {lib===null?<div className="center-screen"><div className="spinner"/></div>:
+     groups.map(([g,items])=>(<div key={g} style={{marginBottom:14}}>
+       <div style={{fontSize:12,fontWeight:700,textTransform:'uppercase',letterSpacing:1,color:'var(--text3)',marginBottom:8}}>{g}</div>
+       {items.map(e=>(<div key={e.id} style={{display:'flex',alignItems:'center',gap:10,padding:'9px 12px',border:'1px solid var(--border)',borderRadius:10,marginBottom:6,background:'var(--bg2)'}}>
+         <span style={{flex:1,fontWeight:600}}>{e.nome}{e.video_url&&<span title="Tem vídeo" style={{color:'var(--accent)',marginLeft:6}}>●</span>}</span>
+         <button className="btn btn-ghost btn-sm" onClick={()=>openVideo(e.video_url,e.nome)}>▶ Vídeo</button>
+         {e.coach_id===coach.id&&<><button className="btn btn-secondary btn-sm" onClick={()=>setVideo(e)}>{e.video_url?'Trocar link':'+ Link'}</button>
+           <button className="btn-icon btn-sm" onClick={()=>del(e)}>×</button></>}
+       </div>))}
+     </div>))}
+  </div>);
+}
+
 function TrainScreen({coach,students,preStudent,onBack}){
   const demo=!!coach._demo;
   const [stu,setStu]=useState(preStudent||null);
+  const [showLib,setShowLib]=useState(false);
   const [q,setQ]=useState('');
   const [lib,setLib]=useState([]);
   const [divs,setDivs]=useState(null);
@@ -4367,12 +4418,14 @@ function TrainScreen({coach,students,preStudent,onBack}){
   };
   const delEx=async(divId,id)=>{setSeries(p=>({...p,[divId]:(p[divId]||[]).filter(s=>s.id!==id)}));if(!demo)await sb.from('train_serie_prescrita').delete().eq('id',id);};
 
+  if(showLib)return <ExerciseLibrary coach={coach} onBack={()=>setShowLib(false)}/>;
   // seleção de aluno
   if(!stu){
     const list=students.filter(s=>s.name.toLowerCase().includes(q.toLowerCase())).sort((a,b)=>a.name.localeCompare(b.name));
     return(<div>
       <div className="abar"><div><div className="breadcrumb" onClick={onBack}>← Painel</div>
-        <div className="ph-title">Treino</div><div className="ph-sub">Escolha o aluno para montar a ficha</div></div></div>
+        <div className="ph-title">Treino</div><div className="ph-sub">Escolha o aluno para montar a ficha</div></div>
+        <button className="btn btn-secondary" onClick={()=>setShowLib(true)}>Biblioteca de exercícios</button></div>
       {demo&&<div className="alert alert-warn">Modo demonstração: as fichas não são salvas.</div>}
       <div className="search-wrap" style={{marginBottom:16}}><span className="search-icon"></span>
         <input className="fi" placeholder="Buscar aluno..." value={q} onChange={e=>setQ(e.target.value)}/></div>
@@ -4709,8 +4762,10 @@ function TrainExec({student,divisao,demo,best,onBack,onSaved}){
   const [series,setSeries]=useState(demo?(_DEMO_ALUNO_SERIES[divisao.id]||[]):null);
   const [vals,setVals]=useState({});const [done,setDone]=useState({});const [active,setActive]=useState({});
   const [openEx,setOpenEx]=useState(0);const [rest,setRest]=useState(0);const [restName,setRestName]=useState('');
-  const [paused,setPaused]=useState(false);const [tot,setTot]=useState(0);const [cel,setCel]=useState(null);
-  useEffect(()=>{if(demo)return;(async()=>{const {data}=await sb.from('train_serie_prescrita').select('*').eq('divisao_id',divisao.id).order('ordem');setSeries(data||[]);})();},[]);
+  const [paused,setPaused]=useState(false);const [tot,setTot]=useState(0);const [cel,setCel]=useState(null);const [vid,setVid]=useState({});
+  useEffect(()=>{if(demo)return;(async()=>{const {data}=await sb.from('train_serie_prescrita').select('*').eq('divisao_id',divisao.id).order('ordem');setSeries(data||[]);
+    const ids=[...new Set((data||[]).map(s=>s.exercicio_id).filter(Boolean))];
+    if(ids.length){const {data:ex}=await sb.from('train_exercicios').select('id,video_url').in('id',ids);const m={};(ex||[]).forEach(e=>{if(e.video_url)m[e.id]=e.video_url;});setVid(m);}})();},[]);
   useEffect(()=>{const t=setInterval(()=>setTot(x=>x+1),1000);return()=>clearInterval(t);},[]);
   useEffect(()=>{if(rest<=0||paused)return;const t=setInterval(()=>setRest(r=>r<=1?0:r-1),1000);return()=>clearInterval(t);},[rest>0,paused]);
   const exs=React.useMemo(()=>{const m=new Map();(series||[]).forEach(s=>{const k=s.exercicio_id||s.exercicio_nome;if(!m.has(k))m.set(k,{key:k,nome:s.exercicio_nome,exercicio_id:s.exercicio_id,tiers:[]});m.get(k).tiers.push(s);});const ord={Aquecimento:0,Preparatoria:1,Valida:2};const a=[...m.values()];a.forEach(e=>e.tiers.sort((x,y)=>(ord[x.tipo_serie]??9)-(ord[y.tipo_serie]??9)));return a;},[series]);
@@ -4757,6 +4812,7 @@ function TrainExec({student,divisao,demo,best,onBack,onSaved}){
           <span style={{color:'var(--lvt3)'}}>{open?'▾':'▸'}</span>
         </div>
         {open&&<div style={{marginTop:14}}>
+          <button className="lv-ghost" style={{marginBottom:12}} onClick={()=>openVideo(vid[e.exercicio_id],e.nome)}>▶ Ver vídeo</button>
           {e.tiers.map(t=>{const ai=activeIdx(t);const complete=tierDoneCount(t)>=t.qtd_series;const iv=t.intervalo_seg_min||60;
             return(<div key={t.id} style={{marginBottom:16}}>
               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
