@@ -4779,11 +4779,76 @@ function TrainExec({student,divisao,demo,best,onBack,onSaved}){
   </div>);
 }
 
+const _DEMO_HIST=(()=>{const out=[];const ds=['2026-06-06','2026-06-13','2026-06-20','2026-06-27','2026-07-04','2026-07-18','2026-08-03'];
+  const c1=[60,62,62,64,66,70,80],c2=[40,40,42,44,45,48,52];
+  ds.forEach((d,i)=>{out.push({exercicio_id:'x1',exercicio_nome:'Agachamento Livre',data_treino:d,tipo_serie:'Valida',carga:c1[i],reps:10,is_pr:i===6});
+    out.push({exercicio_id:'x1',exercicio_nome:'Agachamento Livre',data_treino:d,tipo_serie:'Valida',carga:c1[i]-5,reps:11,is_pr:false});
+    out.push({exercicio_id:'x3',exercicio_nome:'Supino',data_treino:d,tipo_serie:'Valida',carga:c2[i],reps:8,is_pr:i===6});});
+  return out;})();
+
+function EvolChart({sessions}){
+  const W=320,H=150,pad=10,base=26;
+  const cs=sessions.map(s=>s.carga),vs=sessions.map(s=>s.vol);
+  const cmax=Math.max(...cs),cmin=Math.min(...cs),cr=cmax-cmin||1,vmax=Math.max(...vs)||1;
+  const n=sessions.length;
+  const x=i=>pad+(n<=1?(W-2*pad)/2:(i/(n-1))*(W-2*pad));
+  const y=c=>H-base-((c-cmin)/cr)*(H-pad-base);
+  const line=sessions.map((s,i)=>(i?'L':'M')+x(i).toFixed(1)+' '+y(s.carga).toFixed(1)).join(' ');
+  return(<svg viewBox={`0 0 ${W} ${H}`} style={{width:'100%',display:'block'}}>
+    {sessions.map((s,i)=>{const bh=(s.vol/vmax)*(H-pad-base)*.6;return <rect key={'b'+i} x={x(i)-9} y={H-base-bh} width="18" height={bh} rx="3" fill="rgba(139,92,246,.16)"/>;})}
+    <path d={line} fill="none" stroke="#8b5cf6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+    {sessions.map((s,i)=>s.pr?<g key={'p'+i}><circle cx={x(i)} cy={y(s.carga)} r="6" fill="#fbbf24"/><text x={x(i)} y={y(s.carga)+3.5} textAnchor="middle" fontSize="8">★</text></g>:<circle key={'d'+i} cx={x(i)} cy={y(s.carga)} r="3.5" fill="#c4b5fd"/>)}
+    {sessions.map((s,i)=>i%Math.ceil(n/4||1)===0||i===n-1?<text key={'x'+i} x={x(i)} y={H-8} textAnchor="middle" fontSize="8.5" fill="#6c6c7c">{s.date.slice(8,10)+'/'+s.date.slice(5,7)}</text>:null)}
+  </svg>);
+}
+
+function EvolScreen({student,demo,onBack}){
+  const [hist,setHist]=useState(demo?_DEMO_HIST:null);
+  const [sel,setSel]=useState(null);
+  useEffect(()=>{if(demo)return;(async()=>{const {data}=await sb.from('train_historico').select('exercicio_id,exercicio_nome,data_treino,tipo_serie,carga,reps,is_pr').eq('student_id',student.id).eq('tipo_serie','Valida').order('data_treino');setHist(data||[]);})();},[]);
+  const exs=React.useMemo(()=>{const m=new Map();(hist||[]).forEach(h=>{const k=h.exercicio_id||h.exercicio_nome;if(!m.has(k))m.set(k,{key:k,nome:h.exercicio_nome,rows:[]});m.get(k).rows.push(h);});
+    return [...m.values()].map(e=>{const byd=new Map();e.rows.forEach(r=>{const d=r.data_treino;if(!byd.has(d))byd.set(d,{date:d,carga:0,vol:0,pr:false});const o=byd.get(d);o.carga=Math.max(o.carga,num(r.carga)||0);o.vol+=(num(r.carga)||0)*(num(r.reps)||0);if(r.is_pr)o.pr=true;});
+      return {...e,sessions:[...byd.values()].sort((a,b)=>a.date<b.date?-1:1)};});},[hist]);
+  const cur=exs.find(e=>e.key===sel)||exs[0];
+
+  return(<div className="lv-wrap">
+    <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
+      <button className="lv-ghost" onClick={onBack}>‹ Voltar</button>
+      <div className="lv-title" style={{flex:1}}>Minha evolução</div>
+    </div>
+    {hist===null?<div className="center-screen"><div className="spinner"/></div>:
+     exs.length===0?<div className="lv-card" style={{textAlign:'center',color:'var(--lvt2)'}}>Ainda sem treinos registrados. Bata seu primeiro treino que o gráfico aparece aqui!</div>:<>
+      <div className="lv-setchips" style={{marginBottom:14}}>{exs.map(e=><div key={e.key} className={'lv-setchip '+(cur&&cur.key===e.key?'active':'')} style={{flex:'unset',minWidth:'auto',padding:'8px 12px'}} onClick={()=>setSel(e.key)}>{e.nome}</div>)}</div>
+      {cur&&(()=>{const ss=cur.sessions;const first=ss[0].carga,last=ss[ss.length-1].carga;const pct=first?Math.round((last-first)/first*100):0;const prs=ss.filter(s=>s.pr).length;
+        const rising=ss.length>=2&&last>ss[ss.length-2].carga;const flat=ss.length>=2&&last===ss[ss.length-2].carga;
+        const suggest=rising?last+2.5:last;const conf=rising?{l:'Alta',p:85,c:'#4ade80'}:flat?{l:'Média',p:62,c:'#f59e0b'}:{l:'Cautela',p:45,c:'#e11d48'};
+        return(<>
+          <div className="lv-card">
+            <div className="lv-kick" style={{marginBottom:6}}>Carga máxima & volume</div>
+            <EvolChart sessions={ss}/>
+            <div style={{marginTop:10,display:'flex',alignItems:'baseline',gap:10,flexWrap:'wrap'}}>
+              <div style={{fontFamily:'Playfair Display,serif',fontSize:34,fontWeight:700}}>{fmt(last)} kg</div>
+              <span className="lv-pill" style={{background:pct>=0?'rgba(74,222,128,.16)':'rgba(225,29,72,.16)',color:pct>=0?'#86efac':'#fda4af'}}>{pct>=0?'▲ +':'▼ '}{pct}% desde o início</span>
+            </div>
+            <div className="lv-sub" style={{marginTop:2}}>Última carga máxima · {fmtDate(ss[ss.length-1].date)}{prs>0&&` · 🏆 ${prs} recorde${prs>1?'s':''}`}</div>
+          </div>
+          <div className="lv-card">
+            <div className="lv-kick" style={{marginBottom:8}}>Estimativa da próxima sessão</div>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+              <div><div style={{fontWeight:800,fontSize:18}}>{fmt(suggest)} kg</div><div className="lv-sub">meta sugerida para as válidas</div></div>
+              <span className="lv-pill" style={{background:'rgba(139,92,246,.16)',color:conf.c,border:'1px solid '+conf.c}}>{conf.l} · {conf.p}%</span>
+            </div>
+          </div>
+        </>);})()}
+    </>}
+  </div>);
+}
+
 function StudentApp({profile}){
   const demo=!!profile._demo;
   const [stu,setStu]=useState(demo?{id:'ds1',name:'Laryssa Araujo',gender:'F',coach_id:'demo'}:undefined);
   const [divs,setDivs]=useState(demo?_DEMO_ALUNO_DIVS:null);
-  const [best,setBest]=useState({});const [exec,setExec]=useState(null);const [freq,setFreq]=useState({done:0,meta:4});
+  const [best,setBest]=useState({});const [exec,setExec]=useState(null);const [evol,setEvol]=useState(false);const [freq,setFreq]=useState({done:0,meta:4});
   const [code,setCode]=useState('');const [linkErr,setLinkErr]=useState(null);const [linking,setLinking]=useState(false);
   const doLink=async()=>{const c=code.trim().toUpperCase();if(!c)return;setLinking(true);setLinkErr(null);
     const {data,error}=await sb.rpc('aluno_link',{p_code:c});setLinking(false);
@@ -4820,6 +4885,7 @@ function StudentApp({profile}){
     <button className="lv-btn" style={{marginTop:12}} disabled={linking} onClick={doLink}>{linking?'Ativando…':'Ativar treinos'}</button>
   </div></div>);
   if(exec)return shell(<TrainExec student={stu} divisao={exec} demo={demo} best={best} onBack={()=>setExec(null)} onSaved={(exId,carga)=>setBest(b=>({...b,[exId]:Math.max(b[exId]||0,carga)}))}/>);
+  if(evol)return shell(<EvolScreen student={stu} demo={demo} onBack={()=>setEvol(false)}/>);
 
   const list=divs||[];const pct=Math.min(100,Math.round((freq.done/(freq.meta||1))*100));
   return shell(<div className="lv-wrap">
@@ -4830,6 +4896,11 @@ function StudentApp({profile}){
     <div className="lv-card"><div className="lv-kick">Frequência semanal</div>
       <div style={{fontSize:24,fontWeight:800,marginTop:4}}>{freq.done} <span style={{color:'var(--lvt2)',fontSize:14,fontWeight:600}}>de {freq.meta} treinos</span></div>
       <div className="lv-freq"><i style={{width:pct+'%'}}/></div>
+    </div>
+    <div className="lv-treino" style={{marginBottom:14}} onClick={()=>setEvol(true)}>
+      <div className="lv-avatar" style={{width:38,height:38,fontSize:18,background:'var(--lvc2)'}}>📈</div>
+      <div style={{flex:1}}><div style={{fontWeight:700}}>Minha evolução</div><div className="lv-sub">Cargas, volume e recordes</div></div>
+      <span style={{color:'var(--lvt3)'}}>›</span>
     </div>
     {list.length===0?<div className="lv-card" style={{textAlign:'center',color:'var(--lvt2)'}}>Seu treinador ainda não montou sua ficha de treino.</div>:<>
       <div className="lv-card lv-hero">
