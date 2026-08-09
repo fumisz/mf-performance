@@ -161,6 +161,20 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:1
 .card-actions{display:flex;gap:6px;margin-top:10px}
 .card-actions .btn{flex:1;padding:6px 8px;font-size:11.5px}
 @media(max-width:680px){.tech-grid{grid-template-columns:1fr!important}}
+/* Acompanhamento de alunos — lista estilo painel */
+.dash-list{display:flex;flex-direction:column;gap:8px}
+.dash-row{display:flex;align-items:center;gap:12px;padding:11px 14px;border:1px solid var(--border);border-radius:14px;background:var(--bg2);cursor:pointer;transition:border-color .12s,background .12s}
+.dash-row:hover{border-color:var(--accent);background:var(--bg3)}
+.dash-row .dr-name{font-weight:600;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dash-row .dr-meta{font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dash-row .dr-right{margin-left:auto;display:flex;align-items:center;gap:11px;flex-shrink:0}
+.dscore{font-family:var(--serif);font-size:19px;font-weight:600;min-width:26px;text-align:right}
+.dstat-pill{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;padding:5px 10px;border-radius:20px;white-space:nowrap}
+.dstat-g{background:#e7f0e0;color:#3f6b32}.dstat-a{background:#f6eed6;color:#8a6d1f}.dstat-r{background:#f4e2df;color:#9a473c}.dstat-b{background:#e4ebf2;color:#3f5c78}
+.dstat-pill i{width:7px;height:7px;border-radius:50%;background:currentColor}
+.dr-act{background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;padding:4px;border-radius:8px}
+.dr-act:hover{color:var(--accent);background:var(--bg3)}
+@media(max-width:560px){.dash-row .dr-right .dscore{display:none}}
 
 /* ── Stat cards ── */
 .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:11px;margin-bottom:22px}
@@ -1097,32 +1111,27 @@ function Dashboard({students,evals,onSelect,onNew,onDelete,onReassess,onSchedule
       {students.length>0&&filtered.length===0&&<div className="empty"><div className="empty-icon"></div>
         <div className="empty-title">Nenhum aluno neste filtro</div></div>}
 
-      <div className="student-grid">
-        {filtered.map(({s,se,last,scoreHist,lastScore,scoreDelta,status})=>{
-          const a=age(s.dob);
+      {filtered.length>0&&<div className="kpi-lbl" style={{margin:'4px 2px 10px'}}>Acompanhamento de alunos</div>}
+      <div className="dash-list">
+        {filtered.map(({s,se,last,lastScore,ri,status})=>{
+          let pill;
+          if(se.length===0)pill={c:'b',t:'Sem avaliação'};
+          else if(ri&&ri.days<0)pill={c:'r',t:`Vencida · ${Math.abs(ri.days)}d`};
+          else if(ri&&ri.days<=7)pill={c:'a',t:`Atenção · ${ri.days}d`};
+          else if(ri)pill={c:'g',t:`Em dia · ${ri.days}d`};
+          else pill={c:'g',t:'Em dia'};
           return(
-            <div key={s.id} className="student-card" onClick={()=>onSelect(s)}>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:11}}>
-                <div className="avatar">{s.photo?<img src={s.photo} alt=""/>:initials(s.name)}</div>
-                <button className="btn-icon btn-sm" title="Excluir" onClick={e=>{e.stopPropagation();if(confirm(`Excluir ${s.name} e todas as avaliações?`))onDelete(s.id);}}>Excluir</button>
+            <div key={s.id} className="dash-row" onClick={()=>onSelect(s)}>
+              <div className="avatar" style={{width:42,height:42,fontSize:14}}>{s.photo?<img src={s.photo} alt=""/>:initials(s.name)}</div>
+              <div style={{minWidth:0}}>
+                <div className="dr-name">{s.name}</div>
+                <div className="dr-meta">{s.goal||(se.length>0?`${se.length} avaliaç${se.length>1?'ões':'ão'} · ${fmtDate(last.date)}`:'Sem avaliações')}</div>
               </div>
-              <span className={`badge ${status.c}`} style={{marginBottom:6,display:'inline-block'}}>{status.l}</span>
-              <div className="s-name">{s.name}</div>
-              <div className="s-meta">
-                {a?`${a} anos · `:''}{s.gender==='M'?'Masculino':'Feminino'}
-                {s.goal&&<><br/><span style={{color:'var(--accent)'}}>{s.goal}</span></>}
-                <br/>{se.length>0?`${se.length} ${se.length>1?'avaliações':'avaliação'} · ${fmtDate(last.date)}`:'Sem avaliações'}
-              </div>
-              {(lastScore!=null||scoreHist.length>=2)&&<div className="sc-card">
-                <div>{lastScore!=null&&<><span className="sc-num" style={{color:scoreColor(lastScore)}}>{lastScore}</span> <span className="sc-lbl">Score / 100</span></>}
-                  {scoreDelta!=null&&scoreDelta!==0&&<div className={`sc-delta ${scoreDelta>0?'up':'down'}`}>{scoreDelta>0?'▲ +':'▼ '}{scoreDelta} vs. anterior</div>}</div>
-                {scoreHist.length>=2&&<div style={{width:96}}><Sparkline values={scoreHist} color={scoreColor(lastScore)} w={96} h={34}/></div>}
-              </div>}
-              <div className="card-actions" onClick={e=>e.stopPropagation()}>
-                {se.length>0?<button className="btn btn-secondary" onClick={()=>onReassess(s)}>Reavaliar</button>
-                  :<button className="btn btn-secondary" onClick={()=>onSelect(s)}>Avaliar</button>}
-                <button className="btn btn-ghost" onClick={()=>onTrain(s)}>Treino</button>
-                <button className="btn btn-ghost" onClick={()=>onSchedule(s)}>Agendar</button>
+              <div className="dr-right">
+                {lastScore!=null&&<span className="dscore" style={{color:scoreColor(lastScore)}}>{lastScore}</span>}
+                <span className={`dstat-pill dstat-${pill.c}`}><i/>{pill.t}</span>
+                <button className="dr-act" title="Treino" onClick={e=>{e.stopPropagation();onTrain(s);}}>🏋</button>
+                <button className="dr-act" title="Excluir" onClick={e=>{e.stopPropagation();if(confirm(`Excluir ${s.name} e todas as avaliações?`))onDelete(s.id);}}>×</button>
               </div>
             </div>);
         })}
