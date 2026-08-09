@@ -978,7 +978,7 @@ function reassessInfo(se){if(!se||!se.length)return null;const last=se[0];
 function evalOverall(student,ev,prevEv){try{const d=derive(student,ev);const ex=buildExecutive(student,ev,d,prevEv);return ex&&ex.overall!=null?ex.overall:null;}catch(e){return null;}}
 const scoreColor=v=>v==null?'var(--text3)':v>=75?'#2f8f4e':v>=55?'#b0894f':v>=40?'#c98a3a':'#b3434f';
 
-function Dashboard({students,evals,onSelect,onNew,onDelete,onReassess,onSchedule}){
+function Dashboard({students,evals,onSelect,onNew,onDelete,onReassess,onSchedule,onTrain}){
   const [q,setQ]=useState('');
   const [filter,setFilter]=useState('todos');
   const [sortBy,setSortBy]=useState('urgencia');
@@ -1121,6 +1121,7 @@ function Dashboard({students,evals,onSelect,onNew,onDelete,onReassess,onSchedule
               <div className="card-actions" onClick={e=>e.stopPropagation()}>
                 {se.length>0?<button className="btn btn-secondary" onClick={()=>onReassess(s)}>Reavaliar</button>
                   :<button className="btn btn-secondary" onClick={()=>onSelect(s)}>Avaliar</button>}
+                <button className="btn btn-ghost" onClick={()=>onTrain(s)}>Treino</button>
                 <button className="btn btn-ghost" onClick={()=>onSchedule(s)}>Agendar</button>
               </div>
             </div>);
@@ -1906,7 +1907,10 @@ function PhotoCompare({student,evals,onClose}){
 
 function StudentDetail({student,evals,onNewEval,onReassess,onEditEval,onDeleteEval,onReport,onBack,onEdit,onTech,onTrain}){
   const [cmp,setCmp]=useState(false);
+  const [acc,setAcc]=useState(null);const [accBusy,setAccBusy]=useState(false);
   const photoEvals=evals.filter(e=>e.post_photo_front||e.post_photo_side||e.post_photo_back).length;
+  const genCode=async()=>{setAccBusy(true);const {data,error}=await sb.rpc('aluno_gerar_codigo',{p_student:student.id});setAccBusy(false);if(error){alert('Erro: '+error.message);return;}setAcc(data||'—');};
+  const accWa=()=>{const phone=(student.phone||'').replace(/\D/g,'');const txt=encodeURIComponent(`Olá ${student.name.split(' ')[0]}! Crie sua conta no app MF Performance como *Aluno* e use este código de acesso: *${acc}*`);window.open(phone?`https://wa.me/55${phone}?text=${txt}`:`https://wa.me/?text=${txt}`,'_blank');};
   const a=age(student.dob);
   const sorted=[...evals].sort((x,y)=>new Date(y.date)-new Date(x.date));
   const last=sorted[0];
@@ -1914,6 +1918,20 @@ function StudentDetail({student,evals,onNewEval,onReassess,onEditEval,onDeleteEv
   return(
     <div>
       {cmp&&<PhotoCompare student={student} evals={evals} onClose={()=>setCmp(false)}/>}
+      {acc!==null&&<div style={{position:'fixed',inset:0,zIndex:120,background:'rgba(10,8,10,.8)',display:'flex',alignItems:'center',justifyContent:'center',padding:16}} onClick={()=>setAcc(null)}>
+        <div className="card" style={{maxWidth:380,width:'100%'}} onClick={e=>e.stopPropagation()}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}><div style={{fontFamily:'var(--serif)',fontSize:18,fontWeight:600}}>Acesso do aluno</div><button className="btn-icon btn-sm" onClick={()=>setAcc(null)}>×</button></div>
+          <p className="s-meta" style={{marginBottom:12}}>Gere um código e envie ao aluno. Ele cria a conta como <b>Aluno</b> e digita esse código para ver os treinos — não precisa do e-mail igual.</p>
+          {acc?<>
+            <div style={{textAlign:'center',fontFamily:'var(--serif)',fontSize:34,fontWeight:700,letterSpacing:5,background:'var(--bg3)',padding:'14px',borderRadius:12,marginBottom:12}}>{acc}</div>
+            <div style={{display:'flex',gap:8}}>
+              <button className="btn btn-secondary" style={{flex:1}} onClick={()=>{if(navigator.clipboard)navigator.clipboard.writeText(acc);}}>Copiar</button>
+              <button className="btn btn-primary" style={{flex:1}} onClick={accWa}>WhatsApp</button>
+            </div>
+            <button className="btn btn-ghost btn-sm" style={{width:'100%',marginTop:8}} onClick={genCode} disabled={accBusy}>Gerar outro</button>
+          </>:<button className="btn btn-primary" style={{width:'100%'}} onClick={genCode} disabled={accBusy}>{accBusy?'Gerando…':'Gerar código de acesso'}</button>}
+        </div>
+      </div>}
       <div className="abar">
         <div><div className="breadcrumb" onClick={onBack}>← Alunos</div>
           <div style={{display:'flex',alignItems:'center',gap:13}}>
@@ -1925,6 +1943,7 @@ function StudentDetail({student,evals,onNewEval,onReassess,onEditEval,onDeleteEv
         <div className="bgroup">
           <button className="btn btn-ghost btn-sm" onClick={onEdit}>Editar Editar ficha</button>
           <button className="btn btn-ghost btn-sm" onClick={onTrain}>Treino</button>
+          <button className="btn btn-ghost btn-sm" onClick={()=>setAcc('')}>Acesso do aluno</button>
           <button className="btn btn-ghost btn-sm" onClick={onTech}>Avaliação técnica</button>
           {photoEvals>=2&&<button className="btn btn-ghost btn-sm" onClick={()=>setCmp(true)}>Comparar fotos</button>}
           {sorted.length>0&&<button className="btn btn-secondary" onClick={onReassess}> Reavaliação</button>}
@@ -3040,10 +3059,11 @@ function AuthScreen(){
         const {error}=await sb.auth.signInWithPassword({email:email.trim(),password:pass});
         if(error)throw error;
       }else if(isAluno){
+        try{localStorage.setItem('mfp_aluno_code',acode.trim().toUpperCase());}catch(e){}
         const {data,error}=await sb.auth.signUp({email:email.trim(),password:pass,
-          options:{data:{role:'student',name:name.trim(),coach_code:acode.trim()}}});
+          options:{data:{role:'student',name:name.trim()}}});
         if(error)throw error;
-        if(data.user&&!data.session){setMsg({type:'success',text:'Conta criada! Confirme pelo e-mail e faça login. Use o mesmo e-mail que seu treinador cadastrou.'});setMode('login');setBusy(false);return;}
+        if(data.user&&!data.session){setMsg({type:'success',text:'Conta criada! Confirme pelo e-mail e faça login. Seus treinos aparecem sozinhos.'});setMode('login');setBusy(false);return;}
       }else{
         const {data:ok}=await sb.rpc('coach_invite_valid',{p_code:acode.trim()});
         if(!ok){setMsg({type:'error',text:'Código de acesso inválido ou esgotado. Fale com o administrador.'});setBusy(false);return;}
@@ -3067,7 +3087,7 @@ function AuthScreen(){
       <div className="auth-wrap">
         <div className="auth-card">
           <div style={{display:'flex',justifyContent:'center',marginBottom:6}}><LogoLifter size={132}/></div>
-          <div style={{fontFamily:'var(--serif)',fontSize:13.5,color:'var(--text2)',textAlign:'center',fontStyle:'italic',marginBottom:22}}>Avaliação física de alta performance</div>
+          <div style={{fontFamily:'var(--serif)',fontSize:13.5,color:'var(--text2)',textAlign:'center',fontStyle:'italic',marginBottom:22}}>Saúde, avaliação, treino e nutrição num app só</div>
           <div className="seg">
             <button className={mode==='login'?'on':''} onClick={()=>{setMode('login');setMsg(null);}}>Entrar</button>
             <button className={mode==='signup'?'on':''} onClick={()=>{setMode('signup');setMsg(null);}}>Criar conta</button>
@@ -3080,8 +3100,8 @@ function AuthScreen(){
                 <button type="button" className={acct==='aluno'?'on':''} onClick={()=>{setAcct('aluno');setMsg(null);}}>Sou aluno</button>
               </div>
               <FI label="Nome" value={name} onChange={e=>setName(e.target.value)} placeholder="Seu nome"/>
-              <FI label={isAluno?'Código do seu treinador':'Código de acesso (treinador)'} value={acode} onChange={e=>setAcode(e.target.value.toUpperCase())} placeholder={isAluno?'Peça ao seu treinador':'Fornecido pelo administrador'} style={{textTransform:'uppercase',letterSpacing:1}}/>
-              {isAluno&&<div className="alert alert-info" style={{marginTop:-4}}>Use o <b>mesmo e-mail</b> que seu treinador cadastrou na sua ficha.</div>}
+              <FI label={isAluno?'Código de acesso':'Código de acesso (treinador)'} value={acode} onChange={e=>setAcode(e.target.value.toUpperCase())} placeholder={isAluno?'Código que seu treinador gerou':'Fornecido pelo administrador'} style={{textTransform:'uppercase',letterSpacing:1}}/>
+              {isAluno&&<div className="alert alert-info" style={{marginTop:-4}}>Peça ao seu treinador o seu <b>código de acesso</b> (ele gera no app dele).</div>}
             </>}
             <FI label="E-mail" type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="email@exemplo.com" autoComplete="email"/>
             <FI label="Senha" type="password" value={pass} onChange={e=>setPass(e.target.value)} placeholder="••••••" autoComplete={mode==='login'?'current-password':'new-password'}/>
@@ -4596,7 +4616,7 @@ function App({profile,setProfile}){
       <div className={`overlay ${menu?'show':''}`} onClick={()=>setMenu(false)}/>
       <div className={`sidebar ${menu?'open':''}`}>
         <div className="logo-row"><LogoMark size={44}/>
-          <div><div className="logo-name">MF Performance</div><div className="logo-sub">Avaliação Física</div></div></div>
+          <div><div className="logo-name">MF Performance</div><div className="logo-sub">Saúde & Performance</div></div></div>
         <button className={`nav-btn ${view==='dashboard'?'active':''}`} onClick={()=>go('dashboard')}>Dashboard</button>
         <button className="nav-btn" onClick={()=>{setEditStu(null);go('stu-form');}}>Novo aluno</button>
         <button className={`nav-btn ${view==='agenda'?'active':''}`} onClick={()=>{setSelStudent(null);go('agenda');}}>Agenda</button>
@@ -4647,7 +4667,7 @@ function App({profile,setProfile}){
           {view==='dashboard'&&<Dashboard students={students} evals={evals}
             onSelect={s=>{setSelStudent(s);go('detail');}} onNew={()=>{setEditStu(null);go('stu-form');}} onDelete={delStu}
             onReassess={s=>{setSelStudent(s);setEditEv(null);setReassess(true);go('ev-form');}}
-            onSchedule={s=>{setSelStudent(s);go('agenda');}}/>}
+            onSchedule={s=>{setSelStudent(s);go('agenda');}} onTrain={s=>{setSelStudent(s);go('train');}}/>}
           {view==='agenda'&&<AgendaScreen coach={profile} students={students} preStudent={selStudent} onBack={()=>go('dashboard')}/>}
           {view==='intakes'&&<IntakeInbox coach={profile} students={students} onImport={importIntake} onBack={()=>go('dashboard')}/>}
           {view==='tech'&&<TechScreen coach={profile} students={students} preStudent={selStudent} onBack={()=>go('dashboard')}/>}
@@ -4764,8 +4784,14 @@ function StudentApp({profile}){
   const [stu,setStu]=useState(demo?{id:'ds1',name:'Laryssa Araujo',gender:'F',coach_id:'demo'}:undefined);
   const [divs,setDivs]=useState(demo?_DEMO_ALUNO_DIVS:null);
   const [best,setBest]=useState({});const [exec,setExec]=useState(null);const [freq,setFreq]=useState({done:0,meta:4});
+  const [code,setCode]=useState('');const [linkErr,setLinkErr]=useState(null);const [linking,setLinking]=useState(false);
+  const doLink=async()=>{const c=code.trim().toUpperCase();if(!c)return;setLinking(true);setLinkErr(null);
+    const {data,error}=await sb.rpc('aluno_link',{p_code:c});setLinking(false);
+    if(error){setLinkErr(error.message);return;}
+    if(data&&data.linked){try{localStorage.removeItem('mfp_aluno_code');}catch(e){}location.reload();}
+    else setLinkErr('Código inválido ou já usado. Confira com seu treinador.');};
   useEffect(()=>{if(demo){setFreq({done:3,meta:4});return;}(async()=>{
-    try{await sb.rpc('aluno_link');}catch(e){}
+    try{const c=localStorage.getItem('mfp_aluno_code');const {data:lk}=await sb.rpc('aluno_link',{p_code:c||null});if(lk&&lk.linked){try{localStorage.removeItem('mfp_aluno_code');}catch(e){}}}catch(e){}
     const {data:sr}=await sb.from('assess_students').select('*').eq('user_id',profile.id).limit(1);
     const s=(sr&&sr[0])?rowToStu(sr[0]):null;setStu(s);
     if(s){
@@ -4785,11 +4811,13 @@ function StudentApp({profile}){
   </div>);
 
   if(stu===undefined)return shell(<div className="center-screen" style={{minHeight:'70vh'}}><div className="spinner"/></div>);
-  if(stu===null)return shell(<div className="lv-wrap"><div className="lv-card" style={{textAlign:'center',marginTop:30}}>
-    <div style={{fontSize:40,marginBottom:8}}>🔗</div>
-    <div style={{fontSize:18,fontWeight:800,marginBottom:6}}>Conta ainda não vinculada</div>
-    <p className="lv-sub">Peça ao seu treinador para te cadastrar com o mesmo e-mail que você usou no login. Aí seus treinos aparecem aqui.</p>
-    <button className="lv-btn" style={{marginTop:14}} onClick={()=>location.reload()}>Já pediu? Recarregar</button>
+  if(stu===null)return shell(<div className="lv-wrap"><div className="lv-card" style={{marginTop:26}}>
+    <div style={{fontSize:36,textAlign:'center',marginBottom:6}}>🔑</div>
+    <div style={{fontSize:19,fontWeight:800,textAlign:'center',marginBottom:6}}>Ativar minha conta</div>
+    <p className="lv-sub" style={{textAlign:'center'}}>Digite o código de acesso que seu treinador te passou.</p>
+    {linkErr&&<div className="alert alert-danger" style={{marginTop:10}}>{linkErr}</div>}
+    <input className="lv-in" style={{textAlign:'center',letterSpacing:4,textTransform:'uppercase',marginTop:14,fontSize:22,fontWeight:800}} placeholder="CÓDIGO" value={code} onChange={e=>setCode(e.target.value.toUpperCase())} maxLength={8}/>
+    <button className="lv-btn" style={{marginTop:12}} disabled={linking} onClick={doLink}>{linking?'Ativando…':'Ativar treinos'}</button>
   </div></div>);
   if(exec)return shell(<TrainExec student={stu} divisao={exec} demo={demo} best={best} onBack={()=>setExec(null)} onSaved={(exId,carga)=>setBest(b=>({...b,[exId]:Math.max(b[exId]||0,carga)}))}/>);
 
