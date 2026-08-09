@@ -447,6 +447,53 @@ textarea.fi{resize:vertical;min-height:70px;line-height:1.5}
   .eval-row .bgroup{width:100%}
   .eval-row .bgroup .btn,.eval-row .bgroup .btn-icon{flex:1}
 }
+/* ══ App do aluno — tema escuro roxo/neon (LV) ══ */
+.lv{--lvbg:#0e0e13;--lvc:#1a1a21;--lvc2:#23232d;--lvbd:#2e2e3a;--lvtx:#f4f4f7;--lvt2:#a2a2b0;--lvt3:#6c6c7c;--lvrx:#8b5cf6;--lvneon:#4ade80;--lvamber:#f59e0b;--lvwine:#e11d48;
+  background:var(--lvbg);color:var(--lvtx);min-height:100vh;font-family:'Inter',system-ui,-apple-system,sans-serif;-webkit-tap-highlight-color:transparent}
+.lv *{box-sizing:border-box}
+.lv-top{display:flex;align-items:center;gap:10px;padding:13px 16px;position:sticky;top:0;z-index:20;background:rgba(14,14,19,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--lvbd)}
+.lv-top .sp{flex:1}
+.lv-ghost{background:rgba(139,92,246,.16);color:#c4b5fd;border:none;border-radius:20px;padding:7px 14px;font-weight:700;font-size:13px;cursor:pointer}
+.lv-x{background:none;border:none;color:var(--lvt2);font-size:14px;font-weight:600;cursor:pointer}
+.lv-wrap{max-width:560px;margin:0 auto;padding:16px}
+.lv-title{font-size:23px;font-weight:800;letter-spacing:-.3px}
+.lv-sub{color:var(--lvt2);font-size:13px;margin-top:2px}
+.lv-kick{font-size:10.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--lvt3);font-weight:700}
+.lv-card{background:var(--lvc);border:1px solid var(--lvbd);border-radius:18px;padding:16px;margin-bottom:14px}
+.lv-hero{background:linear-gradient(135deg,#7c3aed,#4c1d95);border:1px solid #6d28d9;box-shadow:0 8px 30px rgba(124,58,237,.35)}
+.lv-btn{background:var(--lvrx);color:#fff;border:none;border-radius:13px;padding:13px 16px;font-weight:800;font-size:15px;cursor:pointer;width:100%;transition:transform .1s,filter .15s}
+.lv-btn:active{transform:scale(.97)}
+.lv-btn.light{background:#fff;color:#4c1d95}
+.lv-btn.neon{background:var(--lvneon);color:#0b2b16;box-shadow:0 0 24px rgba(74,222,128,.4)}
+.lv-btn:disabled{opacity:.5}
+.lv-avatar{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#8b5cf6,#6d28d9);display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff}
+.lv-freq{height:9px;background:#2e2e3a;border-radius:6px;overflow:hidden;margin-top:8px}
+.lv-freq i{display:block;height:100%;background:linear-gradient(90deg,#8b5cf6,#c084fc);border-radius:6px;transition:width .4s}
+.lv-treino{display:flex;align-items:center;gap:12px;padding:14px;border:1px solid var(--lvbd);border-radius:16px;background:var(--lvc);cursor:pointer;transition:border-color .15s,transform .1s}
+.lv-treino:active{transform:scale(.99)}
+.lv-treino:hover{border-color:var(--lvrx)}
+.lv-tierhead{display:flex;align-items:center;gap:9px;padding:12px 14px;border-radius:14px;background:var(--lvc2);cursor:pointer}
+.lv-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.lv-setchips{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.lv-setchip{flex:1;min-width:64px;text-align:center;padding:11px 6px;border-radius:12px;border:1.5px solid var(--lvbd);background:var(--lvc2);color:var(--lvt2);font-weight:700;font-size:13px;cursor:pointer}
+.lv-setchip.active{border-color:var(--lvrx);background:rgba(139,92,246,.18);color:#fff}
+.lv-setchip.done{border-color:var(--lvneon);background:rgba(74,222,128,.14);color:#86efac}
+.lv-in{width:100%;background:var(--lvc2);border:1px solid var(--lvbd);border-radius:12px;padding:12px 13px;color:var(--lvtx);font-size:16px;outline:none}
+.lv-in:focus{border-color:var(--lvrx)}
+.lv-inlbl{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--lvt3);font-weight:700;margin-bottom:5px;display:block}
+.lv-pill{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:20px;font-size:12px;font-weight:700}
+.lv-rest{position:fixed;left:14px;right:14px;bottom:14px;max-width:540px;margin:0 auto;background:var(--lvc);border:1px solid var(--lvrx);border-radius:18px;padding:13px 16px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 0 40px rgba(139,92,246,.35);z-index:40}
+.lv-restnum{font-family:'Playfair Display',Georgia,serif;font-size:30px;font-weight:700;line-height:1}
+.lv-round{width:44px;height:44px;border-radius:50%;background:var(--lvrx);color:#fff;border:none;font-size:16px;cursor:pointer}
+.lv-tot{font-family:'Playfair Display',Georgia,serif;font-size:26px;font-weight:700;text-align:center;line-height:1}
+/* Celebração de PR */
+.lv-cel{position:fixed;inset:0;z-index:120;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(8,6,12,.82);animation:lvfade .2s ease}
+@keyframes lvfade{from{opacity:0}to{opacity:1}}
+.lv-trophy{font-size:96px;filter:drop-shadow(0 0 30px rgba(245,190,60,.8));animation:lvpop .5s cubic-bezier(.2,1.4,.4,1)}
+@keyframes lvpop{0%{transform:scale(0) rotate(-20deg)}100%{transform:scale(1) rotate(0)}}
+.lv-cel h2{font-size:30px;font-weight:900;letter-spacing:1px;margin:12px 0 4px;background:linear-gradient(90deg,#fbbf24,#f59e0b);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.lv-confetti{position:fixed;top:-12px;width:10px;height:14px;border-radius:2px;z-index:121;animation:lvfall linear forwards}
+@keyframes lvfall{to{transform:translateY(105vh) rotate(720deg);opacity:.9}}
 </style>
 </head>
 <body>
@@ -4631,99 +4678,143 @@ const _DEMO_ALUNO_SERIES={
 
 function TrainExec({student,divisao,demo,best,onBack,onSaved}){
   const [series,setSeries]=useState(demo?(_DEMO_ALUNO_SERIES[divisao.id]||[]):null);
-  const [vals,setVals]=useState({});
-  const [done,setDone]=useState({});
-  const [rest,setRest]=useState(0);
+  const [vals,setVals]=useState({});const [done,setDone]=useState({});const [active,setActive]=useState({});
+  const [openEx,setOpenEx]=useState(0);const [rest,setRest]=useState(0);const [restName,setRestName]=useState('');
+  const [paused,setPaused]=useState(false);const [tot,setTot]=useState(0);const [cel,setCel]=useState(null);
   useEffect(()=>{if(demo)return;(async()=>{const {data}=await sb.from('train_serie_prescrita').select('*').eq('divisao_id',divisao.id).order('ordem');setSeries(data||[]);})();},[]);
-  useEffect(()=>{if(rest<=0)return;const t=setInterval(()=>setRest(r=>r<=1?0:r-1),1000);return()=>clearInterval(t);},[rest>0]);
+  useEffect(()=>{const t=setInterval(()=>setTot(x=>x+1),1000);return()=>clearInterval(t);},[]);
+  useEffect(()=>{if(rest<=0||paused)return;const t=setInterval(()=>setRest(r=>r<=1?0:r-1),1000);return()=>clearInterval(t);},[rest>0,paused]);
+  const exs=React.useMemo(()=>{const m=new Map();(series||[]).forEach(s=>{const k=s.exercicio_id||s.exercicio_nome;if(!m.has(k))m.set(k,{key:k,nome:s.exercicio_nome,exercicio_id:s.exercicio_id,tiers:[]});m.get(k).tiers.push(s);});const ord={Aquecimento:0,Preparatoria:1,Valida:2};const a=[...m.values()];a.forEach(e=>e.tiers.sort((x,y)=>(ord[x.tipo_serie]??9)-(ord[y.tipo_serie]??9)));return a;},[series]);
   const setV=(k,f,v)=>setVals(p=>({...p,[k]:{...(p[k]||{}),[f]:v}}));
+  const firstUndone=s=>{for(let i=0;i<s.qtd_series;i++)if(!done[s.id+'_'+i])return i;return s.qtd_series;};
+  const activeIdx=s=>active[s.id]!=null?active[s.id]:firstUndone(s);
+  const tierDoneCount=s=>{let c=0;for(let i=0;i<s.qtd_series;i++)if(done[s.id+'_'+i])c++;return c;};
+  const fmtT=x=>String(Math.floor(x/60)).padStart(2,'0')+':'+String(x%60).padStart(2,'0');
+  const celebrate=carga=>{setCel({carga,parts:Array.from({length:28},()=>({l:Math.random()*100,c:['#fbbf24','#8b5cf6','#4ade80','#ec4899','#f59e0b','#38bdf8'][Math.floor(Math.random()*6)],d:Math.random()*.35,t:1.1+Math.random()*.9}))});try{navigator.vibrate&&navigator.vibrate([35,45,90]);}catch(e){}setTimeout(()=>setCel(null),2200);};
   const concluir=async(s,i)=>{
-    const k=s.id+'_'+i;const v=vals[k]||{};const carga=num(v.carga),reps=num(v.reps);
-    if(carga==null){return;}
+    const k=s.id+'_'+i;const v=vals[k]||{};const carga=num(v.carga),reps=num(v.reps);if(carga==null)return;
     const isPr=s.tipo_serie==='Valida'&&carga>(best[s.exercicio_id]||0);
-    setDone(p=>({...p,[k]:{carga,reps,isPr}}));setRest(s.intervalo_seg_min||60);
+    setDone(p=>({...p,[k]:{carga,reps,isPr}}));
+    let nx=i+1;while(nx<s.qtd_series&&done[s.id+'_'+nx])nx++;setActive(p=>({...p,[s.id]:nx}));
+    setRest(s.intervalo_seg_min||60);setRestName(s.exercicio_nome);setPaused(false);
     if(onSaved)onSaved(s.exercicio_id,carga);
+    if(isPr)celebrate(carga);
     if(!demo){try{await sb.from('train_historico').insert({coach_id:student.coach_id,student_id:student.id,divisao_id:divisao.id,exercicio_id:s.exercicio_id,exercicio_nome:s.exercicio_nome,data_treino:todayStr(),indice_serie:i+1,tipo_serie:s.tipo_serie,carga,reps,is_pr:isPr});}catch(e){}}
   };
-  const mm=Math.floor(rest/60), ssg=String(rest%60).padStart(2,'0');
-  return(<div>
-    <div className="abar"><div><div className="breadcrumb" onClick={onBack}>← Meus treinos</div>
-      <div className="ph-title">{divisao.nome||'Treino'}</div></div></div>
-    {rest>0&&<div style={{position:'sticky',top:0,zIndex:30,background:'var(--accent)',color:'var(--cream)',padding:'10px 14px',borderRadius:10,marginBottom:14,display:'flex',alignItems:'center',justifyContent:'space-between',fontWeight:700}}>
-      <span>Descanso: {mm}:{ssg}</span>
-      <div style={{display:'flex',gap:8}}><button className="btn btn-ghost btn-sm" style={{color:'#fff'}} onClick={()=>setRest(r=>r+30)}>+30s</button><button className="btn btn-ghost btn-sm" style={{color:'#fff'}} onClick={()=>setRest(0)}>Pular</button></div>
-    </div>}
+  const totalSets=exs.reduce((a,e)=>a+e.tiers.reduce((b,t)=>b+t.qtd_series,0),0);
+  const doneSets=Object.keys(done).length;
+  const tlabel=t=>t==='Aquecimento'?'Aquec':t==='Preparatoria'?'Prep':'Válidas';
+
+  return(<div className="lv-wrap">
+    {cel&&<><div className="lv-cel"><div className="lv-trophy">🏆</div><h2>NOVO RECORDE!</h2><div style={{fontSize:20,fontWeight:800}}>{cel.carga} kg</div><div className="lv-sub" style={{marginTop:6}}>Você superou seu melhor. Bora!</div></div>
+      {cel.parts.map((p,i)=><div key={i} className="lv-confetti" style={{left:p.l+'vw',background:p.c,animationDuration:p.t+'s',animationDelay:p.d+'s'}}/>)}</>}
+
+    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
+      <button className="lv-ghost" onClick={onBack}>‹ Voltar</button>
+      <div style={{textAlign:'center'}}><div className="lv-kick">Tempo total</div><div className="lv-tot">{fmtT(tot)}</div></div>
+      <span style={{width:64}}/>
+    </div>
+    <div className="lv-title" style={{textAlign:'center'}}>{divisao.nome||'Treino'}</div>
+    <div className="lv-sub" style={{textAlign:'center',marginBottom:14}}>{doneSets}/{totalSets} séries concluídas</div>
+
     {series===null?<div className="center-screen"><div className="spinner"/></div>:
-     series.length===0?<div className="empty"><div className="empty-title">Sem exercícios nesta divisão</div></div>:
-     series.map(s=>{const bmax=best[s.exercicio_id];
-      return(<div key={s.id} className="dash-panel" style={{marginBottom:12}}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8,flexWrap:'wrap',gap:6}}>
-          <h4 style={{margin:0}}>{s.exercicio_nome} <span className="badge" style={{background:'transparent',border:'1px solid '+tierColor(s.tipo_serie),color:tierColor(s.tipo_serie),fontWeight:600}}>{s.tipo_serie}</span></h4>
-          <span className="s-meta">{s.qtd_series}× {s.faixa_reps}{bmax?` · recorde ${bmax}kg`:''}</span>
+     exs.length===0?<div className="lv-card" style={{textAlign:'center',color:'var(--lvt2)'}}>Sem exercícios nesta divisão.</div>:
+     exs.map((e,ei)=>{const open=openEx===ei;const allDone=e.tiers.every(t=>tierDoneCount(t)>=t.qtd_series);
+      return(<div key={e.key} className="lv-card">
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,cursor:'pointer'}} onClick={()=>setOpenEx(open?-1:ei)}>
+          <div><div style={{fontSize:16.5,fontWeight:800}}>{e.nome} {allDone&&<span style={{color:'var(--lvneon)'}}>✓</span>}</div>
+            <div style={{display:'flex',gap:12,marginTop:6,flexWrap:'wrap'}}>{e.tiers.map(t=><span key={t.id} style={{fontSize:11.5,color:'var(--lvt2)',display:'inline-flex',alignItems:'center',gap:5}}><i className="lv-dot" style={{background:tierColor(t.tipo_serie)}}/>{tlabel(t.tipo_serie)} {tierDoneCount(t)}/{t.qtd_series}</span>)}</div>
+          </div>
+          <span style={{color:'var(--lvt3)'}}>{open?'▾':'▸'}</span>
         </div>
-        {Array.from({length:s.qtd_series}).map((_,i)=>{const k=s.id+'_'+i;const dn=done[k];
-          return(<div key={i} style={{display:'flex',alignItems:'center',gap:8,marginBottom:6,flexWrap:'wrap'}}>
-            <span className="s-meta" style={{width:52}}>Série {i+1}</span>
-            {dn?<span style={{fontWeight:600}}>{dn.carga}kg × {dn.reps||'-'} reps {dn.isPr&&<span className="badge bg" style={{marginLeft:6}}>🏆 PR</span>}</span>
-              :<>
-              <input className="fi" type="number" inputMode="decimal" style={{width:82}} placeholder="kg" value={(vals[k]||{}).carga||''} onChange={e=>setV(k,'carga',e.target.value)}/>
-              <input className="fi" type="number" inputMode="numeric" style={{width:82}} placeholder="reps" value={(vals[k]||{}).reps||''} onChange={e=>setV(k,'reps',e.target.value)}/>
-              <button className="btn btn-primary btn-sm" onClick={()=>concluir(s,i)}>✓</button>
-            </>}
-          </div>);})}
+        {open&&<div style={{marginTop:14}}>
+          {e.tiers.map(t=>{const ai=activeIdx(t);const complete=tierDoneCount(t)>=t.qtd_series;const iv=t.intervalo_seg_min||60;
+            return(<div key={t.id} style={{marginBottom:16}}>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
+                <span style={{display:'inline-flex',alignItems:'center',gap:8,fontWeight:700}}><i className="lv-dot" style={{background:tierColor(t.tipo_serie)}}/>{t.tipo_serie==='Preparatoria'?'Preparatória':t.tipo_serie}</span>
+                <span className="lv-sub">{complete?'concluído ✓':`Reps ${t.faixa_reps} · desc. ${Math.floor(iv/60)}:${String(iv%60).padStart(2,'0')}`}</span>
+              </div>
+              <div className="lv-setchips">{Array.from({length:t.qtd_series}).map((_,i)=>{const dn=done[t.id+'_'+i];const isA=!dn&&i===ai;
+                return(<div key={i} className={'lv-setchip '+(dn?'done':isA?'active':'')} onClick={()=>!dn&&setActive(p=>({...p,[t.id]:i}))}>{dn?'✓ ':''}{i+1}ª{dn&&<div style={{fontSize:10,fontWeight:600,marginTop:2}}>{dn.carga}kg{dn.isPr?' 🏆':''}</div>}</div>);})}</div>
+              {!complete&&ai<t.qtd_series&&<div>
+                <div style={{display:'flex',gap:10,marginBottom:10}}>
+                  <div style={{flex:1}}><span className="lv-inlbl">Peso (kg)</span><input className="lv-in" type="number" inputMode="decimal" placeholder="kg" value={(vals[t.id+'_'+ai]||{}).carga||''} onChange={ev=>setV(t.id+'_'+ai,'carga',ev.target.value)}/></div>
+                  <div style={{flex:1}}><span className="lv-inlbl">Reps feitas</span><input className="lv-in" type="number" inputMode="numeric" placeholder="reps" value={(vals[t.id+'_'+ai]||{}).reps||''} onChange={ev=>setV(t.id+'_'+ai,'reps',ev.target.value)}/></div>
+                </div>
+                <button className="lv-btn" onClick={()=>concluir(t,ai)}>✓ Concluir série</button>
+              </div>}
+            </div>);})}
+        </div>}
       </div>);})}
+    <div style={{height:rest>0?96:16}}/>
+
+    {rest>0&&<div className="lv-rest">
+      <div><div className="lv-kick">Descanso{restName?' — '+restName:''}</div><div className="lv-restnum">{fmtT(rest)}</div></div>
+      <div style={{display:'flex',gap:8,alignItems:'center'}}>
+        <button className="lv-ghost" onClick={()=>setRest(r=>r+30)}>+30s</button>
+        <button className="lv-round" onClick={()=>setPaused(p=>!p)}>{paused?'▶':'❚❚'}</button>
+        <button className="lv-ghost" onClick={()=>setRest(0)}>Pular</button>
+      </div>
+    </div>}
   </div>);
 }
 
 function StudentApp({profile}){
   const demo=!!profile._demo;
-  const [theme,setTheme]=useState(()=>{try{return localStorage.getItem('mfp_theme')||'light';}catch{return 'light';}});
-  useEffect(()=>{try{document.documentElement.setAttribute('data-theme',theme);}catch(e){}},[theme]);
-  const toggleTheme=()=>{const t=theme==='dark'?'light':'dark';setTheme(t);try{localStorage.setItem('mfp_theme',t);}catch{}};
-  const [stu,setStu]=useState(demo?{id:'ds1',name:'Aluna Demo',gender:'F',coach_id:'demo'}:undefined);
+  const [stu,setStu]=useState(demo?{id:'ds1',name:'Laryssa Araujo',gender:'F',coach_id:'demo'}:undefined);
   const [divs,setDivs]=useState(demo?_DEMO_ALUNO_DIVS:null);
-  const [best,setBest]=useState({});
-  const [exec,setExec]=useState(null);
-  useEffect(()=>{if(demo)return;(async()=>{
+  const [best,setBest]=useState({});const [exec,setExec]=useState(null);const [freq,setFreq]=useState({done:0,meta:4});
+  useEffect(()=>{if(demo){setFreq({done:3,meta:4});return;}(async()=>{
     try{await sb.rpc('aluno_link');}catch(e){}
     const {data:sr}=await sb.from('assess_students').select('*').eq('user_id',profile.id).limit(1);
     const s=(sr&&sr[0])?rowToStu(sr[0]):null;setStu(s);
     if(s){
       const {data:dv}=await sb.from('train_divisao').select('*').eq('student_id',s.id).order('ordem');setDivs(dv||[]);
-      const {data:hi}=await sb.from('train_historico').select('exercicio_id,carga').eq('student_id',s.id).eq('tipo_serie','Valida');
-      const b={};(hi||[]).forEach(h=>{if(h.exercicio_id&&(b[h.exercicio_id]==null||h.carga>b[h.exercicio_id]))b[h.exercicio_id]=h.carga;});setBest(b);
+      const {data:hi}=await sb.from('train_historico').select('exercicio_id,carga,data_treino,tipo_serie').eq('student_id',s.id);
+      const b={};(hi||[]).forEach(h=>{if(h.tipo_serie==='Valida'&&h.exercicio_id&&(b[h.exercicio_id]==null||h.carga>b[h.exercicio_id]))b[h.exercicio_id]=h.carga;});setBest(b);
+      const mondayD=new Date();mondayD.setDate(mondayD.getDate()-((mondayD.getDay()+6)%7));const monday=mondayD.toISOString().slice(0,10);
+      const days=new Set((hi||[]).filter(h=>h.data_treino>=monday).map(h=>h.data_treino));setFreq({done:days.size,meta:(dv||[]).length||4});
     }
   })();},[]);
   const hr=new Date().getHours();const saud=hr<12?'Bom dia':hr<18?'Boa tarde':'Boa noite';
 
-  const shell=inner=>(<div className="app"><div style={{flex:1,display:'flex',flexDirection:'column',minWidth:0}}>
-    <div className="topbar no-print"><LogoMark size={32}/>
-      <div style={{fontFamily:'var(--serif)',fontWeight:600,fontSize:16,flex:1}}>MF Performance</div>
-      <button className="hamb" onClick={toggleTheme} title="Tema" style={{fontSize:17,fontWeight:600}}>◐</button>
-      {!demo&&<button className="hamb" onClick={()=>sb.auth.signOut()} title="Sair" style={{fontSize:13,fontWeight:600,width:'auto',padding:'0 10px'}}>Sair</button>}
-    </div>
-    <div className="main">{inner}</div>
-  </div></div>);
-
-  if(stu===undefined)return shell(<div className="center-screen"><div className="spinner"/></div>);
-  if(stu===null)return shell(<div className="empty" style={{marginTop:40}}>
-    <div className="empty-title">Conta ainda não vinculada</div>
-    <p className="s-meta">Peça ao seu treinador para cadastrar você com o mesmo e-mail que você usou no login. Assim seus treinos aparecem aqui.</p>
-    <button className="btn btn-secondary" style={{marginTop:12}} onClick={()=>location.reload()}>Já pediu? Recarregar</button>
+  const shell=inner=>(<div className="lv">
+    <div className="lv-top"><LogoMark size={28}/><span style={{fontWeight:800,fontSize:15}}>MF Performance</span><span className="sp"/>
+      {!demo&&<button className="lv-x" onClick={()=>sb.auth.signOut()}>Sair</button>}</div>
+    {inner}
   </div>);
+
+  if(stu===undefined)return shell(<div className="center-screen" style={{minHeight:'70vh'}}><div className="spinner"/></div>);
+  if(stu===null)return shell(<div className="lv-wrap"><div className="lv-card" style={{textAlign:'center',marginTop:30}}>
+    <div style={{fontSize:40,marginBottom:8}}>🔗</div>
+    <div style={{fontSize:18,fontWeight:800,marginBottom:6}}>Conta ainda não vinculada</div>
+    <p className="lv-sub">Peça ao seu treinador para te cadastrar com o mesmo e-mail que você usou no login. Aí seus treinos aparecem aqui.</p>
+    <button className="lv-btn" style={{marginTop:14}} onClick={()=>location.reload()}>Já pediu? Recarregar</button>
+  </div></div>);
   if(exec)return shell(<TrainExec student={stu} divisao={exec} demo={demo} best={best} onBack={()=>setExec(null)} onSaved={(exId,carga)=>setBest(b=>({...b,[exId]:Math.max(b[exId]||0,carga)}))}/>);
 
-  return shell(<div>
-    <div className="abar"><div><div className="ph-title">{saud}, {stu.name.split(' ')[0]}</div>
-      <div className="ph-sub">Seu treino de hoje</div></div></div>
-    {(divs||[]).length===0?<div className="empty" style={{marginTop:20}}><div className="empty-title">Sem ficha ainda</div>
-      <p className="s-meta">Seu treinador ainda não montou sua ficha de treino.</p></div>:
-     <div className="student-grid">{(divs||[]).map(dv=>(
-      <div key={dv.id} className="student-card" onClick={()=>setExec(dv)}>
-        <span className="badge bb" style={{marginBottom:8,display:'inline-block'}}>Treino</span>
-        <div className="s-name">{dv.nome||'Divisão'}</div>
-        <div className="s-meta">Toque para executar</div>
-      </div>))}</div>}
+  const list=divs||[];const pct=Math.min(100,Math.round((freq.done/(freq.meta||1))*100));
+  return shell(<div className="lv-wrap">
+    <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:16}}>
+      <div className="lv-avatar">{initials(stu.name)}</div>
+      <div><div className="lv-kick">{saud}</div><div className="lv-title">{stu.name.split(' ')[0]}</div></div>
+    </div>
+    <div className="lv-card"><div className="lv-kick">Frequência semanal</div>
+      <div style={{fontSize:24,fontWeight:800,marginTop:4}}>{freq.done} <span style={{color:'var(--lvt2)',fontSize:14,fontWeight:600}}>de {freq.meta} treinos</span></div>
+      <div className="lv-freq"><i style={{width:pct+'%'}}/></div>
+    </div>
+    {list.length===0?<div className="lv-card" style={{textAlign:'center',color:'var(--lvt2)'}}>Seu treinador ainda não montou sua ficha de treino.</div>:<>
+      <div className="lv-card lv-hero">
+        <div className="lv-kick" style={{color:'#e9d5ff'}}>Próximo treino</div>
+        <div style={{fontSize:20,fontWeight:900,margin:'4px 0 12px'}}>{(list[0].nome||'Treino').toUpperCase()}</div>
+        <button className="lv-btn light" onClick={()=>setExec(list[0])}>▶ Iniciar treino</button>
+      </div>
+      {list.length>1&&<div className="lv-kick" style={{margin:'8px 0 8px'}}>Outros treinos</div>}
+      {list.slice(1).map(dv=><div key={dv.id} className="lv-treino" style={{marginBottom:10}} onClick={()=>setExec(dv)}>
+        <div className="lv-avatar" style={{width:38,height:38,fontSize:15,background:'var(--lvc2)',color:'var(--lvrx)'}}>▸</div>
+        <div style={{flex:1}}><div style={{fontWeight:700}}>{dv.nome||'Divisão'}</div><div className="lv-sub">Toque para executar</div></div>
+      </div>)}
+    </>}
   </div>);
 }
 
