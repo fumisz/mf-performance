@@ -4974,11 +4974,101 @@ function HydraScreen({student,demo,onBack}){
   </div>);
 }
 
+/* ── Check-in diário (semáforo) ── */
+const CHK_ITENS=[['sono','Sono','Dormi muito bem','Dormi mal'],['fadiga','Fadiga','Descansada','Exausta'],['estresse','Estresse','Tranquila','Muito estressada'],['dor','Dor muscular','Sem dor','Muita dor'],['humor','Humor','Ótimo','Ruim']];
+function CheckinScreen({student,demo,onBack}){
+  const [v,setV]=useState({sono:2,fadiga:2,estresse:2,dor:2,humor:2});
+  const [res,setRes]=useState(null);const [busy,setBusy]=useState(false);
+  const total=Object.values(v).reduce((a,b)=>a+b,0);
+  const sinal=total<=9?{l:'Verde',c:'#4ade80',t:'Prontidão ótima — pode ir com tudo hoje.'}:total<=14?{l:'Amarelo',c:'#f59e0b',t:'Prontidão média — mantenha, sem forçar demais.'}:{l:'Vermelho',c:'#e11d48',t:'Prontidão baixa — pegue leve e priorize recuperação.'};
+  const salvar=async()=>{setBusy(true);if(!demo){try{const {data}=await sb.rpc('checkin_salvar',{p_sono:v.sono,p_fadiga:v.fadiga,p_estresse:v.estresse,p_dor:v.dor,p_humor:v.humor});}catch(e){}}setBusy(false);setRes({total,sinal});};
+  if(res)return(<div className="lv-wrap"><div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14}}><button className="lv-ghost" onClick={onBack}>‹ Voltar</button><div className="lv-title" style={{flex:1}}>Check-in de hoje</div></div>
+    <div className="lv-card" style={{textAlign:'center'}}>
+      <div style={{width:96,height:96,borderRadius:'50%',margin:'6px auto 12px',background:res.sinal.c,boxShadow:`0 0 40px ${res.sinal.c}80`}}/>
+      <div style={{fontSize:22,fontWeight:800,color:res.sinal.c}}>{res.sinal.l}</div>
+      <p className="lv-sub" style={{marginTop:6}}>{res.sinal.t}</p>
+      <div className="lv-sub" style={{marginTop:10}}>Pontuação: {res.total}/25</div>
+    </div>
+    <button className="lv-btn" onClick={onBack}>Concluir</button>
+  </div>);
+  return(<div className="lv-wrap"><div style={{display:'flex',alignItems:'center',gap:10,marginBottom:6}}><button className="lv-ghost" onClick={onBack}>‹ Voltar</button><div className="lv-title" style={{flex:1}}>Check-in diário</div></div>
+    <p className="lv-sub" style={{marginBottom:14}}>Como você está hoje? Isso ajuda seu treinador a calibrar o treino.</p>
+    {CHK_ITENS.map(([k,lbl,lo,hi])=>(<div key={k} className="lv-card">
+      <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}><span style={{fontWeight:700}}>{lbl}</span><span style={{fontWeight:800,color:'var(--lvrx)'}}>{v[k]}</span></div>
+      <input type="range" min="1" max="5" value={v[k]} onChange={e=>setV(p=>({...p,[k]:+e.target.value}))} style={{width:'100%'}}/>
+      <div style={{display:'flex',justifyContent:'space-between'}}><span className="lv-sub">{lo}</span><span className="lv-sub">{hi}</span></div>
+    </div>))}
+    <div className="lv-card" style={{display:'flex',alignItems:'center',gap:12}}>
+      <div style={{width:16,height:16,borderRadius:'50%',background:sinal.c,boxShadow:`0 0 12px ${sinal.c}`}}/>
+      <div style={{flex:1}}><div style={{fontWeight:700}}>Prévia: {sinal.l}</div><div className="lv-sub">{total}/25</div></div>
+    </div>
+    <button className="lv-btn" disabled={busy} onClick={salvar}>{busy?'Salvando…':'Enviar check-in'}</button>
+  </div>);
+}
+
+/* ── Módulo do ciclo (educativo) ── */
+const CICLO_COR={Menstrual:'#e11d48',Folicular:'#ec4899',Ovulatória:'#a855f7',Lútea:'#6d28d9'};
+const CICLO_INFO={
+  Menstrual:[['🩸','Descanso ativo','Energia costuma estar mais baixa. Movimento leve e sono ajudam mais que forçar.'],['💧','Hidratação','Reforce a água — ajuda com cólica e retenção.'],['🧘','Escute o corpo','Se a disposição vier, treine; se não, tudo bem pegar leve.']],
+  Folicular:[['⚡','Fase de força','Estrogênio subindo — costuma render mais em carga e volume. Aproveite.'],['⚖️','Balança','A balança tende a estabilizar/cair por menos retenção — normal, não é "progresso extra".'],['🌙','Recuperação','Boa fase pra recuperação entre estímulos — mantenha o sono.']],
+  Ovulatória:[['🚀','Pico de disposição','Muitas relatam mais leveza e força. Ótima janela pra PRs.'],['🎯','Aproveite','Momento de puxar um pouco mais, com técnica.'],['💙','Atenção às articulações','Um pouco mais de frouxidão ligamentar pode ocorrer — aquecça bem.']],
+  Lútea:[['🌗','Constância','Energia pode oscilar. Foque em manter a constância, não recordes.'],['🍫','Fome/compulsão','Vontade de doce é comum — planeje lanches pra não sabotar.'],['😴','Sono e humor','Priorize sono; TPM pode afetar humor e percepção de esforço.']]};
+function cicloFase(dataUM,dur,sang){
+  const today=new Date(todayStr()+'T00:00:00'),um=new Date(dataUM+'T00:00:00');
+  const diff=Math.floor((today-um)/86400000);const dia=(((diff%dur)+dur)%dur)+1;
+  const ovul=Math.max(dur-14,sang+1);let fase;
+  if(dia<=sang)fase='Menstrual';else if(dia>=ovul-2&&dia<=ovul+1)fase='Ovulatória';else if(dia<ovul)fase='Folicular';else fase='Lútea';
+  return {dia,fase,ovul,restam:dur-dia+1};
+}
+function CicloScreen({student,demo,onBack}){
+  const [cyc,setCyc]=useState(demo?{data_ultima:(()=>{const d=new Date();d.setDate(d.getDate()-8);return d.toISOString().slice(0,10);})(),duracao_ciclo:28,duracao_sangramento:5}:undefined);
+  const [edit,setEdit]=useState(false);const [f,setF]=useState({data:'',dur:28,sang:5});const [busy,setBusy]=useState(false);
+  useEffect(()=>{if(demo)return;(async()=>{const {data}=await sb.from('train_ciclo').select('*').eq('student_id',student.id).limit(1);setCyc(data&&data[0]?data[0]:null);})();},[]);
+  const salvar=async()=>{if(!f.data)return;setBusy(true);if(!demo){try{await sb.rpc('ciclo_salvar',{p_data:f.data,p_dur:+f.dur,p_sang:+f.sang});}catch(e){}}setBusy(false);setCyc({data_ultima:f.data,duracao_ciclo:+f.dur,duracao_sangramento:+f.sang});setEdit(false);};
+  const openEdit=()=>{setF({data:cyc?.data_ultima||todayStr(),dur:cyc?.duracao_ciclo||28,sang:cyc?.duracao_sangramento||5});setEdit(true);};
+  if(cyc===undefined)return(<div className="lv-wrap"><div className="center-screen"><div className="spinner"/></div></div>);
+  const setup=!cyc||!cyc.data_ultima||edit;
+  if(setup)return(<div className="lv-wrap"><div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14}}><button className="lv-ghost" onClick={onBack}>‹ Voltar</button><div className="lv-title" style={{flex:1}}>Meu ciclo</div></div>
+    <div className="lv-card">
+      <p className="lv-sub" style={{marginBottom:12}}>Informe o <b>primeiro dia da sua última menstruação</b> para acompanhar as fases.</p>
+      <span className="lv-inlbl">Última menstruação</span><input className="lv-in" type="date" value={f.data} max={todayStr()} onChange={e=>setF(p=>({...p,data:e.target.value}))}/>
+      <div style={{display:'flex',gap:10,marginTop:12}}>
+        <div style={{flex:1}}><span className="lv-inlbl">Duração do ciclo</span><input className="lv-in" type="number" value={f.dur} onChange={e=>setF(p=>({...p,dur:e.target.value}))}/></div>
+        <div style={{flex:1}}><span className="lv-inlbl">Dias de sangramento</span><input className="lv-in" type="number" value={f.sang} onChange={e=>setF(p=>({...p,sang:e.target.value}))}/></div>
+      </div>
+      <button className="lv-btn" style={{marginTop:14}} disabled={busy} onClick={salvar}>{busy?'Salvando…':'Salvar'}</button>
+    </div>
+  </div>);
+  const {dia,fase,restam}=cicloFase(cyc.data_ultima,cyc.duracao_ciclo,cyc.duracao_sangramento);
+  const dur=cyc.duracao_ciclo,sang=cyc.duracao_sangramento,ovul=Math.max(dur-14,sang+1);
+  const R=54,C=2*Math.PI*R;
+  const segs=[['Menstrual',0,sang],['Folicular',sang,ovul-2],['Ovulatória',ovul-2,ovul+1],['Lútea',ovul+1,dur]];
+  const mk=((dia-1)/dur)*360-90;const mx=70+R*Math.cos(mk*Math.PI/180),my=70+R*Math.sin(mk*Math.PI/180);
+  return(<div className="lv-wrap"><div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14}}><button className="lv-ghost" onClick={onBack}>‹ Voltar</button><div className="lv-title" style={{flex:1}}>Meu ciclo</div><button className="lv-x" onClick={openEdit}>Editar</button></div>
+    <div className="lv-card" style={{textAlign:'center'}}>
+      <svg viewBox="0 0 140 140" width="200" style={{maxWidth:'70%'}}>
+        {segs.map(([nm,a,b])=><circle key={nm} cx="70" cy="70" r={R} fill="none" stroke={CICLO_COR[nm]} strokeWidth="12" strokeDasharray={`${((b-a)/dur)*C} ${C}`} strokeDashoffset={`${-(a/dur)*C}`} transform="rotate(-90 70 70)" strokeLinecap="butt"/>)}
+        <circle cx={mx} cy={my} r="7" fill="#fff" stroke={CICLO_COR[fase]} strokeWidth="3"/>
+        <text x="70" y="62" textAnchor="middle" fontSize="10" fill="#a2a2b0">DIA DO CICLO</text>
+        <text x="70" y="86" textAnchor="middle" fontSize="30" fontWeight="800" fill="#fff">{dia}</text>
+      </svg>
+      <div className="lv-pill" style={{background:CICLO_COR[fase]+'30',color:'#fff',border:'1px solid '+CICLO_COR[fase],marginTop:4}}><i style={{width:8,height:8,borderRadius:'50%',background:CICLO_COR[fase]}}/>{fase}</div>
+      <div style={{display:'flex',gap:12,justifyContent:'center',marginTop:12,flexWrap:'wrap'}}>{Object.entries(CICLO_COR).map(([nm,c])=><span key={nm} style={{fontSize:11,color:'var(--lvt2)',display:'inline-flex',alignItems:'center',gap:5}}><i style={{width:8,height:8,borderRadius:'50%',background:c,display:'inline-block'}}/>{nm}</span>)}</div>
+      <div className="lv-sub" style={{marginTop:10}}>Próxima menstruação em ~{restam} dias</div>
+    </div>
+    <div className="lv-kick" style={{margin:'4px 2px 8px'}}>Consciência da fase {fase}</div>
+    {(CICLO_INFO[fase]||[]).map(([ic,t,d],i)=><div key={i} className="lv-card" style={{display:'flex',gap:12,alignItems:'flex-start'}}>
+      <div style={{fontSize:22}}>{ic}</div><div><div style={{fontWeight:700}}>{t}</div><div className="lv-sub" style={{marginTop:2}}>{d}</div></div>
+    </div>)}
+    <div className="alert alert-info" style={{background:'rgba(139,92,246,.1)',border:'1px solid rgba(139,92,246,.3)',color:'#c4b5fd'}}>Este acompanhamento é <b>educativo</b> e não altera seu treino automaticamente.</div>
+  </div>);
+}
+
 function StudentApp({profile}){
   const demo=!!profile._demo;
   const [stu,setStu]=useState(demo?{id:'ds1',name:'Laryssa Araujo',gender:'F',coach_id:'demo'}:undefined);
   const [divs,setDivs]=useState(demo?_DEMO_ALUNO_DIVS:null);
-  const [best,setBest]=useState({});const [exec,setExec]=useState(null);const [evol,setEvol]=useState(false);const [hydra,setHydra]=useState(false);const [freq,setFreq]=useState({done:0,meta:4});
+  const [best,setBest]=useState({});const [exec,setExec]=useState(null);const [evol,setEvol]=useState(false);const [hydra,setHydra]=useState(false);const [chk,setChk]=useState(false);const [ciclo,setCiclo]=useState(false);const [freq,setFreq]=useState({done:0,meta:4});
   const [code,setCode]=useState('');const [linkErr,setLinkErr]=useState(null);const [linking,setLinking]=useState(false);
   const doLink=async()=>{const c=code.trim().toUpperCase();if(!c)return;setLinking(true);setLinkErr(null);
     const {data,error}=await sb.rpc('aluno_link',{p_code:c});setLinking(false);
@@ -5017,6 +5107,8 @@ function StudentApp({profile}){
   if(exec)return shell(<TrainExec student={stu} divisao={exec} demo={demo} best={best} onBack={()=>setExec(null)} onSaved={(exId,carga)=>setBest(b=>({...b,[exId]:Math.max(b[exId]||0,carga)}))}/>);
   if(evol)return shell(<EvolScreen student={stu} demo={demo} onBack={()=>setEvol(false)}/>);
   if(hydra)return shell(<HydraScreen student={stu} demo={demo} onBack={()=>setHydra(false)}/>);
+  if(chk)return shell(<CheckinScreen student={stu} demo={demo} onBack={()=>setChk(false)}/>);
+  if(ciclo)return shell(<CicloScreen student={stu} demo={demo} onBack={()=>setCiclo(false)}/>);
 
   const list=divs||[];const pct=Math.min(100,Math.round((freq.done/(freq.meta||1))*100));
   return shell(<div className="lv-wrap">
@@ -5037,6 +5129,16 @@ function StudentApp({profile}){
         <div className="lv-avatar" style={{width:38,height:38,fontSize:18,background:'var(--lvc2)'}}>📈</div>
         <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700}}>Evolução</div><div className="lv-sub">Cargas e recordes</div></div>
       </div>
+    </div>
+    <div style={{display:'flex',gap:10,marginBottom:14}}>
+      <div className="lv-treino" style={{flex:1,margin:0}} onClick={()=>setChk(true)}>
+        <div className="lv-avatar" style={{width:38,height:38,fontSize:18,background:'var(--lvc2)'}}>🟢</div>
+        <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700}}>Check-in</div><div className="lv-sub">Como você está hoje</div></div>
+      </div>
+      {stu.gender==='F'&&<div className="lv-treino" style={{flex:1,margin:0}} onClick={()=>setCiclo(true)}>
+        <div className="lv-avatar" style={{width:38,height:38,fontSize:18,background:'var(--lvc2)'}}>🩸</div>
+        <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700}}>Meu ciclo</div><div className="lv-sub">Fases e consciência</div></div>
+      </div>}
     </div>
     {list.length===0?<div className="lv-card" style={{textAlign:'center',color:'var(--lvt2)'}}>Seu treinador ainda não montou sua ficha de treino.</div>:<>
       <div className="lv-card lv-hero">
