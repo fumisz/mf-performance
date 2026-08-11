@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co; worker-src 'self'; manifest-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' blob: data: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; worker-src 'self'; manifest-src 'self'; frame-src https://www.youtube-nocookie.com https://www.youtube.com; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <script>if(self!==top){try{top.location=self.location;}catch(e){document.documentElement.style.display='none';}}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0">
@@ -4329,6 +4329,18 @@ const TRAIN_TIERS=['Aquecimento','Preparatoria','Valida'];
 const tierColor=t=>t==='Valida'?'#2f8f4e':t==='Preparatoria'?'#b0894f':'#8a8378';
 const TRAIN_GRUPOS=['Peito','Costas','Ombro','Bíceps','Tríceps','Antebraço','Quadríceps','Posterior de Coxa','Glúteos','Adutores','Abdutores','Panturrilha','Abdômen','Lombar','Cardio','Mobilidade'];
 const openVideo=(url,name)=>{const u=(url&&url.trim())?url.trim():('https://www.youtube.com/results?search_query='+encodeURIComponent((name||'exercício')+' execução técnica'));window.open(u,'_blank');};
+const ytEmbed=url=>{const m=(url||'').match(/(?:youtu\.be\/|[?&]v=|embed\/|shorts\/)([\w-]{11})/);return m?('https://www.youtube-nocookie.com/embed/'+m[1]):null;};
+/* Demonstração do exercício embutida (gif/imagem/vídeo/youtube), sem sair do app */
+function ExDemo({url,name}){
+  const u=(url||'').trim();
+  if(!u)return <div style={{padding:14,textAlign:'center',color:'var(--lvt3,#6c6c7c)',background:'var(--lvc2,#23232d)',borderRadius:12,fontSize:12.5}}>Sem demonstração ainda.
+    <div style={{marginTop:8}}><button className="lv-ghost" onClick={()=>openVideo(null,name)}>Buscar no YouTube ↗</button></div></div>;
+  if(/\.(gif|png|jpe?g|webp|avif)(\?|$)/i.test(u))return <img src={u} alt={name} loading="lazy" style={{width:'100%',borderRadius:12,display:'block'}}/>;
+  if(/\.(mp4|webm|mov)(\?|$)/i.test(u))return <video src={u} autoPlay loop muted playsInline controls style={{width:'100%',borderRadius:12,display:'block',background:'#000'}}/>;
+  const yt=ytEmbed(u);
+  if(yt)return <div style={{position:'relative',paddingBottom:'56%',borderRadius:12,overflow:'hidden'}}><iframe src={yt} title={name} style={{position:'absolute',inset:0,width:'100%',height:'100%',border:0}} allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen/></div>;
+  return <button className="lv-ghost" onClick={()=>openVideo(u,name)}>Abrir vídeo ↗</button>;
+}
 
 /* Biblioteca de exercícios do treinador (com vídeo) */
 function ExerciseLibrary({coach,onBack}){
@@ -4388,8 +4400,10 @@ function TrainScreen({coach,students,preStudent,onBack}){
   const [openId,setOpenId]=useState(null);
   const [nd,setNd]=useState('');
   const [msg,setMsg]=useState(null);
-  const blankEx={nome:'',tipo_serie:'Valida',qtd_series:3,faixa_reps:'8-12',intervalo_seg_min:60};
+  const blankEx={nome:'',grupo:'Todos',tipo_serie:'Valida',qtd_series:3,faixa_reps:'8-12',intervalo_seg_min:60};
   const [ex,setEx]=useState(blankEx);
+  const libGrupos=['Todos',...[...new Set((lib||[]).map(x=>x.grupo_muscular).filter(Boolean))].sort()];
+  const libFiltered=(lib||[]).filter(x=>ex.grupo==='Todos'||x.grupo_muscular===ex.grupo);
 
   useEffect(()=>{(async()=>{
     if(demo){setLib([{id:'x1',nome:'Agachamento Livre'},{id:'x2',nome:'Leg Press'},{id:'x3',nome:'Cadeira Extensora'},{id:'x4',nome:'Stiff'}]);return;}
@@ -4481,9 +4495,12 @@ function TrainScreen({coach,students,preStudent,onBack}){
               <td style={{textAlign:'right'}}><button className="btn-icon btn-sm" onClick={()=>delEx(dv.id,s.id)}>×</button></td>
             </tr>))}
           </tbody></table>}
+          <datalist id="trainlibf">{libFiltered.map(x=><option key={x.id} value={x.nome}/>)}</datalist>
           <div style={{display:'flex',gap:8,flexWrap:'wrap',alignItems:'flex-end',background:'var(--bg3)',padding:10,borderRadius:10}}>
+            <div className="fg" style={{margin:0,minWidth:140}}><label className="flbl">Grupo muscular</label>
+              <select className="fi" value={ex.grupo} onChange={e=>setEx(p=>({...p,grupo:e.target.value,nome:''}))}>{libGrupos.map(g=><option key={g} value={g}>{g}</option>)}</select></div>
             <div className="fg" style={{margin:0,flex:1,minWidth:150}}><label className="flbl">Exercício</label>
-              <input className="fi" list="trainlib" value={ex.nome} onChange={e=>setEx(p=>({...p,nome:e.target.value}))} placeholder="Nome do exercício"/></div>
+              <input className="fi" list="trainlibf" value={ex.nome} onChange={e=>setEx(p=>({...p,nome:e.target.value}))} placeholder={ex.grupo==='Todos'?'Nome do exercício':'Exercícios de '+ex.grupo}/></div>
             <div className="fg" style={{margin:0}}><label className="flbl">Tipo</label>
               <select className="fi" style={{width:120}} value={ex.tipo_serie} onChange={e=>setEx(p=>({...p,tipo_serie:e.target.value}))}>{TRAIN_TIERS.map(t=><option key={t} value={t}>{t}</option>)}</select></div>
             <div className="fg" style={{margin:0}}><label className="flbl">Séries</label>
@@ -4762,11 +4779,11 @@ const _DEMO_ALUNO_SERIES={
       {id:'s2',exercicio_id:'x2',exercicio_nome:'Leg Press',tipo_serie:'Valida',qtd_series:3,faixa_reps:'10-15',intervalo_seg_min:60}],
   d2:[{id:'s3',exercicio_id:'x3',exercicio_nome:'Supino',tipo_serie:'Valida',qtd_series:4,faixa_reps:'8-10',intervalo_seg_min:90}]};
 
-function TrainExec({student,divisao,demo,best,onBack,onSaved}){
+function TrainExec({student,divisao,demo,best,onBack,onSaved,onFinish}){
   const [series,setSeries]=useState(demo?(_DEMO_ALUNO_SERIES[divisao.id]||[]):null);
   const [vals,setVals]=useState({});const [done,setDone]=useState({});const [active,setActive]=useState({});
   const [openEx,setOpenEx]=useState(0);const [rest,setRest]=useState(0);const [restName,setRestName]=useState('');
-  const [paused,setPaused]=useState(false);const [tot,setTot]=useState(0);const [cel,setCel]=useState(null);const [vid,setVid]=useState({});
+  const [paused,setPaused]=useState(false);const [tot,setTot]=useState(0);const [cel,setCel]=useState(null);const [vid,setVid]=useState({});const [demoOn,setDemoOn]=useState({});const [finished,setFinished]=useState(null);
   useEffect(()=>{if(demo)return;(async()=>{const {data}=await sb.from('train_serie_prescrita').select('*').eq('divisao_id',divisao.id).order('ordem');setSeries(data||[]);
     const ids=[...new Set((data||[]).map(s=>s.exercicio_id).filter(Boolean))];
     if(ids.length){const {data:ex}=await sb.from('train_exercicios').select('id,video_url').in('id',ids);const m={};(ex||[]).forEach(e=>{if(e.video_url)m[e.id]=e.video_url;});setVid(m);}})();},[]);
@@ -4816,7 +4833,8 @@ function TrainExec({student,divisao,demo,best,onBack,onSaved}){
           <span style={{color:'var(--lvt3)'}}>{open?'▾':'▸'}</span>
         </div>
         {open&&<div style={{marginTop:14}}>
-          <button className="lv-ghost" style={{marginBottom:12}} onClick={()=>openVideo(vid[e.exercicio_id],e.nome)}>▶ Ver vídeo</button>
+          <button className="lv-ghost" style={{marginBottom:demoOn[e.key]?8:12}} onClick={()=>setDemoOn(p=>({...p,[e.key]:!p[e.key]}))}>▶ {demoOn[e.key]?'Ocultar':'Ver'} demonstração</button>
+          {demoOn[e.key]&&<div style={{marginBottom:14}}><ExDemo url={vid[e.exercicio_id]} name={e.nome}/></div>}
           {e.tiers.map(t=>{const ai=activeIdx(t);const complete=tierDoneCount(t)>=t.qtd_series;const iv=t.intervalo_seg_min||60;
             return(<div key={t.id} style={{marginBottom:16}}>
               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
@@ -4835,9 +4853,27 @@ function TrainExec({student,divisao,demo,best,onBack,onSaved}){
             </div>);})}
         </div>}
       </div>);})}
+    {series!==null&&exs.length>0&&<button className="lv-btn neon" style={{marginTop:8}} onClick={()=>{
+      const ton=Object.values(done).reduce((a,d)=>a+(num(d.carga)||0)*(num(d.reps)||0),0);
+      const prs=Object.values(done).filter(d=>d.isPr).length;
+      setFinished({sets:Object.keys(done).length,ton:Math.round(ton),prs,tempo:tot});
+      try{navigator.vibrate&&navigator.vibrate([50,50,50,50,120]);}catch(e){}
+    }}>✓ Finalizar treino</button>}
     <div style={{height:rest>0?96:16}}/>
 
-    {rest>0&&<div className="lv-rest">
+    {finished&&<div className="lv-cel" style={{padding:'24px 20px'}}>
+      <div className="lv-trophy">💪</div>
+      <h2 style={{background:'linear-gradient(90deg,#4ade80,#8b5cf6)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>TREINO CONCLUÍDO!</h2>
+      <div style={{display:'flex',gap:22,marginTop:16}}>
+        <div style={{textAlign:'center'}}><div style={{fontSize:26,fontWeight:800}}>{finished.sets}</div><div className="lv-sub">séries</div></div>
+        <div style={{textAlign:'center'}}><div style={{fontSize:26,fontWeight:800}}>{(finished.ton/1000).toFixed(1).replace('.',',')}t</div><div className="lv-sub">volume</div></div>
+        <div style={{textAlign:'center'}}><div style={{fontSize:26,fontWeight:800}}>{fmtT(finished.tempo)}</div><div className="lv-sub">tempo</div></div>
+      </div>
+      {finished.prs>0&&<div className="lv-pill" style={{background:'rgba(251,191,36,.16)',color:'#fbbf24',marginTop:16,fontSize:14}}>🏆 {finished.prs} novo{finished.prs>1?'s':''} recorde{finished.prs>1?'s':''}!</div>}
+      <button className="lv-btn" style={{marginTop:22,maxWidth:280}} onClick={()=>{if(onFinish)onFinish();onBack();}}>Voltar ao início</button>
+    </div>}
+
+    {rest>0&&!finished&&<div className="lv-rest">
       <div><div className="lv-kick">Descanso{restName?' — '+restName:''}</div><div className="lv-restnum">{fmtT(rest)}</div></div>
       <div style={{display:'flex',gap:8,alignItems:'center'}}>
         <button className="lv-ghost" onClick={()=>setRest(r=>r+30)}>+30s</button>
@@ -5064,17 +5100,67 @@ function CicloScreen({student,demo,onBack}){
   </div>);
 }
 
+/* ── Minha avaliação física (aluno) ── */
+function AvalScreen({student,demo,onBack}){
+  const [evals,setEvals]=useState(demo?[
+    {id:'e1',date:'2026-03-09',weight:'84',height:'175',bio_fat:'22',bio_lean:'58',bp_sys:'128',bp_dia:'84'},
+    {id:'e2',date:'2026-07-09',weight:'78',height:'175',bio_fat:'16',bio_lean:'63',bp_sys:'120',bp_dia:'78'}]:null);
+  const [showRep,setShowRep]=useState(false);
+  useEffect(()=>{if(demo)return;(async()=>{const {data}=await sb.from('assessments').select('*').eq('student_id',student.id).order('date');setEvals((data||[]).map(rowToEval));})();},[]);
+  if(evals===null)return(<div className="lv-wrap"><div className="center-screen"><div className="spinner"/></div></div>);
+  if(evals.length===0)return(<div className="lv-wrap"><div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14}}><button className="lv-ghost" onClick={onBack}>‹ Voltar</button><div className="lv-title" style={{flex:1}}>Minha avaliação</div></div>
+    <div className="lv-card" style={{textAlign:'center',color:'var(--lvt2)'}}>Você ainda não tem uma avaliação física registrada. Fale com seu treinador.</div></div>);
+  const asc=[...evals].sort((a,b)=>a.date<b.date?-1:1);const latest=asc[asc.length-1];const prev=asc[asc.length-2]||null;
+  const d=derive(student,latest);let ex={};try{ex=buildExecutive(student,latest,d,prev)||{};}catch(e){ex={};}
+  if(showRep)return <Report student={student} evalData={latest} coach={{brand_name:'MF Performance'}} allEvals={evals} onBack={()=>setShowRep(false)}/>;
+  const sc=ex.overall,scC=sc==null?'#8b5cf6':sc>=75?'#4ade80':sc>=55?'#f59e0b':'#e11d48';
+  const R=44,C=2*Math.PI*R;
+  const dw=prev?num(latest.weight)-num(prev.weight):null;
+  const df=(d.fatPct!=null&&prev)?d.fatPct-derive(student,prev).fatPct:null;
+  const stat=(l,v,u,delta,down)=>v==null?null:<div className="lv-card" style={{flex:1,minWidth:120,margin:0,textAlign:'center'}}>
+    <div className="lv-kick">{l}</div><div style={{fontSize:22,fontWeight:800,marginTop:3}}>{v}<span style={{fontSize:12,color:'var(--lvt2)'}}> {u}</span></div>
+    {delta!=null&&delta!==0&&<div style={{fontSize:11.5,fontWeight:700,color:(down?delta<0:delta>0)?'#4ade80':'#fda4af'}}>{delta>0?'▲ +':'▼ '}{Math.abs(+delta.toFixed(1))} {u}</div>}</div>;
+  return(<div className="lv-wrap">
+    <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14}}><button className="lv-ghost" onClick={onBack}>‹ Voltar</button><div className="lv-title" style={{flex:1}}>Minha avaliação</div></div>
+    <div className="lv-card" style={{display:'flex',gap:16,alignItems:'center'}}>
+      <svg viewBox="0 0 110 110" width="104">
+        <circle cx="55" cy="55" r={R} fill="none" stroke="#2e2e3a" strokeWidth="9"/>
+        {sc!=null&&<circle cx="55" cy="55" r={R} fill="none" stroke={scC} strokeWidth="9" strokeLinecap="round" strokeDasharray={C} strokeDashoffset={C*(1-sc/100)} transform="rotate(-90 55 55)"/>}
+        <text x="55" y="52" textAnchor="middle" fontSize="30" fontWeight="800" fill="#fff">{sc??'—'}</text>
+        <text x="55" y="70" textAnchor="middle" fontSize="9" fill="#a2a2b0">SCORE / 100</text>
+      </svg>
+      <div style={{flex:1}}>
+        <div className="lv-kick">Última avaliação</div>
+        <div style={{fontWeight:800,fontSize:16}}>{fmtDate(latest.date)}</div>
+        {ex.synthesis&&<div className="lv-sub" style={{marginTop:6,lineHeight:1.5}}>{ex.synthesis}</div>}
+      </div>
+    </div>
+    <div style={{display:'flex',gap:10,flexWrap:'wrap',marginBottom:14}}>
+      {stat('Peso',latest.weight,'kg',dw,true)}
+      {stat('% Gordura',d.fatPct!=null?fmt(d.fatPct):null,'%',df,true)}
+      {stat('IMC',d.bmi?fmt(d.bmi):null,'',null)}
+      {stat('Massa magra',d.leanMass!=null?d.leanMass:null,'kg',null)}
+    </div>
+    <button className="lv-btn" onClick={()=>setShowRep(true)}>Ver relatório completo</button>
+  </div>);
+}
+
 function StudentApp({profile}){
   const demo=!!profile._demo;
   const [stu,setStu]=useState(demo?{id:'ds1',name:'Laryssa Araujo',gender:'F',coach_id:'demo'}:undefined);
   const [divs,setDivs]=useState(demo?_DEMO_ALUNO_DIVS:null);
-  const [best,setBest]=useState({});const [exec,setExec]=useState(null);const [evol,setEvol]=useState(false);const [hydra,setHydra]=useState(false);const [chk,setChk]=useState(false);const [ciclo,setCiclo]=useState(false);const [freq,setFreq]=useState({done:0,meta:4});
+  const [best,setBest]=useState({});const [exec,setExec]=useState(null);const [evol,setEvol]=useState(false);const [hydra,setHydra]=useState(false);const [chk,setChk]=useState(false);const [ciclo,setCiclo]=useState(false);const [aval,setAval]=useState(false);const [freq,setFreq]=useState({done:0,meta:4});
   const [code,setCode]=useState('');const [linkErr,setLinkErr]=useState(null);const [linking,setLinking]=useState(false);
   const doLink=async()=>{const c=code.trim().toUpperCase();if(!c)return;setLinking(true);setLinkErr(null);
     const {data,error}=await sb.rpc('aluno_link',{p_code:c});setLinking(false);
     if(error){setLinkErr(error.message);return;}
     if(data&&data.linked){try{localStorage.removeItem('mfp_aluno_code');}catch(e){}location.reload();}
     else setLinkErr('Código inválido ou já usado. Confira com seu treinador.');};
+  const refresh=async()=>{if(demo||!stu)return;
+    const {data:hi}=await sb.from('train_historico').select('exercicio_id,carga,data_treino,tipo_serie').eq('student_id',stu.id);
+    const b={};(hi||[]).forEach(h=>{if(h.tipo_serie==='Valida'&&h.exercicio_id&&(b[h.exercicio_id]==null||h.carga>b[h.exercicio_id]))b[h.exercicio_id]=h.carga;});setBest(b);
+    const md=new Date();md.setDate(md.getDate()-((md.getDay()+6)%7));const mk=md.toISOString().slice(0,10);
+    const days=new Set((hi||[]).filter(h=>h.data_treino>=mk).map(h=>h.data_treino));setFreq(f=>({...f,done:days.size}));};
   useEffect(()=>{if(demo){setFreq({done:3,meta:4});return;}(async()=>{
     try{const c=localStorage.getItem('mfp_aluno_code');const {data:lk}=await sb.rpc('aluno_link',{p_code:c||null});if(lk&&lk.linked){try{localStorage.removeItem('mfp_aluno_code');}catch(e){}}}catch(e){}
     const {data:sr}=await sb.from('assess_students').select('*').eq('user_id',profile.id).limit(1);
@@ -5104,11 +5190,12 @@ function StudentApp({profile}){
     <input className="lv-in" style={{textAlign:'center',letterSpacing:4,textTransform:'uppercase',marginTop:14,fontSize:22,fontWeight:800}} placeholder="CÓDIGO" value={code} onChange={e=>setCode(e.target.value.toUpperCase())} maxLength={8}/>
     <button className="lv-btn" style={{marginTop:12}} disabled={linking} onClick={doLink}>{linking?'Ativando…':'Ativar treinos'}</button>
   </div></div>);
-  if(exec)return shell(<TrainExec student={stu} divisao={exec} demo={demo} best={best} onBack={()=>setExec(null)} onSaved={(exId,carga)=>setBest(b=>({...b,[exId]:Math.max(b[exId]||0,carga)}))}/>);
+  if(exec)return shell(<TrainExec student={stu} divisao={exec} demo={demo} best={best} onBack={()=>setExec(null)} onSaved={(exId,carga)=>setBest(b=>({...b,[exId]:Math.max(b[exId]||0,carga)}))} onFinish={refresh}/>);
   if(evol)return shell(<EvolScreen student={stu} demo={demo} onBack={()=>setEvol(false)}/>);
   if(hydra)return shell(<HydraScreen student={stu} demo={demo} onBack={()=>setHydra(false)}/>);
   if(chk)return shell(<CheckinScreen student={stu} demo={demo} onBack={()=>setChk(false)}/>);
   if(ciclo)return shell(<CicloScreen student={stu} demo={demo} onBack={()=>setCiclo(false)}/>);
+  if(aval)return shell(<AvalScreen student={stu} demo={demo} onBack={()=>setAval(false)}/>);
 
   const list=divs||[];const pct=Math.min(100,Math.round((freq.done/(freq.meta||1))*100));
   return shell(<div className="lv-wrap">
@@ -5139,6 +5226,11 @@ function StudentApp({profile}){
         <div className="lv-avatar" style={{width:38,height:38,fontSize:18,background:'var(--lvc2)'}}>🩸</div>
         <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700}}>Meu ciclo</div><div className="lv-sub">Fases e consciência</div></div>
       </div>}
+    </div>
+    <div className="lv-treino" style={{marginBottom:14}} onClick={()=>setAval(true)}>
+      <div className="lv-avatar" style={{width:38,height:38,fontSize:18,background:'var(--lvc2)'}}>📋</div>
+      <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700}}>Minha avaliação física</div><div className="lv-sub">Última avaliação, relatório e evolução</div></div>
+      <span style={{color:'var(--lvt3)'}}>›</span>
     </div>
     {list.length===0?<div className="lv-card" style={{textAlign:'center',color:'var(--lvt2)'}}>Seu treinador ainda não montou sua ficha de treino.</div>:<>
       <div className="lv-card lv-hero">
