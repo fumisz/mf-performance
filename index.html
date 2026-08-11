@@ -1056,9 +1056,10 @@ const AVISO_MODELOS=[
   {tipo:'aviso',titulo:'Sua reavaliação está chegando',texto:'Semana que vem faremos sua reavaliação. Capricha no sono e na alimentação.'},
 ];
 function NotifyModal({target,students,onClose}){
-  const all=!!target.all;const stu=target.student;
+  const all=!!target.all;const stu=target.student;const reativar=!!target.reativar;
   const [tipo,setTipo]=useState('lembrete');
-  const [titulo,setTitulo]=useState('');const [texto,setTexto]=useState('');
+  const [titulo,setTitulo]=useState(reativar?'Senti sua falta nos treinos 💜':'');
+  const [texto,setTexto]=useState(reativar?'Bora retomar? Guardei um lugar pra você. Me conta como posso te ajudar a voltar pra rotina — dá um passo hoje!':'');
   const [busy,setBusy]=useState(false);const [okMsg,setOkMsg]=useState(null);
   const usar=m=>{setTipo(m.tipo);setTitulo(m.titulo);setTexto(m.texto);};
   const enviar=async()=>{
@@ -1094,6 +1095,42 @@ function NotifyModal({target,students,onClose}){
       <button className="btn btn-primary" style={{width:'100%'}} disabled={busy} onClick={enviar}>{busy?'Enviando…':(all?'Enviar para todos':'Enviar aviso')}</button>
     </>}
   </div></div>);
+}
+/* ── Financeiro do aluno (mensalidade + pagamento do mês) ── */
+function FinanceiroCard({student}){
+  const comp=todayStr().slice(0,7);
+  const [loaded,setLoaded]=useState(false);
+  const [valor,setValor]=useState('');const [dia,setDia]=useState('');
+  const [pago,setPago]=useState(false);const [edit,setEdit]=useState(false);const [busy,setBusy]=useState(false);
+  useEffect(()=>{(async()=>{
+    try{const {data:mm}=await sb.from('train_mensalidade').select('*').eq('student_id',student.id).maybeSingle();
+      if(mm){setValor(mm.valor??'');setDia(mm.dia_venc??'');}
+      const {data:pp}=await sb.from('train_pagamento').select('pago').eq('student_id',student.id).eq('competencia',comp).maybeSingle();
+      setPago(!!(pp&&pp.pago));}catch(e){}
+    setLoaded(true);
+  })();},[]);
+  const salvar=async()=>{setBusy(true);try{await sb.rpc('mensalidade_salvar',{p_student:student.id,p_valor:num(valor),p_dia:dia?parseInt(dia):null});}catch(e){}setBusy(false);setEdit(false);};
+  const togglePago=async()=>{const nv=!pago;setPago(nv);try{await sb.rpc('pagamento_marcar',{p_student:student.id,p_competencia:comp,p_pago:nv});}catch(e){}};
+  const mesLbl=new Date(comp+'-01T00:00:00').toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+  const temValor=valor!=='' && valor!=null;
+  return(<div className="card" style={{marginTop:14}}>
+    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
+      <div style={{fontFamily:'var(--serif)',fontSize:16,fontWeight:600}}>Financeiro</div>
+      {!edit&&<button className="btn btn-ghost btn-sm" onClick={()=>setEdit(true)}>{temValor?'Editar':'Definir mensalidade'}</button>}
+    </div>
+    {!loaded?<div className="s-meta">Carregando…</div>:edit?<div>
+      <div style={{display:'flex',gap:10}}>
+        <div className="fg" style={{flex:1,margin:0}}><label className="flbl">Mensalidade (R$)</label><input className="fi" type="number" value={valor} onChange={e=>setValor(e.target.value)} placeholder="Ex.: 250"/></div>
+        <div className="fg" style={{flex:1,margin:0}}><label className="flbl">Dia do vencimento</label><input className="fi" type="number" min="1" max="31" value={dia} onChange={e=>setDia(e.target.value)} placeholder="Ex.: 10"/></div>
+      </div>
+      <div className="bgroup" style={{marginTop:10}}><button className="btn btn-primary btn-sm" disabled={busy} onClick={salvar}>{busy?'Salvando…':'Salvar'}</button><button className="btn btn-ghost btn-sm" onClick={()=>setEdit(false)}>Cancelar</button></div>
+    </div>:!temValor?<div className="s-meta">Nenhuma mensalidade definida para este aluno.</div>:<div style={{display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}}>
+      <div><div style={{fontSize:22,fontWeight:800}}>R$ {(+valor).toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
+        <div className="s-meta">{dia?`vence dia ${dia}`:'sem vencimento'} · <span style={{textTransform:'capitalize'}}>{mesLbl}</span></div></div>
+      <span className="sp" style={{flex:1}}/>
+      <button className={`btn btn-sm ${pago?'btn-primary':'btn-ghost'}`} onClick={togglePago}>{pago?'✓ Pago':'Marcar como pago'}</button>
+    </div>}
+  </div>);
 }
 function Dashboard({students,evals,onSelect,onNew,onDelete,onReassess,onSchedule,onTrain}){
   const [q,setQ]=useState('');
@@ -1225,7 +1262,7 @@ function Dashboard({students,evals,onSelect,onNew,onDelete,onReassess,onSchedule
       </div>}
       {notify&&<NotifyModal target={notify} students={students} onClose={()=>setNotify(null)}/>}
       {(()=>{
-        const Row=({s,se,last,lastScore,ri})=>{
+        const Row=({s,se,last,lastScore,ri,active})=>{
           let pill;
           if(se.length===0)pill={c:'b',t:'Sem avaliação'};
           else if(ri&&ri.days<0)pill={c:'r',t:`Vencida · ${Math.abs(ri.days)}d`};
@@ -1243,6 +1280,7 @@ function Dashboard({students,evals,onSelect,onNew,onDelete,onReassess,onSchedule
               <div className="dr-right">
                 {lastScore!=null&&<span className="dscore" style={{color:scoreColor(lastScore)}}>{lastScore}</span>}
                 <span className={`dstat-pill dstat-${pill.c}`}><i/>{pill.t}</span>
+                {!active&&se.length>0&&<button className="dr-act" title="Reativar aluno" onClick={e=>{e.stopPropagation();setNotify({student:s,reativar:true});}}>♻️</button>}
                 <button className="dr-act" title="Enviar aviso" onClick={e=>{e.stopPropagation();setNotify({student:s});}}>🔔</button>
                 <button className="dr-act" title="Treino" onClick={e=>{e.stopPropagation();onTrain(s);}}>🏋</button>
                 <button className="dr-act" title="Excluir" onClick={e=>{e.stopPropagation();if(confirm(`Excluir ${s.name} e todas as avaliações?`))onDelete(s.id);}}>×</button>
@@ -2105,6 +2143,8 @@ function StudentDetail({student,evals,onNewEval,onReassess,onEditEval,onDeleteEv
           {last.bp_sys&&last.bp_dia&&<Stat lbl="Pressão" val={`${last.bp_sys}/${last.bp_dia}`} badge={classifyBP(last.bp_sys,last.bp_dia)}/>}
           <Stat lbl="Avaliações" val={evals.length}/>
         </div>)}
+
+      {sb&&!student._demo&&<FinanceiroCard student={student}/>}
 
       <div style={{fontSize:15,fontWeight:600,margin:'24px 0 14px'}}>Histórico de avaliações</div>
       {sorted.length===0?(
@@ -5279,11 +5319,116 @@ function AvalScreen({student,demo,onBack}){
 function LvToggle({on,busy,onClick}){return(
   <button onClick={onClick} disabled={busy} style={{flexShrink:0,width:46,height:27,borderRadius:16,border:'none',cursor:busy?'wait':'pointer',background:on?'var(--lvneon)':'var(--lvc2)',position:'relative',transition:'background .15s',opacity:busy?.6:1}}>
     <span style={{position:'absolute',top:3,left:on?22:3,width:21,height:21,borderRadius:'50%',background:'#fff',transition:'left .15s',boxShadow:'0 1px 3px rgba(0,0,0,.4)'}}/></button>);}
+
+/* ── Diário de saúde (aluno) ── */
+const GLIC_MOMENTOS=[['jejum','Jejum'],['pre_refeicao','Pré-refeição'],['pos_refeicao','Pós-refeição'],['antes_treino','Antes do treino'],['pos_treino','Após treino'],['dormir','Ao dormir']];
+const glicFaixa=v=>v<70?{l:'Baixa',c:'#e11d48'}:v<=180?{l:'Na faixa',c:'#4ade80'}:{l:'Alta',c:'#f59e0b'};
+function DiarioScreen({student,demo,onBack}){
+  const [diab,setDiab]=useState(demo?true:false);
+  const [d,setD]=useState({peso:'',sono:'',energia:3,humor:3,dor:1,passos:'',obs:''});
+  const [glic,setGlic]=useState(demo?[{id:'g1',valor:104,momento:'jejum',insulina_unid:6,registrado_em:new Date(Date.now()-3600e3).toISOString()},{id:'g2',valor:158,momento:'pos_refeicao',insulina_unid:4,registrado_em:new Date(Date.now()-6*3600e3).toISOString()}]:[]);
+  const [gf,setGf]=useState({valor:'',momento:'jejum',insulina:''});
+  const [busy,setBusy]=useState(false);const [okMsg,setOkMsg]=useState(null);
+  useEffect(()=>{if(demo)return;(async()=>{
+    try{const {data:sd}=await sb.from('train_saude').select('diabetico').eq('student_id',student.id).maybeSingle();if(sd)setDiab(!!sd.diabetico);}catch(e){}
+    try{const key=student.id+'_'+todayStr();const {data:dd}=await sb.from('train_diario').select('*').eq('id',key).maybeSingle();if(dd)setD({peso:dd.peso??'',sono:dd.sono??'',energia:dd.energia??3,humor:dd.humor??3,dor:dd.dor??1,passos:dd.passos??'',obs:dd.obs??''});}catch(e){}
+    try{const {data:gg}=await sb.from('train_glicemia').select('*').eq('student_id',student.id).order('registrado_em',{ascending:false}).limit(8);setGlic(gg||[]);}catch(e){}
+  })();},[]);
+  const toggleDiab=async(v)=>{setDiab(v);if(!demo)sb.rpc('saude_cfg',{p_diabetico:v,p_condicoes:null}).catch(()=>{});};
+  const salvar=async()=>{setBusy(true);if(!demo){try{await sb.rpc('diario_salvar',{p_peso:num(d.peso),p_sono:num(d.sono),p_energia:d.energia,p_humor:d.humor,p_dor:d.dor,p_passos:d.passos?parseInt(d.passos):null,p_obs:d.obs||null});}catch(e){}}setBusy(false);setOkMsg('Diário de hoje salvo!');setTimeout(()=>setOkMsg(null),1800);};
+  const regGlic=async()=>{if(!gf.valor)return;const novo={id:'t'+Date.now(),valor:parseInt(gf.valor),momento:gf.momento,insulina_unid:gf.insulina?num(gf.insulina):null,registrado_em:new Date().toISOString()};
+    setGlic(g=>[novo,...g]);if(!demo){try{await sb.rpc('glicemia_registrar',{p_valor:novo.valor,p_momento:gf.momento,p_insulina:novo.insulina_unid,p_obs:null});}catch(e){}}setGf({valor:'',momento:gf.momento,insulina:''});};
+  const slider=(k,lbl,lo,hi)=>(<div className="lv-card">
+    <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}><span style={{fontWeight:700}}>{lbl}</span><span style={{fontWeight:800,color:'var(--lvrx)'}}>{d[k]}</span></div>
+    <input type="range" min="1" max="5" value={d[k]} onChange={e=>setD(p=>({...p,[k]:+e.target.value}))} style={{width:'100%'}}/>
+    <div style={{display:'flex',justifyContent:'space-between'}}><span className="lv-sub">{lo}</span><span className="lv-sub">{hi}</span></div></div>);
+  return(<div className="lv-wrap">
+    <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:8}}><button className="lv-ghost" onClick={onBack}>‹ Voltar</button><div className="lv-title" style={{flex:1}}>Diário de saúde</div></div>
+    <p className="lv-sub" style={{marginBottom:14}}>Registrar todo dia ajuda você e seu treinador a acompanhar sua saúde de perto.</p>
+    <div style={{display:'flex',gap:10,marginBottom:14}}>
+      <div className="lv-card" style={{flex:1,margin:0}}><span className="lv-inlbl">Peso (kg)</span><input className="lv-in" type="number" inputMode="decimal" value={d.peso} onChange={e=>setD(p=>({...p,peso:e.target.value}))} placeholder="—"/></div>
+      <div className="lv-card" style={{flex:1,margin:0}}><span className="lv-inlbl">Sono (h)</span><input className="lv-in" type="number" inputMode="decimal" value={d.sono} onChange={e=>setD(p=>({...p,sono:e.target.value}))} placeholder="—"/></div>
+      <div className="lv-card" style={{flex:1,margin:0}}><span className="lv-inlbl">Passos</span><input className="lv-in" type="number" inputMode="numeric" value={d.passos} onChange={e=>setD(p=>({...p,passos:e.target.value}))} placeholder="—"/></div>
+    </div>
+    {slider('energia','Energia','Sem energia','Cheia de energia')}
+    {slider('humor','Humor','Ruim','Ótimo')}
+    {slider('dor','Dor / desconforto','Nenhuma','Muita')}
+    <div className="lv-card"><span className="lv-inlbl">Observações</span><textarea className="lv-in" rows={2} value={d.obs} onChange={e=>setD(p=>({...p,obs:e.target.value}))} placeholder="Como foi seu dia? Algo importante?"/></div>
+    {okMsg&&<div className="lv-pill" style={{background:'rgba(74,222,128,.15)',color:'#86efac',marginBottom:10}}>✓ {okMsg}</div>}
+    <button className="lv-btn" disabled={busy} onClick={salvar}>{busy?'Salvando…':'Salvar diário de hoje'}</button>
+
+    <div className="lv-card" style={{marginTop:18,display:'flex',alignItems:'center',gap:12}}>
+      <div style={{fontSize:22}}>🩺</div>
+      <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700}}>Sou diabético(a)</div><div className="lv-sub">Ativa o controle de glicemia e insulina</div></div>
+      <LvToggle on={diab} onClick={()=>toggleDiab(!diab)}/>
+    </div>
+    {diab&&<>
+      <div className="lv-kick" style={{margin:'16px 2px 10px'}}>Glicemia & insulina</div>
+      <div className="lv-card">
+        <div style={{display:'flex',gap:10}}>
+          <div style={{flex:1}}><span className="lv-inlbl">Glicemia (mg/dL)</span><input className="lv-in" type="number" inputMode="numeric" value={gf.valor} onChange={e=>setGf(p=>({...p,valor:e.target.value}))} placeholder="Ex.: 110"/></div>
+          <div style={{flex:1}}><span className="lv-inlbl">Insulina (unid.)</span><input className="lv-in" type="number" inputMode="decimal" value={gf.insulina} onChange={e=>setGf(p=>({...p,insulina:e.target.value}))} placeholder="opcional"/></div>
+        </div>
+        <span className="lv-inlbl" style={{marginTop:12}}>Momento</span>
+        <select className="lv-in" value={gf.momento} onChange={e=>setGf(p=>({...p,momento:e.target.value}))}>{GLIC_MOMENTOS.map(([k,l])=><option key={k} value={k}>{l}</option>)}</select>
+        <button className="lv-btn" style={{marginTop:12}} onClick={regGlic}>Registrar medição</button>
+      </div>
+      {glic.length>0&&<div className="lv-card">
+        <div className="lv-kick" style={{marginBottom:8}}>Últimas medições</div>
+        {glic.map(g=>{const f=glicFaixa(g.valor);const mom=(GLIC_MOMENTOS.find(m=>m[0]===g.momento)||[,g.momento])[1];return(
+          <div key={g.id} style={{display:'flex',alignItems:'center',gap:12,padding:'8px 0',borderTop:'1px solid var(--lvbd)'}}>
+            <span style={{fontWeight:800,fontSize:18,color:f.c,minWidth:52}}>{g.valor}</span>
+            <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700,fontSize:13}}>{mom}{g.insulina_unid?` · 💉 ${g.insulina_unid}u`:''}</div><div className="lv-sub" style={{fontSize:11}}>{tempoRel(g.registrado_em)}</div></div>
+            <span className="lv-pill" style={{background:f.c+'22',color:f.c,fontSize:11}}>{f.l}</span>
+          </div>);})}
+      </div>}
+      <div className="lv-sub" style={{fontSize:11.5,lineHeight:1.5,marginTop:2}}>💡 Referência geral: abaixo de 70 é baixa, 70–180 na faixa, acima de 180 alta. Sempre siga a orientação do seu médico.</div>
+    </>}
+  </div>);
+}
+
+/* ── Metas e desafios (aluno) — vindas da avaliação ── */
+function MetasScreen({student,demo,onBack,freq}){
+  const [metas,setMetas]=useState(demo?[
+    {id:'m1',tipo:'peso',titulo:'Chegar a 72 kg',unidade:'kg',valor_inicial:84,valor_alvo:72,valor_atual:78},
+    {id:'m2',tipo:'gordura',titulo:'Reduzir % de gordura',unidade:'%',valor_inicial:22,valor_alvo:15,valor_atual:16},
+    {id:'m3',tipo:'custom',titulo:'Correr 5 km sem parar',unidade:'km',valor_inicial:2,valor_alvo:5,valor_atual:3.5}]:null);
+  useEffect(()=>{if(demo)return;(async()=>{
+    let atual={};
+    try{const {data:av}=await sb.from('assessments').select('*').eq('student_id',student.id).order('date');const evs=(av||[]).map(rowToEval);const last=evs[evs.length-1];
+      if(last){const dv=derive(student,last);atual={peso:num(last.weight),gordura:dv.fatPct};}}catch(e){}
+    try{const {data:mm}=await sb.from('train_meta').select('*').eq('student_id',student.id).order('created_at');
+      setMetas((mm||[]).map(m=>({...m,valor_atual:m.valor_atual??(m.tipo==='peso'?atual.peso:m.tipo==='gordura'?atual.gordura:m.valor_atual)})));}catch(e){setMetas([]);}
+  })();},[]);
+  const prog=m=>{if(m.valor_inicial==null||m.valor_alvo==null||m.valor_atual==null)return null;
+    const tot=m.valor_alvo-m.valor_inicial;if(tot===0)return 100;const feito=m.valor_atual-m.valor_inicial;return Math.max(0,Math.min(100,Math.round(feito/tot*100)));};
+  if(metas===null)return(<div className="lv-wrap"><div className="center-screen"><div className="spinner"/></div></div>);
+  return(<div className="lv-wrap">
+    <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14}}><button className="lv-ghost" onClick={onBack}>‹ Voltar</button><div className="lv-title" style={{flex:1}}>Minhas metas</div></div>
+    {freq&&<div className="lv-card lv-hero">
+      <div className="lv-kick" style={{color:'#e9d5ff'}}>Desafio da semana</div>
+      <div style={{fontSize:17,fontWeight:800,margin:'4px 0 10px'}}>Complete {freq.meta} treinos</div>
+      <div className="lv-freq" style={{background:'rgba(255,255,255,.25)'}}><i style={{width:Math.min(100,Math.round(freq.done/(freq.meta||1)*100))+'%',background:'#fff'}}/></div>
+      <div style={{marginTop:8,fontWeight:700}}>{freq.done} / {freq.meta} {freq.done>=freq.meta?'🎉 concluído!':''}</div>
+    </div>}
+    {metas.length===0?<div className="lv-card" style={{textAlign:'center',color:'var(--lvt2)'}}>Seu treinador ainda não definiu metas. Elas aparecem aqui pra você acompanhar.</div>
+    :metas.map(m=>{const p=prog(m);const done=p!=null&&p>=100;return(
+      <div key={m.id} className={'lv-card'+(done?' ':'')}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          <div style={{fontWeight:800}}>{done?'🏆 ':''}{m.titulo}</div>
+          {p!=null&&<span style={{fontWeight:800,color:done?'#4ade80':'var(--lvrx)'}}>{p}%</span>}
+        </div>
+        <div className="lv-freq" style={{marginTop:10}}><i style={{width:(p||0)+'%',background:done?'linear-gradient(90deg,#22c55e,#4ade80)':undefined}}/></div>
+        {m.valor_atual!=null&&<div className="lv-sub" style={{marginTop:8}}>Atual: <b>{m.valor_atual}{m.unidade}</b> · Meta: <b>{m.valor_alvo}{m.unidade}</b>{m.valor_inicial!=null?` · Início: ${m.valor_inicial}${m.unidade}`:''}</div>}
+      </div>);})}
+  </div>);
+}
 function StudentApp({profile}){
   const demo=!!profile._demo;
   const [stu,setStu]=useState(demo?{id:'ds1',name:'Laryssa Araujo',gender:'F',coach_id:'demo'}:undefined);
   const [divs,setDivs]=useState(demo?_DEMO_ALUNO_DIVS:null);
   const [best,setBest]=useState({});const [exec,setExec]=useState(null);const [evol,setEvol]=useState(false);const [hydra,setHydra]=useState(false);const [chk,setChk]=useState(false);const [ciclo,setCiclo]=useState(false);const [aval,setAval]=useState(false);const [freq,setFreq]=useState({done:0,meta:4});
+  const [diario,setDiario]=useState(false);const [metas,setMetas]=useState(false);
   const [tab,setTab]=useState('home');
   const [pushOn,setPushOn]=useState(false);const [pushBusy,setPushBusy]=useState(false);const [pushMsg,setPushMsg]=useState(null);const [agua,setAgua]=useState(false);
   const [stats,setStats]=useState({total:0,prs:0,streak:0,mes:0});
@@ -5337,7 +5482,7 @@ function StudentApp({profile}){
   const toggleAgua=async(v)=>{setAgua(v);if(!demo)sb.rpc('lembrete_agua',{p_ativo:v}).catch(()=>{});};
   const hr=new Date().getHours();const saud=hr<12?'Bom dia':hr<18?'Boa tarde':'Boa noite';
 
-  const goTab=t=>{setExec(null);setEvol(false);setHydra(false);setChk(false);setCiclo(false);setAval(false);setTab(t);window.scrollTo(0,0);};
+  const goTab=t=>{setExec(null);setEvol(false);setHydra(false);setChk(false);setCiclo(false);setAval(false);setDiario(false);setMetas(false);setTab(t);window.scrollTo(0,0);};
   const navItem=(t,ic,lb,badge)=>(<button className={'lv-navb'+(tab===t?' on':'')} onClick={()=>goTab(t)}>
     <span className="ic">{ic}</span>{lb}{badge>0&&<span className="lv-navbadge">{badge>9?'9+':badge}</span>}</button>);
   const shell=(inner,nav)=>(<div className="lv">
@@ -5367,6 +5512,8 @@ function StudentApp({profile}){
   if(chk)return shell(<CheckinScreen student={stu} demo={demo} onBack={()=>setChk(false)}/>);
   if(ciclo)return shell(<CicloScreen student={stu} demo={demo} onBack={()=>setCiclo(false)}/>);
   if(aval)return shell(<AvalScreen student={stu} demo={demo} onBack={()=>setAval(false)}/>);
+  if(diario)return shell(<DiarioScreen student={stu} demo={demo} onBack={()=>setDiario(false)}/>);
+  if(metas)return shell(<MetasScreen student={stu} demo={demo} freq={freq} onBack={()=>setMetas(false)}/>);
 
   const list=divs||[];const pct=Math.min(100,Math.round((freq.done/(freq.meta||1))*100));
   const nm=stu.name.split(' ')[0];
@@ -5405,6 +5552,20 @@ function StudentApp({profile}){
         <div style={{flex:1}}><div style={{fontWeight:700}}>{dv.nome||'Divisão'}</div><div className="lv-sub">Toque para executar</div></div>
       </div>)}
     </>}
+    <div className="lv-card" onClick={()=>setMetas(true)} style={{cursor:'pointer',background:'linear-gradient(135deg,rgba(139,92,246,.16),rgba(74,222,128,.08))',border:'1px solid var(--lvbd)'}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}><div className="lv-kick">🎯 Minhas metas & desafios</div><span style={{color:'var(--lvt3)'}}>›</span></div>
+      <div style={{fontWeight:800,fontSize:15,marginTop:6}}>Desafio da semana: {freq.done}/{freq.meta} treinos</div>
+      <div className="lv-freq" style={{marginTop:8}}><i style={{width:pct+'%'}}/></div>
+    </div>
+    <div className="lv-card">
+      <div className="lv-kick" style={{marginBottom:10}}>Resumo da semana</div>
+      <div style={{display:'flex',gap:10,textAlign:'center'}}>
+        <div style={{flex:1}}><div style={{fontSize:20,fontWeight:900,color:'var(--lvrx)'}}>{freq.done}</div><div className="lv-sub" style={{fontSize:11}}>treinos</div></div>
+        <div style={{flex:1}}><div style={{fontSize:20,fontWeight:900,color:'var(--lvrx)'}}>{stats.prs}</div><div className="lv-sub" style={{fontSize:11}}>recordes</div></div>
+        <div style={{flex:1}}><div style={{fontSize:20,fontWeight:900,color:'var(--lvrx)'}}>{stats.streak}</div><div className="lv-sub" style={{fontSize:11}}>seq. dias</div></div>
+      </div>
+      <div className="lv-sub" style={{marginTop:10,lineHeight:1.5}}>{freq.done>=freq.meta?'Semana fechada com chave de ouro! 🎉 Orgulho do seu compromisso.':`Faltam ${Math.max(0,freq.meta-freq.done)} treino(s) pra bater sua meta da semana. Bora!`}</div>
+    </div>
     <div className="lv-kick" style={{margin:'18px 0 10px'}}>Meu dia</div>
     <div style={{display:'flex',gap:10,marginBottom:14}}>
       <div className="lv-treino" style={{flex:1,margin:0}} onClick={()=>setHydra(true)}>
@@ -5415,6 +5576,11 @@ function StudentApp({profile}){
         <div className="lv-avatar" style={{width:38,height:38,fontSize:18,background:'var(--lvc2)'}}>🟢</div>
         <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700}}>Check-in</div><div className="lv-sub">Como está hoje</div></div>
       </div>
+    </div>
+    <div className="lv-treino" style={{marginBottom:14}} onClick={()=>setDiario(true)}>
+      <div className="lv-avatar" style={{width:38,height:38,fontSize:18,background:'var(--lvc2)'}}>📔</div>
+      <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700}}>Diário de saúde</div><div className="lv-sub">Peso, sono, energia, glicemia…</div></div>
+      <span style={{color:'var(--lvt3)'}}>›</span>
     </div>
     {stu.gender==='F'&&<div className="lv-treino" style={{marginBottom:14}} onClick={()=>setCiclo(true)}>
       <div className="lv-avatar" style={{width:38,height:38,fontSize:18,background:'var(--lvc2)'}}>🩸</div>
