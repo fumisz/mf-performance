@@ -1096,6 +1096,51 @@ function NotifyModal({target,students,onClose}){
     </>}
   </div></div>);
 }
+/* ── Diário de saúde do aluno (visão do treinador) ── */
+function DiarioCoach({student,onClose}){
+  const [loaded,setLoaded]=useState(false);
+  const [dias,setDias]=useState([]);const [glic,setGlic]=useState([]);const [diab,setDiab]=useState(false);
+  useEffect(()=>{(async()=>{
+    try{const {data:sd}=await sb.from('train_saude').select('diabetico').eq('student_id',student.id).maybeSingle();setDiab(!!(sd&&sd.diabetico));}catch(e){}
+    try{const {data:dd}=await sb.from('train_diario').select('*').eq('student_id',student.id).order('data',{ascending:false}).limit(21);setDias(dd||[]);}catch(e){}
+    try{const {data:gg}=await sb.from('train_glicemia').select('*').eq('student_id',student.id).order('registrado_em',{ascending:false}).limit(20);setGlic(gg||[]);}catch(e){}
+    setLoaded(true);
+  })();},[]);
+  const humorTxt=v=>v==null?'—':['','😣 Ruim','🙁','😐','🙂','😄 Ótimo'][v]||v;
+  return(<div style={{position:'fixed',inset:0,zIndex:120,background:'rgba(10,8,10,.8)',display:'flex',alignItems:'flex-start',justifyContent:'center',padding:16,overflow:'auto'}} onClick={onClose}>
+    <div className="card" style={{maxWidth:560,width:'100%',marginTop:24}} onClick={e=>e.stopPropagation()}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
+        <div style={{fontFamily:'var(--serif)',fontSize:18,fontWeight:600}}>Diário de saúde · {student.name.split(' ')[0]}</div>
+        <button className="btn-icon btn-sm" onClick={onClose}>×</button>
+      </div>
+      {!loaded?<div className="s-meta">Carregando…</div>:<>
+        {diab&&<>
+          <div className="kpi-lbl" style={{margin:'6px 0 8px'}}>Glicemia & insulina</div>
+          {glic.length===0?<div className="s-meta" style={{marginBottom:12}}>Sem registros de glicemia.</div>:
+          <div style={{overflowX:'auto',marginBottom:16}}><table style={{width:'100%',borderCollapse:'collapse',fontSize:13}}>
+            <thead><tr style={{textAlign:'left',color:'var(--text3)'}}><th style={{padding:'4px 8px'}}>Quando</th><th>mg/dL</th><th>Momento</th><th>Insulina</th></tr></thead>
+            <tbody>{glic.map(g=>{const f=glicFaixa(g.valor);const mom=(GLIC_MOMENTOS.find(m=>m[0]===g.momento)||[,g.momento||'—'])[1];return(
+              <tr key={g.id} style={{borderTop:'1px solid var(--border)'}}>
+                <td style={{padding:'6px 8px'}}>{new Date(g.registrado_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</td>
+                <td style={{fontWeight:800,color:f.c}}>{g.valor}</td><td>{mom}</td><td>{g.insulina_unid?`${g.insulina_unid}u`:'—'}</td></tr>);})}
+            </tbody></table></div>}
+        </>}
+        <div className="kpi-lbl" style={{margin:'6px 0 8px'}}>Diário diário</div>
+        {dias.length===0?<div className="s-meta">Este aluno ainda não registrou o diário.</div>:
+        <div style={{overflowX:'auto'}}><table style={{width:'100%',borderCollapse:'collapse',fontSize:13}}>
+          <thead><tr style={{textAlign:'left',color:'var(--text3)'}}><th style={{padding:'4px 8px'}}>Data</th><th>Peso</th><th>Sono</th><th>Energia</th><th>Humor</th><th>Dor</th><th>Passos</th></tr></thead>
+          <tbody>{dias.map(d=>(
+            <tr key={d.id} style={{borderTop:'1px solid var(--border)'}}>
+              <td style={{padding:'6px 8px'}}>{fmtDate(d.data)}</td><td>{d.peso!=null?d.peso+'kg':'—'}</td><td>{d.sono!=null?d.sono+'h':'—'}</td>
+              <td>{d.energia??'—'}</td><td>{humorTxt(d.humor)}</td><td>{d.dor??'—'}</td><td>{d.passos!=null?d.passos:'—'}</td></tr>))}
+          </tbody></table></div>}
+        {dias.some(d=>d.obs)&&<div style={{marginTop:14}}><div className="kpi-lbl" style={{marginBottom:6}}>Observações</div>
+          {dias.filter(d=>d.obs).slice(0,6).map(d=><div key={d.id} className="s-meta" style={{marginBottom:6}}><b>{fmtDate(d.data)}:</b> {d.obs}</div>)}</div>}
+      </>}
+    </div>
+  </div>);
+}
+
 /* ── Financeiro do aluno (mensalidade + pagamento do mês) ── */
 function FinanceiroCard({student}){
   const comp=todayStr().slice(0,7);
@@ -2082,6 +2127,7 @@ function PhotoCompare({student,evals,onClose}){
 
 function StudentDetail({student,evals,onNewEval,onReassess,onEditEval,onDeleteEval,onReport,onBack,onEdit,onTech,onTrain}){
   const [cmp,setCmp]=useState(false);
+  const [diarioOpen,setDiarioOpen]=useState(false);
   const [acc,setAcc]=useState(null);const [accBusy,setAccBusy]=useState(false);
   const photoEvals=evals.filter(e=>e.post_photo_front||e.post_photo_side||e.post_photo_back).length;
   const genCode=async()=>{setAccBusy(true);const {data,error}=await sb.rpc('aluno_gerar_codigo',{p_student:student.id});setAccBusy(false);if(error){alert('Erro: '+error.message);return;}setAcc(data||'—');};
@@ -2093,6 +2139,7 @@ function StudentDetail({student,evals,onNewEval,onReassess,onEditEval,onDeleteEv
   return(
     <div>
       {cmp&&<PhotoCompare student={student} evals={evals} onClose={()=>setCmp(false)}/>}
+      {diarioOpen&&<DiarioCoach student={student} onClose={()=>setDiarioOpen(false)}/>}
       {acc!==null&&<div style={{position:'fixed',inset:0,zIndex:120,background:'rgba(10,8,10,.8)',display:'flex',alignItems:'center',justifyContent:'center',padding:16}} onClick={()=>setAcc(null)}>
         <div className="card" style={{maxWidth:380,width:'100%'}} onClick={e=>e.stopPropagation()}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}><div style={{fontFamily:'var(--serif)',fontSize:18,fontWeight:600}}>Acesso do aluno</div><button className="btn-icon btn-sm" onClick={()=>setAcc(null)}>×</button></div>
@@ -2119,6 +2166,7 @@ function StudentDetail({student,evals,onNewEval,onReassess,onEditEval,onDeleteEv
           <button className="btn btn-ghost btn-sm" onClick={onEdit}>Editar Editar ficha</button>
           <button className="btn btn-ghost btn-sm" onClick={onTrain}>Treino</button>
           <button className="btn btn-ghost btn-sm" onClick={()=>setAcc('')}>Acesso do aluno</button>
+          {sb&&!student._demo&&<button className="btn btn-ghost btn-sm" onClick={()=>setDiarioOpen(true)}>Diário de saúde</button>}
           <button className="btn btn-ghost btn-sm" onClick={onTech}>Avaliação técnica</button>
           {photoEvals>=2&&<button className="btn btn-ghost btn-sm" onClick={()=>setCmp(true)}>Comparar fotos</button>}
           {sorted.length>0&&<button className="btn btn-secondary" onClick={onReassess}> Reavaliação</button>}
