@@ -573,6 +573,24 @@ let sb = null;
 if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY);
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 
+/* ── Web Push (notificações na barra do celular) ── */
+const VAPID_PUBLIC='BC_YqtYUqpgqbKzuUwiyj6v4ymbNO6RYhJ5XYm7fhYnKob0eW2yLU-kNbf0gzrjfbJRRqysClA2gBLxJJpHSd1s';
+const _u8=b64=>{const pad='='.repeat((4-b64.length%4)%4);const s=(b64+pad).replace(/-/g,'+').replace(/_/g,'/');const r=atob(s);const a=new Uint8Array(r.length);for(let i=0;i<r.length;i++)a[i]=r.charCodeAt(i);return a;};
+const pushSuportado=()=>('serviceWorker'in navigator)&&('PushManager'in window)&&('Notification'in window);
+async function ativarPush(){
+  if(!pushSuportado())return{ok:false,msg:'Este aparelho/navegador não suporta notificações. No iPhone, adicione o app à Tela de Início primeiro.'};
+  const perm=await Notification.requestPermission();
+  if(perm!=='granted')return{ok:false,msg:'Permissão de notificação negada. Ative nas configurações do navegador.'};
+  const reg=await navigator.serviceWorker.ready;
+  let sub=await reg.pushManager.getSubscription();
+  if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:_u8(VAPID_PUBLIC)});
+  const j=sub.toJSON();
+  const {error}=await sb.rpc('push_salvar',{p_endpoint:j.endpoint,p_p256dh:j.keys.p256dh,p_auth:j.keys.auth});
+  if(error)return{ok:false,msg:error.message};
+  return{ok:true};
+}
+async function desativarPush(){try{const reg=await navigator.serviceWorker.ready;const sub=await reg.pushManager.getSubscription();if(sub){await sb.rpc('push_remover',{p_endpoint:sub.toJSON().endpoint}).catch(()=>{});await sub.unsubscribe();}}catch(e){}}
+
 /* ── Logo (letreiro LED + pulso) ── */
 /* Silhueta do levantador (deadlift) — desenhada em paths, estilo estêncil */
 function Lifter({bone='var(--accent)',cut='var(--bg)'}){
@@ -1047,8 +1065,12 @@ function NotifyModal({target,students,onClose}){
     if(!titulo.trim()||!texto.trim()){alert('Preencha título e mensagem.');return;}
     setBusy(true);
     try{
-      if(all){const {data,error}=await sb.rpc('aviso_enviar_todos',{p_titulo:titulo,p_texto:texto,p_tipo:tipo});if(error)throw error;setOkMsg('Aviso enviado para '+(data??students.length)+' aluno(s).');}
-      else{const {error}=await sb.rpc('aviso_enviar',{p_student:stu.id,p_titulo:titulo,p_texto:texto,p_tipo:tipo});if(error)throw error;setOkMsg('Aviso enviado para '+stu.name+'.');}
+      if(all){const {data,error}=await sb.rpc('aviso_enviar_todos',{p_titulo:titulo,p_texto:texto,p_tipo:tipo});if(error)throw error;
+        try{await sb.functions.invoke('push',{body:{all:true,titulo,texto,tipo}});}catch(e){}
+        setOkMsg('Aviso enviado para '+(data??students.length)+' aluno(s).');}
+      else{const {error}=await sb.rpc('aviso_enviar',{p_student:stu.id,p_titulo:titulo,p_texto:texto,p_tipo:tipo});if(error)throw error;
+        try{await sb.functions.invoke('push',{body:{student_id:stu.id,titulo,texto,tipo}});}catch(e){}
+        setOkMsg('Aviso enviado para '+stu.name+'.');}
       setTimeout(onClose,1100);
     }catch(e){alert('Erro ao enviar: '+e.message);setBusy(false);}
   };
@@ -5235,12 +5257,16 @@ function AvalScreen({student,demo,onBack}){
   </div>);
 }
 
+function LvToggle({on,busy,onClick}){return(
+  <button onClick={onClick} disabled={busy} style={{flexShrink:0,width:46,height:27,borderRadius:16,border:'none',cursor:busy?'wait':'pointer',background:on?'var(--lvneon)':'var(--lvc2)',position:'relative',transition:'background .15s',opacity:busy?.6:1}}>
+    <span style={{position:'absolute',top:3,left:on?22:3,width:21,height:21,borderRadius:'50%',background:'#fff',transition:'left .15s',boxShadow:'0 1px 3px rgba(0,0,0,.4)'}}/></button>);}
 function StudentApp({profile}){
   const demo=!!profile._demo;
   const [stu,setStu]=useState(demo?{id:'ds1',name:'Laryssa Araujo',gender:'F',coach_id:'demo'}:undefined);
   const [divs,setDivs]=useState(demo?_DEMO_ALUNO_DIVS:null);
   const [best,setBest]=useState({});const [exec,setExec]=useState(null);const [evol,setEvol]=useState(false);const [hydra,setHydra]=useState(false);const [chk,setChk]=useState(false);const [ciclo,setCiclo]=useState(false);const [aval,setAval]=useState(false);const [freq,setFreq]=useState({done:0,meta:4});
   const [tab,setTab]=useState('home');
+  const [pushOn,setPushOn]=useState(false);const [pushBusy,setPushBusy]=useState(false);const [pushMsg,setPushMsg]=useState(null);const [agua,setAgua]=useState(false);
   const [stats,setStats]=useState({total:0,prs:0,streak:0,mes:0});
   const [avisos,setAvisos]=useState(demo?_DEMO_AVISOS:[]);
   const naoLidos=avisos.filter(a=>!a.lido).length;
@@ -5283,6 +5309,13 @@ function StudentApp({profile}){
     }
   })();},[]);
   useEffect(()=>{if(tab==='avisos'&&naoLidos>0){setAvisos(a=>a.map(x=>({...x,lido:true})));if(!demo)sb.rpc('avisos_marcar_lidos').catch(()=>{});}},[tab]);
+  useEffect(()=>{if(demo||!stu)return;(async()=>{
+    try{if(pushSuportado()&&Notification.permission==='granted'){const reg=await navigator.serviceWorker.ready;const s=await reg.pushManager.getSubscription();setPushOn(!!s);}}catch(e){}
+    try{const {data}=await sb.from('train_lembrete').select('agua_ativo').eq('student_id',stu.id).maybeSingle();if(data)setAgua(!!data.agua_ativo);}catch(e){}
+  })();},[stu]);
+  const togglePush=async()=>{if(demo){setPushOn(p=>!p);return;}setPushBusy(true);setPushMsg(null);
+    if(pushOn){await desativarPush();setPushOn(false);}else{const r=await ativarPush();if(r.ok)setPushOn(true);else setPushMsg(r.msg);}setPushBusy(false);};
+  const toggleAgua=async(v)=>{setAgua(v);if(!demo)sb.rpc('lembrete_agua',{p_ativo:v}).catch(()=>{});};
   const hr=new Date().getHours();const saud=hr<12?'Bom dia':hr<18?'Boa tarde':'Boa noite';
 
   const goTab=t=>{setExec(null);setEvol(false);setHydra(false);setChk(false);setCiclo(false);setAval(false);setTab(t);window.scrollTo(0,0);};
@@ -5432,6 +5465,22 @@ function StudentApp({profile}){
       <div className="lv-avatar" style={{width:38,height:38,fontSize:18,background:'var(--lvc2)'}}>📋</div>
       <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700}}>Minha avaliação física</div><div className="lv-sub">Relatório e evolução</div></div>
       <span style={{color:'var(--lvt3)'}}>›</span>
+    </div>
+    <div className="lv-kick" style={{margin:'6px 0 10px'}}>Notificações</div>
+    <div className="lv-card">
+      <div style={{display:'flex',alignItems:'center',gap:12}}>
+        <div style={{fontSize:22}}>🔔</div>
+        <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700}}>Avisos no celular</div><div className="lv-sub">Recebe os avisos do treinador na barra do sistema</div></div>
+        <LvToggle on={pushOn} busy={pushBusy} onClick={togglePush}/>
+      </div>
+      <div style={{height:1,background:'var(--lvbd)',margin:'14px 0'}}/>
+      <div style={{display:'flex',alignItems:'center',gap:12}}>
+        <div style={{fontSize:22}}>💧</div>
+        <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700}}>Lembrete de beber água</div><div className="lv-sub">Toques ao longo do dia pra manter a hidratação</div></div>
+        <LvToggle on={agua} onClick={()=>toggleAgua(!agua)}/>
+      </div>
+      {pushMsg&&<div className="lv-sub" style={{color:'#fca5a5',marginTop:12}}>{pushMsg}</div>}
+      {!pushOn&&<div className="lv-sub" style={{marginTop:12,fontSize:11.5,lineHeight:1.5}}>💡 No iPhone: abra pelo Safari, toque em Compartilhar → “Adicionar à Tela de Início” e abra o app por lá para ativar as notificações.</div>}
     </div>
     {!demo&&<button className="lv-btn" style={{background:'var(--lvc2)',color:'var(--lvt)',marginTop:6}} onClick={()=>sb.auth.signOut()}>Sair da conta</button>}
   </div>);

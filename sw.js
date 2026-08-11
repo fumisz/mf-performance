@@ -1,4 +1,4 @@
-const CACHE='mfp-v45';
+const CACHE='mfp-v46';
 const ASSETS=[
   './','./index.html','./config.js','./manifest.json',
   './lib/react.js','./lib/react-dom.js','./lib/babel.js',
@@ -11,6 +11,29 @@ self.addEventListener('install',e=>{
 self.addEventListener('activate',e=>{
   e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));
 });
+// ── Web Push: mostra a notificação na barra do sistema ──
+self.addEventListener('push',e=>{
+  let d={};try{d=e.data?e.data.json():{};}catch(_){d={titulo:'MF Performance',texto:e.data&&e.data.text()};}
+  const titulo=d.titulo||'MF Performance';
+  const opts={
+    body:d.texto||'',
+    icon:'./icons/icon-192.png',
+    badge:'./icons/icon-192.png',
+    tag:d.tag||('mfp-'+Date.now()),
+    data:{url:d.url||'./'},
+    vibrate:[80,40,80]
+  };
+  e.waitUntil(self.registration.showNotification(titulo,opts));
+});
+self.addEventListener('notificationclick',e=>{
+  e.notification.close();
+  const url=(e.notification.data&&e.notification.data.url)||'./';
+  e.waitUntil(clients.matchAll({type:'window',includeUncontrolled:true}).then(ws=>{
+    for(const w of ws){if('focus'in w)return w.focus();}
+    if(clients.openWindow)return clients.openWindow(url);
+  }));
+});
+
 self.addEventListener('fetch',e=>{
   const req=e.request;
   if(req.method!=='GET')return;
