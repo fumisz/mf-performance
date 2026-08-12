@@ -81,6 +81,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:1
 .fx-tag{text-align:center;font-family:'Cormorant Garamond',Georgia,serif;font-style:italic;font-size:14px;color:#b9b1d6;margin-bottom:20px}
 .auth-card.fx-card{background:rgba(255,255,255,.82);backdrop-filter:blur(20px) saturate(1.15);-webkit-backdrop-filter:blur(20px) saturate(1.15);border:1px solid rgba(255,255,255,.55);box-shadow:0 34px 90px -24px rgba(20,10,40,.6),0 0 0 1px rgba(139,92,246,.08)}
 :root[data-theme="dark"] .auth-card.fx-card{background:rgba(22,19,32,.66);border-color:rgba(180,160,255,.12)}
+.auth-fx.v-aluno{background:radial-gradient(150% 120% at 50% -10%,#10233a 0%,#0a1020 48%,#06040c 100%)}
+.auth-fx.v-aluno .fx-brand{color:#eafff2;text-shadow:0 2px 26px rgba(74,222,128,.5)}
+.auth-fx.v-aluno .fx-tag{color:#a7e8c4}
+.fx-role button.on{background:linear-gradient(135deg,#7c3aed,#5b21b6)!important;color:#fff!important}
+.auth-fx.v-aluno .fx-role button.on{background:linear-gradient(135deg,#22c55e,#16a34a)!important;color:#04220f!important}
 .seg{display:flex;background:var(--bg3);border-radius:12px;padding:4px;gap:4px;margin-bottom:16px}
 .seg button{flex:1;padding:10px;border:none;background:none;color:var(--text2);font-size:13px;font-weight:600;border-radius:9px;cursor:pointer;transition:all .15s;min-height:42px}
 .seg button.on{background:var(--accent);color:var(--cream);box-shadow:0 3px 10px rgba(90,30,46,.2)}
@@ -3881,11 +3886,29 @@ function fxDumbbell(THREE){
   });
   return g;
 }
-function initAuthFx(){
+function fxStudentScene(THREE){
+  const g=new THREE.Group();
+  // núcleo icosaédrico neon (wireframe)
+  const core=new THREE.Mesh(new THREE.IcosahedronGeometry(1.15,1),new THREE.MeshBasicMaterial({color:0x8b5cf6,wireframe:true,transparent:true,opacity:.55}));
+  g.add(core);g.userData.core=core;
+  const glow=new THREE.Mesh(new THREE.IcosahedronGeometry(.82,2),new THREE.MeshStandardMaterial({color:0x4ade80,emissive:0x22c55e,emissiveIntensity:.9,metalness:.3,roughness:.4}));
+  g.add(glow);g.userData.glow=glow;
+  // campo de partículas em esfera
+  const N=900,pos=new Float32Array(N*3),col=new Float32Array(N*3);
+  const cA=new THREE.Color(0x8b5cf6),cB=new THREE.Color(0x4ade80);
+  for(let i=0;i<N;i++){const r=2.1+Math.random()*1.9,th=Math.acos(2*Math.random()-1),ph=Math.random()*Math.PI*2;
+    pos[i*3]=r*Math.sin(th)*Math.cos(ph);pos[i*3+1]=r*Math.sin(th)*Math.sin(ph);pos[i*3+2]=r*Math.cos(th);
+    const c=Math.random()<.5?cA:cB;col[i*3]=c.r;col[i*3+1]=c.g;col[i*3+2]=c.b;}
+  const pg=new THREE.BufferGeometry();pg.setAttribute('position',new THREE.BufferAttribute(pos,3));pg.setAttribute('color',new THREE.BufferAttribute(col,3));
+  const pts=new THREE.Points(pg,new THREE.PointsMaterial({size:.055,vertexColors:true,transparent:true,opacity:.9,blending:THREE.AdditiveBlending,depthWrite:false}));
+  g.add(pts);g.userData.pts=pts;
+  return g;
+}
+function initAuthFx(variant){
+  const aluno=variant==='aluno';
   let disposed=false,renderer=null,raf=0,ro=null;const stops=[];
   const RM=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const CDN='https://cdn.jsdelivr.net/npm/';
-  const libs=[CDN+'three@0.149.0/build/three.min.js',CDN+'gsap@3.12.5/dist/gsap.min.js',CDN+'animejs@3.2.2/lib/anime.min.js',CDN+'motion@11/dist/motion.js'];
+  const libs=['./lib/three.min.js','./lib/gsap.min.js','./lib/anime.min.js','./lib/motion.js'];
   // allSettled: se uma lib falhar, as outras ainda rodam (cada efeito é guardado pelo seu global)
   Promise.allSettled(libs.map(fxLoadScript)).then(()=>{if(!disposed){try{start();}catch(e){}}});
   function start(){
@@ -3900,28 +3923,41 @@ function initAuthFx(){
       host.appendChild(renderer.domElement);
       const scene=new THREE.Scene();
       const cam=new THREE.PerspectiveCamera(34,w/h,.1,100);cam.position.set(0,0,9);
-      try{scene.environment=fxEnvTexture(THREE,renderer);}catch(e){}
-      scene.add(new THREE.AmbientLight(0xffffff,.28));
-      const key=new THREE.DirectionalLight(0xffffff,1.5);key.position.set(4,6,6);scene.add(key);
-      const l1=new THREE.PointLight(0x8b5cf6,60,44);l1.position.set(-6,2,4);scene.add(l1);
-      const l2=new THREE.PointLight(0xffd479,42,44);l2.position.set(6,-3,3);scene.add(l2);
-      const bell=fxDumbbell(THREE);bell.rotation.set(.34,.5,.08);scene.add(bell);
+      scene.add(new THREE.AmbientLight(0xffffff,aluno?.5:.28));
       const clock=new THREE.Clock();
-      const frame=()=>{if(disposed)return;const t=clock.getElapsedTime();bell.rotation.y=.5+t*.32;bell.rotation.x=.3+Math.sin(t*.5)*.09;renderer.render(scene,cam);raf=requestAnimationFrame(frame);};
-      if(RM)renderer.render(scene,cam);else frame();
+      if(aluno){
+        const l1=new THREE.PointLight(0x8b5cf6,70,50);l1.position.set(-5,3,5);scene.add(l1);
+        const l2=new THREE.PointLight(0x4ade80,60,50);l2.position.set(5,-3,4);scene.add(l2);
+        const orb=fxStudentScene(THREE);scene.add(orb);
+        const frame=()=>{if(disposed)return;const t=clock.getElapsedTime();
+          orb.rotation.y=t*.28;orb.rotation.x=Math.sin(t*.35)*.25;
+          if(orb.userData.pts)orb.userData.pts.rotation.y=-t*.12;
+          if(orb.userData.glow){const s=1+Math.sin(t*1.6)*.08;orb.userData.glow.scale.setScalar(s);orb.userData.glow.material.emissiveIntensity=.7+Math.sin(t*1.6)*.35;}
+          renderer.render(scene,cam);raf=requestAnimationFrame(frame);};
+        if(RM)renderer.render(scene,cam);else frame();
+      }else{
+        try{scene.environment=fxEnvTexture(THREE,renderer);}catch(e){}
+        const key=new THREE.DirectionalLight(0xffffff,1.5);key.position.set(4,6,6);scene.add(key);
+        const l1=new THREE.PointLight(0x8b5cf6,60,44);l1.position.set(-6,2,4);scene.add(l1);
+        const l2=new THREE.PointLight(0xffd479,42,44);l2.position.set(6,-3,3);scene.add(l2);
+        const bell=fxDumbbell(THREE);bell.rotation.set(.34,.5,.08);scene.add(bell);
+        const frame=()=>{if(disposed)return;const t=clock.getElapsedTime();bell.rotation.y=.5+t*.32;bell.rotation.x=.3+Math.sin(t*.5)*.09;renderer.render(scene,cam);raf=requestAnimationFrame(frame);};
+        if(RM)renderer.render(scene,cam);else frame();
+      }
       if(window.ResizeObserver){ro=new ResizeObserver(()=>{if(disposed||!renderer)return;const W=host.clientWidth,H=host.clientHeight;renderer.setSize(W,H);cam.aspect=W/H;cam.updateProjectionMatrix();});ro.observe(host);}
     }
+    const accent=aluno?'74,222,128':'124,58,237';
     if(gsap&&!RM){
-      gsap.set('.auth-card.fx-card > *',{opacity:0,y:22});
-      gsap.to('.auth-card.fx-card > *',{opacity:1,y:0,duration:.7,stagger:.07,ease:'power3.out',delay:.15});
-      gsap.from('.auth-card.fx-card',{scale:.96,duration:.9,ease:'power2.out'});
+      gsap.set('.auth-card.fx-card > *',{opacity:0,y:aluno?28:22});
+      gsap.to('.auth-card.fx-card > *',{opacity:1,y:0,duration:aluno?.75:.7,stagger:aluno?.09:.07,ease:aluno?'back.out(1.5)':'power3.out',delay:.15});
+      gsap.from('.auth-card.fx-card',{scale:aluno?.9:.96,duration:aluno?1:.9,ease:aluno?'elastic.out(1,.6)':'power2.out'});
       gsap.from('.fx-tag',{opacity:0,y:10,duration:.8,delay:.5,ease:'power2.out'});
     }
     const brand=document.querySelector('.fx-brand');
     if(brand&&!brand.dataset.split){const txt=brand.textContent;brand.textContent='';Array.from(txt).forEach(ch=>{const s=document.createElement('span');s.textContent=ch===' '?' ':ch;brand.appendChild(s);});brand.dataset.split='1';}
-    if(anime&&!RM)anime({targets:'.fx-brand span',translateY:[18,0],opacity:[0,1],easing:'easeOutExpo',duration:900,delay:anime.stagger(45,{start:180})});
+    if(anime&&!RM)anime({targets:'.fx-brand span',translateY:aluno?[26,0]:[18,0],scale:aluno?[.6,1]:[1,1],opacity:[0,1],easing:aluno?'easeOutElastic(1,.6)':'easeOutExpo',duration:aluno?1200:900,delay:anime.stagger(aluno?60:45,{start:180})});
     const cta=document.querySelector('.auth-card.fx-card .btn-primary.btn-block');
-    if(cta&&Motion&&!RM){try{const a=Motion.animate(cta,{boxShadow:['0 10px 26px rgba(124,58,237,.28)','0 14px 46px rgba(124,58,237,.6)']},{duration:1.7,repeat:Infinity,direction:'alternate',easing:'ease-in-out'});stops.push(a);}catch(e){}}
+    if(cta&&Motion&&!RM){try{const a=Motion.animate(cta,{boxShadow:['0 10px 26px rgba('+accent+',.28)','0 14px 46px rgba('+accent+',.6)']},{duration:aluno?1.2:1.7,repeat:Infinity,direction:'alternate',easing:'ease-in-out'});stops.push(a);}catch(e){}}
   }
   return ()=>{disposed=true;if(raf)cancelAnimationFrame(raf);if(ro&&ro.disconnect)ro.disconnect();stops.forEach(a=>{try{a.stop&&a.stop();}catch(e){}});if(renderer){try{renderer.dispose();}catch(e){}const el=renderer.domElement;if(el&&el.parentNode)el.parentNode.removeChild(el);}};
 }
@@ -3931,7 +3967,7 @@ function AuthScreen(){
   const [name,setName]=useState('');const [email,setEmail]=useState('');const [pass,setPass]=useState('');const [acode,setAcode]=useState('');
   const [busy,setBusy]=useState(false);const [msg,setMsg]=useState(null);
   const isAluno=acct==='aluno';
-  useEffect(()=>{const cleanup=initAuthFx();return ()=>{try{cleanup&&cleanup();}catch(e){}};},[]);
+  useEffect(()=>{const cleanup=initAuthFx(acct);return ()=>{try{cleanup&&cleanup();}catch(e){}};},[acct]);
   async function submit(e){
     e.preventDefault();setMsg(null);
     if(!email||!pass){setMsg({type:'error',text:'Preencha e-mail e senha.'});return;}
@@ -3967,7 +4003,7 @@ function AuthScreen(){
     setBusy(false);
   }
   return(
-    <div className="center-screen auth-fx">
+    <div className={"center-screen auth-fx"+(isAluno?" v-aluno":"")}>
       <div id="auth3d"/>
       <div className="fx-vignette"/>
       <div className="auth-wrap">
@@ -3982,6 +4018,10 @@ function AuthScreen(){
             <button className="link" style={{fontSize:11,background:'none',border:'none',padding:0,cursor:'pointer'}}
               onClick={()=>window.MFP_forcarAtualizacao&&window.MFP_forcarAtualizacao()}>atualizar app</button>
           </div>
+          <div className="seg fx-role">
+            <button type="button" className={acct==='coach'?'on':''} onClick={()=>{setAcct('coach');setMsg(null);}}>Sou treinador</button>
+            <button type="button" className={acct==='aluno'?'on':''} onClick={()=>{setAcct('aluno');setMsg(null);}}>Sou aluno</button>
+          </div>
           <div className="seg">
             <button className={mode==='login'?'on':''} onClick={()=>{setMode('login');setMsg(null);}}>Entrar</button>
             <button className={mode==='signup'?'on':''} onClick={()=>{setMode('signup');setMsg(null);}}>Criar conta</button>
@@ -3989,10 +4029,6 @@ function AuthScreen(){
           {msg&&<div className={`alert alert-${msg.type==='error'?'error':msg.type==='success'?'success':'info'}`}>{msg.text}</div>}
           <form onSubmit={submit} style={{display:'flex',flexDirection:'column',gap:13}}>
             {mode==='signup'&&<>
-              <div className="seg" style={{marginBottom:2}}>
-                <button type="button" className={acct==='coach'?'on':''} onClick={()=>{setAcct('coach');setMsg(null);}}>Sou treinador</button>
-                <button type="button" className={acct==='aluno'?'on':''} onClick={()=>{setAcct('aluno');setMsg(null);}}>Sou aluno</button>
-              </div>
               <FI label="Nome" value={name} onChange={e=>setName(e.target.value)} placeholder="Seu nome"/>
               <FI label={isAluno?'Código de acesso':'Código de acesso (treinador)'} value={acode} onChange={e=>setAcode(e.target.value.toUpperCase())} placeholder={isAluno?'Código que seu treinador gerou':'Fornecido pelo administrador'} style={{textTransform:'uppercase',letterSpacing:1}}/>
               {isAluno&&<div className="alert alert-info" style={{marginTop:-4}}>Peça ao seu treinador o seu <b>código de acesso</b> (ele gera no app dele).</div>}
