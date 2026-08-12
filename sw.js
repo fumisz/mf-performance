@@ -1,4 +1,4 @@
-const CACHE='mfp-v57';
+const CACHE='mfp-v58';
 const ASSETS=[
   './','./index.html','./config.js','./manifest.json',
   './lib/react.js','./lib/react-dom.js','./lib/babel.js',
@@ -51,7 +51,9 @@ self.addEventListener('fetch',e=>{
   // HTML e config: network-first (pega atualizações na hora)
   const isDoc=req.mode==='navigate'||url.pathname.endsWith('/index.html')||url.pathname.endsWith('/config.js')||url.pathname==='/'||url.pathname.endsWith('/');
   if(isDoc){
-    e.respondWith(fetch(req).then(res=>{const c=res.clone();caches.open(CACHE).then(ca=>ca.put(req,c)).catch(()=>{});return res;})
+    // Sempre da rede ignorando o cache HTTP do navegador — sem isso o navegador
+    // podia devolver o index.html velho e o app "nao atualizava"
+    e.respondWith(fetch(req.url,{cache:'no-store'}).then(res=>{const c=res.clone();caches.open(CACHE).then(ca=>ca.put(req,c)).catch(()=>{});return res;})
       .catch(()=>caches.match(req).then(h=>h||caches.match('./index.html'))));
     return;
   }

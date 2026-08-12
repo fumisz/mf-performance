@@ -1414,6 +1414,49 @@ function DiarioCoach({student,onClose}){
   </div>);
 }
 
+/* ── Metas do aluno (treinador cria/edita) ── */
+const META_TIPOS=[['peso','Peso','kg'],['gordura','% de gordura','%'],['medida','Medida','cm'],['treinos','Treinos/semana','treinos'],['custom','Personalizada','']];
+function MetasCoach({student,onClose}){
+  const [loaded,setLoaded]=useState(false);const [metas,setMetas]=useState([]);const [coachId,setCoachId]=useState(null);
+  const [f,setF]=useState({tipo:'peso',titulo:'',unidade:'kg',valor_inicial:'',valor_alvo:'',prazo:''});
+  const [busy,setBusy]=useState(false);
+  const load=async()=>{const {data}=await sb.from('train_meta').select('*').eq('student_id',student.id).order('created_at');setMetas(data||[]);};
+  useEffect(()=>{(async()=>{try{const {data:u}=await sb.auth.getUser();setCoachId(u?.user?.id||null);}catch(e){}await load();setLoaded(true);})();},[]);
+  const setTipo=t=>{const info=META_TIPOS.find(x=>x[0]===t);setF(p=>({...p,tipo:t,unidade:info?info[2]:p.unidade}));};
+  const add=async()=>{if(!f.titulo.trim()||f.valor_alvo===''){alert('Preencha o título e o valor da meta.');return;}
+    setBusy(true);try{await sb.from('train_meta').insert({coach_id:coachId,student_id:student.id,tipo:f.tipo,titulo:f.titulo,unidade:f.unidade||null,
+      valor_inicial:num(f.valor_inicial),valor_alvo:num(f.valor_alvo),prazo:f.prazo||null});
+      setF({tipo:'peso',titulo:'',unidade:'kg',valor_inicial:'',valor_alvo:'',prazo:''});await load();}catch(e){alert('Erro: '+e.message);}setBusy(false);};
+  const del=async(id)=>{if(!confirm('Excluir esta meta?'))return;await sb.from('train_meta').delete().eq('id',id);await load();};
+  return(<div style={{position:'fixed',inset:0,zIndex:120,background:'rgba(10,8,10,.8)',display:'flex',alignItems:'flex-start',justifyContent:'center',padding:16,overflow:'auto'}} onClick={onClose}>
+    <div className="card" style={{maxWidth:520,width:'100%',marginTop:24}} onClick={e=>e.stopPropagation()}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}}>
+        <div style={{fontFamily:'var(--serif)',fontSize:18,fontWeight:600}}>Metas · {student.name.split(' ')[0]}</div>
+        <button className="btn-icon btn-sm" onClick={onClose}>×</button>
+      </div>
+      <p className="s-meta" style={{marginBottom:12}}>As metas aparecem no app do aluno com barra de progresso. Peso e % de gordura usam o valor da última avaliação.</p>
+      {loaded&&metas.length>0&&<div style={{marginBottom:16}}>
+        {metas.map(m=><div key={m.id} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 0',borderTop:'1px solid var(--border)'}}>
+          <div style={{flex:1,minWidth:0}}><div style={{fontWeight:600}}>{m.titulo}</div>
+            <div className="s-meta">{m.valor_inicial!=null?`${m.valor_inicial}${m.unidade||''} → `:''}{m.valor_alvo}{m.unidade||''}{m.prazo?` · até ${fmtDate(m.prazo)}`:''}</div></div>
+          <button className="btn-icon btn-sm" onClick={()=>del(m.id)}>×</button>
+        </div>)}
+      </div>}
+      <div className="kpi-lbl" style={{margin:'4px 0 8px'}}>Nova meta</div>
+      <div className="fg"><label className="flbl">Tipo</label>
+        <select className="fi" value={f.tipo} onChange={e=>setTipo(e.target.value)}>{META_TIPOS.map(([k,l])=><option key={k} value={k}>{l}</option>)}</select></div>
+      <div className="fg"><label className="flbl">Título</label><input className="fi" value={f.titulo} onChange={e=>setF(p=>({...p,titulo:e.target.value}))} placeholder="Ex.: Chegar a 72 kg"/></div>
+      <div style={{display:'flex',gap:10}}>
+        <div className="fg" style={{flex:1}}><label className="flbl">Valor inicial</label><input className="fi" type="number" value={f.valor_inicial} onChange={e=>setF(p=>({...p,valor_inicial:e.target.value}))} placeholder="atual"/></div>
+        <div className="fg" style={{flex:1}}><label className="flbl">Meta</label><input className="fi" type="number" value={f.valor_alvo} onChange={e=>setF(p=>({...p,valor_alvo:e.target.value}))} placeholder="alvo"/></div>
+        <div className="fg" style={{width:80}}><label className="flbl">Unidade</label><input className="fi" value={f.unidade} onChange={e=>setF(p=>({...p,unidade:e.target.value}))}/></div>
+      </div>
+      <div className="fg"><label className="flbl">Prazo (opcional)</label><input className="fi" type="date" value={f.prazo} onChange={e=>setF(p=>({...p,prazo:e.target.value}))}/></div>
+      <button className="btn btn-primary" style={{width:'100%'}} disabled={busy} onClick={add}>{busy?'Salvando…':'＋ Adicionar meta'}</button>
+    </div>
+  </div>);
+}
+
 /* ── Financeiro do aluno (mensalidade + pagamento do mês) ── */
 function FinanceiroCard({student}){
   const comp=todayStr().slice(0,7);
@@ -2655,6 +2698,7 @@ function FeedbacksAluno({student,demo}){
 function StudentDetail({student,evals,onNewEval,onReassess,onEditEval,onDeleteEval,onReport,onBack,onEdit,onTech,onTrain,onNutri}){
   const [cmp,setCmp]=useState(false);
   const [diarioOpen,setDiarioOpen]=useState(false);
+  const [metasOpen,setMetasOpen]=useState(false);
   const [acc,setAcc]=useState(null);const [accBusy,setAccBusy]=useState(false);
   const photoEvals=evals.filter(e=>e.post_photo_front||e.post_photo_side||e.post_photo_back).length;
   const genCode=async()=>{setAccBusy(true);const {data,error}=await sb.rpc('aluno_gerar_codigo',{p_student:student.id});setAccBusy(false);if(error){alert('Erro: '+error.message);return;}setAcc(data||'—');};
@@ -2667,6 +2711,7 @@ function StudentDetail({student,evals,onNewEval,onReassess,onEditEval,onDeleteEv
     <div>
       {cmp&&<PhotoCompare student={student} evals={evals} onClose={()=>setCmp(false)}/>}
       {diarioOpen&&<DiarioCoach student={student} onClose={()=>setDiarioOpen(false)}/>}
+      {metasOpen&&<MetasCoach student={student} onClose={()=>setMetasOpen(false)}/>}
       {acc!==null&&<div style={{position:'fixed',inset:0,zIndex:120,background:'rgba(10,8,10,.8)',display:'flex',alignItems:'center',justifyContent:'center',padding:16}} onClick={()=>setAcc(null)}>
         <div className="card" style={{maxWidth:380,width:'100%'}} onClick={e=>e.stopPropagation()}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}><div style={{fontFamily:'var(--serif)',fontSize:18,fontWeight:600}}>Acesso do aluno</div><button className="btn-icon btn-sm" onClick={()=>setAcc(null)}>×</button></div>
@@ -2695,6 +2740,7 @@ function StudentDetail({student,evals,onNewEval,onReassess,onEditEval,onDeleteEv
           <button className="btn btn-ghost btn-sm" onClick={onNutri}>Nutrição</button>
           <button className="btn btn-ghost btn-sm" onClick={()=>setAcc('')}>Acesso do aluno</button>
           {sb&&!student._demo&&<button className="btn btn-ghost btn-sm" onClick={()=>setDiarioOpen(true)}>Diário de saúde</button>}
+          {sb&&!student._demo&&<button className="btn btn-ghost btn-sm" onClick={()=>setMetasOpen(true)}>Metas</button>}
           <button className="btn btn-ghost btn-sm" onClick={onTech}>Avaliação técnica</button>
           {photoEvals>=2&&<button className="btn btn-ghost btn-sm" onClick={()=>setCmp(true)}>Comparar fotos</button>}
           {sorted.length>0&&<button className="btn btn-secondary" onClick={onReassess}> Reavaliação</button>}
