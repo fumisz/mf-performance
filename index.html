@@ -70,6 +70,17 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:1
 .center-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
 .auth-wrap{width:100%;max-width:420px}
 .auth-card{background:var(--bg2);border:1px solid var(--border);border-radius:24px;padding:34px 28px;box-shadow:var(--shadow-lg)}
+/* ── Login premium (three.js + gsap + anime + motion) ── */
+.auth-fx{background:radial-gradient(150% 120% at 50% -10%,#221a3d 0%,#0d0a16 52%,#050308 100%);overflow:hidden}
+#auth3d{position:fixed;inset:0;z-index:0;pointer-events:none}
+#auth3d canvas{display:block;width:100%!important;height:100%!important}
+.fx-vignette{position:fixed;inset:0;z-index:1;pointer-events:none;background:radial-gradient(115% 90% at 50% 18%,transparent 42%,rgba(6,4,12,.55) 100%)}
+.auth-fx .auth-wrap{position:relative;z-index:2}
+.fx-brand{font-family:'Playfair Display',Georgia,serif;text-align:center;letter-spacing:6px;font-weight:600;font-size:16px;color:#efe9ff;margin:0 0 4px;text-shadow:0 2px 24px rgba(139,92,246,.45)}
+.fx-brand span{display:inline-block;will-change:transform,opacity}
+.fx-tag{text-align:center;font-family:'Cormorant Garamond',Georgia,serif;font-style:italic;font-size:14px;color:#b9b1d6;margin-bottom:20px}
+.auth-card.fx-card{background:rgba(255,255,255,.82);backdrop-filter:blur(20px) saturate(1.15);-webkit-backdrop-filter:blur(20px) saturate(1.15);border:1px solid rgba(255,255,255,.55);box-shadow:0 34px 90px -24px rgba(20,10,40,.6),0 0 0 1px rgba(139,92,246,.08)}
+:root[data-theme="dark"] .auth-card.fx-card{background:rgba(22,19,32,.66);border-color:rgba(180,160,255,.12)}
 .seg{display:flex;background:var(--bg3);border-radius:12px;padding:4px;gap:4px;margin-bottom:16px}
 .seg button{flex:1;padding:10px;border:none;background:none;color:var(--text2);font-size:13px;font-weight:600;border-radius:9px;cursor:pointer;transition:all .15s;min-height:42px}
 .seg button.on{background:var(--accent);color:var(--cream);box-shadow:0 3px 10px rgba(90,30,46,.2)}
@@ -3843,12 +3854,84 @@ function evalToRow(e,coachId){const data={};Object.keys(e).forEach(k=>{if(!EVAL_
 function rowToEval(r){return{id:r.id,studentId:r.student_id,date:r.date,obs:r.obs||'',...(r.data||{})};}
 
 /* ── Tela de autenticação (treinadores) ── */
+/* ── Efeitos premium do login (carregados só aqui) ── */
+function fxLoadScript(src){return new Promise((res,rej)=>{const has=document.querySelector('script[data-fx="'+src+'"]');if(has){if(has.dataset.ok)res();else{has.addEventListener('load',()=>res());has.addEventListener('error',()=>rej());}return;}const s=document.createElement('script');s.src=src;s.async=true;s.dataset.fx=src;s.onload=()=>{s.dataset.ok='1';res();};s.onerror=()=>rej(new Error('fx '+src));document.head.appendChild(s);});}
+function fxEnvTexture(THREE,renderer){
+  const c=document.createElement('canvas');c.width=32;c.height=256;const ctx=c.getContext('2d');
+  const g=ctx.createLinearGradient(0,0,0,256);g.addColorStop(0,'#3a2f63');g.addColorStop(.45,'#141020');g.addColorStop(.75,'#0a0810');g.addColorStop(1,'#5b3aa6');
+  ctx.fillStyle=g;ctx.fillRect(0,0,32,256);
+  ctx.fillStyle='rgba(255,214,140,.5)';ctx.fillRect(0,150,32,10);
+  const tex=new THREE.CanvasTexture(c);tex.mapping=THREE.EquirectangularReflectionMapping;
+  const pm=new THREE.PMREMGenerator(renderer);const env=pm.fromEquirectangular(tex).texture;tex.dispose();pm.dispose();return env;
+}
+function fxDumbbell(THREE){
+  const g=new THREE.Group();
+  const chrome=new THREE.MeshStandardMaterial({color:0xe6e9ee,metalness:1,roughness:.16});
+  const plate=new THREE.MeshStandardMaterial({color:0x15151b,metalness:.75,roughness:.3});
+  const accent=new THREE.MeshStandardMaterial({color:0x8b5cf6,metalness:.5,roughness:.28,emissive:0x4c1d95,emissiveIntensity:.5});
+  const bar=new THREE.Mesh(new THREE.CylinderGeometry(.12,.12,4.4,40),chrome);bar.rotation.z=Math.PI/2;g.add(bar);
+  [1,-1].forEach(dir=>{
+    const specs=[[.95,.34],[.72,.28],[.54,.24]];let x=1.15;
+    specs.forEach(([r,t])=>{
+      const p=new THREE.Mesh(new THREE.CylinderGeometry(r,r,t,52),plate);p.rotation.z=Math.PI/2;p.position.x=dir*x;g.add(p);
+      const ring=new THREE.Mesh(new THREE.TorusGeometry(r*.99,.022,10,64),accent);ring.position.x=dir*x;g.add(ring);
+      x+=t+.03;
+    });
+    const cap=new THREE.Mesh(new THREE.CylinderGeometry(.16,.16,.28,32),chrome);cap.rotation.z=Math.PI/2;cap.position.x=dir*x;g.add(cap);
+  });
+  return g;
+}
+function initAuthFx(){
+  let disposed=false,renderer=null,raf=0,ro=null;const stops=[];
+  const RM=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const CDN='https://cdn.jsdelivr.net/npm/';
+  const libs=[CDN+'three@0.149.0/build/three.min.js',CDN+'gsap@3.12.5/dist/gsap.min.js',CDN+'animejs@3.2.2/lib/anime.min.js',CDN+'motion@11/dist/motion.js'];
+  // allSettled: se uma lib falhar, as outras ainda rodam (cada efeito é guardado pelo seu global)
+  Promise.allSettled(libs.map(fxLoadScript)).then(()=>{if(!disposed){try{start();}catch(e){}}});
+  function start(){
+    const THREE=window.THREE,gsap=window.gsap,anime=window.anime,Motion=window.Motion;
+    const host=document.getElementById('auth3d');
+    if(THREE&&host){
+      const w=host.clientWidth||innerWidth,h=host.clientHeight||innerHeight;
+      renderer=new THREE.WebGLRenderer({antialias:true,alpha:true,powerPreference:'high-performance'});
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));renderer.setSize(w,h);
+      try{renderer.outputEncoding=THREE.sRGBEncoding;}catch(e){}
+      try{renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.08;}catch(e){}
+      host.appendChild(renderer.domElement);
+      const scene=new THREE.Scene();
+      const cam=new THREE.PerspectiveCamera(34,w/h,.1,100);cam.position.set(0,0,9);
+      try{scene.environment=fxEnvTexture(THREE,renderer);}catch(e){}
+      scene.add(new THREE.AmbientLight(0xffffff,.28));
+      const key=new THREE.DirectionalLight(0xffffff,1.5);key.position.set(4,6,6);scene.add(key);
+      const l1=new THREE.PointLight(0x8b5cf6,60,44);l1.position.set(-6,2,4);scene.add(l1);
+      const l2=new THREE.PointLight(0xffd479,42,44);l2.position.set(6,-3,3);scene.add(l2);
+      const bell=fxDumbbell(THREE);bell.rotation.set(.34,.5,.08);scene.add(bell);
+      const clock=new THREE.Clock();
+      const frame=()=>{if(disposed)return;const t=clock.getElapsedTime();bell.rotation.y=.5+t*.32;bell.rotation.x=.3+Math.sin(t*.5)*.09;renderer.render(scene,cam);raf=requestAnimationFrame(frame);};
+      if(RM)renderer.render(scene,cam);else frame();
+      if(window.ResizeObserver){ro=new ResizeObserver(()=>{if(disposed||!renderer)return;const W=host.clientWidth,H=host.clientHeight;renderer.setSize(W,H);cam.aspect=W/H;cam.updateProjectionMatrix();});ro.observe(host);}
+    }
+    if(gsap&&!RM){
+      gsap.set('.auth-card.fx-card > *',{opacity:0,y:22});
+      gsap.to('.auth-card.fx-card > *',{opacity:1,y:0,duration:.7,stagger:.07,ease:'power3.out',delay:.15});
+      gsap.from('.auth-card.fx-card',{scale:.96,duration:.9,ease:'power2.out'});
+      gsap.from('.fx-tag',{opacity:0,y:10,duration:.8,delay:.5,ease:'power2.out'});
+    }
+    const brand=document.querySelector('.fx-brand');
+    if(brand&&!brand.dataset.split){const txt=brand.textContent;brand.textContent='';Array.from(txt).forEach(ch=>{const s=document.createElement('span');s.textContent=ch===' '?' ':ch;brand.appendChild(s);});brand.dataset.split='1';}
+    if(anime&&!RM)anime({targets:'.fx-brand span',translateY:[18,0],opacity:[0,1],easing:'easeOutExpo',duration:900,delay:anime.stagger(45,{start:180})});
+    const cta=document.querySelector('.auth-card.fx-card .btn-primary.btn-block');
+    if(cta&&Motion&&!RM){try{const a=Motion.animate(cta,{boxShadow:['0 10px 26px rgba(124,58,237,.28)','0 14px 46px rgba(124,58,237,.6)']},{duration:1.7,repeat:Infinity,direction:'alternate',easing:'ease-in-out'});stops.push(a);}catch(e){}}
+  }
+  return ()=>{disposed=true;if(raf)cancelAnimationFrame(raf);if(ro&&ro.disconnect)ro.disconnect();stops.forEach(a=>{try{a.stop&&a.stop();}catch(e){}});if(renderer){try{renderer.dispose();}catch(e){}const el=renderer.domElement;if(el&&el.parentNode)el.parentNode.removeChild(el);}};
+}
 function AuthScreen(){
   const [mode,setMode]=useState('login');
   const [acct,setAcct]=useState('coach');
   const [name,setName]=useState('');const [email,setEmail]=useState('');const [pass,setPass]=useState('');const [acode,setAcode]=useState('');
   const [busy,setBusy]=useState(false);const [msg,setMsg]=useState(null);
   const isAluno=acct==='aluno';
+  useEffect(()=>{const cleanup=initAuthFx();return ()=>{try{cleanup&&cleanup();}catch(e){}};},[]);
   async function submit(e){
     e.preventDefault();setMsg(null);
     if(!email||!pass){setMsg({type:'error',text:'Preencha e-mail e senha.'});return;}
@@ -3884,11 +3967,14 @@ function AuthScreen(){
     setBusy(false);
   }
   return(
-    <div className="center-screen">
+    <div className="center-screen auth-fx">
+      <div id="auth3d"/>
+      <div className="fx-vignette"/>
       <div className="auth-wrap">
-        <div className="auth-card">
-          <div style={{display:'flex',justifyContent:'center',marginBottom:6}}><LogoLifter size={132}/></div>
-          <div style={{fontFamily:'var(--serif)',fontSize:13.5,color:'var(--text2)',textAlign:'center',fontStyle:'italic',marginBottom:10}}>Saúde, avaliação, treino e nutrição num app só</div>
+        <div className="fx-brand">MF PERFORMANCE</div>
+        <div className="fx-tag">Saúde, avaliação, treino e nutrição num app só</div>
+        <div className="auth-card fx-card">
+          <div style={{display:'flex',justifyContent:'center',marginBottom:8}}><LogoLifter size={88}/></div>
           {/* versao visivel ANTES do login: e o jeito de conferir se a atualizacao chegou
               no aparelho sem precisar entrar e abrir o menu lateral */}
           <div style={{textAlign:'center',marginBottom:20,display:'flex',gap:10,justifyContent:'center',alignItems:'center',flexWrap:'wrap'}}>
