@@ -172,7 +172,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:1
 .dstat-pill{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;padding:5px 10px;border-radius:20px;white-space:nowrap}
 .dstat-g{background:#e7f0e0;color:#3f6b32}.dstat-a{background:#f6eed6;color:#8a6d1f}.dstat-r{background:#f4e2df;color:#9a473c}.dstat-b{background:#e4ebf2;color:#3f5c78}
 .dstat-pill i{width:7px;height:7px;border-radius:50%;background:currentColor}
-.dr-act{background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;padding:4px;border-radius:8px}
+.dr-act{background:none;border:1px solid var(--border);color:var(--text2);cursor:pointer;font-size:11.5px;font-weight:600;letter-spacing:.2px;padding:5px 10px;border-radius:8px;white-space:nowrap}
+.dr-act:hover{border-color:var(--accent);color:var(--accent)}
 .dr-act:hover{color:var(--accent);background:var(--bg3)}
 @media(max-width:560px){.dash-row .dr-right .dscore{display:none}}
 
@@ -514,7 +515,9 @@ textarea.fi{resize:vertical;min-height:70px;line-height:1.5}
 .lv-waterbtn:active{transform:scale(.96)}
 /* Barra de navegação do aluno */
 .lv-nav{position:fixed;left:0;right:0;bottom:0;z-index:60;display:flex;justify-content:space-around;align-items:stretch;background:rgba(18,18,24,.92);backdrop-filter:blur(14px);border-top:1px solid var(--lvbd);padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
-.lv-navb{flex:1;background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 0;color:var(--lvt3);font-size:10.5px;font-weight:700;position:relative;transition:color .15s}
+.lv-navb{flex:1;background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 0 8px;color:var(--lvt3);font-size:11.5px;font-weight:700;position:relative;transition:color .15s}
+.lv-navmark{display:block;width:20px;height:3px;border-radius:2px;background:transparent;transition:background .18s,width .18s}
+.lv-navb.on .lv-navmark{background:var(--lvrx);width:26px}
 .lv-navb .ic{font-size:20px;line-height:1;filter:grayscale(.4);opacity:.7;transition:.15s}
 .lv-navb.on{color:var(--lvrx)}
 .lv-navb.on .ic{filter:none;opacity:1;transform:translateY(-1px)}
@@ -543,6 +546,77 @@ textarea.fi{resize:vertical;min-height:70px;line-height:1.5}
 .lv-aviso.unread{border-color:var(--lvrx);box-shadow:0 0 0 1px rgba(139,92,246,.25)}
 .lv-aviso .ic{width:38px;height:38px;border-radius:11px;background:var(--lvc2);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
 .lv-aviso .un{position:absolute;top:12px;right:12px;width:9px;height:9px;border-radius:50%;background:var(--lvrx)}
+
+/* ═════════ Camada de movimento ═════════
+   Tudo respeita prefers-reduced-motion no bloco do fim. */
+
+/* entrada dos cards, em cascata */
+@keyframes lvrise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.lv-wrap>*{animation:lvrise .38s cubic-bezier(.22,.9,.3,1) both}
+.lv-wrap>*:nth-child(1){animation-delay:.02s}
+.lv-wrap>*:nth-child(2){animation-delay:.06s}
+.lv-wrap>*:nth-child(3){animation-delay:.10s}
+.lv-wrap>*:nth-child(4){animation-delay:.14s}
+.lv-wrap>*:nth-child(5){animation-delay:.18s}
+.lv-wrap>*:nth-child(n+6){animation-delay:.22s}
+
+/* toque: o botao afunda de verdade */
+.lv-btn,.lv-treino,.lv-waterbtn,.lv-setchip,.lv-ghost{transition:transform .12s cubic-bezier(.3,1.4,.5,1),filter .15s,border-color .15s,background .15s}
+.lv-btn:active,.lv-waterbtn:active,.lv-setchip:active,.lv-ghost:active{transform:scale(.955)}
+.lv-treino:active{transform:scale(.985)}
+.btn{transition:transform .12s,filter .15s,box-shadow .15s}
+.btn:active{transform:scale(.97)}
+
+/* barra de progresso preenche em vez de aparecer pronta */
+.lv-freq>i{transition:width .7s cubic-bezier(.22,.9,.3,1)}
+
+/* anel do dia: desenha ao entrar */
+@keyframes lvdraw{from{stroke-dashoffset:var(--c)}}
+.lv-anel circle.val{animation:lvdraw 1s cubic-bezier(.22,.9,.3,1) both}
+
+/* conquista destravada: pulo + brilho passando por cima */
+@keyframes lvunlock{0%{transform:scale(.7);opacity:0}55%{transform:scale(1.12)}100%{transform:scale(1);opacity:1}}
+@keyframes lvshine{0%{left:-140%}100%{left:140%}}
+.lv-badge.got{animation:lvunlock .5s cubic-bezier(.2,1.5,.4,1) both;position:relative;overflow:hidden}
+.lv-badge.got::after{content:'';position:absolute;top:0;bottom:0;width:60%;left:-140%;
+  background:linear-gradient(100deg,transparent,rgba(255,255,255,.22),transparent);
+  animation:lvshine 2.6s ease-in-out 1.1s infinite}
+
+/* agua: onda de verdade dentro da garrafa + gota ao registrar */
+@keyframes lvwave{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.lv-wave{animation:lvwave 2.6s linear infinite}
+@keyframes lvsplash{0%{transform:scale(.3);opacity:.85}100%{transform:scale(2.4);opacity:0}}
+.lv-splash{position:absolute;border-radius:50%;border:2px solid #38bdf8;animation:lvsplash .65s ease-out forwards;pointer-events:none}
+
+/* comemoracao: o brilho respira em vez de piscar */
+@keyframes lvhalo{0%,100%{transform:scale(1);opacity:.55}50%{transform:scale(1.35);opacity:0}}
+.lv-halo{position:absolute;inset:-18px;border-radius:50%;background:radial-gradient(circle,rgba(74,222,128,.55),transparent 65%);animation:lvhalo 1.6s ease-out infinite}
+
+/* confete com formas variadas caindo em velocidades diferentes */
+@keyframes lvfall2{
+  0%{transform:translateY(-10vh) rotate(0) scale(1);opacity:1}
+  100%{transform:translateY(108vh) rotate(900deg) scale(.7);opacity:.15}}
+.lv-confetti{animation-name:lvfall2}
+.lv-confetti:nth-child(3n){border-radius:50%}
+.lv-confetti:nth-child(4n){width:6px;height:16px}
+
+/* numero que sobe contando */
+@keyframes lvcount{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.lv-num{display:inline-block;animation:lvcount .3s ease both}
+
+/* troca de aba desliza */
+@keyframes lvslide{from{opacity:0;transform:translateX(10px)}to{opacity:1;transform:none}}
+.lv-tabin{animation:lvslide .28s cubic-bezier(.22,.9,.3,1) both}
+
+/* lado do treinador: cards e linhas do painel entram tambem */
+@keyframes fadeup{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.card{animation:fadeup .32s ease both}
+.dash-panel{animation:fadeup .32s ease both}
+
+/* quem pediu menos movimento, recebe menos movimento */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001s!important;animation-iteration-count:1!important;transition-duration:.001s!important}
+}
 </style>
 </head>
 <body>
@@ -551,7 +625,7 @@ textarea.fi{resize:vertical;min-height:70px;line-height:1.5}
 try{var _t=localStorage.getItem('mfp_theme')||'light';document.documentElement.setAttribute('data-theme',_t);}catch(e){}
 </script>
 <script type="text/babel">
-const { useState, useEffect, useRef } = React;
+const { useState, useEffect, useRef, useCallback } = React;
 
 /* ── Helpers ── */
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,6);
@@ -571,7 +645,206 @@ const CFG = window.MFP_CONFIG || {};
 const CONFIGURED = !!(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY);
 let sb = null;
 if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY);
+const APP_VERSION='2026.08.12c';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
+const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
+
+/* ── Nutrição: helpers compartilhados com o MF Nutrition ──
+   Os dois apps rodam no mesmo projeto Supabase e o aluno é o mesmo
+   auth.user, então student_id das tabelas de dieta == profiles.id. */
+const n0 = v => { const x = parseFloat(v); return isNaN(x) ? 0 : x; };
+function sumItems(items){
+  return (items||[]).reduce((a,i)=>({
+    kcal:a.kcal+n0(i.kcal), protein:a.protein+n0(i.protein), carb:a.carb+n0(i.carb), fat:a.fat+n0(i.fat)
+  }), {kcal:0,protein:0,carb:0,fat:0});
+}
+function sumMeals(meals){
+  return (meals||[]).reduce((a,m)=>{const s=sumItems(m.items);
+    return {kcal:a.kcal+s.kcal, protein:a.protein+s.protein, carb:a.carb+s.carb, fat:a.fat+s.fat};
+  }, {kcal:0,protein:0,carb:0,fat:0});
+}
+async function getActivePlan(studentId){
+  const { data } = await sb.from('meal_plans').select('*').eq('student_id',studentId).eq('active',true)
+    .order('created_at',{ascending:false}).limit(1).maybeSingle();
+  return data||null;
+}
+async function loadPlanTree(planId){
+  const { data:meals } = await sb.from('meals').select('*').eq('plan_id',planId).order('order_index');
+  const mealIds=(meals||[]).map(m=>m.id);
+  let items=[],subs=[];
+  if(mealIds.length){
+    const ri=await sb.from('meal_items').select('*').in('meal_id',mealIds).order('order_index');
+    items=ri.data||[];
+    const itemIds=items.map(i=>i.id);
+    if(itemIds.length){
+      const rs=await sb.from('substitutions').select('*').in('meal_item_id',itemIds);
+      subs=rs.data||[];
+    }
+  }
+  return (meals||[]).map(m=>({...m,
+    items: items.filter(i=>i.meal_id===m.id).map(i=>({...i, subs: subs.filter(s=>s.meal_item_id===i.id)}))
+  }));
+}
+function resizeImage(file, max=1000, quality=0.82){
+  return new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onload=e=>{const img=new Image();img.onload=()=>{
+      const c=document.createElement('canvas');let {width:w,height:h}=img;
+      const sc=Math.min(max/w,max/h,1);c.width=Math.round(w*sc);c.height=Math.round(h*sc);
+      c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+      c.toBlob(b=>b?res(b):rej('blob'),'image/jpeg',quality);
+    };img.onerror=rej;img.src=e.target.result;};
+    r.onerror=rej;r.readAsDataURL(file);
+  });
+}
+async function uploadMealPhoto(userId, blob){
+  const path=`${userId}/${uid()}.jpg`;
+  const {error}=await sb.storage.from('photos').upload(path,blob,{contentType:'image/jpeg'});
+  if(error) throw error;
+  return sb.storage.from('photos').getPublicUrl(path).data.publicUrl;
+}
+
+/* ── Base nativa de alimentos (espelha a do MF Nutrition) ── */
+const FOOD_GROUPS = {
+  'Proteínas': [
+    ['Peito de frango grelhado',165,31,0,3.6,'Grelhe sem óleo, tempere com sal, alho e ervas. ~6-8 min/lado.'],
+    ['Sobrecoxa de frango assada',209,26,0,11,'Asse temperada a 200°C ~35 min. Retire a pele p/ menos gordura.'],
+    ['Carne moída (patinho)',219,28,0,11,'Refogue em panela antiaderente, sem óleo, até dourar.'],
+    ['Acém cozido',215,27,0,11,'Cozinhe na pressão ~30 min com temperos.'],
+    ['Alcatra grelhada',241,28,0,14,'Grelhe na chapa quente; sal só no final.'],
+    ['Filé mignon grelhado',220,29,0,11,'Sele em fogo alto ~3 min/lado.'],
+    ['Contrafilé grelhado',250,27,0,15,'Grelhe ao ponto desejado; deixe descansar 2 min.'],
+    ['Tilápia grelhada',128,26,0,2.7,'Grelhe com limão, sal e azeite ~4 min/lado.'],
+    ['Salmão grelhado',208,22,0,13,'Grelhe com a pele p/ baixo ~4 min, vire e finalize.'],
+    ['Merluza cozida',90,19,0,1.3,'Cozinhe no vapor ou ensopada com tomate.'],
+    ['Atum em água (lata)',116,26,0,1,'Escorra bem. Pronto p/ saladas e sanduíches.'],
+    ['Sardinha em lata',208,25,0,11,'Escorra o óleo. Rica em ômega-3.'],
+    ['Ovo inteiro cozido',155,13,1.1,11,'Cozinhe 8-10 min p/ gema firme.'],
+    ['Clara de ovo cozida',52,11,0.7,0.2,'Cozinhe e separe a gema, ou use claras pasteurizadas.'],
+    ['Lombo suíno assado',242,27,0,14,'Tempere e asse a 180°C ~40 min.'],
+    ['Peito de peru',135,29,0.5,1.7,'Fatias magras, ótimas p/ lanches.'],
+    ['Presunto magro',145,18,1.5,7,'Use em sanduíches e omeletes.'],
+    ['Whey protein (pó)',400,80,8,6,'Misture ~30g em 200ml de água ou leite.'],
+    ['Carne seca cozida',313,33,0,19,'Dessalgue trocando a água, depois cozinhe na pressão.'],
+    ['Camarão cozido',99,24,0.2,0.3,'Cozinhe rápido com alho e limão.'],
+    ['Tofu',76,8,1.9,4.8,'Grelhe ou refogue temperado com shoyu.'],
+  ],
+  'Carboidratos': [
+    ['Arroz branco cozido',128,2.5,28,0.2,'Refogue, adicione água (2:1) e cozinhe ~15 min.'],
+    ['Arroz integral cozido',124,2.6,26,1,'Cozinhe ~25 min; absorve mais água.'],
+    ['Batata doce cozida',86,1.6,20,0.1,'Cozinhe ou asse ~25 min até ficar macia.'],
+    ['Batata inglesa cozida',87,1.9,20,0.1,'Cozinhe com casca p/ manter nutrientes.'],
+    ['Mandioca cozida',125,0.6,30,0.3,'Cozinhe na pressão ~20 min.'],
+    ['Inhame cozido',116,1.5,28,0.2,'Cozinhe até amaciar; ótimo no café da manhã.'],
+    ['Macarrão cozido',158,5.8,31,0.9,'Cozinhe al dente em água com sal.'],
+    ['Macarrão integral cozido',124,5,27,0.5,'Cozinhe al dente; mais fibras.'],
+    ['Aveia em flocos',389,17,66,7,'Misture com leite, iogurte ou frutas.'],
+    ['Pão francês',300,8,59,3.1,'1 unidade ~50g.'],
+    ['Pão de forma integral',253,9,43,3.5,'1 fatia ~25g.'],
+    ['Tapioca (goma)',240,0,60,0,'Hidrate a goma e leve à frigideira até firmar.'],
+    ['Cuscuz de milho cozido',113,2.2,25,0.5,'Hidrate o flocão e cozinhe no vapor.'],
+    ['Quinoa cozida',120,4.4,21,1.9,'Lave bem e cozinhe ~15 min.'],
+    ['Granola',471,10,64,20,'Complemento de iogurte ou frutas.'],
+    ['Milho verde cozido',96,3.4,21,1.5,'Cozinhe a espiga ~15 min.'],
+    ['Feijão carioca cozido',76,4.8,14,0.5,'Cozinhe na pressão ~25 min com temperos.'],
+    ['Feijão preto cozido',77,4.5,14,0.5,'Cozinhe na pressão ~30 min.'],
+    ['Lentilha cozida',116,9,20,0.4,'Cozinhe ~20 min, sem molho prévio.'],
+    ['Grão de bico cozido',164,9,27,2.6,'Deixe de molho e cozinhe na pressão ~25 min.'],
+    ['Ervilha cozida',84,5,14,0.4,'Cozinhe rapidamente; ótima em saladas.'],
+    ['Pão de queijo',295,5,38,13,'Asse a 200°C até dourar.'],
+  ],
+  'Frutas': [
+    ['Banana',89,1.1,23,0.3,'In natura. 1 unidade média ~100g.'],
+    ['Maçã',52,0.3,14,0.2,'In natura com casca.'],
+    ['Mamão',43,0.5,11,0.3,'In natura; ótimo p/ digestão.'],
+    ['Laranja',47,0.9,12,0.1,'Prefira a fruta ao suco.'],
+    ['Morango',32,0.7,7.7,0.3,'Lave bem antes de consumir.'],
+    ['Abacate',160,2,9,15,'Rico em gorduras boas; use com moderação.'],
+    ['Manga',60,0.8,15,0.4,'In natura.'],
+    ['Melancia',30,0.6,8,0.2,'Refrescante e hidratante.'],
+    ['Melão',34,0.8,8,0.2,'In natura, gelado.'],
+    ['Uva',69,0.7,18,0.2,'Lave bem; porção ~1 cacho pequeno.'],
+    ['Abacaxi',50,0.5,13,0.1,'Ótimo no pós-treino.'],
+    ['Kiwi',61,1.1,15,0.5,'Rico em vitamina C.'],
+    ['Pera',57,0.4,15,0.1,'In natura com casca.'],
+    ['Goiaba',68,2.6,14,0.9,'Rica em fibras.'],
+    ['Tangerina',53,0.8,13,0.3,'Prática p/ lanches.'],
+    ['Uva passa',299,3.1,79,0.5,'Porção pequena ~20g.'],
+    ['Açaí (polpa s/ açúcar)',70,1,6,5,'Bata com banana; evite xaropes.'],
+  ],
+  'Legumes e Verduras': [
+    ['Brócolis cozido',35,2.4,7,0.4,'Cozinhe no vapor ~5 min.'],
+    ['Couve-flor cozida',25,1.9,5,0.3,'Cozinhe no vapor; pode virar "arroz".'],
+    ['Cenoura crua',41,0.9,10,0.2,'Ralada ou em palitos.'],
+    ['Tomate',18,0.9,3.9,0.2,'Cru em saladas.'],
+    ['Alface',15,1.4,2.9,0.2,'Lave folha a folha.'],
+    ['Abobrinha cozida',17,1.2,3.1,0.3,'Refogue ou grelhe com pouco azeite.'],
+    ['Espinafre cozido',23,2.9,3.8,0.4,'Refogue rápido com alho.'],
+    ['Pepino',15,0.7,3.6,0.1,'Cru, hidratante.'],
+    ['Beterraba cozida',44,1.7,10,0.2,'Cozinhe e fatie em saladas.'],
+    ['Couve refogada',90,1.8,5,7,'Fatie fino e refogue com alho.'],
+    ['Vagem cozida',35,1.9,8,0.3,'Cozinhe no vapor até ficar al dente.'],
+    ['Berinjela cozida',35,0.8,9,0.2,'Asse ou refogue temperada.'],
+    ['Abóbora cozida',26,1,6.5,0.1,'Cozinhe ou asse; boa em purês.'],
+    ['Pimentão',31,1,6,0.3,'Cru ou assado.'],
+    ['Rúcula',25,2.6,3.7,0.7,'Lave bem; sabor marcante.'],
+  ],
+  'Gorduras': [
+    ['Azeite de oliva extra virgem',884,0,0,100,'1 fio (~5ml) p/ finalizar.'],
+    ['Óleo de coco',862,0,0,100,'Use pouco; bom p/ refogar.'],
+    ['Pasta de amendoim',588,25,20,50,'1 colher de sopa ~15g.'],
+    ['Castanha de caju',553,18,30,44,'Porção ~30g (punhado).'],
+    ['Castanha do Pará',656,14,12,66,'1-2 unidades já bastam.'],
+    ['Amêndoas',579,21,22,50,'Porção ~30g.'],
+    ['Nozes',654,15,14,65,'Porção ~30g; ricas em ômega-3.'],
+    ['Amendoim torrado',567,26,16,49,'Sem sal de preferência.'],
+    ['Chia',486,17,42,31,'Hidrate em água/leite ~15 min.'],
+    ['Linhaça',534,18,29,42,'Use triturada p/ melhor absorção.'],
+    ['Coco ralado',354,3.3,15,33,'Complemento de receitas.'],
+    ['Azeitona',115,0.8,6,11,'Porção pequena; controle o sódio.'],
+    ['Manteiga',717,0.9,0.1,81,'Use com moderação.'],
+  ],
+  'Laticínios': [
+    ['Leite integral',61,3.2,4.7,3.3,'Por 100ml.'],
+    ['Leite desnatado',35,3.4,5,0.1,'Por 100ml.'],
+    ['Iogurte natural integral',61,3.5,4.7,3.3,'Combine com frutas ou granola.'],
+    ['Iogurte natural desnatado',41,4.1,6,0.2,'Baixa gordura.'],
+    ['Iogurte grego natural',97,9,4,5,'Ótimo com frutas vermelhas.'],
+    ['Queijo minas frescal',264,17,3,20,'Fatias magras p/ lanches.'],
+    ['Queijo cottage',98,11,3.4,4.3,'Alto em proteína, baixa gordura.'],
+    ['Requeijão light',175,10,5,12,'1 colher de sopa ~20g.'],
+    ['Ricota',174,11,3,13,'Boa p/ patês e recheios.'],
+    ['Mussarela',280,22,2.2,21,'1 fatia ~20g.'],
+    ['Queijo prato',360,26,2,28,'Use com moderação.'],
+    ['Cream cheese',250,6,4,24,'1 colher de sopa ~15g.'],
+  ],
+  'Outros': [
+    ['Mel',309,0.3,84,0,'1 colher de chá p/ adoçar.'],
+    ['Chocolate 70% cacau',579,7.8,46,38,'Porção ~20g (2 quadradinhos).'],
+    ['Café sem açúcar',2,0.1,0,0,'Sem calorias relevantes.'],
+    ['Creatina (pó)',0,0,0,0,'3-5g por dia, em qualquer horário.'],
+    ['Whey + banana (shake)',230,22,28,3,'Bata 1 dose de whey, 1 banana e 200ml de líquido.'],
+    ['Doce de leite',315,6,55,7,'Consumir com moderação.'],
+    ['Barra de proteína',350,30,40,9,'Praticidade p/ lanches.'],
+  ],
+};
+const slug = s => 'native-'+(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-');
+const NATIVE_FOODS = Object.entries(FOOD_GROUPS).flatMap(([cat,arr])=>arr.map(a=>(
+  {id:slug(a[0]), name:a[0], category:cat, kcal:a[1], protein:a[2], carb:a[3], fat:a[4], preparo:a[5], native:true}
+)));
+
+/* cache: base nativa + alimentos proprios do treinador */
+let _foodsCache=null;
+function clearFoodsCache(){ _foodsCache=null; }
+async function getFoods(){
+  if(_foodsCache) return _foodsCache;
+  let custom=[];
+  try{ const {data}=await sb.from('foods').select('*').not('owner_id','is',null).order('name'); custom=data||[]; }catch(e){}
+  _foodsCache=[...custom, ...NATIVE_FOODS];
+  return _foodsCache;
+}
+const genId = () => (crypto.randomUUID ? crypto.randomUUID() : uid());
+const r0 = v => Math.round(n0(v));
 
 /* ── Web Push (notificações na barra do celular) ── */
 const VAPID_PUBLIC='BC_YqtYUqpgqbKzuUwiyj6v4ymbNO6RYhJ5XYm7fhYnKob0eW2yLU-kNbf0gzrjfbJRRqysClA2gBLxJJpHSd1s';
@@ -1052,13 +1325,13 @@ const scoreColor=v=>v==null?'var(--text3)':v>=75?'#2f8f4e':v>=55?'#b0894f':v>=40
 const AVISO_MODELOS=[
   {tipo:'lembrete',titulo:'Treino de hoje te espera',texto:'Bora fechar mais um treino? Não esqueça de registrar as cargas.'},
   {tipo:'lembrete',titulo:'Bebeu água hoje?',texto:'Lembra de manter a hidratação em dia — faz diferença no seu desempenho.'},
-  {tipo:'parabens',titulo:'Mandou muito bem! 🏆',texto:'Vi sua evolução na semana. Continua assim que os resultados vêm.'},
+  {tipo:'parabens',titulo:'Mandou muito bem!',texto:'Vi sua evolução na semana. Continua assim que os resultados vêm.'},
   {tipo:'aviso',titulo:'Sua reavaliação está chegando',texto:'Semana que vem faremos sua reavaliação. Capricha no sono e na alimentação.'},
 ];
 function NotifyModal({target,students,onClose}){
   const all=!!target.all;const stu=target.student;const reativar=!!target.reativar;
   const [tipo,setTipo]=useState('lembrete');
-  const [titulo,setTitulo]=useState(reativar?'Senti sua falta nos treinos 💜':'');
+  const [titulo,setTitulo]=useState(reativar?'Senti sua falta nos treinos':'');
   const [texto,setTexto]=useState(reativar?'Bora retomar? Guardei um lugar pra você. Me conta como posso te ajudar a voltar pra rotina — dá um passo hoje!':'');
   const [busy,setBusy]=useState(false);const [okMsg,setOkMsg]=useState(null);
   const usar=m=>{setTipo(m.tipo);setTitulo(m.titulo);setTexto(m.texto);};
@@ -1084,7 +1357,7 @@ function NotifyModal({target,students,onClose}){
     {okMsg?<div className="alert alert-success">{okMsg}</div>:<>
       <div className="fg"><label className="flbl">Tipo</label>
         <select className="fi" value={tipo} onChange={e=>setTipo(e.target.value)}>
-          <option value="lembrete">⏰ Lembrete</option><option value="parabens">🏆 Parabéns</option><option value="aviso">📣 Aviso</option>
+          <option value="lembrete">Lembrete</option><option value="parabens">Parabéns</option><option value="aviso">Aviso</option>
         </select></div>
       <div className="fg"><label className="flbl">Modelos rápidos</label>
         <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
@@ -1106,7 +1379,7 @@ function DiarioCoach({student,onClose}){
     try{const {data:gg}=await sb.from('train_glicemia').select('*').eq('student_id',student.id).order('registrado_em',{ascending:false}).limit(20);setGlic(gg||[]);}catch(e){}
     setLoaded(true);
   })();},[]);
-  const humorTxt=v=>v==null?'—':['','😣 Ruim','🙁','😐','🙂','😄 Ótimo'][v]||v;
+  const humorTxt=v=>v==null?'—':['','Ruim','','','','Ótimo'][v]||v;
   return(<div style={{position:'fixed',inset:0,zIndex:120,background:'rgba(10,8,10,.8)',display:'flex',alignItems:'flex-start',justifyContent:'center',padding:16,overflow:'auto'}} onClick={onClose}>
     <div className="card" style={{maxWidth:560,width:'100%',marginTop:24}} onClick={e=>e.stopPropagation()}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
@@ -1177,7 +1450,224 @@ function FinanceiroCard({student}){
     </div>}
   </div>);
 }
-function Dashboard({students,evals,onSelect,onNew,onDelete,onReassess,onSchedule,onTrain}){
+const _DEMO_PAINEL=[
+  {student_id:'d1',nome:'Laryssa Araujo',treinou:true,checkin_sinal:'Verde',agua_ml:2600,agua_meta:2500,refeicoes_ok:4,refeicoes_total:4,dias_parado:0,aval_dias:34,mensalidade_venc:10},
+  {student_id:'d2',nome:'Joao Demonstracao',treinou:false,checkin_sinal:'Vermelho',agua_ml:750,agua_meta:3000,refeicoes_ok:1,refeicoes_total:5,dias_parado:2,aval_dias:58,mensalidade_venc:null},
+  {student_id:'d3',nome:'Marina Cardoso',treinou:false,checkin_sinal:null,agua_ml:0,agua_meta:2500,refeicoes_ok:0,refeicoes_total:4,dias_parado:12,aval_dias:112,mensalidade_venc:5},
+  {student_id:'d4',nome:'Rafael Nunes',treinou:true,checkin_sinal:'Amarelo',agua_ml:1900,agua_meta:3500,refeicoes_ok:3,refeicoes_total:5,dias_parado:0,aval_dias:null,mensalidade_venc:28},
+  {student_id:'d5',nome:'Beatriz Lima',treinou:false,checkin_sinal:'Verde',agua_ml:2500,agua_meta:2500,refeicoes_ok:2,refeicoes_total:4,dias_parado:6,aval_dias:45,mensalidade_venc:null},
+];
+/* -- Painel "Hoje": o que precisa da decisão do treinador agora ──
+   Uma RPC só (painel_hoje) em vez de 6 queries por aluno. */
+function PainelHoje({onSelect,students,demo}){
+  const [rows,setRows]=useState(undefined);
+  const [aberto,setAberto]=useState(true);
+  useEffect(()=>{
+    if(demo){setRows(_DEMO_PAINEL);return;}
+    if(!sb){setRows(null);return;}
+    // se painel_hoje ainda nao foi criada (unificacao-dados.sql), some sem erro
+    sb.rpc('painel_hoje').then(({data,error})=>setRows(error?null:(data||[])))
+      .catch(()=>setRows(null));},[demo]);
+
+  if(rows===undefined)return <div className="card" style={{marginBottom:18}}><div className="center-screen" style={{minHeight:70}}><div className="spinner"/></div></div>;
+  if(rows===null||rows.length===0)return null;
+
+  const byId=Object.fromEntries((students||[]).map(s=>[s.id,s]));
+  const abrir=id=>{const s=byId[id];if(s&&onSelect)onSelect(s);};
+
+  // prioriza: quanto mais alto o peso, mais cedo aparece
+  const alertas=[];
+  rows.forEach(r=>{
+    if(r.checkin_sinal==='Vermelho')
+      alertas.push({p:100,id:r.student_id,nome:r.nome,ic:'',cor:'#b91c1c',
+        t:'Prontidão baixa hoje',d:'Sono, dor ou estresse ruins — vale ajustar a carga da sessão.'});
+    if(r.dias_parado!=null&&r.dias_parado>=10)
+      alertas.push({p:90,id:r.student_id,nome:r.nome,ic:'',cor:'#b91c1c',
+        t:`Sumiu há ${r.dias_parado} dias`,d:'Risco real de perder o aluno. Uma mensagem hoje costuma resolver.'});
+    else if(r.dias_parado!=null&&r.dias_parado>=5)
+      alertas.push({p:60,id:r.student_id,nome:r.nome,ic:'',cor:'#b45309',
+        t:`${r.dias_parado} dias sem treinar`,d:'Ainda dá para retomar sem quebrar o ritmo.'});
+    if(r.aval_dias!=null&&r.aval_dias>=90)
+      alertas.push({p:70,id:r.student_id,nome:r.nome,ic:'',cor:'#b45309',
+        t:`Sem reavaliar há ${Math.floor(r.aval_dias/30)} meses`,d:'Sem medida nova não dá para mostrar evolução.'});
+    if(r.aval_dias==null)
+      alertas.push({p:65,id:r.student_id,nome:r.nome,ic:'',cor:'#7c3aed',
+        t:'Nunca foi avaliado',d:'Fazer a avaliação inicial define a linha de base.'});
+    if(r.refeicoes_total>0&&r.refeicoes_ok===0)
+      alertas.push({p:40,id:r.student_id,nome:r.nome,ic:'',cor:'#b45309',
+        t:'Não marcou nenhuma refeição hoje',d:`Plano com ${r.refeicoes_total} refeições, nenhuma confirmada.`});
+    if(r.mensalidade_venc!=null){
+      const hoje=new Date().getDate();const faltam=r.mensalidade_venc-hoje;
+      if(faltam<0) alertas.push({p:80,id:r.student_id,nome:r.nome,ic:'',cor:'#b91c1c',
+        t:`Mensalidade venceu dia ${r.mensalidade_venc}`,d:'Cobrança em atraso.'});
+      else if(faltam<=3) alertas.push({p:30,id:r.student_id,nome:r.nome,ic:'',cor:'#6b7280',
+        t:`Mensalidade vence dia ${r.mensalidade_venc}`,d:'Vale mandar o lembrete antes.'});
+    }
+  });
+  alertas.sort((a,b)=>b.p-a.p);
+
+  const treinaram=rows.filter(r=>r.treinou).length;
+  const dietaOk=rows.filter(r=>r.refeicoes_total>0&&r.refeicoes_ok>=r.refeicoes_total).length;
+  const comPlano=rows.filter(r=>r.refeicoes_total>0).length;
+  const aguaOk=rows.filter(r=>r.agua_meta>0&&r.agua_ml>=r.agua_meta).length;
+  const responderam=rows.filter(r=>r.checkin_sinal).length;
+  const kpis=[
+    ['Treinaram hoje',treinaram,rows.length,'#7c3aed'],
+    ['Dieta em dia',dietaOk,comPlano,'#15803d'],
+    ['Bateram a água',aguaOk,rows.length,'#0891b2'],
+    ['Fizeram check-in',responderam,rows.length,'#b45309'],
+  ];
+  const hojeRaw=new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'});
+  const hoje=hojeRaw.charAt(0).toUpperCase()+hojeRaw.slice(1);   // so a 1a letra: "Quarta-feira, 12 de agosto"
+
+  return(<div className="card" style={{marginBottom:18}}>
+    <div style={{display:'flex',alignItems:'flex-start',gap:12,marginBottom:14}}>
+      <div style={{flex:1,minWidth:0}}>
+        <div style={{fontFamily:'var(--serif)',fontSize:21,fontWeight:600}}>Hoje</div>
+        <div className="s-meta">{hoje}</div>
+      </div>
+      {alertas.length>0&&<span className="badge" style={{background:'#fee2e2',color:'#b91c1c',fontWeight:700}}>
+        {alertas.length} {alertas.length===1?'pendência':'pendências'}</span>}
+    </div>
+
+    <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(120px,1fr))',gap:10,marginBottom:16}}>
+      {kpis.map(([lbl,v,tot,cor])=>{const pct=tot>0?Math.round((v/tot)*100):0;return(
+        <div key={lbl} style={{background:'var(--bg3,#f7f4ef)',borderRadius:14,padding:'12px 13px'}}>
+          <div style={{fontSize:10.5,color:'var(--text2)',textTransform:'uppercase',letterSpacing:.5,fontWeight:700,marginBottom:5}}>{lbl}</div>
+          <div style={{display:'flex',alignItems:'baseline',gap:4}}>
+            <span style={{fontFamily:'var(--serif)',fontSize:24,fontWeight:700,color:cor}}>{v}</span>
+            <span style={{fontSize:12,color:'var(--text3)'}}>/ {tot}</span>
+          </div>
+          <div style={{height:5,background:'#e7e0d6',borderRadius:3,overflow:'hidden',marginTop:7}}>
+            <i style={{display:'block',height:'100%',width:pct+'%',background:cor,borderRadius:3}}/>
+          </div>
+        </div>);})}
+    </div>
+
+    {alertas.length===0?
+      <div style={{textAlign:'center',padding:'18px 10px',color:'var(--text2)',fontSize:13.5}}>
+        Nenhuma pendência. Todo mundo em dia — aproveite.</div>:
+      <>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
+          <div style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:.5,color:'var(--accent)'}}>Precisa de você</div>
+          {alertas.length>5&&<span className="link" style={{fontSize:12,cursor:'pointer'}} onClick={()=>setAberto(a=>!a)}>
+            {aberto?'ver menos':`ver todas (${alertas.length})`}</span>}
+        </div>
+        {(aberto?alertas:alertas.slice(0,5)).map((a,i)=>(
+          <div key={i} onClick={()=>abrir(a.id)} style={{display:'flex',gap:11,alignItems:'flex-start',padding:'10px 0',
+            borderTop:i?'1px solid var(--border)':'none',cursor:byId[a.id]?'pointer':'default'}}>
+            <span style={{width:9,height:9,borderRadius:'50%',background:a.cor,flexShrink:0,marginTop:6}}/>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:13.5}}><b>{a.nome}</b> · <span style={{color:a.cor,fontWeight:600}}>{a.t}</span></div>
+              <div style={{fontSize:12,color:'var(--text2)',marginTop:1}}>{a.d}</div>
+            </div>
+            {byId[a.id]&&<span style={{color:'var(--text3)',fontSize:15}}>›</span>}
+          </div>))}
+      </>}
+  </div>);
+}
+
+
+/* ── Evolução da carteira: quem está andando e quem empacou ──
+   Usa as avaliações que o dashboard já carregou: nenhuma query nova. */
+function PainelEvolucao({rows,onSelect}){
+  const [aberto,setAberto]=useState(false);
+
+  const dados=React.useMemo(()=>rows.map(r=>{
+    if(r.se.length<2)return{r,base:false};
+    const asc=[...r.se].reverse();
+    const pri=derive(r.s,asc[0]), ult=derive(r.s,asc[asc.length-1]);
+    const d=(a,b)=>(a!=null&&b!=null)?+(b-a).toFixed(1):null;
+    const dPeso=d(pri.weight,ult.weight);
+    const dGord=d(pri.fatPct,ult.fatPct);
+    const dMagra=d(pri.leanMass,ult.leanMass);
+    const sh=r.scoreHist;
+    const dScore=(sh.length>1)?Math.round(sh[sh.length-1]-sh[0]):null;
+    // veredito: score manda; composicao desempata
+    let v;
+    if(dScore!=null&&dScore>=3) v={l:'Evoluindo',c:'#2f8f4e'};
+    else if(dScore!=null&&dScore<=-3) v={l:'Regredindo',c:'#b3434f'};
+    else if(dGord!=null&&dGord<=-1&&(dMagra==null||dMagra>=-0.3)) v={l:'Evoluindo',c:'#2f8f4e'};
+    else if(dGord!=null&&dGord>=1.5) v={l:'Atenção',c:'#c98a3a'};
+    else v={l:'Estável',c:'#8a8378'};
+    const meses=Math.max(1,Math.round((new Date(asc[asc.length-1].date)-new Date(asc[0].date))/2592000000));
+    return{r,base:true,dPeso,dGord,dMagra,dScore,v,meses,n:asc.length};
+  }),[rows]);
+
+  const comBase=dados.filter(x=>x.base);
+  if(comBase.length===0)return null;
+  const conta=l=>comBase.filter(x=>x.v.l===l).length;
+  const ord=[...comBase].sort((a,b)=>(b.dScore??-99)-(a.dScore??-99));
+  const mostra=aberto?ord:ord.slice(0,5);
+  const semBase=dados.length-comBase.length;
+
+  const seta=(v,melhorSeCai)=>{
+    if(v==null)return<span style={{color:'var(--text3)'}}>—</span>;
+    const bom=melhorSeCai?v<0:v>0;
+    const cor=v===0?'#8a8378':bom?'#2f8f4e':'#b3434f';
+    return<span style={{color:cor,fontWeight:700}}>{v>0?'+':''}{v}</span>;
+  };
+
+  return(<div className="card" style={{marginBottom:18}}>
+    <div style={{display:'flex',alignItems:'flex-start',gap:12,marginBottom:14}}>
+      <div style={{flex:1,minWidth:0}}>
+        <div style={{fontFamily:'var(--serif)',fontSize:21,fontWeight:600}}>Evolução</div>
+        <div className="s-meta">Comparando a primeira e a última avaliação de cada aluno</div>
+      </div>
+    </div>
+
+    <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(120px,1fr))',gap:10,marginBottom:16}}>
+      {[['Evoluindo',conta('Evoluindo'),'#2f8f4e'],['Estável',conta('Estável'),'#8a8378'],
+        ['Atenção',conta('Atenção'),'#c98a3a'],['Regredindo',conta('Regredindo'),'#b3434f']].map(([l,n,c])=>(
+        <div key={l} style={{background:'var(--bg3,#f7f4ef)',borderRadius:14,padding:'12px 13px'}}>
+          <div style={{fontSize:10.5,color:'var(--text2)',textTransform:'uppercase',letterSpacing:.5,fontWeight:700}}>{l}</div>
+          <div style={{fontFamily:'var(--serif)',fontSize:26,fontWeight:700,color:c,marginTop:2}}>{n}</div>
+        </div>))}
+    </div>
+
+    <div style={{overflowX:'auto'}}>
+      <table style={{width:'100%',borderCollapse:'collapse',fontSize:13,minWidth:520}}>
+        <thead><tr style={{textAlign:'left',color:'var(--text3)',fontSize:10.5,textTransform:'uppercase',letterSpacing:.5}}>
+          <th style={{padding:'0 8px 8px 0',fontWeight:700}}>Aluno</th>
+          <th style={{padding:'0 8px 8px',fontWeight:700}}>Score</th>
+          <th style={{padding:'0 8px 8px',fontWeight:700,textAlign:'right'}}>Peso</th>
+          <th style={{padding:'0 8px 8px',fontWeight:700,textAlign:'right'}}>Gordura</th>
+          <th style={{padding:'0 8px 8px',fontWeight:700,textAlign:'right'}}>Magra</th>
+          <th style={{padding:'0 0 8px 8px',fontWeight:700}}></th>
+        </tr></thead>
+        <tbody>
+          {mostra.map(x=>(
+            <tr key={x.r.s.id} onClick={()=>onSelect&&onSelect(x.r.s)}
+              style={{borderTop:'1px solid var(--border)',cursor:'pointer'}}>
+              <td style={{padding:'10px 8px 10px 0'}}>
+                <div style={{fontWeight:600}}>{x.r.s.name}</div>
+                <div style={{fontSize:11,color:'var(--text3)'}}>{x.n} avaliações · {x.meses} {x.meses===1?'mês':'meses'}</div>
+              </td>
+              <td style={{padding:'10px 8px'}}>
+                <div style={{display:'flex',alignItems:'center',gap:8}}>
+                  <Sparkline values={x.r.scoreHist} color={x.v.c} w={70} h={24}/>
+                  {seta(x.dScore,false)}
+                </div>
+              </td>
+              <td style={{padding:'10px 8px',textAlign:'right'}}>{x.dPeso==null?'—':<span>{x.dPeso>0?'+':''}{x.dPeso} kg</span>}</td>
+              <td style={{padding:'10px 8px',textAlign:'right'}}>{x.dGord==null?'—':<>{seta(x.dGord,true)}<span style={{color:'var(--text3)'}}> pp</span></>}</td>
+              <td style={{padding:'10px 8px',textAlign:'right'}}>{x.dMagra==null?'—':<>{seta(x.dMagra,false)}<span style={{color:'var(--text3)'}}> kg</span></>}</td>
+              <td style={{padding:'10px 0 10px 8px'}}>
+                <span style={{fontSize:11,fontWeight:700,color:x.v.c,whiteSpace:'nowrap'}}>{x.v.l}</span></td>
+            </tr>))}
+        </tbody>
+      </table>
+    </div>
+
+    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:10}}>
+      <span className="s-meta">{semBase>0?`${semBase} aluno${semBase>1?'s':''} sem base de comparação (só uma avaliação)`:''}</span>
+      {ord.length>5&&<span className="link" style={{fontSize:12,cursor:'pointer'}} onClick={()=>setAberto(a=>!a)}>
+        {aberto?'ver menos':`ver todos (${ord.length})`}</span>}
+    </div>
+  </div>);
+}
+
+function Dashboard({students,evals,onSelect,onNew,onDelete,onReassess,onSchedule,onTrain,demo}){
   const [q,setQ]=useState('');
   const [filter,setFilter]=useState('todos');
   const [sortBy,setSortBy]=useState('urgencia');
@@ -1241,6 +1731,8 @@ function Dashboard({students,evals,onSelect,onNew,onDelete,onReassess,onSchedule
           <div className="ph-sub">{students.length} aluno{students.length!==1?'s':''} · {evals.length} avaliaç{evals.length!==1?'ões':'ão'}</div></div>
         <button className="btn btn-primary" onClick={onNew}>＋ Novo aluno</button>
       </div>
+      <PainelHoje students={students} onSelect={onSelect} demo={demo}/>
+      <PainelEvolucao rows={rows} onSelect={onSelect}/>
 
       {students.length>0&&<>
       <div className="kpi-row">
@@ -1303,7 +1795,7 @@ function Dashboard({students,evals,onSelect,onNew,onDelete,onReassess,onSchedule
 
       {filtered.length>0&&<div style={{display:'flex',alignItems:'center',justifyContent:'space-between',margin:'4px 2px 10px'}}>
         <div className="kpi-lbl">Acompanhamento de alunos</div>
-        <button className="btn btn-ghost btn-sm" onClick={()=>setNotify({all:true})}>🔔 Avisar todos</button>
+        <button className="btn btn-ghost btn-sm" onClick={()=>setNotify({all:true})}>Avisar todos</button>
       </div>}
       {notify&&<NotifyModal target={notify} students={students} onClose={()=>setNotify(null)}/>}
       {(()=>{
@@ -1325,9 +1817,9 @@ function Dashboard({students,evals,onSelect,onNew,onDelete,onReassess,onSchedule
               <div className="dr-right">
                 {lastScore!=null&&<span className="dscore" style={{color:scoreColor(lastScore)}}>{lastScore}</span>}
                 <span className={`dstat-pill dstat-${pill.c}`}><i/>{pill.t}</span>
-                {!active&&se.length>0&&<button className="dr-act" title="Reativar aluno" onClick={e=>{e.stopPropagation();setNotify({student:s,reativar:true});}}>♻️</button>}
-                <button className="dr-act" title="Enviar aviso" onClick={e=>{e.stopPropagation();setNotify({student:s});}}>🔔</button>
-                <button className="dr-act" title="Treino" onClick={e=>{e.stopPropagation();onTrain(s);}}>🏋</button>
+                {!active&&se.length>0&&<button className="dr-act" title="Reativar aluno" onClick={e=>{e.stopPropagation();setNotify({student:s,reativar:true});}}>Reativar</button>}
+                <button className="dr-act" title="Enviar aviso" onClick={e=>{e.stopPropagation();setNotify({student:s});}}>Avisar</button>
+                <button className="dr-act" title="Treino" onClick={e=>{e.stopPropagation();onTrain(s);}}>Treino</button>
                 <button className="dr-act" title="Excluir" onClick={e=>{e.stopPropagation();if(confirm(`Excluir ${s.name} e todas as avaliações?`))onDelete(s.id);}}>×</button>
               </div>
             </div>);
@@ -1619,7 +2111,7 @@ function StudentForm({student,onSave,onCancel}){
 }
 
 /* ── EvalForm ── */
-const BLANK_EVAL={date:new Date().toISOString().slice(0,10),
+const BLANK_EVAL={date:todayStr(),
   weight:'',height:'',bp_sys:'',bp_dia:'',resting_hr:'',dyn_r:'',dyn_l:'',
   bio_fat:'',bio_muscle:'',bio_muscle_pct:'',bio_lean:'',bio_water:'',bio_visceral:'',bio_bmr:'',bio_metabage:'',bio_bone:'',
   sf_protocol:'jp7',
@@ -2125,7 +2617,42 @@ function PhotoCompare({student,evals,onClose}){
     </div>);
 }
 
-function StudentDetail({student,evals,onNewEval,onReassess,onEditEval,onDeleteEval,onReport,onBack,onEdit,onTech,onTrain}){
+
+/* Feedbacks de treino que o aluno mandou */
+function FeedbacksAluno({student,demo}){
+  const [l,setL]=useState(demo?[{id:'f1',data:todayStr(),divisao_nome:'A — Membros inferiores',
+    rpe:9,dificuldade:5,dor:3,nota:'A última série do agachamento foi longe demais, senti o joelho.'}]:null);
+  useEffect(()=>{if(demo)return;
+    sb.from('train_feedback').select('*').eq('student_id',student.id)
+      .order('created_at',{ascending:false}).limit(10)
+      .then(({data})=>setL(data||[])).catch(()=>setL([]));},[student.id,demo]);
+  if(l===null)return null;
+  if(l.length===0)return null;
+
+  const DIF=['','Muito fácil','Fácil','Na medida','Difícil','Pesado demais'];
+  const DOR=['','Nenhuma','Leve','Moderada','Forte','Muito forte'];
+  const corRpe=r=>r>=9?'#b3434f':r>=7?'#c98a3a':'#2f8f4e';
+
+  return(<div className="card" style={{marginBottom:14}}>
+    <div style={{fontFamily:'var(--serif)',fontSize:17,fontWeight:600,marginBottom:2}}>Como o aluno sentiu os treinos</div>
+    <p className="s-meta" style={{marginBottom:10}}>Respondido por ele logo depois de cada sessão.</p>
+    {l.map(f=>(
+      <div key={f.id} style={{borderTop:'1px solid var(--border)',padding:'10px 0'}}>
+        <div style={{display:'flex',alignItems:'baseline',gap:8,flexWrap:'wrap'}}>
+          <span style={{fontWeight:600,fontSize:13.5}}>{f.divisao_nome||'Treino'}</span>
+          <span className="s-meta">{fmtDate(f.data)}</span>
+          <span style={{flex:1}}/>
+          {f.rpe!=null&&<span style={{fontWeight:800,fontSize:13,color:corRpe(f.rpe)}}>esforço {f.rpe}/10</span>}
+        </div>
+        <div className="s-meta" style={{marginTop:3}}>
+          {f.dificuldade?DIF[f.dificuldade]:''}{f.dor>1?` · dor ${DOR[f.dor].toLowerCase()}`:''}
+        </div>
+        {f.nota&&<div style={{fontSize:13,marginTop:6,fontStyle:'italic',color:'var(--text2)'}}>"{f.nota}"</div>}
+      </div>))}
+  </div>);
+}
+
+function StudentDetail({student,evals,onNewEval,onReassess,onEditEval,onDeleteEval,onReport,onBack,onEdit,onTech,onTrain,onNutri}){
   const [cmp,setCmp]=useState(false);
   const [diarioOpen,setDiarioOpen]=useState(false);
   const [acc,setAcc]=useState(null);const [accBusy,setAccBusy]=useState(false);
@@ -2165,6 +2692,7 @@ function StudentDetail({student,evals,onNewEval,onReassess,onEditEval,onDeleteEv
         <div className="bgroup">
           <button className="btn btn-ghost btn-sm" onClick={onEdit}>Editar Editar ficha</button>
           <button className="btn btn-ghost btn-sm" onClick={onTrain}>Treino</button>
+          <button className="btn btn-ghost btn-sm" onClick={onNutri}>Nutrição</button>
           <button className="btn btn-ghost btn-sm" onClick={()=>setAcc('')}>Acesso do aluno</button>
           {sb&&!student._demo&&<button className="btn btn-ghost btn-sm" onClick={()=>setDiarioOpen(true)}>Diário de saúde</button>}
           <button className="btn btn-ghost btn-sm" onClick={onTech}>Avaliação técnica</button>
@@ -2192,6 +2720,8 @@ function StudentDetail({student,evals,onNewEval,onReassess,onEditEval,onDeleteEv
           <Stat lbl="Avaliações" val={evals.length}/>
         </div>)}
 
+      <FeedbacksAluno student={student} demo={!!student._demo}/>
+      {sb&&<PesoMetaCoach student={student} demo={!!student._demo}/>}
       {sb&&!student._demo&&<FinanceiroCard student={student}/>}
 
       <div style={{fontSize:15,fontWeight:600,margin:'24px 0 14px'}}>Histórico de avaliações</div>
@@ -3312,7 +3842,14 @@ function AuthScreen(){
       <div className="auth-wrap">
         <div className="auth-card">
           <div style={{display:'flex',justifyContent:'center',marginBottom:6}}><LogoLifter size={132}/></div>
-          <div style={{fontFamily:'var(--serif)',fontSize:13.5,color:'var(--text2)',textAlign:'center',fontStyle:'italic',marginBottom:22}}>Saúde, avaliação, treino e nutrição num app só</div>
+          <div style={{fontFamily:'var(--serif)',fontSize:13.5,color:'var(--text2)',textAlign:'center',fontStyle:'italic',marginBottom:10}}>Saúde, avaliação, treino e nutrição num app só</div>
+          {/* versao visivel ANTES do login: e o jeito de conferir se a atualizacao chegou
+              no aparelho sem precisar entrar e abrir o menu lateral */}
+          <div style={{textAlign:'center',marginBottom:20,display:'flex',gap:10,justifyContent:'center',alignItems:'center',flexWrap:'wrap'}}>
+            <span style={{fontSize:11,color:'var(--text3)'}}>versão {APP_VERSION}</span>
+            <button className="link" style={{fontSize:11,background:'none',border:'none',padding:0,cursor:'pointer'}}
+              onClick={()=>window.MFP_forcarAtualizacao&&window.MFP_forcarAtualizacao()}>atualizar app</button>
+          </div>
           <div className="seg">
             <button className={mode==='login'?'on':''} onClick={()=>{setMode('login');setMsg(null);}}>Entrar</button>
             <button className={mode==='signup'?'on':''} onClick={()=>{setMode('signup');setMsg(null);}}>Criar conta</button>
@@ -4542,15 +5079,22 @@ const tierColor=t=>t==='Valida'?'#2f8f4e':t==='Preparatoria'?'#b0894f':'#8a8378'
 const TRAIN_GRUPOS=['Peito','Costas','Ombro','Bíceps','Tríceps','Antebraço','Quadríceps','Posterior de Coxa','Glúteos','Adutores','Abdutores','Panturrilha','Abdômen','Lombar','Cardio','Mobilidade'];
 const openVideo=(url,name)=>{const u=(url&&url.trim())?url.trim():('https://www.youtube.com/results?search_query='+encodeURIComponent((name||'exercício')+' execução técnica'));window.open(u,'_blank');};
 const ytEmbed=url=>{const m=(url||'').match(/(?:youtu\.be\/|[?&]v=|embed\/|shorts\/)([\w-]{11})/);return m?('https://www.youtube-nocookie.com/embed/'+m[1]):null;};
-/* Demonstração do exercício embutida (gif/imagem/vídeo/youtube), sem sair do app */
-function ExDemo({url,name}){
-  const u=(url||'').trim();
+/* URL publica de um arquivo enviado para o bucket de demonstracoes */
+const exMediaUrl=path=>{
+  if(!path||!sb)return null;
+  try{return sb.storage.from('exercicios').getPublicUrl(path).data.publicUrl;}catch(e){return null;}
+};
+/* Demonstração do exercício embutida (gif/imagem/vídeo/youtube), sem sair do app.
+   Prioridade: arquivo enviado pelo treinador > link colado. */
+function ExDemo({url,path,name}){
+  const u=(exMediaUrl(path)||url||'').trim();
   if(!u)return <div style={{padding:14,textAlign:'center',color:'var(--lvt3,#6c6c7c)',background:'var(--lvc2,#23232d)',borderRadius:12,fontSize:12.5}}>Sem demonstração ainda.
     <div style={{marginTop:8}}><button className="lv-ghost" onClick={()=>openVideo(null,name)}>Buscar no YouTube ↗</button></div></div>;
   if(/\.(gif|png|jpe?g|webp|avif)(\?|$)/i.test(u))return <img src={u} alt={name} loading="lazy" style={{width:'100%',borderRadius:12,display:'block'}}/>;
   if(/\.(mp4|webm|mov)(\?|$)/i.test(u))return <video src={u} autoPlay loop muted playsInline controls style={{width:'100%',borderRadius:12,display:'block',background:'#000'}}/>;
   const yt=ytEmbed(u);
   if(yt)return <div style={{position:'relative',paddingBottom:'56%',borderRadius:12,overflow:'hidden'}}><iframe src={yt} title={name} style={{position:'absolute',inset:0,width:'100%',height:'100%',border:0}} allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen/></div>;
+  if(path)return <video src={u} autoPlay loop muted playsInline controls style={{width:'100%',borderRadius:12,display:'block',background:'#000'}}/>;
   return <button className="lv-ghost" onClick={()=>openVideo(u,name)}>Abrir vídeo ↗</button>;
 }
 
@@ -4560,6 +5104,10 @@ function ExerciseLibrary({coach,onBack}){
   const [lib,setLib]=useState(demo?[{id:'x1',nome:'Agachamento Livre',grupo_muscular:'Quadríceps',coach_id:null},{id:'x2',nome:'Supino Reto',grupo_muscular:'Peito',coach_id:null}]:null);
   const [q,setQ]=useState('');const [msg,setMsg]=useState(null);
   const [nf,setNf]=useState({nome:'',grupo_muscular:'Peito',video_url:''});
+  const [subindo,setSubindo]=useState(null);
+  const [verDemo,setVerDemo]=useState(null);
+  const fileRef=useRef();
+  const alvoRef=useRef(null);
   const load=async()=>{if(demo)return;const {data}=await sb.from('train_exercicios').select('*').order('grupo_muscular').order('nome');setLib(data||[]);};
   useEffect(()=>{load();},[]);
   const add=async()=>{const nome=(nf.nome||'').trim();if(!nome)return;
@@ -4569,14 +5117,56 @@ function ExerciseLibrary({coach,onBack}){
     setLib(p=>[data,...p]);setNf({nome:'',grupo_muscular:nf.grupo_muscular,video_url:''});setMsg({t:'ok',m:'Exercício adicionado.'});
   };
   const setVideo=async(ex)=>{const url=prompt('Cole o link do vídeo (YouTube) de "'+ex.nome+'":',ex.video_url||'');if(url===null)return;
-    setLib(p=>p.map(x=>x.id===ex.id?{...x,video_url:url}:x));if(!demo)await sb.from('train_exercicios').update({video_url:url||null}).eq('id',ex.id);};
+    if(demo){setLib(p=>p.map(x=>x.id===ex.id?{...x,video_url:url}:x));return;}
+    const {error}=await sb.rpc('exercicio_definir_video',{p_exercicio:ex.id,p_path:null,p_url:url||null});
+    if(error){setMsg({t:'err',m:'Erro ao salvar o link: '+error.message});return;}
+    await load();};
+
+  const escolherArquivo=(ex)=>{alvoRef.current=ex;if(fileRef.current){fileRef.current.value='';fileRef.current.click();}};
+
+  const enviarArquivo=async(file)=>{
+    const ex=alvoRef.current;if(!ex||!file)return;
+    if(demo){setMsg({t:'err',m:'Modo demonstração: o vídeo não é enviado.'});return;}
+    const MAX=50*1024*1024;
+    if(file.size>MAX){setMsg({t:'err',m:'Vídeo muito grande ('+(file.size/1048576).toFixed(0)+' MB). O limite é 50 MB. Grave de 5 a 15 segundos.'});return;}
+    setSubindo(ex.id);setMsg(null);
+    try{
+      const ext=(file.name.split('.').pop()||'mp4').toLowerCase().replace(/[^a-z0-9]/g,'');
+      const path=coach.id+'/'+uid()+'.'+ext;
+      const {error:upErr}=await sb.storage.from('exercicios').upload(path,file,{contentType:file.type||'video/mp4',upsert:false});
+      if(upErr)throw upErr;
+      const {error}=await sb.rpc('exercicio_definir_video',{p_exercicio:ex.id,p_path:path,p_url:null});
+      if(error)throw error;
+      await load();
+      setMsg({t:'ok',m:'Demonstração de "'+ex.nome+'" enviada.'});
+    }catch(e){
+      const m=e.message||String(e);
+      setMsg({t:'err',m:/not found/i.test(m)
+        ?'Rode o arquivo "videos-exercicios.sql" no Supabase para criar o espaço dos vídeos.'
+        :'Não consegui enviar: '+m});
+    }
+    setSubindo(null);alvoRef.current=null;
+  };
+
+  const removerVideo=async(ex)=>{
+    if(!confirm('Remover a demonstração de "'+ex.nome+'"?'))return;
+    if(demo){setLib(p=>p.map(x=>x.id===ex.id?{...x,video_url:null,video_path:null}:x));return;}
+    const {error}=await sb.rpc('exercicio_remover_video',{p_exercicio:ex.id});
+    if(error){setMsg({t:'err',m:'Erro: '+error.message});return;}
+    await load();};
   const del=async(ex)=>{if(ex.coach_id!==coach.id)return;if(!confirm('Remover "'+ex.nome+'"?'))return;setLib(p=>p.filter(x=>x.id!==ex.id));if(!demo)await sb.from('train_exercicios').delete().eq('id',ex.id);};
   const list=(lib||[]).filter(e=>e.nome.toLowerCase().includes(q.toLowerCase()));
   const groups=(()=>{const g={};list.forEach(e=>{(g[e.grupo_muscular||'Outros']=g[e.grupo_muscular||'Outros']||[]).push(e);});return Object.entries(g);})();
+  const comDemo=(lib||[]).filter(e=>e.video_path||e.video_url).length;
   return(<div>
+    <input ref={fileRef} type="file" accept="video/*,image/gif" style={{display:'none'}}
+      onChange={ev=>{const f=ev.target.files&&ev.target.files[0];if(f)enviarArquivo(f);}}/>
     <div className="abar"><div><div className="breadcrumb" onClick={onBack}>← Treino</div>
       <div className="ph-title">Biblioteca de exercícios</div>
-      <div className="ph-sub">{(lib||[]).length} exercícios · adicione vídeos</div></div></div>
+      <div className="ph-sub">{(lib||[]).length} exercícios · {comDemo} com demonstração</div></div></div>
+    {(lib||[]).length>0&&comDemo===0&&<div className="alert alert-info">
+      Nenhum exercício tem demonstração ainda, então o aluno vê "sem demonstração" na hora do treino.
+      Grave de 5 a 15 segundos com o celular na horizontal e use <b>Enviar vídeo</b>. Toca em loop e sem som, como um GIF.</div>}
     {msg&&<div className={`alert ${msg.t==='err'?'alert-danger':'alert-success'}`}>{msg.m}</div>}
     <div className="dash-panel" style={{marginBottom:16}}><h4>Adicionar exercício</h4>
       <div style={{display:'flex',gap:10,flexWrap:'wrap',alignItems:'flex-end'}}>
@@ -4591,12 +5181,23 @@ function ExerciseLibrary({coach,onBack}){
     {lib===null?<div className="center-screen"><div className="spinner"/></div>:
      groups.map(([g,items])=>(<div key={g} style={{marginBottom:14}}>
        <div style={{fontSize:12,fontWeight:700,textTransform:'uppercase',letterSpacing:1,color:'var(--text3)',marginBottom:8}}>{g}</div>
-       {items.map(e=>(<div key={e.id} style={{display:'flex',alignItems:'center',gap:10,padding:'9px 12px',border:'1px solid var(--border)',borderRadius:10,marginBottom:6,background:'var(--bg2)'}}>
-         <span style={{flex:1,fontWeight:600}}>{e.nome}{e.video_url&&<span title="Tem vídeo" style={{color:'var(--accent)',marginLeft:6}}>●</span>}</span>
-         <button className="btn btn-ghost btn-sm" onClick={()=>openVideo(e.video_url,e.nome)}>▶ Vídeo</button>
-         {e.coach_id===coach.id&&<><button className="btn btn-secondary btn-sm" onClick={()=>setVideo(e)}>{e.video_url?'Trocar link':'+ Link'}</button>
-           <button className="btn-icon btn-sm" onClick={()=>del(e)}>×</button></>}
-       </div>))}
+       {items.map(e=>{const temDemo=!!(e.video_path||e.video_url);const meu=e.coach_id===coach.id;return(
+         <div key={e.id} style={{border:'1px solid var(--border)',borderRadius:10,marginBottom:6,background:'var(--bg2)',overflow:'hidden'}}>
+           <div style={{display:'flex',alignItems:'center',gap:10,padding:'9px 12px',flexWrap:'wrap'}}>
+             <span style={{flex:1,minWidth:130,fontWeight:600}}>{e.nome}
+               <span style={{marginLeft:7,fontSize:11,fontWeight:700,color:temDemo?'#2f8f4e':'var(--text3)'}}>
+                 {temDemo?(e.video_path?'vídeo próprio':'link'):'sem demo'}</span></span>
+             {temDemo&&<button className="btn btn-ghost btn-sm" onClick={()=>setVerDemo(v=>v===e.id?null:e.id)}>
+               {verDemo===e.id?'Fechar':'Ver'}</button>}
+             <button className="btn btn-primary btn-sm" disabled={subindo===e.id} onClick={()=>escolherArquivo(e)}>
+               {subindo===e.id?'Enviando…':(e.video_path?'Trocar vídeo':'Enviar vídeo')}</button>
+             <button className="btn btn-secondary btn-sm" onClick={()=>setVideo(e)}>{e.video_url?'Trocar link':'Link'}</button>
+             {temDemo&&meu&&<button className="btn btn-ghost btn-sm" onClick={()=>removerVideo(e)}>Remover demo</button>}
+             {meu&&<button className="btn-icon btn-sm" title="Excluir exercício" onClick={()=>del(e)}>×</button>}
+           </div>
+           {verDemo===e.id&&<div style={{padding:'0 12px 12px',maxWidth:420}}>
+             <ExDemo url={e.video_url} path={e.video_path} name={e.nome}/></div>}
+         </div>);})}
      </div>))}
   </div>);
 }
@@ -4744,6 +5345,732 @@ const offQueueSave=(c,q)=>IDB.set('queue-'+c,q);
 const isNetErr=e=>!navigator.onLine||(e&&/network|fetch|Failed to fetch|timeout/i.test(e.message||''));
 
 /* ── App ── */
+/* ════════════════════════════════════════════════════════════
+   NUTRIÇÃO (treinador) — plano alimentar dentro do Performance.
+   Escreve nas MESMAS tabelas do MF Nutrition. Atenção: o student_id
+   dessas tabelas é o id do PERFIL (auth.user), não o id da ficha —
+   por isso o aluno precisa ter ativado a conta (assess_students.user_id).
+   ════════════════════════════════════════════════════════════ */
+async function loadTemplateTree(templateId){
+  const {data:meals}=await sb.from('template_meals').select('*').eq('template_id',templateId).order('order_index');
+  const mealIds=(meals||[]).map(m=>m.id);
+  let items=[],subs=[];
+  if(mealIds.length){
+    const ri=await sb.from('template_items').select('*').in('template_meal_id',mealIds).order('order_index');items=ri.data||[];
+    const itemIds=items.map(i=>i.id);
+    if(itemIds.length){const rs=await sb.from('template_subs').select('*').in('template_item_id',itemIds);subs=rs.data||[];}
+  }
+  return (meals||[]).map(m=>({
+    id:genId(), name:m.name, time:m.time, notes:m.notes,
+    items: items.filter(i=>i.template_meal_id===m.id).map(i=>({
+      id:genId(), food:i.food, qty:i.qty, kcal:i.kcal, protein:i.protein, carb:i.carb, fat:i.fat, prep:i.prep||'',
+      subs: subs.filter(s=>s.template_item_id===i.id).map(s=>({id:genId(),food:s.food,qty:s.qty,kcal:s.kcal,protein:s.protein,carb:s.carb,fat:s.fat}))
+    }))
+  }));
+}
+function buildTemplatePayload(meals, templateId){
+  const mealsP=[], itemsP=[], subsP=[];
+  meals.forEach((m,mi)=>{
+    const tmId=genId(); mealsP.push({id:tmId,template_id:templateId,name:m.name,time:m.time||null,notes:m.notes||null,order_index:mi});
+    m.items.forEach((it,ii)=>{
+      const tiId=genId();
+      itemsP.push({id:tiId,template_meal_id:tmId,food:it.food,qty:it.qty,kcal:n0(it.kcal),protein:n0(it.protein),carb:n0(it.carb),fat:n0(it.fat),prep:it.prep||null,order_index:ii});
+      (it.subs||[]).forEach(s=>subsP.push({id:genId(),template_item_id:tiId,food:s.food,qty:s.qty,kcal:n0(s.kcal),protein:n0(s.protein),carb:n0(s.carb),fat:n0(s.fat)}));
+    });
+  });
+  return {mealsP,itemsP,subsP};
+}
+
+function NutriTotais({s,label}){
+  const it=[['kcal','Kcal',''],['protein','Proteína','g'],['carb','Carbo','g'],['fat','Gordura','g']];
+  return(<div>
+    <div style={{display:'flex',gap:10,marginTop:12}}>
+      {it.map(([k,l,u])=>(<div key={k} style={{flex:1,textAlign:'center',background:'var(--bg3,#f7f4ef)',borderRadius:12,padding:'10px 4px'}}>
+        <div style={{fontFamily:'var(--serif)',fontSize:19,fontWeight:700,color:'var(--accent)'}}>{r0(s[k])}<span style={{fontSize:11,fontWeight:600}}>{u}</span></div>
+        <div style={{fontSize:10.5,color:'var(--text2)',textTransform:'uppercase',letterSpacing:.5,fontWeight:700}}>{l}</div>
+      </div>))}
+    </div>
+    {label&&<div style={{fontSize:11,color:'var(--text3)',textAlign:'center',marginTop:6}}>{label}</div>}
+  </div>);
+}
+
+function NutriFoodPicker({foods,onPick,onClose,coachId,onAdded}){
+  const [q,setQ]=useState('');const [cat,setCat]=useState('Todas');
+  const [sel,setSel]=useState(null);const [grams,setGrams]=useState('100');
+  const [adding,setAdding]=useState(false);const [busy,setBusy]=useState(false);
+  const [nf,setNf]=useState({name:'',category:'Proteínas',kcal:'',protein:'',carb:'',fat:'',preparo:''});
+  const cats=['Todas',...Array.from(new Set(foods.map(f=>f.category)))];
+  const list=foods.filter(f=>(cat==='Todas'||f.category===cat)&&f.name.toLowerCase().includes(q.toLowerCase())).slice(0,300);
+  const fct=sel?n0(grams)/100:0;
+  const saveFood=async()=>{
+    if(!nf.name.trim()){alert('Dê um nome ao alimento.');return;}
+    setBusy(true);
+    try{
+      const {error}=await sb.from('foods').insert({owner_id:coachId,name:nf.name.trim(),category:nf.category,
+        kcal:n0(nf.kcal),protein:n0(nf.protein),carb:n0(nf.carb),fat:n0(nf.fat),preparo:nf.preparo||null});
+      if(error) throw error;
+      clearFoodsCache(); if(onAdded) await onAdded();
+      setAdding(false);setNf({name:'',category:'Proteínas',kcal:'',protein:'',carb:'',fat:'',preparo:''});
+    }catch(e){alert('Não foi possível salvar o alimento.\n\n'+(e.message||e));}
+    setBusy(false);
+  };
+  return(<div style={{position:'fixed',inset:0,zIndex:120,background:'rgba(10,8,10,.8)',display:'flex',alignItems:'center',justifyContent:'center',padding:16,overflow:'auto'}} onClick={onClose}>
+    <div className="card" style={{maxWidth:520,width:'100%'}} onClick={e=>e.stopPropagation()}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+        <div style={{fontFamily:'var(--serif)',fontSize:19,fontWeight:600}}>Base de alimentos</div>
+        <button className="btn-icon btn-sm" onClick={onClose}>×</button>
+      </div>
+      {adding?(<>
+        <span className="link" style={{fontSize:13,cursor:'pointer'}} onClick={()=>setAdding(false)}>← voltar</span>
+        <div style={{margin:'10px 0 4px',fontFamily:'var(--serif)',fontSize:18}}>Cadastrar alimento</div>
+        <p className="s-meta" style={{marginBottom:12}}>Valores por 100 g (ou 100 ml). Fica salvo só na sua base.</p>
+        <FI label="Nome" value={nf.name} onChange={e=>setNf({...nf,name:e.target.value})} placeholder="Ex: Pão low carb"/>
+        <div className="fg"><label className="flbl">Categoria</label>
+          <select className="fi" value={nf.category} onChange={e=>setNf({...nf,category:e.target.value})}>
+            {Object.keys(FOOD_GROUPS).map(c=><option key={c}>{c}</option>)}</select></div>
+        <div className="fgrid" style={{gridTemplateColumns:'repeat(4,1fr)'}}>
+          <FI label="Kcal" type="number" value={nf.kcal} onChange={e=>setNf({...nf,kcal:e.target.value})}/>
+          <FI label="Prot" type="number" value={nf.protein} onChange={e=>setNf({...nf,protein:e.target.value})}/>
+          <FI label="Carb" type="number" value={nf.carb} onChange={e=>setNf({...nf,carb:e.target.value})}/>
+          <FI label="Gord" type="number" value={nf.fat} onChange={e=>setNf({...nf,fat:e.target.value})}/>
+        </div>
+        <FI label="Forma de preparo (opcional)" value={nf.preparo} onChange={e=>setNf({...nf,preparo:e.target.value})}/>
+        <button className="btn btn-primary" style={{width:'100%',marginTop:8}} disabled={busy} onClick={saveFood}>{busy?'Salvando…':'Salvar na base'}</button>
+      </>):!sel?(<>
+        <input className="fi" placeholder="Buscar alimento..." value={q} onChange={e=>setQ(e.target.value)} autoFocus/>
+        <div style={{display:'flex',gap:6,overflowX:'auto',padding:'11px 0'}}>
+          {cats.map(c=><button key={c} className={`btn btn-sm ${cat===c?'btn-primary':'btn-ghost'}`} style={{flexShrink:0}} onClick={()=>setCat(c)}>{c}</button>)}
+        </div>
+        <div style={{maxHeight:'44vh',overflowY:'auto'}}>
+          {list.map(f=>(<div key={f.id} onClick={()=>{setSel(f);setGrams('100');}}
+            style={{padding:'11px 4px',borderBottom:'1px solid var(--border)',cursor:'pointer',display:'flex',justifyContent:'space-between',gap:10}}>
+            <div><div style={{fontWeight:600,fontSize:14}}>{f.name}{!f.native&&<span style={{color:'var(--gold)',fontSize:10,marginLeft:5}}>★ meu</span>}</div>
+              <div style={{fontSize:11,color:'var(--text2)'}}>{f.category} · por 100g</div></div>
+            <div style={{textAlign:'right',fontSize:11,color:'var(--text2)',whiteSpace:'nowrap'}}>{r0(f.kcal)} kcal<br/>P{r0(f.protein)} C{r0(f.carb)} G{r0(f.fat)}</div>
+          </div>))}
+          {list.length===0&&<div className="muted" style={{padding:20,textAlign:'center'}}>Nada encontrado.</div>}
+        </div>
+        <button className="btn btn-ghost btn-sm" style={{width:'100%',marginTop:10}} onClick={()=>setAdding(true)}>＋ Cadastrar alimento próprio</button>
+      </>):(<>
+        <span className="link" style={{fontSize:13,cursor:'pointer'}} onClick={()=>setSel(null)}>← voltar à lista</span>
+        <div style={{margin:'12px 0 4px',fontFamily:'var(--serif)',fontSize:20}}>{sel.name}</div>
+        <FI label="Quantidade (gramas / ml)" type="number" value={grams} onChange={e=>setGrams(e.target.value)} autoFocus/>
+        <NutriTotais s={{kcal:sel.kcal*fct,protein:sel.protein*fct,carb:sel.carb*fct,fat:sel.fat*fct}}/>
+        {sel.preparo&&<div className="alert alert-info" style={{marginTop:10}}>{sel.preparo}</div>}
+        <button className="btn btn-primary" style={{width:'100%',marginTop:10}} disabled={!n0(grams)} onClick={()=>onPick(sel,n0(grams))}>Adicionar ao plano</button>
+      </>)}
+    </div></div>);
+}
+
+function NutriTemplatePicker({coachId,onPick,onClose}){
+  const [tpls,setTpls]=useState(null);
+  useEffect(()=>{sb.from('plan_templates').select('*').eq('coach_id',coachId).order('created_at',{ascending:false})
+    .then(({data})=>setTpls(data||[])).catch(()=>setTpls([]));},[coachId]);
+  return(<div style={{position:'fixed',inset:0,zIndex:120,background:'rgba(10,8,10,.8)',display:'flex',alignItems:'center',justifyContent:'center',padding:16,overflow:'auto'}} onClick={onClose}>
+    <div className="card" style={{maxWidth:460,width:'100%'}} onClick={e=>e.stopPropagation()}>
+      <div style={{fontFamily:'var(--serif)',fontSize:19,fontWeight:600,marginBottom:12}}>Usar cronograma salvo</div>
+      {tpls===null?<div className="center-screen" style={{minHeight:80}}><div className="spinner"/></div>:
+       tpls.length===0?<p className="s-meta">Você ainda não salvou nenhum cronograma. Monte um plano e clique em “Salvar como cronograma”.</p>:
+       tpls.map(t=>(<div key={t.id} className="student-card" style={{marginBottom:9}} onClick={()=>onPick(t)}>
+         <div style={{fontWeight:600,fontFamily:'var(--serif)',fontSize:16}}>{t.title}</div>
+         <div style={{fontSize:12,color:'var(--text2)',marginTop:2}}>{t.notes||'Sem observações'}</div></div>))}
+      <button className="btn btn-ghost" style={{width:'100%',marginTop:10}} onClick={onClose}>Cancelar</button>
+    </div></div>);
+}
+
+function NutriMealsEditor({meals,setMeals,foods,coachId,onFoodsChange}){
+  const [pickFor,setPickFor]=useState(null);
+  const addMeal=()=>setMeals(m=>[...m,{id:genId(),name:'Nova refeição',time:'',notes:'',items:[]}]);
+  const updMeal=(id,k,v)=>setMeals(m=>m.map(x=>x.id===id?{...x,[k]:v}:x));
+  const delMeal=id=>setMeals(m=>m.filter(x=>x.id!==id));
+  const addItem=(mid,item)=>setMeals(m=>m.map(x=>x.id===mid?{...x,items:[...x.items,item||{id:genId(),food:'',qty:'',kcal:'',protein:'',carb:'',fat:'',prep:'',subs:[]}]}:x));
+  const updItem=(mid,iid,k,v)=>setMeals(m=>m.map(x=>x.id!==mid?x:{...x,items:x.items.map(i=>i.id===iid?{...i,[k]:v}:i)}));
+  const delItem=(mid,iid)=>setMeals(m=>m.map(x=>x.id!==mid?x:{...x,items:x.items.filter(i=>i.id!==iid)}));
+  const addSub=(mid,iid)=>setMeals(m=>m.map(x=>x.id!==mid?x:{...x,items:x.items.map(i=>i.id!==iid?i:{...i,subs:[...(i.subs||[]),{id:genId(),food:'',qty:'',kcal:'',protein:'',carb:'',fat:''}]})}));
+  const updSub=(mid,iid,sid,k,v)=>setMeals(m=>m.map(x=>x.id!==mid?x:{...x,items:x.items.map(i=>i.id!==iid?i:{...i,subs:i.subs.map(s=>s.id===sid?{...s,[k]:v}:s)})}));
+  const delSub=(mid,iid,sid)=>setMeals(m=>m.map(x=>x.id!==mid?x:{...x,items:x.items.map(i=>i.id!==iid?i:{...i,subs:i.subs.filter(s=>s.id!==sid)})}));
+  const onPickFood=(food,grams)=>{
+    const f=grams/100;
+    addItem(pickFor,{id:genId(),food:food.name,qty:grams+' g',kcal:Math.round(food.kcal*f),
+      protein:+(food.protein*f).toFixed(1),carb:+(food.carb*f).toFixed(1),fat:+(food.fat*f).toFixed(1),prep:food.preparo||'',subs:[]});
+    setPickFor(null);
+  };
+  return(<>
+    {meals.map(m=>{const ms=sumItems(m.items);return(
+      <div className="card" key={m.id} style={{marginTop:12}}>
+        <div className="fgrid" style={{gridTemplateColumns:'2fr 1fr auto'}}>
+          <FI label="Refeição" value={m.name} onChange={e=>updMeal(m.id,'name',e.target.value)} placeholder="Café da manhã"/>
+          <FI label="Horário" value={m.time||''} onChange={e=>updMeal(m.id,'time',e.target.value)} placeholder="08:00"/>
+          <div style={{display:'flex',alignItems:'flex-end'}}><button className="btn-icon" onClick={()=>delMeal(m.id)} title="Excluir refeição">×</button></div>
+        </div>
+        <div style={{margin:'12px 0 4px',fontSize:11,color:'var(--text2)'}}>{r0(ms.kcal)} kcal · P {r0(ms.protein)}g · C {r0(ms.carb)}g · G {r0(ms.fat)}g</div>
+        {m.items.map(it=>(
+          <div key={it.id} style={{background:'var(--bg3,#f7f4ef)',borderRadius:12,padding:12,marginTop:9}}>
+            <div className="fgrid" style={{gridTemplateColumns:'2fr 1fr auto'}}>
+              <FI value={it.food} onChange={e=>updItem(m.id,it.id,'food',e.target.value)} placeholder="Alimento"/>
+              <FI value={it.qty} onChange={e=>updItem(m.id,it.id,'qty',e.target.value)} placeholder="Qtd (100g)"/>
+              <div style={{display:'flex',alignItems:'center'}}><button className="btn-icon" onClick={()=>delItem(m.id,it.id)}>✕</button></div>
+            </div>
+            <div className="fgrid" style={{gridTemplateColumns:'repeat(4,1fr)',marginTop:8}}>
+              <FI label="Kcal" type="number" value={it.kcal} onChange={e=>updItem(m.id,it.id,'kcal',e.target.value)} placeholder="kcal"/>
+              <FI label="Prot (g)" type="number" value={it.protein} onChange={e=>updItem(m.id,it.id,'protein',e.target.value)} placeholder="Prot g"/>
+              <FI label="Carb (g)" type="number" value={it.carb} onChange={e=>updItem(m.id,it.id,'carb',e.target.value)} placeholder="Carb g"/>
+              <FI label="Gord (g)" type="number" value={it.fat} onChange={e=>updItem(m.id,it.id,'fat',e.target.value)} placeholder="Gord g"/>
+            </div>
+            <input className="fi" style={{marginTop:8,fontSize:13.5}} value={it.prep||''} onChange={e=>updItem(m.id,it.id,'prep',e.target.value)} placeholder="Forma de preparo (opcional)"/>
+            {(it.subs||[]).map(s=>(
+              <div key={s.id} className="fgrid" style={{gridTemplateColumns:'2fr 1fr auto',marginTop:7,paddingLeft:10,borderLeft:'2px solid var(--accent)'}}>
+                <FI value={s.food} onChange={e=>updSub(m.id,it.id,s.id,'food',e.target.value)} placeholder="Substituir por…"/>
+                <FI value={s.qty} onChange={e=>updSub(m.id,it.id,s.id,'qty',e.target.value)} placeholder="Qtd"/>
+                <div style={{display:'flex',alignItems:'center'}}><button className="btn-icon" onClick={()=>delSub(m.id,it.id,s.id)}>✕</button></div>
+              </div>))}
+            <button className="btn btn-ghost btn-sm" style={{marginTop:8}} onClick={()=>addSub(m.id,it.id)}>Adicionar substituição</button>
+          </div>))}
+        <div className="bgroup" style={{marginTop:11}}>
+          <button className="btn btn-secondary btn-sm" onClick={()=>setPickFor(m.id)}>Da base de alimentos</button>
+          <button className="btn btn-ghost btn-sm" onClick={()=>addItem(m.id)}>＋ Manual</button>
+        </div>
+      </div>);})}
+    <button className="btn btn-secondary" style={{width:'100%',marginTop:14}} onClick={addMeal}>＋ Adicionar refeição</button>
+    {pickFor&&<NutriFoodPicker foods={foods} onPick={onPickFood} onClose={()=>setPickFor(null)} coachId={coachId} onAdded={onFoodsChange}/>}
+  </>);
+}
+
+function NutriPlanEditor({coach,studentUid,studentName,demo}){
+  const [plan,setPlan]=useState(undefined);
+  const [meals,setMeals]=useState([]);
+  const [orig,setOrig]=useState({meals:[],items:[],subs:[]});
+  const [busy,setBusy]=useState(false);
+  const [saved,setSaved]=useState(false);
+  const [foods,setFoods]=useState([]);
+  const [showTpl,setShowTpl]=useState(false);
+  useEffect(()=>{if(demo){setFoods(NATIVE_FOODS);return;}getFoods().then(setFoods);},[]);
+
+  const load=useCallback(async()=>{
+    if(demo){
+      setPlan({id:'demo-plan',title:_DEMO_DIETA.title,notes:'Beba pelo menos 3 L de água por dia.',water_goal_ml:3000});
+      setMeals(_DEMO_DIETA.meals.map(m=>({...m,items:m.items.map(i=>({...i,subs:i.subs||[]}))})));
+      setOrig({meals:[],items:[],subs:[]});return;
+    }
+    const p=await getActivePlan(studentUid);
+    if(!p){setPlan(null);setMeals([]);return;}
+    const tree=await loadPlanTree(p.id);
+    setPlan(p);setMeals(tree);
+    setOrig({meals:tree.map(m=>m.id),items:tree.flatMap(m=>m.items.map(i=>i.id)),
+      subs:tree.flatMap(m=>m.items.flatMap(i=>i.subs.map(s=>s.id)))});
+  },[studentUid,demo]);
+  useEffect(()=>{load();},[load]);
+
+  const createPlan=async()=>{
+    if(demo){setPlan({id:'demo-plan',title:'Plano alimentar',water_goal_ml:3000});setMeals([]);return;}
+    const {data,error}=await sb.from('meal_plans').insert({
+      student_id:studentUid, coach_id:coach.id, title:'Plano alimentar', water_goal_ml:3000, active:true
+    }).select().single();
+    if(error){alert('Erro ao criar plano: '+error.message);return;}
+    setPlan(data);setMeals([]);setOrig({meals:[],items:[],subs:[]});
+  };
+
+  const save=async()=>{
+    if(demo){setSaved(true);setTimeout(()=>setSaved(false),1600);return;}
+    setBusy(true);
+    try{
+      await sb.from('meal_plans').update({title:plan.title,notes:plan.notes,water_goal_ml:n0(plan.water_goal_ml)}).eq('id',plan.id);
+      const mealsPayload=meals.map((m,i)=>({id:m.id,plan_id:plan.id,name:m.name,time:m.time,notes:m.notes,order_index:i}));
+      if(mealsPayload.length) await sb.from('meals').upsert(mealsPayload);
+      const curM=meals.map(m=>m.id), delM=orig.meals.filter(id=>!curM.includes(id));
+      if(delM.length) await sb.from('meals').delete().in('id',delM);
+
+      const itemsPayload=[];meals.forEach(m=>m.items.forEach((it,i)=>itemsPayload.push(
+        {id:it.id,meal_id:m.id,food:it.food,qty:it.qty,kcal:n0(it.kcal),protein:n0(it.protein),carb:n0(it.carb),fat:n0(it.fat),prep:it.prep||null,order_index:i})));
+      if(itemsPayload.length) await sb.from('meal_items').upsert(itemsPayload);
+      const curI=itemsPayload.map(i=>i.id), delI=orig.items.filter(id=>!curI.includes(id));
+      if(delI.length) await sb.from('meal_items').delete().in('id',delI);
+
+      const subsPayload=[];meals.forEach(m=>m.items.forEach(it=>(it.subs||[]).forEach(s=>subsPayload.push(
+        {id:s.id,meal_item_id:it.id,food:s.food,qty:s.qty,kcal:n0(s.kcal),protein:n0(s.protein),carb:n0(s.carb),fat:n0(s.fat)}))));
+      if(subsPayload.length) await sb.from('substitutions').upsert(subsPayload);
+      const curS=subsPayload.map(s=>s.id), delS=orig.subs.filter(id=>!curS.includes(id));
+      if(delS.length) await sb.from('substitutions').delete().in('id',delS);
+
+      await load();setSaved(true);setTimeout(()=>setSaved(false),1600);
+    }catch(e){alert('Erro ao salvar: '+(e.message||e));}
+    setBusy(false);
+  };
+
+  const applyTemplate=async(t)=>{
+    setShowTpl(false);
+    if(demo)return;
+    const tree=await loadTemplateTree(t.id);
+    setPlan(p=>({...p,title:t.title,notes:t.notes,water_goal_ml:t.water_goal_ml}));
+    setMeals(tree);
+  };
+  const saveAsTemplate=async()=>{
+    const title=prompt('Nome do cronograma:',plan.title||'Cronograma');if(!title)return;
+    if(demo){alert('Modo demonstração: o cronograma não é salvo.');return;}
+    try{
+      const {data:t,error}=await sb.from('plan_templates').insert({coach_id:coach.id,title,notes:plan.notes||null,water_goal_ml:n0(plan.water_goal_ml)}).select().single();
+      if(error) throw error;
+      const {mealsP,itemsP,subsP}=buildTemplatePayload(meals,t.id);
+      if(mealsP.length) await sb.from('template_meals').insert(mealsP);
+      if(itemsP.length) await sb.from('template_items').insert(itemsP);
+      if(subsP.length) await sb.from('template_subs').insert(subsP);
+      alert('Cronograma “'+title+'” salvo! Já pode aplicar em outros alunos.');
+    }catch(e){alert('Erro ao salvar cronograma: '+(e.message||e));}
+  };
+
+  if(plan===undefined)return <div className="center-screen" style={{minHeight:200}}><div className="spinner"/></div>;
+  if(plan===null)return(
+    <div className="empty"><div className="empty-icon"></div>
+      <div className="empty-title">Nenhum plano ainda</div>
+      <p className="s-meta" style={{marginBottom:16}}>Crie o plano alimentar de {studentName||'este aluno'}.</p>
+      <button className="btn btn-primary" onClick={createPlan}>＋ Criar plano</button></div>);
+
+  const total=sumMeals(meals);
+  return(<div>
+    <div className="card" style={{marginBottom:14}}>
+      <div className="bgroup" style={{marginBottom:14}}>
+        <button className="btn btn-secondary btn-sm" onClick={()=>setShowTpl(true)}>Usar cronograma salvo</button>
+        {meals.length>0&&<button className="btn btn-ghost btn-sm" onClick={saveAsTemplate}>Salvar como cronograma</button>}
+      </div>
+      <div className="fgrid">
+        <FI label="Título do plano" value={plan.title||''} onChange={e=>setPlan({...plan,title:e.target.value})}/>
+        <FI label="Meta de água" unit="ml" type="number" value={plan.water_goal_ml||''} onChange={e=>setPlan({...plan,water_goal_ml:e.target.value})}/>
+      </div>
+      <div style={{marginTop:12}}><FTA label="Observações gerais" value={plan.notes||''} onChange={e=>setPlan({...plan,notes:e.target.value})} placeholder="Beba água, evite frituras, etc."/></div>
+      <NutriTotais s={total} label="Totais diários do plano"/>
+    </div>
+    <NutriMealsEditor meals={meals} setMeals={setMeals} foods={foods} coachId={coach.id} onFoodsChange={()=>getFoods().then(setFoods)}/>
+    <div style={{position:'sticky',bottom:0,padding:'14px 0',marginTop:8}}>
+      <button className="btn btn-primary" style={{width:'100%'}} disabled={busy} onClick={save}>{busy?'Salvando…':saved?'✓ Plano salvo':'Salvar plano'}</button>
+    </div>
+    {showTpl&&<NutriTemplatePicker coachId={coach.id} onPick={applyTemplate} onClose={()=>setShowTpl(false)}/>}
+  </div>);
+}
+
+
+/* ════════════ SUPLEMENTAÇÃO (vindo do MF Nutrition) ════════════ */
+const SUPP_LIBRARY=[
+  {cat:'Performance',name:'Creatina monohidratada',dose:'3-5 g',timing:'Qualquer horário, todos os dias',notes:'Força e hipertrofia. Uso contínuo, não precisa ciclar.'},
+  {cat:'Performance',name:'Whey protein',dose:'25-35 g',timing:'Pós-treino ou lanche',notes:'Completa a proteína do dia.'},
+  {cat:'Performance',name:'Cafeína (pré-treino)',dose:'100-200 mg',timing:'30-40 min antes do treino',notes:'Foco e desempenho. Evite à noite.'},
+  {cat:'Performance',name:'Beta-alanina',dose:'3-5 g',timing:'Diário, qualquer horário',notes:'Resistência em séries longas.'},
+  {cat:'Performance',name:'BCAA / EAA',dose:'5-10 g',timing:'Durante o treino',notes:'Opcional se a proteína diária já está alta.'},
+  {cat:'Performance',name:'Glutamina',dose:'5 g',timing:'Pós-treino ou antes de dormir',notes:'Recuperação e saúde intestinal.'},
+  {cat:'Vitaminas',name:'Vitamina D3',dose:'1000-2000 UI',timing:'Manhã, com gordura',notes:'Imunidade, ossos e hormônios. Ideal ajustar por exame.'},
+  {cat:'Vitaminas',name:'Vitamina B12',dose:'500-1000 mcg',timing:'Manhã',notes:'Energia e sistema nervoso (atenção redobrada p/ vegetarianos).'},
+  {cat:'Vitaminas',name:'Vitamina C',dose:'500-1000 mg',timing:'Qualquer horário',notes:'Antioxidante e imunidade.'},
+  {cat:'Vitaminas',name:'Multivitamínico',dose:'1 dose',timing:'Café da manhã',notes:'Cobre lacunas de micronutrientes.'},
+  {cat:'Vitaminas',name:'Complexo B',dose:'1 dose',timing:'Manhã',notes:'Metabolismo energético.'},
+  {cat:'Saúde',name:'Ômega 3 (EPA/DHA)',dose:'1-2 g',timing:'Com uma refeição',notes:'Anti-inflamatório e saúde cardiovascular.'},
+  {cat:'Saúde',name:'Magnésio',dose:'200-400 mg',timing:'À noite',notes:'Sono, relaxamento muscular e cãibras.'},
+  {cat:'Saúde',name:'Zinco',dose:'15-30 mg',timing:'Com refeição',notes:'Imunidade e função hormonal.'},
+  {cat:'Saúde',name:'Colágeno',dose:'10 g',timing:'Qualquer horário',notes:'Pele, cabelo e articulações.'},
+  {cat:'Saúde',name:'Probiótico',dose:'1 dose',timing:'Conforme o rótulo',notes:'Saúde intestinal e digestão.'},
+  {cat:'Saúde',name:'Melatonina',dose:'0,5-3 mg',timing:'30 min antes de dormir',notes:'Ajuda no sono. Comece pela menor dose.'},
+  {cat:'Saúde',name:'Coenzima Q10',dose:'100 mg',timing:'Com refeição',notes:'Energia celular.'},
+  {cat:'Emagrecimento',name:'Termogênico',dose:'Conforme rótulo',timing:'Manhã / pré-treino',notes:'Auxílio no gasto calórico. Evite à noite.'},
+  {cat:'Emagrecimento',name:'Cromo (picolinato)',dose:'200 mcg',timing:'Com refeição',notes:'Auxílio no controle da glicemia/vontade de doce.'},
+];
+
+function SuppPicker({onPick,onClose}){
+  const [cat,setCat]=useState('Todas');
+  const cats=['Todas',...Array.from(new Set(SUPP_LIBRARY.map(x=>x.cat)))];
+  const list=SUPP_LIBRARY.filter(x=>cat==='Todas'||x.cat===cat);
+  return(<div style={{position:'fixed',inset:0,zIndex:120,background:'rgba(10,8,10,.8)',display:'flex',alignItems:'center',justifyContent:'center',padding:16,overflow:'auto'}} onClick={onClose}>
+    <div className="card" style={{maxWidth:460,width:'100%'}} onClick={e=>e.stopPropagation()}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+        <div style={{fontFamily:'var(--serif)',fontSize:19,fontWeight:600}}>Biblioteca de suplementos</div>
+        <button className="btn-icon btn-sm" onClick={onClose}>×</button></div>
+      <div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:11}}>
+        {cats.map(c=><button key={c} className={`btn btn-sm ${cat===c?'btn-primary':'btn-ghost'}`} style={{flexShrink:0}} onClick={()=>setCat(c)}>{c}</button>)}
+      </div>
+      <div style={{maxHeight:'52vh',overflowY:'auto'}}>
+        {list.map(x=>(<div key={x.name} onClick={()=>onPick(x)}
+          style={{padding:'11px 4px',borderBottom:'1px solid var(--border)',cursor:'pointer'}}>
+          <div style={{fontWeight:600,fontSize:14}}>{x.name}</div>
+          <div style={{fontSize:11.5,color:'var(--text2)',marginTop:2}}>{x.dose} · {x.timing}</div>
+          {x.notes&&<div style={{fontSize:11.5,color:'var(--text3)',marginTop:2}}>{x.notes}</div>}
+        </div>))}
+      </div>
+    </div></div>);
+}
+
+function NutriSuplementos({coach,studentUid,studentName,demo}){
+  const [items,setItems]=useState(demo?[]:null);
+  const [orig,setOrig]=useState([]);
+  const [picker,setPicker]=useState(false);
+  const [busy,setBusy]=useState(false);const [saved,setSaved]=useState(false);
+  const load=useCallback(async()=>{
+    if(demo)return;
+    const {data}=await sb.from('supplements').select('*').eq('student_id',studentUid).order('order_index');
+    setItems((data||[]).map(x=>({...x})));setOrig((data||[]).map(x=>x.id));
+  },[studentUid,demo]);
+  useEffect(()=>{load();},[load]);
+  const addLib=x=>setItems(a=>[...(a||[]),{id:genId(),name:x.name,dose:x.dose,timing:x.timing,notes:x.notes}]);
+  const addManual=()=>setItems(a=>[...(a||[]),{id:genId(),name:'',dose:'',timing:'',notes:''}]);
+  const upd=(id,k,v)=>setItems(a=>a.map(i=>i.id===id?{...i,[k]:v}:i));
+  const del=id=>setItems(a=>a.filter(i=>i.id!==id));
+  const save=async()=>{
+    if(demo){setSaved(true);setTimeout(()=>setSaved(false),1500);return;}
+    setBusy(true);
+    try{
+      const payload=(items||[]).map((i,idx)=>({id:i.id,student_id:studentUid,coach_id:coach.id,
+        name:i.name,dose:i.dose||null,timing:i.timing||null,notes:i.notes||null,order_index:idx}));
+      if(payload.length) await sb.from('supplements').upsert(payload);
+      const cur=payload.map(x=>x.id), rm=orig.filter(id=>!cur.includes(id));
+      if(rm.length) await sb.from('supplements').delete().in('id',rm);
+      await load();setSaved(true);setTimeout(()=>setSaved(false),1500);
+    }catch(e){alert('Erro ao salvar: '+(e.message||e));}
+    setBusy(false);
+  };
+  if(items===null)return <div className="center-screen" style={{minHeight:160}}><div className="spinner"/></div>;
+  return(<div>
+    <div className="alert alert-warn">Prescreva os suplementos de <b>{(studentName||'aluno').split(' ')[0]}</b>.
+      As sugestões da biblioteca são gerais: ajuste por avaliação e exames. Doses específicas de vitaminas
+      idealmente com acompanhamento médico.</div>
+    <button className="btn btn-secondary" style={{width:'100%',marginBottom:12}} onClick={()=>setPicker(true)}>Adicionar da biblioteca</button>
+    {(items||[]).map(it=>(
+      <div className="card" key={it.id} style={{marginBottom:11}}>
+        <div style={{display:'flex',gap:8,alignItems:'center',marginBottom:9}}>
+          <FI value={it.name} onChange={e=>upd(it.id,'name',e.target.value)} placeholder="Suplemento"/>
+          <button className="btn-icon" onClick={()=>del(it.id)}>×</button>
+        </div>
+        <div className="fgrid" style={{gridTemplateColumns:'1fr 1fr'}}>
+          <FI value={it.dose||''} onChange={e=>upd(it.id,'dose',e.target.value)} placeholder="Dose (ex: 5 g)"/>
+          <FI value={it.timing||''} onChange={e=>upd(it.id,'timing',e.target.value)} placeholder="Horário (ex: pós-treino)"/>
+        </div>
+        <div style={{marginTop:9}}><FI value={it.notes||''} onChange={e=>upd(it.id,'notes',e.target.value)} placeholder="Observação (opcional)"/></div>
+      </div>))}
+    <button className="btn btn-ghost btn-sm" style={{width:'100%'}} onClick={addManual}>Adicionar manual</button>
+    <div style={{position:'sticky',bottom:0,padding:'14px 0',marginTop:8}}>
+      <button className="btn btn-primary" style={{width:'100%'}} disabled={busy} onClick={save}>
+        {busy?'Salvando…':saved?'Salvo':'Salvar suplementação'}</button>
+    </div>
+    {picker&&<SuppPicker onPick={x=>{addLib(x);setPicker(false);}} onClose={()=>setPicker(false)}/>}
+  </div>);
+}
+
+/* Registros do aluno: fotos de refeição, cardio, adesão e peso.
+   O peso vem do train_diario (fonte única), não mais do weight_logs. */
+function NutriRegistros({fichaId,studentUid,demo}){
+  const [d,setD]=useState(demo?{photos:[],cardio:[],peso:[],checks:[]}:null);
+  useEffect(()=>{if(demo)return;(async()=>{
+    const [ph,cd,pe,ck]=await Promise.all([
+      sb.from('photos').select('*').eq('student_id',studentUid).order('created_at',{ascending:false}).limit(30),
+      sb.from('cardio_logs').select('*').eq('student_id',studentUid).order('day',{ascending:false}).limit(15),
+      sb.from('train_diario').select('data,peso').eq('student_id',fichaId).not('peso','is',null).order('data',{ascending:false}).limit(15),
+      sb.from('checkins').select('day').eq('student_id',studentUid).order('day',{ascending:false}).limit(60),
+    ]);
+    setD({photos:ph.data||[],cardio:cd.data||[],peso:pe.data||[],checks:ck.data||[]});
+  })().catch(()=>setD({photos:[],cardio:[],peso:[],checks:[]}));},[studentUid,fichaId,demo]);
+
+  if(!d)return <div className="center-screen" style={{minHeight:160}}><div className="spinner"/></div>;
+  const dias7=[...new Set(d.checks.map(c=>c.day))].filter(x=>{
+    const diff=(new Date(todayStr())-new Date(x))/86400000;return diff>=0&&diff<7;}).length;
+  const box=(lbl,val,un)=>(<div style={{flex:1,minWidth:110,background:'var(--bg3,#f7f4ef)',borderRadius:14,padding:'12px 13px'}}>
+    <div style={{fontSize:10.5,color:'var(--text2)',textTransform:'uppercase',letterSpacing:.5,fontWeight:700}}>{lbl}</div>
+    <div style={{fontFamily:'var(--serif)',fontSize:23,fontWeight:700,color:'var(--accent)',marginTop:3}}>
+      {val}{un&&<span style={{fontSize:12,fontWeight:600}}> {un}</span>}</div></div>);
+  return(<div>
+    <div style={{display:'flex',gap:10,flexWrap:'wrap',marginBottom:16}}>
+      {box('Adesão (7 dias)',dias7,'/7')}
+      {box('Cardios',d.cardio.length,'')}
+      {box('Peso atual',d.peso[0]?d.peso[0].peso:'—','kg')}
+      {box('Fotos',d.photos.length,'')}
+    </div>
+    <div className="card" style={{marginBottom:14}}>
+      <div className="sec-title">Fotos enviadas</div>
+      {d.photos.length===0?<p className="s-meta">Nenhuma foto ainda.</p>:
+        <div className="photo-grid">{d.photos.map(x=>(
+          <a key={x.id} className="photo-thumb" href={x.url} target="_blank" rel="noopener">
+            <img src={x.url}/>
+            <div className="photo-cap">{x.kind==='progress'?'Progresso':'Refeição'} · {fmtTime(x.created_at)}</div>
+          </a>))}</div>}
+    </div>
+    <div className="card" style={{marginBottom:14}}>
+      <div className="sec-title">Cardio</div>
+      {d.cardio.length===0?<p className="s-meta">Nenhum registro.</p>:
+        d.cardio.map(c=>(<div key={c.id} style={{display:'flex',justifyContent:'space-between',padding:'8px 0',borderBottom:'1px solid var(--border)',fontSize:13}}>
+          <span>{fmtDate(c.day)} · {c.type}</span>
+          <span className="muted">{c.duration_min} min · {r0(c.kcal)} kcal</span></div>))}
+    </div>
+    <div className="card">
+      <div className="sec-title">Peso</div>
+      {d.peso.length===0?<p className="s-meta">Nenhum registro no diário.</p>:
+        d.peso.map(w=>(<div key={w.data} style={{display:'flex',justifyContent:'space-between',padding:'8px 0',borderBottom:'1px solid var(--border)',fontSize:13}}>
+          <span>{fmtDate(w.data)}</span><span className="muted">{w.peso} kg</span></div>))}
+    </div>
+  </div>);
+}
+
+function NutriScreen({coach,students,preStudent,onBack}){
+  const demo=!!coach._demo;
+  const [stu,setStu]=useState(preStudent||null);
+  const [q,setQ]=useState('');
+  const [uid_,setUid]=useState(undefined);   // undefined=carregando, null=aluno sem conta ativa
+  const [aba,setAba]=useState('plano');
+  const [semFicha,setSemFicha]=useState([]);
+  const [imp,setImp]=useState(null);
+
+  useEffect(()=>{if(demo){setSemFicha([]);return;}
+    sb.rpc('alunos_sem_ficha').then(({data})=>setSemFicha(data||[])).catch(()=>setSemFicha([]));},[]);
+
+  useEffect(()=>{if(!stu){setUid(undefined);return;}
+    if(demo){setUid('demo-uid');return;}
+    setUid(undefined);
+    sb.from('assess_students').select('user_id').eq('id',stu.id).maybeSingle()
+      .then(({data})=>setUid(data&&data.user_id?data.user_id:null)).catch(()=>setUid(null));},[stu&&stu.id]);
+
+  const importar=async(p)=>{
+    setImp(p.id);
+    try{
+      const {error}=await sb.rpc('ficha_criar_de_perfil',{p_uid:p.id});
+      if(error) throw error;
+      setSemFicha(l=>l.filter(x=>x.id!==p.id));
+      alert('Ficha de '+(p.name||'aluno')+' criada! Ela aparece na lista de alunos do Performance.');
+    }catch(e){alert('Erro ao importar: '+(e.message||e));}
+    setImp(null);
+  };
+
+  if(!stu){
+    const list=(students||[]).filter(s=>s.name.toLowerCase().includes(q.toLowerCase())).sort((a,b)=>a.name.localeCompare(b.name));
+    return(<div>
+      <div className="abar"><div><div className="breadcrumb" onClick={onBack}>← Painel</div>
+        <div className="ph-title">Nutrição</div><div className="ph-sub">Escolha o aluno para montar o plano alimentar</div></div></div>
+      {demo&&<div className="alert alert-warn">Modo demonstração: os planos não são salvos.</div>}
+      {semFicha.length>0&&<div className="card" style={{marginBottom:16}}>
+        <div style={{fontFamily:'var(--serif)',fontSize:17,fontWeight:600,marginBottom:4}}>Alunos vindos do MF Nutrition</div>
+        <p className="s-meta" style={{marginBottom:10}}>Estes alunos já são seus no Nutrition, mas ainda não têm ficha aqui no Performance. Importe para avaliar e montar treino.</p>
+        {semFicha.map(p=>(<div key={p.id} style={{display:'flex',alignItems:'center',gap:10,padding:'9px 0',borderBottom:'1px solid var(--border)'}}>
+          <div style={{flex:1,minWidth:0}}><div style={{fontWeight:600,fontSize:14}}>{p.name||'Sem nome'}</div>
+            <div style={{fontSize:11.5,color:'var(--text2)'}}>{p.email||''}</div></div>
+          <button className="btn btn-secondary btn-sm" disabled={imp===p.id} onClick={()=>importar(p)}>{imp===p.id?'…':'Importar'}</button>
+        </div>))}
+      </div>}
+      <div className="search-wrap" style={{marginBottom:16}}><span className="search-icon"></span>
+        <input className="fi" placeholder="Buscar aluno..." value={q} onChange={e=>setQ(e.target.value)}/></div>
+      <div className="student-grid">{list.map(s=>(
+        <div key={s.id} className="student-card" onClick={()=>setStu(s)}>
+          <div style={{fontWeight:600,fontFamily:'var(--serif)',fontSize:16}}>{s.name}</div>
+          <div style={{fontSize:12,color:'var(--text2)',marginTop:2}}>Montar plano alimentar</div>
+        </div>))}</div>
+      {list.length===0&&<div className="empty"><div className="empty-icon"></div><div className="empty-title">Nenhum aluno encontrado</div></div>}
+    </div>);
+  }
+
+  return(<div>
+    <div className="abar"><div><div className="breadcrumb" onClick={()=>setStu(null)}>← Nutrição</div>
+      <div className="ph-title">{stu.name}</div><div className="ph-sub">Plano, suplementos e registros</div></div></div>
+    {uid_&&<div style={{display:'flex',gap:8,marginBottom:16,flexWrap:'wrap'}}>
+      {[['plano','Plano alimentar'],['supp','Suplementos'],['reg','Registros']].map(([k,l])=>(
+        <button key={k} className={`btn btn-sm ${aba===k?'btn-primary':'btn-ghost'}`} onClick={()=>setAba(k)}>{l}</button>))}
+    </div>}
+    {uid_===undefined?<div className="center-screen" style={{minHeight:180}}><div className="spinner"/></div>:
+     uid_===null?(<div className="empty"><div className="empty-icon"></div>
+       <div className="empty-title">Aluno ainda não ativou a conta</div>
+       <p className="s-meta" style={{maxWidth:420,margin:'0 auto'}}>
+         O plano alimentar é entregue no app do aluno, então {stu.name.split(' ')[0]} precisa primeiro criar a conta
+         e digitar o código de acesso. Gere o código na ficha do aluno (aba Treino) e mande por WhatsApp.</p></div>):
+     aba==='supp'?<NutriSuplementos coach={coach} studentUid={uid_} studentName={stu.name} demo={demo}/>:
+     aba==='reg'?<NutriRegistros fichaId={stu.id} studentUid={uid_} demo={demo}/>:
+     <NutriPlanEditor coach={coach} studentUid={uid_} studentName={stu.name} demo={demo}/>}
+  </div>);
+}
+
+
+/* ════════════ PERIODIZAÇÃO (macro > meso > micro) ════════════ */
+const PERIO_MODELOS=['Linear','Ondulatória semanal','Ondulatória diária','Em blocos','Conjugada','Reversa','Alternada'];
+
+function PeriodizacaoScreen({coach,students,preStudent,onBack}){
+  const demo=!!coach._demo;
+  const [stu,setStu]=useState(preStudent||null);
+  const [q,setQ]=useState('');
+  const [macro,setMacro]=useState(undefined);
+  const [mesos,setMesos]=useState([]);
+  const [micros,setMicros]=useState({});
+  const [divs,setDivs]=useState([]);
+  const [msg,setMsg]=useState(null);
+  const [busy,setBusy]=useState(false);
+
+  const load=async(sid)=>{
+    if(demo){setMacro(null);return;}
+    setMacro(undefined);
+    const {data:ma}=await sb.from('train_macro').select('*').eq('student_id',sid).eq('ativo',true)
+      .order('created_at',{ascending:false}).limit(1).maybeSingle();
+    const {data:dv}=await sb.from('train_divisao').select('id,nome').eq('student_id',sid).order('ordem');
+    setDivs(dv||[]);
+    if(!ma){setMacro(null);setMesos([]);setMicros({});return;}
+    const {data:me}=await sb.from('train_meso').select('*').eq('macro_id',ma.id).order('ordem');
+    const ids=(me||[]).map(x=>x.id);
+    let mi=[];
+    if(ids.length){const r=await sb.from('train_micro').select('*').in('meso_id',ids).order('ordem');mi=r.data||[];}
+    const map={};(me||[]).forEach(x=>map[x.id]=mi.filter(y=>y.meso_id===x.id));
+    setMacro(ma);setMesos(me||[]);setMicros(map);
+  };
+  useEffect(()=>{if(stu)load(stu.id);},[stu&&stu.id]);
+
+  const erro=e=>setMsg({t:'err',m:/train_macro|does not exist|PGRST205|42P01/.test(e.message||'')
+    ?'Rode o SQL da periodização no Supabase para liberar esta tela.':'Erro: '+(e.message||e)});
+
+  const criarMacro=async()=>{
+    if(demo)return;
+    setBusy(true);
+    const {data,error}=await sb.from('train_macro').insert({coach_id:coach.id,student_id:stu.id,
+      nome:'Macrociclo',data_inicio:todayStr()}).select().single();
+    setBusy(false);
+    if(error){erro(error);return;}
+    setMacro(data);setMesos([]);setMicros({});
+  };
+  const salvarMacro=async(campos)=>{setMacro(m=>({...m,...campos}));
+    if(!demo)await sb.from('train_macro').update(campos).eq('id',macro.id);};
+
+  const addMeso=async()=>{
+    const {data,error}=await sb.from('train_meso').insert({macro_id:macro.id,
+      nome:'Fase '+(mesos.length+1),modelo:'Linear',ordem:mesos.length}).select().single();
+    if(error){erro(error);return;}
+    setMesos(l=>[...l,data]);setMicros(m=>({...m,[data.id]:[]}));
+  };
+  const updMeso=async(id,campos)=>{setMesos(l=>l.map(x=>x.id===id?{...x,...campos}:x));
+    await sb.from('train_meso').update(campos).eq('id',id);};
+  const delMeso=async(id)=>{if(!confirm('Excluir esta fase e os microciclos dela?'))return;
+    setMesos(l=>l.filter(x=>x.id!==id));await sb.from('train_meso').delete().eq('id',id);};
+
+  const addMicro=async(mesoId)=>{
+    const atuais=micros[mesoId]||[];
+    const {data,error}=await sb.from('train_micro').insert({meso_id:mesoId,
+      nome:'Semana '+(atuais.length+1),ordem:atuais.length,semanas:1,volume:100,intensidade:100}).select().single();
+    if(error){erro(error);return;}
+    setMicros(m=>({...m,[mesoId]:[...atuais,data]}));
+  };
+  const updMicro=async(mesoId,id,campos)=>{
+    setMicros(m=>({...m,[mesoId]:(m[mesoId]||[]).map(x=>x.id===id?{...x,...campos}:x)}));
+    await sb.from('train_micro').update(campos).eq('id',id);};
+  const delMicro=async(mesoId,id)=>{
+    setMicros(m=>({...m,[mesoId]:(m[mesoId]||[]).filter(x=>x.id!==id)}));
+    await sb.from('train_micro').delete().eq('id',id);};
+
+  const totalSemanas=mesos.reduce((a,me)=>a+(micros[me.id]||[]).reduce((b,mi)=>b+(mi.semanas||0),0),0);
+  const fim=(()=>{if(!macro||!macro.data_inicio||!totalSemanas)return null;
+    const d=new Date(macro.data_inicio+'T00:00:00');d.setDate(d.getDate()+totalSemanas*7-1);return d.toLocaleDateString('pt-BR');})();
+
+  if(!stu){
+    const list=(students||[]).filter(x=>x.name.toLowerCase().includes(q.toLowerCase())).sort((a,b)=>a.name.localeCompare(b.name));
+    return(<div>
+      <div className="abar"><div><div className="breadcrumb" onClick={onBack}>← Painel</div>
+        <div className="ph-title">Periodização</div>
+        <div className="ph-sub">Escolha o aluno para planejar macro, meso e microciclos</div></div></div>
+      <div className="search-wrap" style={{marginBottom:16}}><span className="search-icon"></span>
+        <input className="fi" placeholder="Buscar aluno..." value={q} onChange={e=>setQ(e.target.value)}/></div>
+      <div className="student-grid">{list.map(x=>(
+        <div key={x.id} className="student-card" onClick={()=>setStu(x)}>
+          <div style={{fontWeight:600,fontFamily:'var(--serif)',fontSize:16}}>{x.name}</div>
+          <div style={{fontSize:12,color:'var(--text2)',marginTop:2}}>Planejar temporada</div>
+        </div>))}</div>
+    </div>);
+  }
+
+  return(<div>
+    <div className="abar"><div><div className="breadcrumb" onClick={()=>setStu(null)}>← Periodização</div>
+      <div className="ph-title">{stu.name}</div>
+      <div className="ph-sub">{totalSemanas>0?`${totalSemanas} semanas planejadas${fim?' · termina em '+fim:''}`:'Sem plano ainda'}</div></div></div>
+    {msg&&<div className={`alert ${msg.t==='err'?'alert-danger':'alert-success'}`}>{msg.m}</div>}
+    {demo&&<div className="alert alert-warn">Modo demonstração: o plano não é salvo.</div>}
+
+    {macro===undefined?<div className="center-screen" style={{minHeight:180}}><div className="spinner"/></div>:
+     macro===null?(<div className="empty">
+       <div className="empty-title">Nenhum macrociclo</div>
+       <p className="s-meta" style={{maxWidth:460,margin:'0 auto 16px'}}>
+         O macrociclo é o plano inteiro. Dentro dele você cria fases (mesociclos) e,
+         dentro de cada fase, os microciclos — que podem ter uma ou várias semanas cada.</p>
+       <button className="btn btn-primary" disabled={busy} onClick={criarMacro}>Criar macrociclo</button></div>):
+    (<>
+      <div className="card" style={{marginBottom:14}}>
+        <div className="fgrid">
+          <FI label="Nome do macrociclo" value={macro.nome||''} onChange={e=>salvarMacro({nome:e.target.value})}/>
+          <FI label="Início" type="date" value={macro.data_inicio||''} onChange={e=>salvarMacro({data_inicio:e.target.value})}/>
+        </div>
+        <FI label="Objetivo" value={macro.objetivo||''} onChange={e=>salvarMacro({objetivo:e.target.value})}
+          placeholder="Ex.: ganho de massa magra com manutenção de percentual de gordura"/>
+      </div>
+
+      {mesos.map((me,mi_)=>{
+        const lista=micros[me.id]||[];
+        const sem=lista.reduce((a,x)=>a+(x.semanas||0),0);
+        return(<div className="card" key={me.id} style={{marginBottom:12}}>
+          <div className="fgrid" style={{gridTemplateColumns:'2fr 1.4fr auto'}}>
+            <FI label={'Fase '+(mi_+1)} value={me.nome||''} onChange={e=>updMeso(me.id,{nome:e.target.value})}/>
+            <div className="fg"><label className="flbl">Modelo</label>
+              <select className="fi" value={me.modelo||'Linear'} onChange={e=>updMeso(me.id,{modelo:e.target.value})}>
+                {PERIO_MODELOS.map(x=><option key={x}>{x}</option>)}</select></div>
+            <div style={{display:'flex',alignItems:'flex-end'}}>
+              <button className="btn-icon" title="Excluir fase" onClick={()=>delMeso(me.id)}>×</button></div>
+          </div>
+          <FI label="Foco" value={me.foco||''} onChange={e=>updMeso(me.id,{foco:e.target.value})}
+            placeholder="Ex.: adaptação anatômica, força máxima, choque metabólico"/>
+          <div className="s-meta" style={{margin:'8px 0 4px'}}>{sem} semana{sem!==1?'s':''} nesta fase</div>
+
+          {lista.map(x=>(
+            <div key={x.id} style={{background:'var(--bg3,#f7f4ef)',borderRadius:12,padding:12,marginTop:8}}>
+              <div className="fgrid" style={{gridTemplateColumns:'2fr 1fr 1fr 1fr auto'}}>
+                <FI label="Microciclo" value={x.nome||''} onChange={e=>updMicro(me.id,x.id,{nome:e.target.value})}/>
+                <FI label="Semanas" type="number" value={x.semanas} onChange={e=>updMicro(me.id,x.id,{semanas:Math.max(1,parseInt(e.target.value)||1)})}/>
+                <FI label="Volume %" type="number" value={x.volume==null?'':x.volume} onChange={e=>updMicro(me.id,x.id,{volume:e.target.value===''?null:parseInt(e.target.value)})}/>
+                <FI label="Intens. %" type="number" value={x.intensidade==null?'':x.intensidade} onChange={e=>updMicro(me.id,x.id,{intensidade:e.target.value===''?null:parseInt(e.target.value)})}/>
+                <div style={{display:'flex',alignItems:'flex-end'}}>
+                  <button className="btn-icon" title="Excluir microciclo" onClick={()=>delMicro(me.id,x.id)}>×</button></div>
+              </div>
+              <div className="fgrid" style={{gridTemplateColumns:'2fr 1fr',marginTop:8}}>
+                <div className="fg"><label className="flbl">Ficha de treino</label>
+                  <select className="fi" value={x.divisao_id||''} onChange={e=>updMicro(me.id,x.id,{divisao_id:e.target.value||null})}>
+                    <option value="">Mantém a ficha atual</option>
+                    {divs.map(d=><option key={d.id} value={d.id}>{d.nome}</option>)}</select></div>
+                <div className="fg"><label className="flbl">Semana de descarga</label>
+                  <select className="fi" value={x.deload?'1':'0'} onChange={e=>updMicro(me.id,x.id,{deload:e.target.value==='1'})}>
+                    <option value="0">Não</option><option value="1">Sim</option></select></div>
+              </div>
+            </div>))}
+          <button className="btn btn-secondary btn-sm" style={{marginTop:10}} onClick={()=>addMicro(me.id)}>Adicionar microciclo</button>
+        </div>);})}
+
+      <button className="btn btn-primary" style={{width:'100%'}} onClick={addMeso}>Adicionar fase (mesociclo)</button>
+    </>)}
+  </div>);
+}
+
+/* Card do aluno: em que semana do plano ele está */
+function PeriodizacaoAluno({demo}){
+  const [p,setP]=useState(undefined);
+  useEffect(()=>{
+    if(demo){setP({ok:true,macro:true,macro_nome:'Temporada 2026',semana_atual:7,semanas_total:24,
+      atual:{micro_nome:'Semana 3',meso_nome:'Hipertrofia',modelo:'Ondulatória semanal',
+      foco:'Volume alto, pausas curtas',volume:110,intensidade:75,deload:false,divisao:'A — Membros inferiores'}});return;}
+    if(!sb){setP(null);return;}
+    sb.rpc('periodizacao_atual',{p_student:null}).then(({data,error})=>setP(error?null:data)).catch(()=>setP(null));
+  },[demo]);
+
+  if(!p||!p.ok||!p.macro||!p.atual)return null;
+  const a=p.atual;
+  const pct=p.semanas_total?Math.min(100,Math.round((p.semana_atual/p.semanas_total)*100)):0;
+  return(<div className="lv-card">
+    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
+      <div className="lv-kick">{p.macro_nome}</div>
+      <span style={{fontSize:12,fontWeight:800,color:'var(--lvt2)'}}>semana {p.semana_atual} de {p.semanas_total}</span>
+    </div>
+    <div style={{fontSize:17,fontWeight:800}}>{a.meso_nome}{a.deload?' — descarga':''}</div>
+    <div className="lv-sub">{a.micro_nome} · {a.modelo}</div>
+    {a.foco&&<div className="lv-sub" style={{marginTop:6,lineHeight:1.5}}>{a.foco}</div>}
+    <div className="lv-freq" style={{marginTop:10}}><i style={{width:pct+'%'}}/></div>
+    {(a.volume!=null||a.intensidade!=null)&&<div style={{display:'flex',gap:10,marginTop:12}}>
+      {a.volume!=null&&<div style={{flex:1,textAlign:'center',background:'var(--lvc2)',borderRadius:12,padding:'9px 4px'}}>
+        <div style={{fontSize:18,fontWeight:800,color:'var(--lvrx)'}}>{a.volume}%</div>
+        <div className="lv-sub" style={{fontSize:10.5}}>volume</div></div>}
+      {a.intensidade!=null&&<div style={{flex:1,textAlign:'center',background:'var(--lvc2)',borderRadius:12,padding:'9px 4px'}}>
+        <div style={{fontSize:18,fontWeight:800,color:'var(--lvrx)'}}>{a.intensidade}%</div>
+        <div className="lv-sub" style={{fontSize:10.5}}>intensidade</div></div>}
+    </div>}
+  </div>);
+}
+
 function App({profile,setProfile}){
   const coachId=profile.id;
   const [students,setStudents]=useState(null);
@@ -4918,6 +6245,8 @@ function App({profile,setProfile}){
         <button className={`nav-btn ${view==='intakes'?'active':''}`} onClick={()=>{setSelStudent(null);go('intakes');}}>Fichas online{intakeCount>0&&<span style={{marginLeft:6,background:'var(--gold)',color:'#1c0f16',borderRadius:10,padding:'0 7px',fontSize:11,fontWeight:700}}>{intakeCount}</span>}</button>
         <button className={`nav-btn ${view==='train'?'active':''}`} onClick={()=>{setSelStudent(null);go('train');}}>Treino</button>
         <button className={`nav-btn ${view==='tech'?'active':''}`} onClick={()=>{setSelStudent(null);go('tech');}}>Avaliação técnica</button>
+        <button className={`nav-btn ${view==='nutri'?'active':''}`} onClick={()=>{setSelStudent(null);go('nutri');}}>Nutrição</button>
+        <button className={`nav-btn ${view==='perio'?'active':''}`} onClick={()=>{setSelStudent(null);go('perio');}}>Periodização</button>
         <button className={`nav-btn ${view==='protocols'?'active':''}`} onClick={()=>go('protocols')}>Protocolos</button>
         {selStudent&&<>
           <hr className="nav-divider"/>
@@ -4935,10 +6264,16 @@ function App({profile,setProfile}){
           <div style={{display:'flex',alignItems:'center',gap:9,marginBottom:10}}>
             <div className="avatar" style={{width:34,height:34,fontSize:13}}>{initials(profile.name)}</div>
             <div style={{minWidth:0}}><div style={{fontWeight:600,fontSize:12.5,color:'var(--text)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{profile.name||'Treinador'}</div>
-              {daysLeft!=null&&<div style={{fontSize:10.5,color:daysLeft<=5?'var(--red)':'var(--text3)'}}>Assinatura: {daysLeft} dia{daysLeft!==1?'s':''}</div>}</div>
+              {daysLeft!=null&&<div style={{fontSize:10.5,color:daysLeft<=5?'var(--red)':'var(--text3)'}}>
+                {daysLeft>3650?'Assinatura: ilimitada':`Assinatura: ${daysLeft} dia${daysLeft!==1?'s':''}`}</div>}</div>
           </div>
           <button className="btn btn-ghost btn-sm" style={{width:'100%'}} onClick={()=>sb.auth.signOut()}>Sair</button>
           <div style={{marginTop:8}}>{(students||[]).length} aluno{students.length!==1?'s':''} · {evals.length} avaliaç{evals.length!==1?'ões':'ão'} · nuvem</div>
+          <div style={{marginTop:6,display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+            <span style={{fontSize:10.5,color:'var(--text3)'}}>versão {APP_VERSION}</span>
+            <button className="link" style={{fontSize:10.5,background:'none',border:'none',padding:0,cursor:'pointer'}}
+              onClick={()=>window.MFP_forcarAtualizacao&&window.MFP_forcarAtualizacao()}>forçar atualização</button>
+          </div>
         </div>
       </div>
 
@@ -4962,18 +6297,20 @@ function App({profile,setProfile}){
           {view==='dashboard'&&<Dashboard students={students} evals={evals}
             onSelect={s=>{setSelStudent(s);go('detail');}} onNew={()=>{setEditStu(null);go('stu-form');}} onDelete={delStu}
             onReassess={s=>{setSelStudent(s);setEditEv(null);setReassess(true);go('ev-form');}}
-            onSchedule={s=>{setSelStudent(s);go('agenda');}} onTrain={s=>{setSelStudent(s);go('train');}}/>}
+            onSchedule={s=>{setSelStudent(s);go('agenda');}} onTrain={s=>{setSelStudent(s);go('train');}} demo={!!profile._demo}/>}
           {view==='agenda'&&<AgendaScreen coach={profile} students={students} preStudent={selStudent} onBack={()=>go('dashboard')}/>}
           {view==='intakes'&&<IntakeInbox coach={profile} students={students} onImport={importIntake} onBack={()=>go('dashboard')}/>}
           {view==='tech'&&<TechScreen coach={profile} students={students} preStudent={selStudent} onBack={()=>go('dashboard')}/>}
           {view==='train'&&<TrainScreen coach={profile} students={students} preStudent={selStudent} onBack={()=>go('dashboard')}/>}
+          {view==='nutri'&&<NutriScreen coach={profile} students={students} preStudent={selStudent} onBack={()=>go('dashboard')}/>}
+          {view==='perio'&&<PeriodizacaoScreen coach={profile} students={students} preStudent={selStudent} onBack={()=>go('dashboard')}/>}
           {view==='stu-form'&&<StudentForm student={editStu} onSave={saveStu} onCancel={()=>go(selStudent?'detail':'dashboard')}/>}
           {view==='detail'&&selStudent&&<StudentDetail student={selStudent} evals={stuEvals}
             onNewEval={()=>{setEditEv(null);setReassess(false);go('ev-form');}}
             onReassess={()=>{setEditEv(null);setReassess(true);go('ev-form');}}
             onEditEval={ev=>{setEditEv(ev);setReassess(false);go('ev-form');}}
             onDeleteEval={delEv} onReport={ev=>{setSelEval(ev);go('report');}}
-            onBack={()=>go('dashboard')} onEdit={()=>{setEditStu(selStudent);go('stu-form');}} onTech={()=>go('tech')} onTrain={()=>go('train')}/>}
+            onBack={()=>go('dashboard')} onEdit={()=>{setEditStu(selStudent);go('stu-form');}} onTech={()=>go('tech')} onTrain={()=>go('train')} onNutri={()=>go('nutri')}/>}
           {view==='ev-form'&&selStudent&&<EvalForm student={selStudent} evalData={editEv}
             carryHeight={reassess?lastHeight:''} isReassess={reassess&&!editEv}
             onSave={saveEv} onCancel={()=>go('detail')}/>}
@@ -4987,25 +6324,106 @@ function App({profile,setProfile}){
 /* ══════════════ App do ALUNO — execução do treino ══════════════ */
 const _DEMO_ALUNO_DIVS=[{id:'d1',nome:'A — Membros inferiores'},{id:'d2',nome:'B — Membros superiores'}];
 const _DEMO_AVISOS=[
-  {id:'a1',tipo:'parabens',titulo:'Parabéns pelo novo recorde! 🏆',texto:'Você bateu 60kg no leg press. Segue firme que os resultados estão vindo.',lido:false,created_at:new Date(Date.now()-3600e3).toISOString()},
+  {id:'a1',tipo:'parabens',titulo:'Parabéns pelo novo recorde!',texto:'Você bateu 60kg no leg press. Segue firme que os resultados estão vindo.',lido:false,created_at:new Date(Date.now()-3600e3).toISOString()},
   {id:'a2',tipo:'lembrete',titulo:'Treino de hoje te espera',texto:'Bora fechar mais um treino? Lembra de registrar as cargas pra acompanharmos sua evolução.',lido:false,created_at:new Date(Date.now()-26*3600e3).toISOString()},
   {id:'a3',tipo:'aviso',titulo:'Sua avaliação está chegando',texto:'Semana que vem faremos sua reavaliação. Mantenha a hidratação e o sono em dia!',lido:true,created_at:new Date(Date.now()-3*86400e3).toISOString()}
 ];
-const AVISO_ICON={lembrete:'⏰',parabens:'🏆',aviso:'📣',treino:'🏋️'};
+const AVISO_ICON={lembrete:'',parabens:'',aviso:'',treino:''};
 const MOTIV_FRASES=['Disciplina é fazer mesmo sem vontade.','Cada treino te aproxima da sua melhor versão.','O corpo alcança o que a mente acredita.','Constância vence intensidade.','Você é mais forte do que sua desculpa.'];
 const _DEMO_ALUNO_SERIES={
   d1:[{id:'s1',exercicio_id:'x1',exercicio_nome:'Agachamento Livre',tipo_serie:'Valida',qtd_series:3,faixa_reps:'8-12',intervalo_seg_min:90},
       {id:'s2',exercicio_id:'x2',exercicio_nome:'Leg Press',tipo_serie:'Valida',qtd_series:3,faixa_reps:'10-15',intervalo_seg_min:60}],
   d2:[{id:'s3',exercicio_id:'x3',exercicio_nome:'Supino',tipo_serie:'Valida',qtd_series:4,faixa_reps:'8-10',intervalo_seg_min:90}]};
 
+
+/* ── Feedback do treino: o aluno responde na hora que termina ──
+   Antes existia so "fale com o treinador", que dependia da iniciativa
+   dele e por isso quase nunca acontecia. */
+const FB_ESCALA=[
+  ['dificuldade','Como foi a dificuldade?',['Muito fácil','Fácil','Na medida','Difícil','Pesado demais']],
+  ['dor','Sentiu dor ou desconforto?',['Nenhuma','Leve','Moderada','Forte','Muito forte']],
+];
+function FeedbackTreino({divisao,demo,onPronto}){
+  const [v,setV]=useState({rpe:7,dificuldade:3,dor:1});
+  const [nota,setNota]=useState('');
+  const [busy,setBusy]=useState(false);
+  const [erro,setErro]=useState(null);
+
+  const enviar=async()=>{
+    setBusy(true);setErro(null);
+    if(!demo){
+      try{
+        const {error}=await sb.rpc('treino_feedback',{
+          p_divisao:(divisao&&divisao.id)||null, p_divisao_nome:(divisao&&divisao.nome)||null,
+          p_rpe:v.rpe, p_dificuldade:v.dificuldade, p_dor:v.dor, p_nota:nota||null});
+        if(error)throw error;
+      }catch(e){
+        const m=e.message||String(e);
+        setBusy(false);
+        setErro(/train_feedback|does not exist|PGRST202|PGRST205|42P01/.test(m)
+          ?'Seu treinador precisa rodar a última atualização do banco. Seu treino já foi salvo normalmente.'
+          :'Não consegui enviar: '+m);
+        return;
+      }
+    }
+    setBusy(false);onPronto();
+  };
+
+  const escala=(k,lbl,rotulos)=>(
+    <div style={{marginBottom:16}}>
+      <div style={{fontWeight:700,fontSize:14,marginBottom:8}}>{lbl}</div>
+      <div className="lv-setchips" style={{margin:0}}>
+        {rotulos.map((r,i)=>(
+          <button key={i} className={'lv-setchip'+(v[k]===i+1?' on':'')}
+            style={v[k]===i+1?{borderColor:'var(--lvrx)',color:'#fff',background:'rgba(139,92,246,.22)'}:null}
+            onClick={()=>setV(x=>({...x,[k]:i+1}))}>{r}</button>))}
+      </div>
+    </div>);
+
+  return(<div className="lv-wrap" style={{maxWidth:520}}>
+    <div className="lv-title" style={{marginBottom:4}}>Como foi o treino?</div>
+    <p className="lv-sub" style={{marginBottom:18}}>
+      Leva 15 segundos e é o que permite seu treinador ajustar a carga da próxima sessão.</p>
+
+    <div className="lv-card">
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:8}}>
+        <span style={{fontWeight:700,fontSize:14}}>Esforço percebido</span>
+        <span style={{fontWeight:800,fontSize:20,color:'var(--lvrx)'}}>{v.rpe}<span style={{fontSize:12,color:'var(--lvt3)'}}>/10</span></span>
+      </div>
+      <input type="range" min="1" max="10" value={v.rpe} style={{width:'100%'}}
+        onChange={e=>setV(x=>({...x,rpe:+e.target.value}))}/>
+      <div style={{display:'flex',justifyContent:'space-between'}}>
+        <span className="lv-sub" style={{fontSize:11.5}}>tranquilo</span>
+        <span className="lv-sub" style={{fontSize:11.5}}>no limite</span>
+      </div>
+    </div>
+
+    <div className="lv-card">
+      {FB_ESCALA.map(([k,lbl,rot])=><div key={k}>{escala(k,lbl,rot)}</div>)}
+      <div>
+        <div style={{fontWeight:700,fontSize:14,marginBottom:8}}>Quer contar mais alguma coisa?</div>
+        <textarea className="lv-in" rows={3} value={nota} onChange={e=>setNota(e.target.value)}
+          placeholder="Ex.: senti o ombro no supino, a última série do agachamento foi longe demais…"/>
+      </div>
+    </div>
+
+    {erro&&<div className="lv-card" style={{borderColor:'rgba(245,158,11,.5)'}}>
+      <div className="lv-sub" style={{lineHeight:1.5}}>{erro}</div></div>}
+
+    <button className="lv-btn" disabled={busy} onClick={enviar}>{busy?'Enviando…':'Enviar e finalizar'}</button>
+    <button className="lv-ghost" style={{width:'100%',marginTop:10,padding:'11px'}} onClick={onPronto}>Pular</button>
+  </div>);
+}
+
 function TrainExec({student,divisao,demo,best,onBack,onSaved,onFinish}){
   const [series,setSeries]=useState(demo?(_DEMO_ALUNO_SERIES[divisao.id]||[]):null);
   const [vals,setVals]=useState({});const [done,setDone]=useState({});const [active,setActive]=useState({});
   const [openEx,setOpenEx]=useState(0);const [rest,setRest]=useState(0);const [restName,setRestName]=useState('');
-  const [paused,setPaused]=useState(false);const [tot,setTot]=useState(0);const [cel,setCel]=useState(null);const [vid,setVid]=useState({});const [demoOn,setDemoOn]=useState({});const [finished,setFinished]=useState(null);
+  const [paused,setPaused]=useState(false);const [tot,setTot]=useState(0);const [cel,setCel]=useState(null);const [vid,setVid]=useState({});const [demoOn,setDemoOn]=useState({});const [finished,setFinished]=useState(null);const [fbAberto,setFbAberto]=useState(false);
   useEffect(()=>{if(demo)return;(async()=>{const {data}=await sb.from('train_serie_prescrita').select('*').eq('divisao_id',divisao.id).order('ordem');setSeries(data||[]);
     const ids=[...new Set((data||[]).map(s=>s.exercicio_id).filter(Boolean))];
-    if(ids.length){const {data:ex}=await sb.from('train_exercicios').select('id,video_url').in('id',ids);const m={};(ex||[]).forEach(e=>{if(e.video_url)m[e.id]=e.video_url;});setVid(m);}})();},[]);
+    if(ids.length){const {data:ex}=await sb.from('train_exercicios').select('id,video_url,video_path').in('id',ids);
+      const m={};(ex||[]).forEach(e=>{if(e.video_url||e.video_path)m[e.id]={url:e.video_url,path:e.video_path};});setVid(m);}})();},[]);
   useEffect(()=>{const t=setInterval(()=>setTot(x=>x+1),1000);return()=>clearInterval(t);},[]);
   useEffect(()=>{if(rest<=0||paused)return;const t=setInterval(()=>setRest(r=>r<=1?0:r-1),1000);return()=>clearInterval(t);},[rest>0,paused]);
   const exs=React.useMemo(()=>{const m=new Map();(series||[]).forEach(s=>{const k=s.exercicio_id||s.exercicio_nome;if(!m.has(k))m.set(k,{key:k,nome:s.exercicio_nome,exercicio_id:s.exercicio_id,tiers:[]});m.get(k).tiers.push(s);});const ord={Aquecimento:0,Preparatoria:1,Valida:2};const a=[...m.values()];a.forEach(e=>e.tiers.sort((x,y)=>(ord[x.tipo_serie]??9)-(ord[y.tipo_serie]??9)));return a;},[series]);
@@ -5030,7 +6448,7 @@ function TrainExec({student,divisao,demo,best,onBack,onSaved,onFinish}){
   const tlabel=t=>t==='Aquecimento'?'Aquec':t==='Preparatoria'?'Prep':'Válidas';
 
   return(<div className="lv-wrap">
-    {cel&&<><div className="lv-cel"><div className="lv-trophy">🏆</div><h2>NOVO RECORDE!</h2><div style={{fontSize:20,fontWeight:800}}>{cel.carga} kg</div><div className="lv-sub" style={{marginTop:6}}>Você superou seu melhor. Bora!</div></div>
+    {cel&&<><div className="lv-cel"><div className="lv-trophy"></div><h2>NOVO RECORDE!</h2><div style={{fontSize:20,fontWeight:800}}>{cel.carga} kg</div><div className="lv-sub" style={{marginTop:6}}>Você superou seu melhor. Bora!</div></div>
       {cel.parts.map((p,i)=><div key={i} className="lv-confetti" style={{left:p.l+'vw',background:p.c,animationDuration:p.t+'s',animationDelay:p.d+'s'}}/>)}</>}
 
     <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
@@ -5053,7 +6471,7 @@ function TrainExec({student,divisao,demo,best,onBack,onSaved,onFinish}){
         </div>
         {open&&<div style={{marginTop:14}}>
           <button className="lv-ghost" style={{marginBottom:demoOn[e.key]?8:12}} onClick={()=>setDemoOn(p=>({...p,[e.key]:!p[e.key]}))}>▶ {demoOn[e.key]?'Ocultar':'Ver'} demonstração</button>
-          {demoOn[e.key]&&<div style={{marginBottom:14}}><ExDemo url={vid[e.exercicio_id]} name={e.nome}/></div>}
+          {demoOn[e.key]&&<div style={{marginBottom:14}}><ExDemo url={(vid[e.exercicio_id]||{}).url} path={(vid[e.exercicio_id]||{}).path} name={e.nome}/></div>}
           {e.tiers.map(t=>{const ai=activeIdx(t);const complete=tierDoneCount(t)>=t.qtd_series;const iv=t.intervalo_seg_min||60;
             return(<div key={t.id} style={{marginBottom:16}}>
               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
@@ -5061,7 +6479,7 @@ function TrainExec({student,divisao,demo,best,onBack,onSaved,onFinish}){
                 <span className="lv-sub">{complete?'concluído ✓':`Reps ${t.faixa_reps} · desc. ${Math.floor(iv/60)}:${String(iv%60).padStart(2,'0')}`}</span>
               </div>
               <div className="lv-setchips">{Array.from({length:t.qtd_series}).map((_,i)=>{const dn=done[t.id+'_'+i];const isA=!dn&&i===ai;
-                return(<div key={i} className={'lv-setchip '+(dn?'done':isA?'active':'')} onClick={()=>!dn&&setActive(p=>({...p,[t.id]:i}))}>{dn?'✓ ':''}{i+1}ª{dn&&<div style={{fontSize:10,fontWeight:600,marginTop:2}}>{dn.carga}kg{dn.isPr?' 🏆':''}</div>}</div>);})}</div>
+                return(<div key={i} className={'lv-setchip '+(dn?'done':isA?'active':'')} onClick={()=>!dn&&setActive(p=>({...p,[t.id]:i}))}>{dn?'✓ ':''}{i+1}ª{dn&&<div style={{fontSize:10,fontWeight:600,marginTop:2}}>{dn.carga}kg{dn.isPr?'':''}</div>}</div>);})}</div>
               {!complete&&ai<t.qtd_series&&<div>
                 <div style={{display:'flex',gap:10,marginBottom:10}}>
                   <div style={{flex:1}}><span className="lv-inlbl">Peso (kg)</span><input className="lv-in" type="number" inputMode="decimal" placeholder="kg" value={(vals[t.id+'_'+ai]||{}).carga||''} onChange={ev=>setV(t.id+'_'+ai,'carga',ev.target.value)}/></div>
@@ -5080,16 +6498,21 @@ function TrainExec({student,divisao,demo,best,onBack,onSaved,onFinish}){
     }}>✓ Finalizar treino</button>}
     <div style={{height:rest>0?96:16}}/>
 
-    {finished&&<div className="lv-cel" style={{padding:'24px 20px'}}>
-      <div className="lv-trophy">💪</div>
+    {finished&&fbAberto&&<div className="lv-cel" style={{padding:'20px 8px',overflowY:'auto',alignItems:'stretch',justifyContent:'flex-start'}}>
+      <FeedbackTreino divisao={divisao} demo={demo}
+        onPronto={()=>{setFbAberto(false);if(onFinish)onFinish();onBack();}}/>
+    </div>}
+    {finished&&!fbAberto&&<div className="lv-cel" style={{padding:'24px 20px'}}>
+      <div className="lv-trophy"></div>
       <h2 style={{background:'linear-gradient(90deg,#4ade80,#8b5cf6)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>TREINO CONCLUÍDO!</h2>
       <div style={{display:'flex',gap:22,marginTop:16}}>
         <div style={{textAlign:'center'}}><div style={{fontSize:26,fontWeight:800}}>{finished.sets}</div><div className="lv-sub">séries</div></div>
         <div style={{textAlign:'center'}}><div style={{fontSize:26,fontWeight:800}}>{(finished.ton/1000).toFixed(1).replace('.',',')}t</div><div className="lv-sub">volume</div></div>
         <div style={{textAlign:'center'}}><div style={{fontSize:26,fontWeight:800}}>{fmtT(finished.tempo)}</div><div className="lv-sub">tempo</div></div>
       </div>
-      {finished.prs>0&&<div className="lv-pill" style={{background:'rgba(251,191,36,.16)',color:'#fbbf24',marginTop:16,fontSize:14}}>🏆 {finished.prs} novo{finished.prs>1?'s':''} recorde{finished.prs>1?'s':''}!</div>}
-      <button className="lv-btn" style={{marginTop:22,maxWidth:280}} onClick={()=>{if(onFinish)onFinish();onBack();}}>Voltar ao início</button>
+      {finished.prs>0&&<div className="lv-pill" style={{background:'rgba(251,191,36,.16)',color:'#fbbf24',marginTop:16,fontSize:14}}>{finished.prs} novo{finished.prs>1?'s':''} recorde{finished.prs>1?'s':''}!</div>}
+      <button className="lv-btn" style={{marginTop:22,maxWidth:280}} onClick={()=>setFbAberto(true)}>Contar como foi</button>
+      <button className="lv-ghost" style={{marginTop:10,padding:'10px 22px'}} onClick={()=>{if(onFinish)onFinish();onBack();}}>Voltar ao início</button>
     </div>}
 
     {rest>0&&!finished&&<div className="lv-rest">
@@ -5154,7 +6577,7 @@ function EvolScreen({student,demo,onBack}){
               <div style={{fontFamily:'Playfair Display,serif',fontSize:34,fontWeight:700}}>{fmt(last)} kg</div>
               <span className="lv-pill" style={{background:pct>=0?'rgba(74,222,128,.16)':'rgba(225,29,72,.16)',color:pct>=0?'#86efac':'#fda4af'}}>{pct>=0?'▲ +':'▼ '}{pct}% desde o início</span>
             </div>
-            <div className="lv-sub" style={{marginTop:2}}>Última carga máxima · {fmtDate(ss[ss.length-1].date)}{prs>0&&` · 🏆 ${prs} recorde${prs>1?'s':''}`}</div>
+            <div className="lv-sub" style={{marginTop:2}}>Última carga máxima · {fmtDate(ss[ss.length-1].date)}{prs>0&&` · ${prs} recorde${prs>1?'s':''}`}</div>
           </div>
           <div className="lv-card">
             <div className="lv-kick" style={{marginBottom:8}}>Estimativa da próxima sessão</div>
@@ -5174,41 +6597,51 @@ function HydraScreen({student,demo,onBack}){
   const [today,setToday]=useState(demo?1750:0);
   const [week,setWeek]=useState(demo?[['Seg',2400],['Ter',1800],['Qua',2600],['Qui',2200],['Sex',2500],['Sáb',1200],['Dom',1750]]:null);
   const [cel,setCel]=useState(false);const hitRef=useRef(false);
+  const [splash,setSplash]=useState(0);
   const cap=500;
   useEffect(()=>{if(demo)return;(async()=>{
     let w=null;try{const {data:av}=await sb.from('assessments').select('data,date').order('date',{ascending:false}).limit(1);if(av&&av[0])w=av[0].data&&av[0].data.weight;}catch(e){}
     const m=w?Math.round(num(w)*35/50)*50:2500;setMeta(m);
-    const monday=new Date();monday.setDate(monday.getDate()-((monday.getDay()+6)%7));const mk=monday.toISOString().slice(0,10);
+    const monday=new Date();monday.setDate(monday.getDate()-((monday.getDay()+6)%7));const mk=dayKey(monday);
     const {data:hs}=await sb.from('train_hidratacao').select('data,total_ml').gte('data',mk).order('data');
     const map={};(hs||[]).forEach(h=>map[h.data]=h.total_ml);
     const labels=['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];const wk=[];
-    for(let i=0;i<7;i++){const d=new Date(monday);d.setDate(d.getDate()+i);const ds=d.toISOString().slice(0,10);wk.push([labels[i],map[ds]||0]);}
+    for(let i=0;i<7;i++){const d=new Date(monday);d.setDate(d.getDate()+i);const ds=dayKey(d);wk.push([labels[i],map[ds]||0]);}
     setWeek(wk);setToday(map[todayStr()]||0);
   })();},[]);
   const add=async(ml)=>{const nt=today+ml;setToday(nt);
+    setSplash(x=>x+1);setTimeout(()=>setSplash(x=>Math.max(0,x-1)),700);
+    try{navigator.vibrate&&navigator.vibrate(15);}catch(e){}
     if(nt>=meta&&!hitRef.current){hitRef.current=true;setCel(true);try{navigator.vibrate&&navigator.vibrate([40,40,120]);}catch(e){}setTimeout(()=>setCel(false),2600);}
     if(!demo){try{const {data}=await sb.rpc('hidratar',{p_ml:ml});if(data!=null)setToday(data);}catch(e){}}};
   const pct=Math.min(1,meta?today/meta:0);const full=today>=meta&&today>0;
   const fillY=118-pct*(118-8);
   const weekMax=Math.max(meta,...((week||[]).map(w=>w[1])),1);
   return(<div className="lv-wrap">
-    {cel&&<><div className="lv-cel"><div className="lv-trophy" style={{filter:'drop-shadow(0 0 24px rgba(74,222,128,.8))'}}>💧</div><h2 style={{background:'linear-gradient(90deg,#4ade80,#22d3ee)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>META BATIDA!</h2><div className="lv-sub" style={{marginTop:6}}>Hidratação em dia. Performance e recuperação garantidas.</div></div>
+    {cel&&<><div className="lv-cel"><div className="lv-trophy" style={{position:'relative',filter:'drop-shadow(0 0 24px rgba(74,222,128,.8))'}}><span className="lv-halo"/></div><h2 style={{background:'linear-gradient(90deg,#4ade80,#22d3ee)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>META BATIDA!</h2><div className="lv-sub" style={{marginTop:6}}>Hidratação em dia. Performance e recuperação garantidas.</div></div>
       {Array.from({length:22}).map((_,i)=><div key={i} className="lv-confetti" style={{left:Math.random()*100+'vw',background:['#4ade80','#22d3ee','#38bdf8'][i%3],animationDuration:(1.1+Math.random()*.9)+'s',animationDelay:(Math.random()*.3)+'s'}}/>)}</>}
     <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14}}>
       <button className="lv-ghost" onClick={onBack}>‹ Voltar</button>
       <div className="lv-title" style={{flex:1}}>Hidratação</div>
     </div>
-    <div className="lv-card" style={{display:'flex',gap:16,alignItems:'center'}}>
+    <div className="lv-card" style={{display:'flex',gap:16,alignItems:'center',position:'relative'}}>
       <svg viewBox="0 0 90 132" width="96" className={full?'lv-glow':''}>
         <defs><clipPath id="btlc"><path d={BTL}/></clipPath></defs>
         <g clipPath="url(#btlc)"><rect x="0" y="0" width="90" height="132" fill="#12121a"/>
-          <rect x="0" y={fillY} width="90" height={132-fillY} fill={full?'#4ade80':'#38bdf8'} opacity="0.9"/>
-          <ellipse cx="30" cy={fillY+2} rx="7" ry="2.5" fill="#fff" opacity=".15"/><ellipse cx="58" cy={fillY+5} rx="5" ry="2" fill="#fff" opacity=".12"/></g>
+          <g style={{transform:`translateY(${fillY}px)`,transition:'transform .8s cubic-bezier(.22,.9,.3,1)'}}>
+            <rect x="0" y="6" width="90" height="132" fill={full?'#4ade80':'#38bdf8'} opacity="0.9"/>
+            <path className="lv-wave" d="M0 8 q 11 -6 22 0 t 22 0 t 22 0 t 22 0 t 22 0 t 22 0 v 12 H0 z"
+              fill={full?'#4ade80':'#38bdf8'} opacity="0.9"/>
+            <path className="lv-wave" style={{animationDuration:'3.7s',animationDirection:'reverse'}}
+              d="M0 10 q 11 -5 22 0 t 22 0 t 22 0 t 22 0 t 22 0 t 22 0 v 12 H0 z"
+              fill="#fff" opacity="0.14"/>
+          </g></g>
         <path d={BTL} fill="none" stroke={full?'#4ade80':'#5b6b8a'} strokeWidth="2.5"/>
       </svg>
+      {splash>0&&<span className="lv-splash" style={{left:34,top:52,width:26,height:26}}/>}
       <div style={{flex:1}}>
         <div style={{fontSize:26,fontWeight:800}}>{(today/1000).toFixed(2).replace('.',',')}<span style={{color:'var(--lvt2)',fontSize:15,fontWeight:600}}> / {(meta/1000).toFixed(2).replace('.',',')} L</span></div>
-        <div className="lv-sub">{full?'✅ meta do dia batida!':`faltam ${((meta-today)/1000).toFixed(2).replace('.',',')} L`}</div>
+        <div className="lv-sub">{full?'meta do dia batida!':`faltam ${((meta-today)/1000).toFixed(2).replace('.',',')} L`}</div>
         <div className="lv-freq" style={{marginTop:10}}><i style={{width:(pct*100)+'%',background:full?'linear-gradient(90deg,#22d3ee,#4ade80)':'linear-gradient(90deg,#38bdf8,#818cf8)'}}/></div>
       </div>
     </div>
@@ -5264,10 +6697,10 @@ function CheckinScreen({student,demo,onBack}){
 /* ── Módulo do ciclo (educativo) ── */
 const CICLO_COR={Menstrual:'#e11d48',Folicular:'#ec4899',Ovulatória:'#a855f7',Lútea:'#6d28d9'};
 const CICLO_INFO={
-  Menstrual:[['🩸','Descanso ativo','Energia costuma estar mais baixa. Movimento leve e sono ajudam mais que forçar.'],['💧','Hidratação','Reforce a água — ajuda com cólica e retenção.'],['🧘','Escute o corpo','Se a disposição vier, treine; se não, tudo bem pegar leve.']],
-  Folicular:[['⚡','Fase de força','Estrogênio subindo — costuma render mais em carga e volume. Aproveite.'],['⚖️','Balança','A balança tende a estabilizar/cair por menos retenção — normal, não é "progresso extra".'],['🌙','Recuperação','Boa fase pra recuperação entre estímulos — mantenha o sono.']],
-  Ovulatória:[['🚀','Pico de disposição','Muitas relatam mais leveza e força. Ótima janela pra PRs.'],['🎯','Aproveite','Momento de puxar um pouco mais, com técnica.'],['💙','Atenção às articulações','Um pouco mais de frouxidão ligamentar pode ocorrer — aquecça bem.']],
-  Lútea:[['🌗','Constância','Energia pode oscilar. Foque em manter a constância, não recordes.'],['🍫','Fome/compulsão','Vontade de doce é comum — planeje lanches pra não sabotar.'],['😴','Sono e humor','Priorize sono; TPM pode afetar humor e percepção de esforço.']]};
+  Menstrual:[['','Descanso ativo','Energia costuma estar mais baixa. Movimento leve e sono ajudam mais que forçar.'],['','Hidratação','Reforce a água — ajuda com cólica e retenção.'],['','Escute o corpo','Se a disposição vier, treine; se não, tudo bem pegar leve.']],
+  Folicular:[['⚡','Fase de força','Estrogênio subindo — costuma render mais em carga e volume. Aproveite.'],['⚖','Balança','A balança tende a estabilizar/cair por menos retenção — normal, não é "progresso extra".'],['','Recuperação','Boa fase pra recuperação entre estímulos — mantenha o sono.']],
+  Ovulatória:[['','Pico de disposição','Muitas relatam mais leveza e força. Ótima janela pra PRs.'],['','Aproveite','Momento de puxar um pouco mais, com técnica.'],['','Atenção às articulações','Um pouco mais de frouxidão ligamentar pode ocorrer — aquecça bem.']],
+  Lútea:[['','Constância','Energia pode oscilar. Foque em manter a constância, não recordes.'],['','Fome/compulsão','Vontade de doce é comum — planeje lanches pra não sabotar.'],['','Sono e humor','Priorize sono; TPM pode afetar humor e percepção de esforço.']]};
 function cicloFase(dataUM,dur,sang){
   const today=new Date(todayStr()+'T00:00:00'),um=new Date(dataUM+'T00:00:00');
   const diff=Math.floor((today-um)/86400000);const dia=(((diff%dur)+dur)%dur)+1;
@@ -5276,7 +6709,7 @@ function cicloFase(dataUM,dur,sang){
   return {dia,fase,ovul,restam:dur-dia+1};
 }
 function CicloScreen({student,demo,onBack}){
-  const [cyc,setCyc]=useState(demo?{data_ultima:(()=>{const d=new Date();d.setDate(d.getDate()-8);return d.toISOString().slice(0,10);})(),duracao_ciclo:28,duracao_sangramento:5}:undefined);
+  const [cyc,setCyc]=useState(demo?{data_ultima:(()=>{const d=new Date();d.setDate(d.getDate()-8);return dayKey(d);})(),duracao_ciclo:28,duracao_sangramento:5}:undefined);
   const [edit,setEdit]=useState(false);const [f,setF]=useState({data:'',dur:28,sang:5});const [busy,setBusy]=useState(false);
   useEffect(()=>{if(demo)return;(async()=>{const {data}=await sb.from('train_ciclo').select('*').eq('student_id',student.id).limit(1);setCyc(data&&data[0]?data[0]:null);})();},[]);
   const salvar=async()=>{if(!f.data)return;setBusy(true);if(!demo){try{await sb.rpc('ciclo_salvar',{p_data:f.data,p_dur:+f.dur,p_sang:+f.sang});}catch(e){}}setBusy(false);setCyc({data_ultima:f.data,duracao_ciclo:+f.dur,duracao_sangramento:+f.sang});setEdit(false);};
@@ -5373,17 +6806,23 @@ const GLIC_MOMENTOS=[['jejum','Jejum'],['pre_refeicao','Pré-refeição'],['pos_
 const glicFaixa=v=>v<70?{l:'Baixa',c:'#e11d48'}:v<=180?{l:'Na faixa',c:'#4ade80'}:{l:'Alta',c:'#f59e0b'};
 function DiarioScreen({student,demo,onBack}){
   const [diab,setDiab]=useState(demo?true:false);
-  const [d,setD]=useState({peso:'',sono:'',energia:3,humor:3,dor:1,passos:'',obs:''});
+  const [d,setD]=useState({peso:'',sono:'',passos:'',fome:3,obs:''});
+  const [chk,setChk]=useState(demo?{sinal:'Verde',total:8}:undefined);   // prontidao de hoje (vem do check-in)
   const [glic,setGlic]=useState(demo?[{id:'g1',valor:104,momento:'jejum',insulina_unid:6,registrado_em:new Date(Date.now()-3600e3).toISOString()},{id:'g2',valor:158,momento:'pos_refeicao',insulina_unid:4,registrado_em:new Date(Date.now()-6*3600e3).toISOString()}]:[]);
   const [gf,setGf]=useState({valor:'',momento:'jejum',insulina:''});
   const [busy,setBusy]=useState(false);const [okMsg,setOkMsg]=useState(null);
   useEffect(()=>{if(demo)return;(async()=>{
     try{const {data:sd}=await sb.from('train_saude').select('diabetico').eq('student_id',student.id).maybeSingle();if(sd)setDiab(!!sd.diabetico);}catch(e){}
-    try{const key=student.id+'_'+todayStr();const {data:dd}=await sb.from('train_diario').select('*').eq('id',key).maybeSingle();if(dd)setD({peso:dd.peso??'',sono:dd.sono??'',energia:dd.energia??3,humor:dd.humor??3,dor:dd.dor??1,passos:dd.passos??'',obs:dd.obs??''});}catch(e){}
+    try{const key=student.id+'_'+todayStr();const {data:dd}=await sb.from('train_diario').select('*').eq('id',key).maybeSingle();if(dd)setD({peso:dd.peso??'',sono:dd.sono??'',passos:dd.passos??'',fome:dd.fome??3,obs:dd.obs??''});}catch(e){}
+    try{const key=student.id+'_'+todayStr();const {data:cc}=await sb.from('train_checkin').select('sinal,total').eq('id',key).maybeSingle();setChk(cc||null);}catch(e){setChk(null);}
     try{const {data:gg}=await sb.from('train_glicemia').select('*').eq('student_id',student.id).order('registrado_em',{ascending:false}).limit(8);setGlic(gg||[]);}catch(e){}
   })();},[]);
   const toggleDiab=async(v)=>{setDiab(v);if(!demo)sb.rpc('saude_cfg',{p_diabetico:v,p_condicoes:null}).catch(()=>{});};
-  const salvar=async()=>{setBusy(true);if(!demo){try{await sb.rpc('diario_salvar',{p_peso:num(d.peso),p_sono:num(d.sono),p_energia:d.energia,p_humor:d.humor,p_dor:d.dor,p_passos:d.passos?parseInt(d.passos):null,p_obs:d.obs||null});}catch(e){}}setBusy(false);setOkMsg('Diário de hoje salvo!');setTimeout(()=>setOkMsg(null),1800);};
+  const salvar=async()=>{setBusy(true);let erro=null;
+    if(!demo){try{const {error}=await sb.rpc('diario_salvar',{p_peso:num(d.peso),p_sono:num(d.sono),p_passos:d.passos?parseInt(d.passos):null,p_fome:d.fome,p_obs:d.obs||null});if(error)erro=error.message;}catch(e){erro=e.message||String(e);}}
+    setBusy(false);
+    if(erro){setOkMsg(null);alert('Não consegui salvar seu diário: '+erro);return;}
+    setOkMsg('Diário de hoje salvo!');setTimeout(()=>setOkMsg(null),1800);};
   const regGlic=async()=>{if(!gf.valor)return;const novo={id:'t'+Date.now(),valor:parseInt(gf.valor),momento:gf.momento,insulina_unid:gf.insulina?num(gf.insulina):null,registrado_em:new Date().toISOString()};
     setGlic(g=>[novo,...g]);if(!demo){try{await sb.rpc('glicemia_registrar',{p_valor:novo.valor,p_momento:gf.momento,p_insulina:novo.insulina_unid,p_obs:null});}catch(e){}}setGf({valor:'',momento:gf.momento,insulina:''});};
   const slider=(k,lbl,lo,hi)=>(<div className="lv-card">
@@ -5395,18 +6834,27 @@ function DiarioScreen({student,demo,onBack}){
     <p className="lv-sub" style={{marginBottom:14}}>Registrar todo dia ajuda você e seu treinador a acompanhar sua saúde de perto.</p>
     <div style={{display:'flex',gap:10,marginBottom:14}}>
       <div className="lv-card" style={{flex:1,margin:0}}><span className="lv-inlbl">Peso (kg)</span><input className="lv-in" type="number" inputMode="decimal" value={d.peso} onChange={e=>setD(p=>({...p,peso:e.target.value}))} placeholder="—"/></div>
-      <div className="lv-card" style={{flex:1,margin:0}}><span className="lv-inlbl">Sono (h)</span><input className="lv-in" type="number" inputMode="decimal" value={d.sono} onChange={e=>setD(p=>({...p,sono:e.target.value}))} placeholder="—"/></div>
+      <div className="lv-card" style={{flex:1,margin:0}}><span className="lv-inlbl">Sono (horas)</span><input className="lv-in" type="number" inputMode="decimal" value={d.sono} onChange={e=>setD(p=>({...p,sono:e.target.value}))} placeholder="—"/></div>
       <div className="lv-card" style={{flex:1,margin:0}}><span className="lv-inlbl">Passos</span><input className="lv-in" type="number" inputMode="numeric" value={d.passos} onChange={e=>setD(p=>({...p,passos:e.target.value}))} placeholder="—"/></div>
     </div>
-    {slider('energia','Energia','Sem energia','Cheia de energia')}
-    {slider('humor','Humor','Ruim','Ótimo')}
-    {slider('dor','Dor / desconforto','Nenhuma','Muita')}
+    {slider('fome','Fome ao longo do dia','Sem fome','Muita fome')}
+    {chk!==undefined&&(chk?
+      <div className="lv-card" style={{display:'flex',alignItems:'center',gap:12}}>
+        <span className="lv-dot" style={{width:14,height:14,background:chk.sinal==='Verde'?'#4ade80':chk.sinal==='Amarelo'?'#f59e0b':'#e11d48'}}/>
+        <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700}}>Prontidão de hoje: {chk.sinal}</div>
+          <div className="lv-sub">Sono, fadiga, estresse, dor e humor você já respondeu no Check-in.</div></div>
+      </div>:
+      <div className="lv-card" style={{display:'flex',alignItems:'center',gap:12,borderColor:'rgba(245,158,11,.45)'}}>
+        <span style={{fontSize:20}}></span>
+        <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700}}>Falta o check-in de hoje</div>
+          <div className="lv-sub">É lá que entram sono, fadiga, estresse, dor e humor.</div></div>
+      </div>)}
     <div className="lv-card"><span className="lv-inlbl">Observações</span><textarea className="lv-in" rows={2} value={d.obs} onChange={e=>setD(p=>({...p,obs:e.target.value}))} placeholder="Como foi seu dia? Algo importante?"/></div>
     {okMsg&&<div className="lv-pill" style={{background:'rgba(74,222,128,.15)',color:'#86efac',marginBottom:10}}>✓ {okMsg}</div>}
     <button className="lv-btn" disabled={busy} onClick={salvar}>{busy?'Salvando…':'Salvar diário de hoje'}</button>
 
     <div className="lv-card" style={{marginTop:18,display:'flex',alignItems:'center',gap:12}}>
-      <div style={{fontSize:22}}>🩺</div>
+      <div style={{fontSize:22}}></div>
       <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700}}>Sou diabético(a)</div><div className="lv-sub">Ativa o controle de glicemia e insulina</div></div>
       <LvToggle on={diab} onClick={()=>toggleDiab(!diab)}/>
     </div>
@@ -5426,11 +6874,11 @@ function DiarioScreen({student,demo,onBack}){
         {glic.map(g=>{const f=glicFaixa(g.valor);const mom=(GLIC_MOMENTOS.find(m=>m[0]===g.momento)||[,g.momento])[1];return(
           <div key={g.id} style={{display:'flex',alignItems:'center',gap:12,padding:'8px 0',borderTop:'1px solid var(--lvbd)'}}>
             <span style={{fontWeight:800,fontSize:18,color:f.c,minWidth:52}}>{g.valor}</span>
-            <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700,fontSize:13}}>{mom}{g.insulina_unid?` · 💉 ${g.insulina_unid}u`:''}</div><div className="lv-sub" style={{fontSize:11}}>{tempoRel(g.registrado_em)}</div></div>
+            <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700,fontSize:13}}>{mom}{g.insulina_unid?` · ${g.insulina_unid}u`:''}</div><div className="lv-sub" style={{fontSize:11}}>{tempoRel(g.registrado_em)}</div></div>
             <span className="lv-pill" style={{background:f.c+'22',color:f.c,fontSize:11}}>{f.l}</span>
           </div>);})}
       </div>}
-      <div className="lv-sub" style={{fontSize:11.5,lineHeight:1.5,marginTop:2}}>💡 Referência geral: abaixo de 70 é baixa, 70–180 na faixa, acima de 180 alta. Sempre siga a orientação do seu médico.</div>
+      <div className="lv-sub" style={{fontSize:11.5,lineHeight:1.5,marginTop:2}}>Referência geral: abaixo de 70 é baixa, 70–180 na faixa, acima de 180 alta. Sempre siga a orientação do seu médico.</div>
     </>}
   </div>);
 }
@@ -5457,13 +6905,13 @@ function MetasScreen({student,demo,onBack,freq}){
       <div className="lv-kick" style={{color:'#e9d5ff'}}>Desafio da semana</div>
       <div style={{fontSize:17,fontWeight:800,margin:'4px 0 10px'}}>Complete {freq.meta} treinos</div>
       <div className="lv-freq" style={{background:'rgba(255,255,255,.25)'}}><i style={{width:Math.min(100,Math.round(freq.done/(freq.meta||1)*100))+'%',background:'#fff'}}/></div>
-      <div style={{marginTop:8,fontWeight:700}}>{freq.done} / {freq.meta} {freq.done>=freq.meta?'🎉 concluído!':''}</div>
+      <div style={{marginTop:8,fontWeight:700}}>{freq.done} / {freq.meta} {freq.done>=freq.meta?'concluído!':''}</div>
     </div>}
     {metas.length===0?<div className="lv-card" style={{textAlign:'center',color:'var(--lvt2)'}}>Seu treinador ainda não definiu metas. Elas aparecem aqui pra você acompanhar.</div>
     :metas.map(m=>{const p=prog(m);const done=p!=null&&p>=100;return(
       <div key={m.id} className={'lv-card'+(done?' ':'')}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-          <div style={{fontWeight:800}}>{done?'🏆 ':''}{m.titulo}</div>
+          <div style={{fontWeight:800}}>{done?'':''}{m.titulo}</div>
           {p!=null&&<span style={{fontWeight:800,color:done?'#4ade80':'var(--lvrx)'}}>{p}%</span>}
         </div>
         <div className="lv-freq" style={{marginTop:10}}><i style={{width:(p||0)+'%',background:done?'linear-gradient(90deg,#22c55e,#4ade80)':undefined}}/></div>
@@ -5471,6 +6919,433 @@ function MetasScreen({student,demo,onBack,freq}){
       </div>);})}
   </div>);
 }
+/* ── Dieta (módulo MF Nutrition dentro do app do aluno) ──
+   Lê as mesmas tabelas do MF Nutrition (mesmo Supabase, mesmo auth.user).
+   A água NÃO é duplicada aqui: continua na tela de Hidratação. */
+const _DEMO_DIETA={title:'Plano de definição',water_goal_ml:3000,meals:[
+  {id:'dm1',name:'Café da manhã',time:'07:00',items:[
+    {id:'di1',food:'Ovos mexidos',qty:'3 unidades',kcal:210,protein:18,carb:1,fat:15,prep:'Frigideira antiaderente, sem óleo.',subs:[{id:'ds1',food:'Claras + 1 gema',qty:'5 claras'}]},
+    {id:'di2',food:'Pão integral',qty:'2 fatias',kcal:140,protein:6,carb:24,fat:2,prep:'',subs:[{id:'ds2',food:'Tapioca',qty:'40 g'}]}]},
+  {id:'dm2',name:'Almoço',time:'12:30',items:[
+    {id:'di3',food:'Peito de frango grelhado',qty:'150 g',kcal:248,protein:46,carb:0,fat:5,prep:'Temperar com alho e limão.',subs:[{id:'ds3',food:'Patinho moído',qty:'150 g'}]},
+    {id:'di4',food:'Arroz integral',qty:'120 g',kcal:150,protein:3,carb:32,fat:1,prep:'',subs:[]},
+    {id:'di5',food:'Salada verde',qty:'à vontade',kcal:40,protein:2,carb:6,fat:0,prep:'Azeite 1 fio.',subs:[]}]},
+  {id:'dm3',name:'Pré-treino',time:'16:00',items:[
+    {id:'di6',food:'Batata doce',qty:'160 g',kcal:138,protein:2,carb:32,fat:0,prep:'Cozida.',subs:[]},
+    {id:'di7',food:'Whey protein',qty:'30 g',kcal:120,protein:24,carb:3,fat:1,prep:'',subs:[]}]},
+  {id:'dm4',name:'Jantar',time:'20:00',items:[
+    {id:'di8',food:'Tilápia assada',qty:'180 g',kcal:200,protein:40,carb:0,fat:4,prep:'Forno 200°C por 20 min.',subs:[{id:'ds4',food:'Salmão',qty:'140 g'}]},
+    {id:'di9',food:'Legumes no vapor',qty:'200 g',kcal:80,protein:4,carb:14,fat:1,prep:'',subs:[]}]},
+]};
+const _DEMO_SUPPS=[
+  {id:'dp1',name:'Creatina monohidratada',dose:'5 g',timing:'Qualquer horário',notes:'Uso contínuo.'},
+  {id:'dp2',name:'Whey protein',dose:'30 g',timing:'Pós-treino',notes:''},
+  {id:'dp3',name:'Vitamina D3',dose:'2000 UI',timing:'Café da manhã',notes:'Junto com gordura.'},
+];
+
+function MacroBar({lbl,val,goal,color}){
+  const pct=goal>0?Math.min(100,Math.round((val/goal)*100)):0;
+  return(<div style={{flex:1}}>
+    <div style={{display:'flex',justifyContent:'space-between',fontSize:11,marginBottom:4}}>
+      <span style={{color:'var(--lvt3)',fontWeight:700,textTransform:'uppercase',letterSpacing:.5}}>{lbl}</span>
+      <span style={{color:'var(--lvt2)',fontWeight:700}}>{Math.round(val)}<span style={{color:'var(--lvt3)'}}>/{Math.round(goal)}g</span></span>
+    </div>
+    <div style={{height:6,background:'#2e2e3a',borderRadius:4,overflow:'hidden'}}>
+      <i style={{display:'block',height:'100%',width:pct+'%',background:color,borderRadius:4,transition:'width .3s'}}/>
+    </div>
+  </div>);
+}
+
+function DietaScreen({profile,demo,onBack,onHidra}){
+  const [plan,setPlan]=useState(undefined);
+  const [meals,setMeals]=useState([]);
+  const [checks,setChecks]=useState({});
+  const [open,setOpen]=useState({});
+  const [supps,setSupps]=useState([]);
+  const [sck,setSck]=useState({});
+  const [uploading,setUploading]=useState(false);
+  const [cel,setCel]=useState(false);
+  const celRef=useRef(null);   // timeout da animacao de comemoracao
+  const fileRef=useRef();
+  const today=todayStr();
+
+  const load=useCallback(async()=>{
+    if(demo){
+      setPlan(_DEMO_DIETA);setMeals(_DEMO_DIETA.meals);
+      setChecks({dm1:true,dm2:true});setSupps(_DEMO_SUPPS);setSck({dp1:true});return;
+    }
+    const p=await getActivePlan(profile.id);
+    if(!p){setPlan(null);return;}
+    const tree=await loadPlanTree(p.id);
+    const [ck,sp,spc]=await Promise.all([
+      sb.from('checkins').select('meal_id').eq('student_id',profile.id).eq('day',today),
+      sb.from('supplements').select('*').eq('student_id',profile.id).order('order_index'),
+      sb.from('supplement_checkins').select('supplement_id').eq('student_id',profile.id).eq('day',today),
+    ]);
+    setPlan(p);setMeals(tree);
+    setChecks(Object.fromEntries((ck.data||[]).map(c=>[c.meal_id,true])));
+    setSupps(sp.data||[]);
+    setSck(Object.fromEntries((spc.data||[]).map(c=>[c.supplement_id,true])));
+  },[profile.id,today,demo]);
+  useEffect(()=>{load();},[load]);
+
+  useEffect(()=>()=>{if(celRef.current)clearTimeout(celRef.current);},[]);
+
+  const toggle=async(mealId)=>{
+    const done=!checks[mealId];
+    const depois={...checks,[mealId]:done};
+    setChecks(depois);
+    if(done){try{navigator.vibrate&&navigator.vibrate(18);}catch(e){}}
+    // comemora so quando ESTA acao fecha o dia (nao ao reabrir a aba com tudo marcado)
+    if(done&&meals.length>0&&meals.every(m=>depois[m.id])){
+      try{navigator.vibrate&&navigator.vibrate([40,40,120]);}catch(e){}
+      setCel(true);
+      if(celRef.current)clearTimeout(celRef.current);
+      celRef.current=setTimeout(()=>setCel(false),2600);
+    }
+    if(demo)return;
+    if(done) await sb.from('checkins').upsert({student_id:profile.id,meal_id:mealId,day:today,done:true},{onConflict:'meal_id,day'});
+    else await sb.from('checkins').delete().eq('student_id',profile.id).eq('meal_id',mealId).eq('day',today);
+  };
+  const toggleSupp=async(id)=>{
+    const done=!sck[id];
+    setSck(c=>({...c,[id]:done}));
+    if(demo)return;
+    if(done) await sb.from('supplement_checkins').upsert({student_id:profile.id,supplement_id:id,day:today},{onConflict:'supplement_id,day'});
+    else await sb.from('supplement_checkins').delete().eq('student_id',profile.id).eq('supplement_id',id).eq('day',today);
+  };
+  const sendPhoto=async(file)=>{
+    if(!file)return;
+    if(demo){alert('Modo demonstração — a foto não é enviada.');return;}
+    setUploading(true);
+    try{
+      const blob=await resizeImage(file);
+      const url=await uploadMealPhoto(profile.id,blob);
+      await sb.from('photos').insert({student_id:profile.id,coach_id:profile.coach_id,url,kind:'meal',caption:'Refeição'});
+      alert('Foto enviada ao seu treinador!');
+    }catch(e){alert('Erro ao enviar: '+(e.message||e));}
+    setUploading(false);
+  };
+
+  const head=(<div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14}}>
+    <button className="lv-ghost" onClick={onBack}>‹ Voltar</button>
+    <div className="lv-title" style={{flex:1}}>Minha dieta</div>
+  </div>);
+
+  if(plan===undefined)return<div className="lv-wrap">{head}<div className="center-screen" style={{minHeight:200}}><div className="spinner"/></div></div>;
+  if(plan===null)return(<div className="lv-wrap">{head}
+    <div className="lv-card" style={{textAlign:'center',padding:'34px 18px'}}>
+      <div style={{fontSize:42,marginBottom:10}}></div>
+      <div style={{fontSize:17,fontWeight:800,marginBottom:6}}>Plano a caminho</div>
+      <div className="lv-sub" style={{lineHeight:1.6}}>Seu treinador ainda não montou seu plano alimentar. Assim que ele publicar, aparece aqui.</div>
+    </div></div>);
+
+  const total=sumMeals(meals);
+  const doneMeals=meals.filter(m=>checks[m.id]);
+  const consumed=sumMeals(doneMeals);
+  const allDone=meals.length>0&&doneMeals.length===meals.length;
+  const R=38,C=2*Math.PI*R;
+  const pct=total.kcal>0?Math.min(consumed.kcal/total.kcal,1):0;
+
+  return(<div className="lv-wrap">
+    {cel&&<><div className="lv-cel"><div className="lv-trophy" style={{filter:'drop-shadow(0 0 24px rgba(74,222,128,.8))'}}></div>
+      <h2 style={{background:'linear-gradient(90deg,#4ade80,#22d3ee)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>DIETA EM DIA!</h2>
+      <div className="lv-sub" style={{marginTop:6}}>Todas as refeições do dia concluídas. É assim que resultado se constrói.</div></div>
+      {Array.from({length:20}).map((_,i)=><div key={i} className="lv-confetti" style={{left:Math.random()*100+'vw',background:['#4ade80','#22d3ee','#f59e0b'][i%3],animationDuration:(1.1+Math.random()*.9)+'s',animationDelay:(Math.random()*.3)+'s'}}/>)}</>}
+    {head}
+
+    <div className="lv-card">
+      <div style={{display:'flex',alignItems:'center',gap:16}}>
+        <svg viewBox="0 0 100 100" width="98" style={{flexShrink:0}} className={allDone?'lv-glow':''}>
+          <circle cx="50" cy="50" r={R} fill="none" stroke="#2e2e3a" strokeWidth="9"/>
+          <circle cx="50" cy="50" r={R} fill="none" stroke={allDone?'#4ade80':'var(--lvrx)'} strokeWidth="9" strokeLinecap="round"
+            strokeDasharray={C} strokeDashoffset={C*(1-pct)} transform="rotate(-90 50 50)" style={{transition:'stroke-dashoffset .4s'}}/>
+          <text x="50" y="46" textAnchor="middle" fontSize="19" fontWeight="800" fill="#f4f4f7">{Math.round(consumed.kcal)}</text>
+          <text x="50" y="62" textAnchor="middle" fontSize="9.5" fill="#6c6c7c">de {Math.round(total.kcal)} kcal</text>
+        </svg>
+        <div style={{flex:1,minWidth:0}}>
+          <div className="lv-kick">{plan.title||'Plano alimentar'}</div>
+          <div style={{fontSize:15,fontWeight:800,margin:'4px 0 10px'}}>{doneMeals.length} de {meals.length} refeições</div>
+          <div style={{display:'flex',flexDirection:'column',gap:8}}>
+            <MacroBar lbl="Proteína" val={consumed.protein} goal={total.protein} color="linear-gradient(90deg,#8b5cf6,#a78bfa)"/>
+            <MacroBar lbl="Carbo" val={consumed.carb} goal={total.carb} color="linear-gradient(90deg,#38bdf8,#22d3ee)"/>
+            <MacroBar lbl="Gordura" val={consumed.fat} goal={total.fat} color="linear-gradient(90deg,#f59e0b,#fbbf24)"/>
+          </div>
+        </div>
+      </div>
+      {plan.notes&&<div className="lv-sub" style={{marginTop:12,lineHeight:1.55,borderTop:'1px solid var(--lvbd)',paddingTop:10}}>{plan.notes}</div>}
+    </div>
+
+    {onHidra&&<div className="lv-treino" style={{marginBottom:14}} onClick={onHidra}>
+      <span style={{width:3,height:30,borderRadius:2,background:'var(--lvrx)',flexShrink:0}}/>
+      <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700}}>Hidratação</div>
+        <div className="lv-sub">Meta {plan.water_goal_ml?((plan.water_goal_ml/1000).toFixed(1).replace('.',',')+' L'):'do dia'}</div></div>
+      <span style={{color:'var(--lvt3)'}}>›</span>
+    </div>}
+
+    <div className="lv-kick" style={{margin:'18px 0 10px'}}>Refeições de hoje</div>
+    {meals.map(m=>{
+      const s=sumItems(m.items);const done=!!checks[m.id];const isOpen=!!open[m.id];
+      return(<div key={m.id} className="lv-card" style={{padding:0,overflow:'hidden',borderColor:done?'rgba(74,222,128,.45)':'var(--lvbd)'}}>
+        <div style={{display:'flex',alignItems:'center',gap:12,padding:14,cursor:'pointer'}} onClick={()=>setOpen(o=>({...o,[m.id]:!isOpen}))}>
+          <button onClick={e=>{e.stopPropagation();toggle(m.id);}}
+            style={{width:34,height:34,borderRadius:'50%',flexShrink:0,cursor:'pointer',fontSize:15,fontWeight:800,
+              border:done?'none':'2px solid var(--lvbd)',background:done?'linear-gradient(135deg,#22c55e,#4ade80)':'transparent',
+              color:done?'#08130c':'var(--lvt3)'}}>{done?'✓':''}</button>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{display:'flex',alignItems:'baseline',gap:8}}>
+              <span style={{fontWeight:800,fontSize:15,textDecoration:done?'line-through':'none',opacity:done?.65:1}}>{m.name||'Refeição'}</span>
+              {m.time&&<span className="lv-sub" style={{fontSize:12}}>{m.time}</span>}
+            </div>
+            <div className="lv-sub" style={{fontSize:12}}>{Math.round(s.kcal)} kcal · P {Math.round(s.protein)}g · C {Math.round(s.carb)}g · G {Math.round(s.fat)}g</div>
+          </div>
+          <span style={{color:'var(--lvt3)',fontSize:13,transform:isOpen?'rotate(90deg)':'none',transition:'transform .18s'}}>›</span>
+        </div>
+        {isOpen&&<div style={{borderTop:'1px solid var(--lvbd)',padding:'12px 14px',background:'var(--lvc2)'}}>
+          {(m.items||[]).length===0&&<div className="lv-sub">Sem itens cadastrados.</div>}
+          {(m.items||[]).map(it=>(<div key={it.id} style={{marginBottom:12}}>
+            <div style={{display:'flex',justifyContent:'space-between',gap:10}}>
+              <div style={{fontWeight:700,fontSize:14}}>{it.food}</div>
+              <div className="lv-sub" style={{fontSize:12,whiteSpace:'nowrap'}}>{it.qty}</div>
+            </div>
+            <div className="lv-sub" style={{fontSize:11.5,marginTop:2}}>{Math.round(n0(it.kcal))} kcal · P {Math.round(n0(it.protein))} · C {Math.round(n0(it.carb))} · G {Math.round(n0(it.fat))}</div>
+            {it.prep&&<div className="lv-sub" style={{fontSize:12,marginTop:5,fontStyle:'italic'}}>{it.prep}</div>}
+            {(it.subs||[]).length>0&&<div style={{marginTop:7,paddingLeft:10,borderLeft:'2px solid var(--lvrx)'}}>
+              <div className="lv-kick" style={{fontSize:9.5,marginBottom:3}}>Pode trocar por</div>
+              {it.subs.map(s2=><div key={s2.id} className="lv-sub" style={{fontSize:12.5}}>{s2.food} — {s2.qty}</div>)}
+            </div>}
+          </div>))}
+        </div>}
+      </div>);
+    })}
+
+    <input ref={fileRef} type="file" accept="image/*" capture="environment" style={{display:'none'}} onChange={e=>{sendPhoto(e.target.files[0]);e.target.value='';}}/>
+    <button className="lv-btn" style={{marginTop:4,background:'var(--lvc2)',border:'1px solid var(--lvbd)',color:'var(--lvtx)'}}
+      disabled={uploading} onClick={()=>fileRef.current&&fileRef.current.click()}>
+      {uploading?'Enviando…':'Mandar foto da refeição pro treinador'}</button>
+
+    {supps.length>0&&<>
+      <div className="lv-kick" style={{margin:'22px 0 10px'}}>Suplementos de hoje</div>
+      {supps.map(sp=>{const done=!!sck[sp.id];return(
+        <div key={sp.id} className="lv-treino" style={{marginBottom:10,borderColor:done?'rgba(74,222,128,.45)':'var(--lvbd)'}} onClick={()=>toggleSupp(sp.id)}>
+          <button onClick={e=>{e.stopPropagation();toggleSupp(sp.id);}}
+            style={{width:32,height:32,borderRadius:'50%',flexShrink:0,cursor:'pointer',fontSize:14,fontWeight:800,
+              border:done?'none':'2px solid var(--lvbd)',background:done?'linear-gradient(135deg,#22c55e,#4ade80)':'transparent',
+              color:done?'#08130c':'var(--lvt3)'}}>{done?'✓':''}</button>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontWeight:700,opacity:done?.65:1}}>{sp.name}</div>
+            <div className="lv-sub" style={{fontSize:12}}>{[sp.dose,sp.timing].filter(Boolean).join(' · ')||'—'}</div>
+            {sp.notes&&<div className="lv-sub" style={{fontSize:11.5,fontStyle:'italic',marginTop:2}}>{sp.notes}</div>}
+          </div>
+        </div>);})}
+    </>}
+    <div style={{height:10}}/>
+  </div>);
+}
+
+/* ── Anéis do dia: as 4 coisas que o aluno tem que fechar hoje ── */
+function Anel({pct,cor,ic,lbl,val,onClick}){
+  const R=26,C=2*Math.PI*R,p=Math.max(0,Math.min(1,pct));
+  const done=p>=1;
+  return(<div onClick={onClick} style={{flex:1,textAlign:'center',cursor:onClick?'pointer':'default'}}>
+    <svg viewBox="0 0 64 64" width="100%" className="lv-anel" style={{maxWidth:66,display:'block',margin:'0 auto'}}>
+      <circle cx="32" cy="32" r={R} fill="none" stroke="#2e2e3a" strokeWidth="6"/>
+      <circle className="val" cx="32" cy="32" r={R} fill="none" stroke={cor} strokeWidth="6" strokeLinecap="round"
+        strokeDasharray={C} strokeDashoffset={C*(1-p)} transform="rotate(-90 32 32)"
+        style={{'--c':C,transition:'stroke-dashoffset .7s cubic-bezier(.22,.9,.3,1)'}}/>
+      <text x="32" y="33" textAnchor="middle" dominantBaseline="central" fontSize={done?18:12.5}
+        fontWeight="800" fill={done?cor:'#a2a2b0'}>{done?'✓':ic}</text>
+    </svg>
+    <div style={{fontSize:11,fontWeight:800,marginTop:5,color:done?cor:'var(--lvtx)'}}>{lbl}</div>
+    <div style={{fontSize:10,color:'var(--lvt3)'}}>{val}</div>
+  </div>);
+}
+
+function AneisDoDia({stu,profile,demo,onTreino,onDieta,onAgua,onCheckin}){
+  const [h,setH]=useState(demo?{treinou:false,ref:2,refTot:4,agua:1750,aguaMeta:2500,checkin:'Verde'}:undefined);
+  useEffect(()=>{if(demo||!stu)return;(async()=>{
+    const hoje=todayStr();
+    const r={treinou:false,ref:0,refTot:0,agua:0,aguaMeta:3000,checkin:null};
+    try{const {data}=await sb.from('train_historico').select('id').eq('student_id',stu.id).eq('data_treino',hoje).limit(1);r.treinou=!!(data&&data.length);}catch(e){}
+    try{const {data}=await sb.from('train_hidratacao').select('total_ml').eq('id',stu.id+'_'+hoje).maybeSingle();if(data)r.agua=data.total_ml||0;}catch(e){}
+    try{const {data}=await sb.from('train_checkin').select('sinal').eq('id',stu.id+'_'+hoje).maybeSingle();if(data)r.checkin=data.sinal;}catch(e){}
+    try{
+      const p=await getActivePlan(profile.id);
+      if(p){
+        if(p.water_goal_ml)r.aguaMeta=p.water_goal_ml;
+        const [ms,ck]=await Promise.all([
+          sb.from('meals').select('id').eq('plan_id',p.id),
+          sb.from('checkins').select('meal_id').eq('student_id',profile.id).eq('day',hoje),
+        ]);
+        r.refTot=(ms.data||[]).length;r.ref=(ck.data||[]).length;
+      }
+    }catch(e){}
+    setH(r);
+  })();},[stu&&stu.id,demo]);
+
+  if(h===undefined)return null;
+  const feitos=[h.treinou,h.refTot>0&&h.ref>=h.refTot,h.agua>=h.aguaMeta,!!h.checkin].filter(Boolean).length;
+  const total=h.refTot>0?4:3;
+  return(<div className="lv-card">
+    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
+      <div className="lv-kick">Seu dia</div>
+      <span style={{fontSize:12,fontWeight:800,color:feitos>=total?'#4ade80':'var(--lvt2)'}}>
+        {feitos===total?'tudo fechado':`${feitos} de ${total}`}</span>
+    </div>
+    <div style={{display:'flex',gap:6}}>
+      <Anel pct={h.treinou?1:0} cor="#8b5cf6" ic="" lbl="Treino" val={h.treinou?'feito':'pendente'} onClick={onTreino}/>
+      {h.refTot>0&&<Anel pct={h.refTot?h.ref/h.refTot:0} cor="#4ade80" ic={h.ref+'/'+h.refTot} lbl="Dieta" val={h.ref+' de '+h.refTot} onClick={onDieta}/>}
+      <Anel pct={h.aguaMeta?h.agua/h.aguaMeta:0} cor="#38bdf8" ic={Math.round((h.agua/(h.aguaMeta||1))*100)+'%'} lbl="Água"
+        val={(h.agua/1000).toFixed(1).replace('.',',')+' L'} onClick={onAgua}/>
+      <Anel pct={h.checkin?1:0} cor={h.checkin==='Vermelho'?'#e11d48':h.checkin==='Amarelo'?'#f59e0b':'#4ade80'}
+        ic="" lbl="Check-in" val={h.checkin||'pendente'} onClick={onCheckin}/>
+    </div>
+  </div>);
+}
+
+
+/* ── Evolução do aluno: quanto ele andou desde a primeira avaliação ── */
+function EvolucaoAluno({stu,demo,onVer}){
+  const [e,setE]=useState(demo?{n:2,meses:4,dPeso:-6,dGord:-6,dMagra:1.4,
+    pri:{weight:84,fatPct:22,leanMass:65.5},ult:{weight:78,fatPct:16,leanMass:66.9}}:undefined);
+  useEffect(()=>{if(demo||!stu)return;(async()=>{
+    try{
+      const {data}=await sb.from('assessments').select('*').eq('student_id',stu.id).order('date');
+      if(!data||data.length<2){setE(null);return;}
+      const conv=r=>({...r.data,date:r.date});
+      const pri=derive(stu,conv(data[0])), ult=derive(stu,conv(data[data.length-1]));
+      const d=(a,b)=>(a!=null&&b!=null)?+(b-a).toFixed(1):null;
+      const meses=Math.max(1,Math.round((new Date(data[data.length-1].date)-new Date(data[0].date))/2592000000));
+      setE({n:data.length,meses,pri,ult,
+        dPeso:d(pri.weight,ult.weight),dGord:d(pri.fatPct,ult.fatPct),dMagra:d(pri.leanMass,ult.leanMass)});
+    }catch(err){setE(null);}
+  })();},[stu&&stu.id,demo]);
+
+  if(e===undefined||e===null)return null;
+
+  const linha=(lbl,de,para,delta,un,melhorSeCai)=>{
+    if(de==null||para==null)return null;
+    const bom=melhorSeCai?delta<0:delta>0;
+    const cor=delta===0?'var(--lvt2)':bom?'#4ade80':'#fb7185';
+    return(<div style={{display:'flex',alignItems:'center',gap:10,padding:'9px 0',borderTop:'1px solid var(--lvbd)'}}>
+      <div style={{flex:1,minWidth:0}}>
+        <div style={{fontWeight:700,fontSize:13.5}}>{lbl}</div>
+        <div className="lv-sub" style={{fontSize:11.5}}>{fmt(de)}{un} no início</div>
+      </div>
+      <div style={{textAlign:'right'}}>
+        <div style={{fontWeight:800,fontSize:16}}>{fmt(para)}<span style={{fontSize:11,color:'var(--lvt3)'}}>{un}</span></div>
+        <div style={{fontSize:11.5,fontWeight:800,color:cor}}>{delta>0?'+':''}{delta}{un}</div>
+      </div>
+    </div>);
+  };
+
+  return(<div className="lv-card" onClick={onVer} style={{cursor:onVer?'pointer':'default'}}>
+    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:4}}>
+      <div className="lv-kick">Sua evolução</div>
+      <span className="lv-sub" style={{fontSize:11.5}}>{e.meses} {e.meses===1?'mês':'meses'} · {e.n} avaliações</span>
+    </div>
+    {linha('Peso',e.pri.weight,e.ult.weight,e.dPeso,' kg',null)}
+    {linha('Gordura corporal',e.pri.fatPct,e.ult.fatPct,e.dGord,'%',true)}
+    {linha('Massa magra',e.pri.leanMass,e.ult.leanMass,e.dMagra,' kg',false)}
+    {onVer&&<div className="lv-sub" style={{marginTop:10,textAlign:'center',fontSize:12}}>Ver evolução completa ›</div>}
+  </div>);
+}
+
+
+/* ── Peso: o aluno está no ritmo da meta? ──
+   Peso de hoje sozinho nao diz nada. O que importa e comparar o quanto
+   ja andou com o quanto deveria ter andado a esta altura do prazo. */
+const PESO_COR={'Meta batida':'#4ade80','Em dia':'#4ade80','Na meta':'#4ade80',
+  'Em andamento':'#38bdf8','Um pouco atrás':'#f59e0b','Atrasado':'#fb7185','Indo ao contrário':'#e11d48'};
+
+function PesoStatus({demo,compacto,studentId}){
+  const [p,setP]=useState(demo?{ok:true,meta:true,inicial:84,alvo:75,atual:78,
+    prazo:'2026-11-30',progresso:0.667,esperado:0.6,situacao:'Em dia',falta:-3}:undefined);
+  useEffect(()=>{if(demo)return;
+    if(!sb){setP(null);return;}
+    sb.rpc('peso_situacao',{p_student:studentId||null})
+      .then(({data,error})=>setP(error?null:data)).catch(()=>setP(null));},[demo,studentId]);
+
+  if(!p||!p.ok||!p.meta)return null;
+  if(p.sem_pesagem)return(<div className="lv-card">
+    <div className="lv-kick" style={{marginBottom:6}}>Meta de peso</div>
+    <div style={{fontWeight:700}}>Alvo: {fmt(p.alvo)} kg</div>
+    <div className="lv-sub" style={{marginTop:4}}>Registre seu peso no Diário para acompanhar o ritmo.</div>
+  </div>);
+
+  const cor=PESO_COR[p.situacao]||'#a2a2b0';
+  const pr=Math.max(0,Math.min(1,p.progresso||0));
+  const esp=p.esperado==null?null:Math.max(0,Math.min(1,p.esperado));
+  const falta=Math.abs(p.falta);
+
+  if(compacto)return(<span style={{fontSize:11,fontWeight:700,color:cor,whiteSpace:'nowrap'}}>{p.situacao}</span>);
+
+  return(<div className="lv-card">
+    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
+      <div className="lv-kick">Meta de peso</div>
+      <span className="lv-pill" style={{background:cor+'22',color:cor}}>{p.situacao}</span>
+    </div>
+    <div style={{display:'flex',alignItems:'baseline',gap:8}}>
+      <span style={{fontSize:28,fontWeight:800}}>{fmt(p.atual)}</span>
+      <span className="lv-sub">kg hoje</span>
+      <span style={{flex:1}}/>
+      <span className="lv-sub">alvo {fmt(p.alvo)} kg</span>
+    </div>
+
+    {/* barra: o preenchido e o quanto ele andou; o tracinho e onde deveria estar hoje */}
+    <div style={{position:'relative',marginTop:12}}>
+      <div className="lv-freq" style={{marginTop:0}}>
+        <i style={{width:(pr*100)+'%',background:`linear-gradient(90deg,${cor},${cor}cc)`}}/>
+      </div>
+      {esp!=null&&<div title="onde você deveria estar hoje"
+        style={{position:'absolute',top:-3,left:`calc(${esp*100}% - 1px)`,width:2,height:15,
+          background:'var(--lvtx)',opacity:.55,borderRadius:1}}/>}
+    </div>
+    <div style={{display:'flex',justifyContent:'space-between',marginTop:6}}>
+      <span className="lv-sub" style={{fontSize:11.5}}>{fmt(p.inicial)} kg no início</span>
+      <span className="lv-sub" style={{fontSize:11.5}}>
+        {p.situacao==='Meta batida'?'objetivo alcançado':
+         (falta<0.1?'praticamente lá':`faltam ${fmt(falta)} kg`)}</span>
+    </div>
+    {esp!=null&&<div className="lv-sub" style={{fontSize:11.5,marginTop:8,lineHeight:1.5}}>
+      O tracinho marca onde você deveria estar hoje para bater a meta no prazo.</div>}
+  </div>);
+}
+
+/* Treinador define a meta de peso do aluno */
+function PesoMetaCoach({student,demo}){
+  const [f,setF]=useState({alvo:'',prazo:'',inicial:''});
+  const [msg,setMsg]=useState(null);const [busy,setBusy]=useState(false);
+  useEffect(()=>{if(demo)return;
+    sb.from('train_peso_meta').select('*').eq('student_id',student.id).maybeSingle()
+      .then(({data})=>{if(data)setF({alvo:data.peso_alvo??'',prazo:data.prazo??'',inicial:data.peso_inicial??''});})
+      .catch(()=>{});},[student.id,demo]);
+  const salvar=async()=>{
+    if(!num(f.alvo)){setMsg({t:'err',m:'Informe o peso alvo.'});return;}
+    if(demo){setMsg({t:'ok',m:'Modo demonstração: não foi salvo.'});return;}
+    setBusy(true);
+    const {error}=await sb.rpc('peso_meta_salvar',{p_student:student.id,p_alvo:num(f.alvo),
+      p_prazo:f.prazo||null,p_inicial:num(f.inicial)});
+    setBusy(false);
+    setMsg(error?{t:'err',m:/peso_meta|does not exist|PGRST202/.test(error.message)
+      ?'Rode o arquivo "feedback-e-peso.sql" no Supabase para liberar isso.':'Erro: '+error.message}
+      :{t:'ok',m:'Meta salva.'});
+  };
+  return(<div className="card" style={{marginBottom:14}}>
+    <div style={{fontFamily:'var(--serif)',fontSize:17,fontWeight:600,marginBottom:2}}>Meta de peso</div>
+    <p className="s-meta" style={{marginBottom:10}}>
+      Com alvo e prazo definidos, o app mostra para você e para o aluno se ele está no ritmo — em vez de só mostrar o peso de hoje.</p>
+    {msg&&<div className={`alert ${msg.t==='err'?'alert-danger':'alert-success'}`}>{msg.m}</div>}
+    <div className="fgrid" style={{gridTemplateColumns:'1fr 1fr 1fr'}}>
+      <FI label="Peso alvo" unit="kg" type="number" value={f.alvo} onChange={e=>setF({...f,alvo:e.target.value})}/>
+      <FI label="Peso inicial" unit="kg" type="number" value={f.inicial} onChange={e=>setF({...f,inicial:e.target.value})} placeholder="último do diário"/>
+      <FI label="Prazo" type="date" value={f.prazo} onChange={e=>setF({...f,prazo:e.target.value})}/>
+    </div>
+    <button className="btn btn-primary btn-sm" style={{marginTop:8}} disabled={busy} onClick={salvar}>
+      {busy?'Salvando…':'Salvar meta'}</button>
+  </div>);
+}
+
 function StudentApp({profile}){
   const demo=!!profile._demo;
   const [stu,setStu]=useState(demo?{id:'ds1',name:'Laryssa Araujo',gender:'F',coach_id:'demo'}:undefined);
@@ -5478,6 +7353,7 @@ function StudentApp({profile}){
   const [best,setBest]=useState({});const [exec,setExec]=useState(null);const [evol,setEvol]=useState(false);const [hydra,setHydra]=useState(false);const [chk,setChk]=useState(false);const [ciclo,setCiclo]=useState(false);const [aval,setAval]=useState(false);const [freq,setFreq]=useState({done:0,meta:4});
   const [diario,setDiario]=useState(false);const [metas,setMetas]=useState(false);
   const [tab,setTab]=useState('home');
+  const [temDieta,setTemDieta]=useState(false);
   const [pushOn,setPushOn]=useState(false);const [pushBusy,setPushBusy]=useState(false);const [pushMsg,setPushMsg]=useState(null);const [agua,setAgua]=useState(false);
   const [stats,setStats]=useState({total:0,prs:0,streak:0,mes:0});
   const [avisos,setAvisos]=useState(demo?_DEMO_AVISOS:[]);
@@ -5489,7 +7365,7 @@ function StudentApp({profile}){
     const mes=dias.filter(d=>d.slice(0,7)===mesKey).length;
     // sequência: dias de treino consecutivos terminando hoje ou ontem
     let streak=0;const setD=new Set(dias);const cur=new Date();
-    const iso=d=>d.toISOString().slice(0,10);
+    const iso=d=>dayKey(d);
     if(!setD.has(iso(cur)))cur.setDate(cur.getDate()-1);
     while(setD.has(iso(cur))){streak++;cur.setDate(cur.getDate()-1);}
     return{total:dias.length,prs,streak,mes};
@@ -5504,7 +7380,7 @@ function StudentApp({profile}){
   const refresh=async()=>{if(demo||!stu)return;
     const {data:hi}=await sb.from('train_historico').select('exercicio_id,carga,data_treino,tipo_serie,is_pr').eq('student_id',stu.id);
     const b={};(hi||[]).forEach(h=>{if(h.tipo_serie==='Valida'&&h.exercicio_id&&(b[h.exercicio_id]==null||h.carga>b[h.exercicio_id]))b[h.exercicio_id]=h.carga;});setBest(b);
-    const md=new Date();md.setDate(md.getDate()-((md.getDay()+6)%7));const mk=md.toISOString().slice(0,10);
+    const md=new Date();md.setDate(md.getDate()-((md.getDay()+6)%7));const mk=dayKey(md);
     const days=new Set((hi||[]).filter(h=>h.data_treino>=mk).map(h=>h.data_treino));setFreq(f=>({...f,done:days.size}));
     setStats(computeStats(hi));loadAvisos(stu.id);};
   useEffect(()=>{if(demo){setFreq({done:3,meta:4});setStats({total:24,prs:7,streak:3,mes:9});return;}(async()=>{
@@ -5515,11 +7391,13 @@ function StudentApp({profile}){
       const {data:dv}=await sb.from('train_divisao').select('*').eq('student_id',s.id).order('ordem');setDivs(dv||[]);
       const {data:hi}=await sb.from('train_historico').select('exercicio_id,carga,data_treino,tipo_serie,is_pr').eq('student_id',s.id);
       const b={};(hi||[]).forEach(h=>{if(h.tipo_serie==='Valida'&&h.exercicio_id&&(b[h.exercicio_id]==null||h.carga>b[h.exercicio_id]))b[h.exercicio_id]=h.carga;});setBest(b);
-      const mondayD=new Date();mondayD.setDate(mondayD.getDate()-((mondayD.getDay()+6)%7));const monday=mondayD.toISOString().slice(0,10);
+      const mondayD=new Date();mondayD.setDate(mondayD.getDate()-((mondayD.getDay()+6)%7));const monday=dayKey(mondayD);
       const days=new Set((hi||[]).filter(h=>h.data_treino>=monday).map(h=>h.data_treino));setFreq({done:days.size,meta:(dv||[]).length||4});
       setStats(computeStats(hi));loadAvisos(s.id);
     }
   })();},[]);
+  useEffect(()=>{if(demo){setTemDieta(true);return;}
+    (async()=>{try{const p=await getActivePlan(profile.id);setTemDieta(!!p);}catch(e){}})();},[]);
   useEffect(()=>{if(tab==='avisos'&&naoLidos>0){setAvisos(a=>a.map(x=>({...x,lido:true})));if(!demo)sb.rpc('avisos_marcar_lidos').catch(()=>{});}},[tab]);
   useEffect(()=>{if(demo||!stu)return;(async()=>{
     try{if(pushSuportado()&&Notification.permission==='granted'){const reg=await navigator.serviceWorker.ready;const s=await reg.pushManager.getSubscription();setPushOn(!!s);}}catch(e){}
@@ -5532,22 +7410,23 @@ function StudentApp({profile}){
 
   const goTab=t=>{setExec(null);setEvol(false);setHydra(false);setChk(false);setCiclo(false);setAval(false);setDiario(false);setMetas(false);setTab(t);window.scrollTo(0,0);};
   const navItem=(t,ic,lb,badge)=>(<button className={'lv-navb'+(tab===t?' on':'')} onClick={()=>goTab(t)}>
-    <span className="ic">{ic}</span>{lb}{badge>0&&<span className="lv-navbadge">{badge>9?'9+':badge}</span>}</button>);
+    <span className="lv-navmark"/>{lb}{badge>0&&<span className="lv-navbadge">{badge>9?'9+':badge}</span>}</button>);
   const shell=(inner,nav)=>(<div className="lv">
     <div className="lv-top"><LogoMark size={28}/><span style={{fontWeight:800,fontSize:15}}>MF Performance</span><span className="sp"/>
       {!demo&&<button className="lv-x" onClick={()=>sb.auth.signOut()}>Sair</button>}</div>
     <div style={nav?{paddingBottom:78}:null}>{inner}</div>
     {nav&&<div className="lv-nav">
-      {navItem('home','🏠','Início',0)}
-      {navItem('prog','📈','Progresso',0)}
-      {navItem('avisos','🔔','Avisos',naoLidos)}
-      {navItem('conta','👤','Conta',0)}
+      {navItem('home','','Início',0)}
+      {navItem('dieta','','Dieta',0)}
+      {navItem('prog','','Progresso',0)}
+      {navItem('avisos','','Avisos',naoLidos)}
+      {navItem('conta','','Conta',0)}
     </div>}
   </div>);
 
   if(stu===undefined)return shell(<div className="center-screen" style={{minHeight:'70vh'}}><div className="spinner"/></div>);
   if(stu===null)return shell(<div className="lv-wrap"><div className="lv-card" style={{marginTop:26}}>
-    <div style={{fontSize:36,textAlign:'center',marginBottom:6}}>🔑</div>
+    <div style={{fontSize:36,textAlign:'center',marginBottom:6}}></div>
     <div style={{fontSize:19,fontWeight:800,textAlign:'center',marginBottom:6}}>Ativar minha conta</div>
     <p className="lv-sub" style={{textAlign:'center'}}>Digite o código de acesso que seu treinador te passou.</p>
     {linkErr&&<div className="alert alert-danger" style={{marginTop:10}}>{linkErr}</div>}
@@ -5567,22 +7446,28 @@ function StudentApp({profile}){
   const nm=stu.name.split(' ')[0];
   const frase=MOTIV_FRASES[new Date().getDate()%MOTIV_FRASES.length];
   const badges=[
-    {em:'🎯',lb:'1º treino',got:stats.total>=1},
-    {em:'🔥',lb:'7 dias seguidos',got:stats.streak>=7},
-    {em:'💪',lb:'10 treinos',got:stats.total>=10},
-    {em:'🏆',lb:'1º recorde',got:stats.prs>=1},
-    {em:'⭐',lb:'25 treinos',got:stats.total>=25},
-    {em:'👑',lb:'50 treinos',got:stats.total>=50},
+    {em:'1',lb:'1º treino',got:stats.total>=1},
+    {em:'7',lb:'7 dias seguidos',got:stats.streak>=7},
+    {em:'10',lb:'10 treinos',got:stats.total>=10},
+    {em:'PR',lb:'1º recorde',got:stats.prs>=1},
+    {em:'25',lb:'25 treinos',got:stats.total>=25},
+    {em:'50',lb:'50 treinos',got:stats.total>=50},
   ];
   const header=(<div style={{display:'flex',alignItems:'center',gap:12,marginBottom:16}}>
     <div className="lv-avatar">{initials(stu.name)}</div>
     <div style={{flex:1,minWidth:0}}><div className="lv-kick">{saud}</div><div className="lv-title">{nm}</div></div>
-    {stats.streak>0&&<span className="lv-streak"><span className="lv-flame">🔥</span>{stats.streak} {stats.streak===1?'dia':'dias'}</span>}
+    {stats.streak>0&&<span className="lv-streak"><span className="lv-flame"></span>{stats.streak} {stats.streak===1?'dia':'dias'}</span>}
   </div>);
 
   const homeTab=(<div className="lv-wrap">
     {header}
-    <div className="lv-motiv"><span className="q">💬</span><div style={{fontSize:13.5,fontWeight:600,fontStyle:'italic',color:'var(--lvt)'}}>{frase}</div></div>
+    <AneisDoDia stu={stu} profile={profile} demo={demo}
+      onTreino={()=>list.length&&setExec(list[0])} onDieta={()=>goTab('dieta')}
+      onAgua={()=>setHydra(true)} onCheckin={()=>setChk(true)}/>
+    <PeriodizacaoAluno demo={demo}/>
+    <EvolucaoAluno stu={stu} demo={demo} onVer={()=>setEvol(true)}/>
+    <PesoStatus demo={demo}/>
+    <div className="lv-motiv"><span className="q"></span><div style={{fontSize:13.5,fontWeight:600,fontStyle:'italic',color:'var(--lvt)'}}>{frase}</div></div>
     <div className="lv-stats">
       <div className="lv-stat"><b>{stats.total}</b><span>Treinos</span></div>
       <div className="lv-stat"><b>{stats.prs}</b><span>Recordes</span></div>
@@ -5596,12 +7481,12 @@ function StudentApp({profile}){
       </div>
       {list.length>1&&<div className="lv-kick" style={{margin:'8px 0 8px'}}>Outros treinos</div>}
       {list.slice(1).map(dv=><div key={dv.id} className="lv-treino" style={{marginBottom:10}} onClick={()=>setExec(dv)}>
-        <div className="lv-avatar" style={{width:38,height:38,fontSize:15,background:'var(--lvc2)',color:'var(--lvrx)'}}>▸</div>
+        <span style={{width:3,height:30,borderRadius:2,background:'var(--lvrx)',flexShrink:0}}/>
         <div style={{flex:1}}><div style={{fontWeight:700}}>{dv.nome||'Divisão'}</div><div className="lv-sub">Toque para executar</div></div>
       </div>)}
     </>}
     <div className="lv-card" onClick={()=>setMetas(true)} style={{cursor:'pointer',background:'linear-gradient(135deg,rgba(139,92,246,.16),rgba(74,222,128,.08))',border:'1px solid var(--lvbd)'}}>
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}><div className="lv-kick">🎯 Minhas metas & desafios</div><span style={{color:'var(--lvt3)'}}>›</span></div>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}><div className="lv-kick">Minhas metas & desafios</div><span style={{color:'var(--lvt3)'}}>›</span></div>
       <div style={{fontWeight:800,fontSize:15,marginTop:6}}>Desafio da semana: {freq.done}/{freq.meta} treinos</div>
       <div className="lv-freq" style={{marginTop:8}}><i style={{width:pct+'%'}}/></div>
     </div>
@@ -5612,26 +7497,31 @@ function StudentApp({profile}){
         <div style={{flex:1}}><div style={{fontSize:20,fontWeight:900,color:'var(--lvrx)'}}>{stats.prs}</div><div className="lv-sub" style={{fontSize:11}}>recordes</div></div>
         <div style={{flex:1}}><div style={{fontSize:20,fontWeight:900,color:'var(--lvrx)'}}>{stats.streak}</div><div className="lv-sub" style={{fontSize:11}}>seq. dias</div></div>
       </div>
-      <div className="lv-sub" style={{marginTop:10,lineHeight:1.5}}>{freq.done>=freq.meta?'Semana fechada com chave de ouro! 🎉 Orgulho do seu compromisso.':`Faltam ${Math.max(0,freq.meta-freq.done)} treino(s) pra bater sua meta da semana. Bora!`}</div>
+      <div className="lv-sub" style={{marginTop:10,lineHeight:1.5}}>{freq.done>=freq.meta?'Semana fechada com chave de ouro! Orgulho do seu compromisso.':`Faltam ${Math.max(0,freq.meta-freq.done)} treino(s) pra bater sua meta da semana. Bora!`}</div>
     </div>
     <div className="lv-kick" style={{margin:'18px 0 10px'}}>Meu dia</div>
     <div style={{display:'flex',gap:10,marginBottom:14}}>
       <div className="lv-treino" style={{flex:1,margin:0}} onClick={()=>setHydra(true)}>
-        <div className="lv-avatar" style={{width:38,height:38,fontSize:18,background:'var(--lvc2)'}}>💧</div>
+        <span style={{width:3,height:30,borderRadius:2,background:'var(--lvrx)',flexShrink:0}}/>
         <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700}}>Hidratação</div><div className="lv-sub">Meta do dia</div></div>
       </div>
       <div className="lv-treino" style={{flex:1,margin:0}} onClick={()=>setChk(true)}>
-        <div className="lv-avatar" style={{width:38,height:38,fontSize:18,background:'var(--lvc2)'}}>🟢</div>
+        <span style={{width:3,height:30,borderRadius:2,background:'var(--lvrx)',flexShrink:0}}/>
         <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700}}>Check-in</div><div className="lv-sub">Como está hoje</div></div>
       </div>
     </div>
+    {temDieta&&<div className="lv-treino" style={{marginBottom:14}} onClick={()=>goTab('dieta')}>
+      <span style={{width:3,height:30,borderRadius:2,background:'var(--lvrx)',flexShrink:0}}/>
+      <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700}}>Minha dieta</div><div className="lv-sub">Refeições, macros e suplementos</div></div>
+      <span style={{color:'var(--lvt3)'}}>›</span>
+    </div>}
     <div className="lv-treino" style={{marginBottom:14}} onClick={()=>setDiario(true)}>
-      <div className="lv-avatar" style={{width:38,height:38,fontSize:18,background:'var(--lvc2)'}}>📔</div>
-      <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700}}>Diário de saúde</div><div className="lv-sub">Peso, sono, energia, glicemia…</div></div>
+      <span style={{width:3,height:30,borderRadius:2,background:'var(--lvrx)',flexShrink:0}}/>
+      <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700}}>Diário de saúde</div><div className="lv-sub">Peso, sono, passos, glicemia…</div></div>
       <span style={{color:'var(--lvt3)'}}>›</span>
     </div>
     {stu.gender==='F'&&<div className="lv-treino" style={{marginBottom:14}} onClick={()=>setCiclo(true)}>
-      <div className="lv-avatar" style={{width:38,height:38,fontSize:18,background:'var(--lvc2)'}}>🩸</div>
+      <span style={{width:3,height:30,borderRadius:2,background:'var(--lvrx)',flexShrink:0}}/>
       <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700}}>Meu ciclo</div><div className="lv-sub">Fases e consciência</div></div>
       <span style={{color:'var(--lvt3)'}}>›</span>
     </div>}
@@ -5653,12 +7543,12 @@ function StudentApp({profile}){
       <div className="lv-stat"><b>{stats.streak}</b><span>Sequência</span></div>
     </div>
     <div className="lv-treino" style={{marginBottom:12}} onClick={()=>setEvol(true)}>
-      <div className="lv-avatar" style={{width:38,height:38,fontSize:18,background:'var(--lvc2)'}}>📈</div>
+      <span style={{width:3,height:30,borderRadius:2,background:'var(--lvrx)',flexShrink:0}}/>
       <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700}}>Evolução de cargas</div><div className="lv-sub">Gráfico e recordes por exercício</div></div>
       <span style={{color:'var(--lvt3)'}}>›</span>
     </div>
     <div className="lv-treino" style={{marginBottom:12}} onClick={()=>setAval(true)}>
-      <div className="lv-avatar" style={{width:38,height:38,fontSize:18,background:'var(--lvc2)'}}>📋</div>
+      <span style={{width:3,height:30,borderRadius:2,background:'var(--lvrx)',flexShrink:0}}/>
       <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700}}>Minha avaliação física</div><div className="lv-sub">Última avaliação, relatório e evolução</div></div>
       <span style={{color:'var(--lvt3)'}}>›</span>
     </div>
@@ -5671,9 +7561,9 @@ function StudentApp({profile}){
   const avisosTab=(<div className="lv-wrap">
     <div className="lv-title" style={{marginBottom:14}}>Avisos</div>
     {avisos.length===0?<div className="lv-card" style={{textAlign:'center',color:'var(--lvt2)'}}>
-      <div style={{fontSize:32,marginBottom:6}}>🔔</div>Nenhum aviso por aqui ainda.<div className="lv-sub" style={{marginTop:4}}>Seus lembretes e mensagens do treinador aparecem aqui.</div>
+      <div style={{fontSize:32,marginBottom:6}}></div>Nenhum aviso por aqui ainda.<div className="lv-sub" style={{marginTop:4}}>Seus lembretes e mensagens do treinador aparecem aqui.</div>
     </div>:avisos.map(a=><div key={a.id} className={'lv-aviso'+(a.lido?'':' unread')}>
-      <div className="ic">{AVISO_ICON[a.tipo]||'📣'}</div>
+      <div className="ic">{AVISO_ICON[a.tipo]||''}</div>
       <div style={{flex:1,minWidth:0}}>
         <div style={{fontWeight:800,fontSize:14,paddingRight:14}}>{a.titulo}</div>
         <div style={{fontSize:13,color:'var(--lvt2)',marginTop:3,lineHeight:1.4}}>{a.texto}</div>
@@ -5695,30 +7585,31 @@ function StudentApp({profile}){
       <div className="lv-stat"><b>{stats.streak}</b><span>Sequência</span></div>
     </div>
     <div className="lv-treino" style={{marginBottom:12}} onClick={()=>setAval(true)}>
-      <div className="lv-avatar" style={{width:38,height:38,fontSize:18,background:'var(--lvc2)'}}>📋</div>
+      <span style={{width:3,height:30,borderRadius:2,background:'var(--lvrx)',flexShrink:0}}/>
       <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700}}>Minha avaliação física</div><div className="lv-sub">Relatório e evolução</div></div>
       <span style={{color:'var(--lvt3)'}}>›</span>
     </div>
     <div className="lv-kick" style={{margin:'6px 0 10px'}}>Notificações</div>
     <div className="lv-card">
       <div style={{display:'flex',alignItems:'center',gap:12}}>
-        <div style={{fontSize:22}}>🔔</div>
+        <div style={{fontSize:22}}></div>
         <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700}}>Avisos no celular</div><div className="lv-sub">Recebe os avisos do treinador na barra do sistema</div></div>
         <LvToggle on={pushOn} busy={pushBusy} onClick={togglePush}/>
       </div>
       <div style={{height:1,background:'var(--lvbd)',margin:'14px 0'}}/>
       <div style={{display:'flex',alignItems:'center',gap:12}}>
-        <div style={{fontSize:22}}>💧</div>
+        <div style={{fontSize:22}}></div>
         <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700}}>Lembrete de beber água</div><div className="lv-sub">Toques ao longo do dia pra manter a hidratação</div></div>
         <LvToggle on={agua} onClick={()=>toggleAgua(!agua)}/>
       </div>
       {pushMsg&&<div className="lv-sub" style={{color:'#fca5a5',marginTop:12}}>{pushMsg}</div>}
-      {!pushOn&&<div className="lv-sub" style={{marginTop:12,fontSize:11.5,lineHeight:1.5}}>💡 No iPhone: abra pelo Safari, toque em Compartilhar → “Adicionar à Tela de Início” e abra o app por lá para ativar as notificações.</div>}
+      {!pushOn&&<div className="lv-sub" style={{marginTop:12,fontSize:11.5,lineHeight:1.5}}>No iPhone: abra pelo Safari, toque em Compartilhar → “Adicionar à Tela de Início” e abra o app por lá para ativar as notificações.</div>}
     </div>
     {!demo&&<button className="lv-btn" style={{background:'var(--lvc2)',color:'var(--lvt)',marginTop:6}} onClick={()=>sb.auth.signOut()}>Sair da conta</button>}
   </div>);
 
-  const content=tab==='prog'?progTab:tab==='avisos'?avisosTab:tab==='conta'?contaTab:homeTab;
+  const dietaTab=<DietaScreen profile={profile} demo={demo} onBack={()=>goTab('home')} onHidra={()=>setHydra(true)}/>;
+  const content=tab==='dieta'?dietaTab:tab==='prog'?progTab:tab==='avisos'?avisosTab:tab==='conta'?contaTab:homeTab;
   return shell(content,true);
 }
 
@@ -5769,9 +7660,62 @@ function Root(){
 ReactDOM.createRoot(document.getElementById('root')).render(<Root/>);
 </script>
 <script>
-if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
-}
+/* Atualizacao automatica.
+   O registro antigo so chamava register() uma vez: se o navegador ja tinha um
+   service worker instalado, ele continuava servindo a versao velha ate o usuario
+   fechar tudo. Agora a gente pede update() na abertura e toda vez que o app volta
+   pro primeiro plano, e recarrega sozinho quando o worker novo assume. */
+(function(){
+  if(!('serviceWorker' in navigator)) return;
+  var recarregou=false;
+  // Na PRIMEIRA visita nao existe controlador ainda, e o clients.claim() do
+  // worker novo dispara controllerchange do mesmo jeito. Recarregar nessa hora
+  // criaria um reload a toa (e, com o app ainda montando, tela pela metade).
+  // So recarrega quando havia um worker ANTIGO sendo substituido.
+  var tinhaControlador=!!navigator.serviceWorker.controller;
+
+  navigator.serviceWorker.addEventListener('controllerchange',function(){
+    if(!tinhaControlador || recarregou) return;
+    recarregou=true;
+    location.reload();
+  });
+
+  window.addEventListener('load',function(){
+    navigator.serviceWorker.register('./sw.js').then(function(reg){
+      reg.update().catch(function(){});
+      // worker novo baixado enquanto o antigo ainda controla a pagina
+      reg.addEventListener('updatefound',function(){
+        var novo=reg.installing;
+        if(!novo) return;
+        novo.addEventListener('statechange',function(){
+          if(novo.state==='installed' && navigator.serviceWorker.controller){
+            novo.postMessage({tipo:'ASSUMIR'});   // pede pro novo assumir agora
+          }
+        });
+      });
+      // checa de novo quando o app volta pro primeiro plano
+      document.addEventListener('visibilitychange',function(){
+        if(document.visibilityState==='visible') reg.update().catch(function(){});
+      });
+    }).catch(function(){});
+  });
+})();
+
+/* Escotilha de emergencia: apaga tudo que esta guardado e recarrega do zero.
+   Chamada pelo botao "Forcar atualizacao" dentro do app. */
+window.MFP_forcarAtualizacao=async function(){
+  try{
+    if('serviceWorker' in navigator){
+      var regs=await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(function(r){return r.unregister();}));
+    }
+    if(window.caches){
+      var ks=await caches.keys();
+      await Promise.all(ks.map(function(k){return caches.delete(k);}));
+    }
+  }catch(e){}
+  location.replace(location.pathname+'?v='+Date.now());
+};
 </script>
 </body>
 </html>
