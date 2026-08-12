@@ -1,4 +1,4 @@
-const CACHE='mfp-v54';
+const CACHE='mfp-v55';
 const ASSETS=[
   './','./index.html','./config.js','./manifest.json',
   './lib/react.js','./lib/react-dom.js','./lib/babel.js',
@@ -6,7 +6,15 @@ const ASSETS=[
 ];
 self.addEventListener('install',e=>{
   self.skipWaiting();
-  e.waitUntil(caches.open(CACHE).then(c=>Promise.allSettled(ASSETS.map(a=>c.add(a)))));
+  // cache:'reload' obriga a buscar na rede: sem isso o navegador podia
+  // guardar de novo a copia velha que ja estava no cache HTTP dele
+  e.waitUntil(caches.open(CACHE).then(c=>Promise.allSettled(
+    ASSETS.map(a=>c.add(new Request(a,{cache:'reload'}))))));
+});
+
+// a pagina pede para o worker novo assumir na hora, sem esperar fechar as abas
+self.addEventListener('message',e=>{
+  if(e.data&&e.data.tipo==='ASSUMIR') self.skipWaiting();
 });
 self.addEventListener('activate',e=>{
   e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));
