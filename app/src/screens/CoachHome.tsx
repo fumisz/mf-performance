@@ -1,21 +1,27 @@
 import { useEffect, useState } from "react"
-import { motion } from "motion/react"
 import { supabase } from "@/lib/supabase"
-import { loadCoachData, type CoachData } from "@/lib/coach"
+import { loadCoachData, type CoachData, type CoachStudent as Student } from "@/lib/coach"
 import { Input } from "@/components/ui/input"
-import { MagicCard } from "@/components/fx/magic-card"
-import { NumberTicker } from "@/components/fx/number-ticker"
-import { GradientText } from "@/components/fx/gradient-text"
-import { AuroraBackground } from "@/components/fx/aurora-background"
-import { BorderBeam } from "@/components/fx/border-beam"
+import { CoachStudent } from "@/screens/CoachStudent"
 
 function initials(n: string) {
   return n.split(" ").filter(Boolean).slice(0, 2).map((x) => x[0]).join("").toUpperCase()
 }
 
+function Stat({ value, label, hint }: { value: number; label: string; hint?: string }) {
+  return (
+    <div className="rounded-xl border border-border/70 bg-card/40 px-4 py-3.5">
+      <div className="text-2xl font-semibold tracking-tight tabular-nums">{value}</div>
+      <div className="mt-0.5 text-[13px] font-medium text-muted-foreground">{label}</div>
+      {hint && <div className="mt-0.5 text-[11px] text-muted-foreground/70">{hint}</div>}
+    </div>
+  )
+}
+
 export function CoachHome({ userId }: { userId: string }) {
   const [data, setData] = useState<CoachData | null>(null)
   const [q, setQ] = useState("")
+  const [sel, setSel] = useState<Student | null>(null)
 
   useEffect(() => {
     let alive = true
@@ -28,154 +34,96 @@ export function CoachHome({ userId }: { userId: string }) {
   if (!data) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="size-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        <div className="size-7 animate-spin rounded-full border-2 border-muted border-t-primary" />
       </div>
     )
   }
+
+  if (sel) return <CoachStudent student={sel} onBack={() => setSel(null)} />
 
   const total = data.students.length
   const filtered = data.students.filter((s) => s.name.toLowerCase().includes(q.toLowerCase()))
 
   return (
-    <div className="relative min-h-screen">
-      <AuroraBackground />
+    <div className="min-h-screen">
+      {/* leve luz estática no topo, sem animação */}
+      <div className="pointer-events-none fixed inset-x-0 top-0 -z-10 h-72 bg-[radial-gradient(60%_100%_at_50%_0%,rgba(124,58,237,0.16),transparent_70%)]" />
 
-      <div className="mx-auto max-w-2xl px-4 pb-20 pt-7">
+      <div className="mx-auto max-w-3xl px-5 pb-24 pt-8">
         {/* header */}
-        <motion.div
-          initial={{ opacity: 0, y: -12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: "easeOut" }}
-          className="mb-6 flex items-center gap-3"
-        >
-          <div className="flex size-11 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-cyan-400 text-sm font-black text-white shadow-lg shadow-violet-500/30">
+        <header className="mb-8 flex items-center gap-3">
+          <div className="flex size-10 items-center justify-center rounded-full bg-secondary text-[13px] font-semibold text-foreground">
             {initials(data.coachName)}
           </div>
           <div className="flex-1">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-muted-foreground">
-              Painel do treinador
+            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+              Painel
             </p>
-            <h1 className="text-2xl font-black tracking-tight">
-              <GradientText>{data.coachName}</GradientText>
-            </h1>
+            <h1 className="text-[19px] font-semibold tracking-tight">{data.coachName}</h1>
           </div>
           <button
             onClick={() => supabase.auth.signOut()}
-            className="rounded-xl border border-border bg-card/50 px-3.5 py-2 text-sm font-semibold text-muted-foreground backdrop-blur transition hover:text-foreground"
+            className="text-sm font-medium text-muted-foreground transition hover:text-foreground"
           >
             Sair
           </button>
-        </motion.div>
+        </header>
 
-        {/* hero bento */}
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.05, ease: "easeOut" }}
-          className="mb-3 grid grid-cols-3 gap-3"
-        >
-          <div className="relative col-span-2 overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-violet-600/30 via-card/60 to-card/60 p-6 backdrop-blur-xl">
-            <BorderBeam />
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-violet-200">
-              Sua carteira
-            </p>
-            <div className="mt-2 flex items-end gap-2">
-              <span className="text-6xl font-black leading-none tracking-tight">
-                <NumberTicker value={total} />
-              </span>
-              <span className="mb-1.5 text-sm font-semibold text-muted-foreground">
-                aluno{total === 1 ? "" : "s"}
-              </span>
-            </div>
-            <p className="mt-3 text-sm text-muted-foreground">
-              Acompanhe treino, avaliação e evolução de cada um num só lugar.
-            </p>
-          </div>
+        {/* stats */}
+        <section className="mb-10 grid grid-cols-3 gap-3">
+          <Stat value={total} label="Alunos" hint="na carteira" />
+          <Stat value={total} label="Ativos" hint="últimos 30 dias" />
+          <Stat value={0} label="A reavaliar" hint="nenhum pendente" />
+        </section>
 
-          <div className="flex flex-col gap-3">
-            <MagicCard color="34,197,94" className="flex-1 p-4">
-              <div className="text-2xl font-black text-emerald-400">
-                <NumberTicker value={total} />
-              </div>
-              <div className="mt-0.5 text-[10.5px] font-semibold uppercase text-muted-foreground">
-                Ativos
-              </div>
-            </MagicCard>
-            <MagicCard color="245,158,11" className="flex-1 p-4">
-              <div className="text-2xl font-black text-amber-400">
-                <NumberTicker value={0} />
-              </div>
-              <div className="mt-0.5 text-[10.5px] font-semibold uppercase text-muted-foreground">
-                Pendências
-              </div>
-            </MagicCard>
-          </div>
-        </motion.div>
-
-        {/* busca */}
-        <div className="relative mb-4 mt-5">
-          <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground">
-            ⌕
-          </span>
+        {/* alunos */}
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-[15px] font-semibold tracking-tight">Alunos</h2>
           <Input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Buscar aluno…"
-            className="h-11 rounded-xl border-white/10 bg-card/50 pl-9 backdrop-blur"
+            placeholder="Buscar…"
+            className="h-9 w-44 rounded-lg border-border/70 bg-card/40 text-sm"
           />
         </div>
 
-        <div className="mb-3 flex items-center justify-between">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-            Seus alunos
-          </p>
-          <span className="rounded-full bg-secondary px-2.5 py-0.5 text-xs font-bold text-muted-foreground">
-            {filtered.length}
-          </span>
-        </div>
-
         {filtered.length === 0 ? (
-          <div className="rounded-3xl border border-white/10 bg-card/50 p-10 text-center backdrop-blur">
-            <div className="mb-2 text-4xl">🫥</div>
-            <p className="text-muted-foreground">
+          <div className="rounded-xl border border-dashed border-border/70 py-16 text-center">
+            <p className="text-sm text-muted-foreground">
               {total === 0
-                ? "Você ainda não tem alunos. Gere um código de acesso para cadastrá-los."
-                : "Nenhum aluno com esse nome."}
+                ? "Nenhum aluno ainda. Gere um código de acesso para cadastrar o primeiro."
+                : "Nenhum resultado."}
             </p>
           </div>
         ) : (
-          <div className="flex flex-col gap-2.5">
+          <div className="overflow-hidden rounded-xl border border-border/70 bg-card/30">
             {filtered.map((s, i) => (
-              <motion.div
+              <button
                 key={s.id}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.04 * i, duration: 0.4, ease: "easeOut" }}
+                onClick={() => setSel(s)}
+                className={`flex w-full items-center gap-3.5 px-4 py-3.5 text-left transition hover:bg-card/70 ${
+                  i > 0 ? "border-t border-border/60" : ""
+                }`}
               >
-                <MagicCard className="cursor-pointer bg-card/50 backdrop-blur transition hover:-translate-y-0.5">
-                  <div className="flex items-center gap-3.5 p-3.5">
-                    <div className="rounded-full bg-gradient-to-br from-violet-500 to-cyan-400 p-[2px]">
-                      <div className="flex size-11 items-center justify-center rounded-full bg-card text-sm font-bold">
-                        {s.photo_url ? (
-                          <img src={s.photo_url} alt="" className="size-full rounded-full object-cover" />
-                        ) : (
-                          initials(s.name)
-                        )}
-                      </div>
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-bold">{s.name}</p>
-                      <p className="truncate text-sm text-muted-foreground">
-                        {s.goal || "Sem objetivo definido"}
-                      </p>
-                    </div>
-                    <span className="flex items-center gap-1.5 rounded-full bg-emerald-500/12 px-2.5 py-1 text-[11px] font-bold text-emerald-400">
-                      <span className="size-1.5 rounded-full bg-emerald-400" /> Ativo
-                    </span>
-                    <span className="text-lg text-muted-foreground">›</span>
-                  </div>
-                </MagicCard>
-              </motion.div>
+                <div className="flex size-10 items-center justify-center overflow-hidden rounded-full bg-secondary text-[13px] font-semibold text-muted-foreground">
+                  {s.photo_url ? (
+                    <img src={s.photo_url} alt="" className="size-full object-cover" />
+                  ) : (
+                    initials(s.name)
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[15px] font-medium">{s.name}</p>
+                  <p className="truncate text-[13px] text-muted-foreground">
+                    {s.goal || "Sem objetivo definido"}
+                  </p>
+                </div>
+                <span className="flex items-center gap-1.5 text-[12px] font-medium text-muted-foreground">
+                  <span className="size-1.5 rounded-full bg-emerald-500" />
+                  Ativo
+                </span>
+                <span className="text-muted-foreground/50">›</span>
+              </button>
             ))}
           </div>
         )}
