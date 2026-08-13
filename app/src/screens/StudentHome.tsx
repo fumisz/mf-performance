@@ -9,22 +9,12 @@ import { ShimmerButton } from "@/components/fx/shimmer-button"
 import { BentoGrid } from "@/components/fx/bento"
 import { motion } from "motion/react"
 import type { Variants } from "motion/react"
+import { useStudent } from "@/lib/student-context"
 
-const stats = [
-  { label: "Treinos", value: 24, color: "text-violet-300" },
-  { label: "Recordes", value: 7, color: "text-fuchsia-300" },
-  { label: "Este mês", value: 9, color: "text-emerald-300" },
-  { label: "Sequência", value: 3, color: "text-amber-300" },
-]
-
-const badges = [
-  { em: "🎯", lb: "1º treino", got: true },
-  { em: "🔥", lb: "7 dias", got: false },
-  { em: "💪", lb: "10 treinos", got: true },
-  { em: "🏆", lb: "1º recorde", got: true },
-  { em: "⭐", lb: "25 treinos", got: false },
-  { em: "👑", lb: "50 treinos", got: false },
-]
+function saudacao() {
+  const h = new Date().getHours()
+  return h < 12 ? "Bom dia" : h < 18 ? "Boa tarde" : "Boa noite"
+}
 
 const fade: Variants = {
   hidden: { opacity: 0, y: 18 },
@@ -36,8 +26,33 @@ const fade: Variants = {
 }
 
 export function StudentHome() {
-  const done = 3
-  const meta = 4
+  const d = useStudent()
+  const nome = d.student?.name?.split(" ")[0] ?? "Atleta"
+  const iniciais = (d.student?.name ?? "MF")
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+  const stats = [
+    { label: "Treinos", value: d.stats.total, color: "text-violet-300" },
+    { label: "Recordes", value: d.stats.prs, color: "text-fuchsia-300" },
+    { label: "Este mês", value: d.stats.mes, color: "text-emerald-300" },
+    { label: "Sequência", value: d.stats.streak, color: "text-amber-300" },
+  ]
+  const done = d.freq.done
+  const meta = d.freq.meta
+  const proximo = d.divisoes[0]?.nome ?? "Seu treino"
+  const falta = Math.max(0, meta - done)
+  const badges = [
+    { em: "🎯", lb: "1º treino", got: d.stats.total >= 1 },
+    { em: "🔥", lb: "7 dias", got: d.stats.streak >= 7 },
+    { em: "💪", lb: "10 treinos", got: d.stats.total >= 10 },
+    { em: "🏆", lb: "1º recorde", got: d.stats.prs >= 1 },
+    { em: "⭐", lb: "25 treinos", got: d.stats.total >= 25 },
+    { em: "👑", lb: "50 treinos", got: d.stats.total >= 50 },
+  ]
 
   return (
     <div className="mx-auto min-h-screen max-w-md px-4 pb-16 pt-6">
@@ -51,18 +66,21 @@ export function StudentHome() {
       >
         <Avatar className="size-12 ring-2 ring-violet-500/40">
           <AvatarFallback className="bg-gradient-to-br from-violet-600 to-fuchsia-600 font-bold text-white">
-            LA
+            {iniciais}
           </AvatarFallback>
         </Avatar>
         <div className="flex-1">
-          <p className="text-xs uppercase tracking-widest text-muted-foreground">Boa noite</p>
+          <p className="text-xs uppercase tracking-widest text-muted-foreground">{saudacao()}</p>
           <h1 className="text-2xl font-extrabold tracking-tight">
-            <GradientText>Laryssa</GradientText>
+            <GradientText>{nome}</GradientText>
           </h1>
         </div>
-        <Badge className="gap-1 border-amber-500/40 bg-amber-500/15 text-amber-300">
-          <span className="animate-[fx-float_1.4s_ease-in-out_infinite]">🔥</span> 3 dias
-        </Badge>
+        {d.stats.streak > 0 && (
+          <Badge className="gap-1 border-amber-500/40 bg-amber-500/15 text-amber-300">
+            <span className="animate-[fx-float_1.4s_ease-in-out_infinite]">🔥</span> {d.stats.streak}{" "}
+            {d.stats.streak === 1 ? "dia" : "dias"}
+          </Badge>
+        )}
       </motion.div>
 
       {/* stats bento */}
@@ -85,7 +103,7 @@ export function StudentHome() {
       <motion.div custom={2} initial="hidden" animate="show" variants={fade}>
         <MagicCard className="mb-5 border-violet-500/30 bg-gradient-to-br from-violet-700/40 to-fuchsia-800/20 p-5">
           <p className="text-xs uppercase tracking-widest text-violet-200">Próximo treino</p>
-          <h2 className="mb-4 mt-1 text-xl font-black">A — MEMBROS INFERIORES</h2>
+          <h2 className="mb-4 mt-1 text-xl font-black">{proximo.toUpperCase()}</h2>
           <ShimmerButton>▶ Iniciar treino</ShimmerButton>
         </MagicCard>
       </motion.div>
@@ -102,9 +120,15 @@ export function StudentHome() {
                 {done}/{meta}
               </span>
             </div>
-            <Progress value={(done / meta) * 100} className="h-2.5" />
+            <Progress value={meta ? (done / meta) * 100 : 0} className="h-2.5" />
             <p className="mt-3 text-sm text-muted-foreground">
-              Falta <b className="text-foreground">1 treino</b> pra bater sua meta. Bora! 💪
+              {falta > 0 ? (
+                <>
+                  Falta <b className="text-foreground">{falta} treino{falta > 1 ? "s" : ""}</b> pra bater sua meta. Bora! 💪
+                </>
+              ) : (
+                <>Meta da semana batida! 🎉 Orgulho do seu compromisso.</>
+              )}
             </p>
           </CardContent>
         </Card>

@@ -6,10 +6,15 @@ import { NumberTicker } from "@/components/fx/number-ticker"
 import { BentoGrid } from "@/components/fx/bento"
 import { ShimmerButton } from "@/components/fx/shimmer-button"
 import { useState } from "react"
+import { useStudent } from "@/lib/student-context"
+import { supabase } from "@/lib/supabase"
 
 export function StudentConta() {
+  const { student, stats } = useStudent()
   const [push, setPush] = useState(false)
   const [agua, setAgua] = useState(true)
+  const nome = student?.name ?? "Aluno(a)"
+  const iniciais = nome.split(" ").filter(Boolean).slice(0, 2).map((n) => n[0]).join("").toUpperCase()
 
   return (
     <div className="mx-auto min-h-screen max-w-md px-4 pb-24 pt-6">
@@ -19,12 +24,14 @@ export function StudentConta() {
         <CardContent className="flex items-center gap-4 p-5">
           <Avatar className="size-14 ring-2 ring-violet-500/40">
             <AvatarFallback className="bg-gradient-to-br from-violet-600 to-fuchsia-600 text-lg font-bold text-white">
-              LA
+              {iniciais}
             </AvatarFallback>
           </Avatar>
           <div>
-            <p className="text-lg font-bold">Laryssa Araujo</p>
-            <p className="text-sm text-muted-foreground">Aluna · MF Performance</p>
+            <p className="text-lg font-bold">{nome}</p>
+            <p className="text-sm text-muted-foreground">
+              {student?.gender === "F" ? "Aluna" : "Aluno"} · MF Performance
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -32,19 +39,19 @@ export function StudentConta() {
       <BentoGrid className="mb-4 grid-cols-3 sm:grid-cols-3">
         <MagicCard className="p-4 text-center">
           <div className="text-3xl font-black text-violet-300">
-            <NumberTicker value={24} />
+            <NumberTicker value={stats.total} />
           </div>
           <div className="mt-1 text-[11px] font-semibold uppercase text-muted-foreground">Treinos</div>
         </MagicCard>
         <MagicCard className="p-4 text-center">
           <div className="text-3xl font-black text-fuchsia-300">
-            <NumberTicker value={7} />
+            <NumberTicker value={stats.prs} />
           </div>
           <div className="mt-1 text-[11px] font-semibold uppercase text-muted-foreground">Recordes</div>
         </MagicCard>
         <MagicCard className="p-4 text-center">
           <div className="text-3xl font-black text-emerald-300">
-            <NumberTicker value={3} />
+            <NumberTicker value={stats.streak} />
           </div>
           <div className="mt-1 text-[11px] font-semibold uppercase text-muted-foreground">Sequência</div>
         </MagicCard>
@@ -73,7 +80,10 @@ export function StudentConta() {
         </CardContent>
       </Card>
 
-      <ShimmerButton className="from-secondary to-secondary text-foreground shadow-none">
+      <ShimmerButton
+        className="from-secondary to-secondary text-foreground shadow-none"
+        onClick={() => supabase.auth.signOut()}
+      >
         Sair da conta
       </ShimmerButton>
     </div>

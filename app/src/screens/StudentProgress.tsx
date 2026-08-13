@@ -3,11 +3,14 @@ import { Progress } from "@/components/ui/progress"
 import { MagicCard } from "@/components/fx/magic-card"
 import { NumberTicker } from "@/components/fx/number-ticker"
 import { BentoGrid } from "@/components/fx/bento"
+import { useStudent } from "@/lib/student-context"
 
 const evol = [40, 42.5, 45, 45, 47.5, 50, 52.5]
 
 export function StudentProgress() {
+  const { stats, freq } = useStudent()
   const max = Math.max(...evol)
+  const pct = freq.meta ? Math.round((freq.done / freq.meta) * 100) : 0
   return (
     <div className="mx-auto min-h-screen max-w-md px-4 pb-24 pt-6">
       <h1 className="mb-4 text-2xl font-extrabold tracking-tight">Meu progresso</h1>
@@ -18,28 +21,29 @@ export function StudentProgress() {
             Frequência semanal
           </p>
           <p className="mt-1 text-2xl font-extrabold">
-            3 <span className="text-sm font-semibold text-muted-foreground">de 4 treinos</span>
+            {freq.done}{" "}
+            <span className="text-sm font-semibold text-muted-foreground">de {freq.meta} treinos</span>
           </p>
-          <Progress value={75} className="mt-2 h-2.5" />
+          <Progress value={pct} className="mt-2 h-2.5" />
         </CardContent>
       </Card>
 
       <BentoGrid className="mb-4 grid-cols-3 sm:grid-cols-3">
         <MagicCard className="p-4 text-center">
           <div className="text-3xl font-black text-violet-300">
-            <NumberTicker value={24} />
+            <NumberTicker value={stats.total} />
           </div>
           <div className="mt-1 text-[11px] font-semibold uppercase text-muted-foreground">Treinos</div>
         </MagicCard>
         <MagicCard className="p-4 text-center">
           <div className="text-3xl font-black text-fuchsia-300">
-            <NumberTicker value={7} />
+            <NumberTicker value={stats.prs} />
           </div>
           <div className="mt-1 text-[11px] font-semibold uppercase text-muted-foreground">Recordes</div>
         </MagicCard>
         <MagicCard className="p-4 text-center">
           <div className="text-3xl font-black text-emerald-300">
-            <NumberTicker value={3} />
+            <NumberTicker value={stats.streak} />
           </div>
           <div className="mt-1 text-[11px] font-semibold uppercase text-muted-foreground">Sequência</div>
         </MagicCard>

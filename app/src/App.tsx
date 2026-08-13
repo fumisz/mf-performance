@@ -1,36 +1,27 @@
-import { useState } from "react"
-import { motion } from "motion/react"
-import { StudentNav, type Tab } from "@/components/student-nav"
-import { StudentHome } from "@/screens/StudentHome"
-import { StudentProgress } from "@/screens/StudentProgress"
-import { StudentAvisos } from "@/screens/StudentAvisos"
-import { StudentConta } from "@/screens/StudentConta"
+import { useEffect, useState } from "react"
+import type { Session } from "@supabase/supabase-js"
+import { supabase } from "@/lib/supabase"
+import { Login } from "@/screens/Login"
+import { StudentApp } from "@/StudentApp"
 
 export default function App() {
-  const [tab, setTab] = useState<Tab>("home")
+  const [session, setSession] = useState<Session | null | undefined>(undefined)
 
-  const screen =
-    tab === "prog" ? (
-      <StudentProgress />
-    ) : tab === "avisos" ? (
-      <StudentAvisos />
-    ) : tab === "conta" ? (
-      <StudentConta />
-    ) : (
-      <StudentHome />
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setSession(data.session ?? null))
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s ?? null))
+    return () => sub.subscription.unsubscribe()
+  }, [])
+
+  if (session === undefined) {
+    return (
+      <div className="theme-aluno dark flex min-h-screen items-center justify-center bg-background">
+        <div className="size-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
     )
+  }
 
-  return (
-    <div className="theme-aluno dark min-h-screen bg-background text-foreground">
-      <motion.div
-        key={tab}
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.25, ease: "easeOut" }}
-      >
-        {screen}
-      </motion.div>
-      <StudentNav tab={tab} onTab={setTab} unread={2} />
-    </div>
-  )
+  if (!session) return <Login />
+
+  return <StudentApp userId={session.user.id} />
 }
