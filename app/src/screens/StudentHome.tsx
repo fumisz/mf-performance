@@ -10,6 +10,7 @@ import { BentoGrid } from "@/components/fx/bento"
 import { motion } from "motion/react"
 import type { Variants } from "motion/react"
 import { useStudent } from "@/lib/student-context"
+import type { Divisao } from "@/lib/student"
 
 function saudacao() {
   const h = new Date().getHours()
@@ -25,7 +26,7 @@ const fade: Variants = {
   }),
 }
 
-export function StudentHome() {
+export function StudentHome({ onStart }: { onStart?: (d: Divisao) => void }) {
   const d = useStudent()
   const nome = d.student?.name?.split(" ")[0] ?? "Atleta"
   const iniciais = (d.student?.name ?? "MF")
@@ -104,7 +105,23 @@ export function StudentHome() {
         <MagicCard className="mb-5 border-violet-500/30 bg-gradient-to-br from-violet-700/40 to-fuchsia-800/20 p-5">
           <p className="text-xs uppercase tracking-widest text-violet-200">Próximo treino</p>
           <h2 className="mb-4 mt-1 text-xl font-black">{proximo.toUpperCase()}</h2>
-          <ShimmerButton>▶ Iniciar treino</ShimmerButton>
+          <ShimmerButton onClick={() => d.divisoes[0] && onStart?.(d.divisoes[0])} disabled={!d.divisoes[0]}>
+            ▶ Iniciar treino
+          </ShimmerButton>
+          {d.divisoes.length > 1 && (
+            <div className="mt-3 flex flex-col gap-2">
+              {d.divisoes.slice(1).map((dv) => (
+                <button
+                  key={dv.id}
+                  onClick={() => onStart?.(dv)}
+                  className="flex items-center justify-between rounded-xl bg-black/20 px-4 py-2.5 text-left text-sm font-semibold"
+                >
+                  <span>{dv.nome || "Divisão"}</span>
+                  <span className="text-white/50">›</span>
+                </button>
+              ))}
+            </div>
+          )}
         </MagicCard>
       </motion.div>
 

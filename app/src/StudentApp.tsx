@@ -8,11 +8,18 @@ import { StudentHome } from "@/screens/StudentHome"
 import { StudentProgress } from "@/screens/StudentProgress"
 import { StudentAvisos } from "@/screens/StudentAvisos"
 import { StudentConta } from "@/screens/StudentConta"
+import { StudentWorkout } from "@/screens/StudentWorkout"
+import type { Divisao } from "@/lib/student"
 
 export function StudentApp({ userId }: { userId: string }) {
   const [tab, setTab] = useState<Tab>("home")
   const [data, setData] = useState<StudentData>(EMPTY_STUDENT_DATA)
   const [loading, setLoading] = useState(true)
+  const [workout, setWorkout] = useState<Divisao | null>(null)
+
+  const reload = () => {
+    loadStudentData(userId).then(setData)
+  }
 
   useEffect(() => {
     let alive = true
@@ -48,8 +55,26 @@ export function StudentApp({ userId }: { userId: string }) {
     ) : tab === "conta" ? (
       <StudentConta />
     ) : (
-      <StudentHome />
+      <StudentHome onStart={setWorkout} />
     )
+
+  if (workout && data.student) {
+    return (
+      <StudentContext.Provider value={data}>
+        <div className="theme-aluno dark min-h-screen bg-background text-foreground">
+          <StudentWorkout
+            divisao={workout}
+            coachId={data.student.coach_id ?? ""}
+            studentId={data.student.id}
+            onBack={() => {
+              setWorkout(null)
+              reload()
+            }}
+          />
+        </div>
+      </StudentContext.Provider>
+    )
+  }
 
   return (
     <StudentContext.Provider value={data}>
