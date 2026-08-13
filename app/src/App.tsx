@@ -42,7 +42,7 @@ export default function App() {
 
   if (role === "coach") {
     return (
-      <div className="min-h-screen bg-background text-foreground">
+      <div className="theme-coach dark min-h-screen bg-background text-foreground">
         <CoachHome userId={session.user.id} />
       </div>
     )
