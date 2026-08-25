@@ -1,10 +1,12 @@
-import { useEffect, useState } from "react"
+import { lazy, Suspense, useEffect, useState } from "react"
 import type { Session } from "@supabase/supabase-js"
 import { supabase } from "@/lib/supabase"
 import { loadCoachRole } from "@/lib/coach"
 import { Login } from "@/screens/Login"
-import { StudentApp } from "@/StudentApp"
-import { CoachHome } from "@/screens/CoachHome"
+
+// Code-splitting: cada app carrega só quando precisa (mais leve na abertura)
+const StudentApp = lazy(() => import("@/StudentApp").then((m) => ({ default: m.StudentApp })))
+const CoachHome = lazy(() => import("@/screens/CoachHome").then((m) => ({ default: m.CoachHome })))
 
 function Spinner({ className = "" }: { className?: string }) {
   return (
@@ -43,10 +45,16 @@ export default function App() {
   if (role === "coach") {
     return (
       <div className="theme-coach dark min-h-screen bg-background text-foreground">
-        <CoachHome userId={session.user.id} />
+        <Suspense fallback={<Spinner className="theme-coach dark" />}>
+          <CoachHome userId={session.user.id} />
+        </Suspense>
       </div>
     )
   }
 
-  return <StudentApp userId={session.user.id} />
+  return (
+    <Suspense fallback={<Spinner className="theme-aluno dark" />}>
+      <StudentApp userId={session.user.id} />
+    </Suspense>
+  )
 }

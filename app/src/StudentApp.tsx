@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { lazy, Suspense, useEffect, useState } from "react"
 import { motion } from "motion/react"
 import { supabase } from "@/lib/supabase"
 import { loadStudentData, EMPTY_STUDENT_DATA, type StudentData } from "@/lib/student"
@@ -8,8 +8,9 @@ import { StudentHome } from "@/screens/StudentHome"
 import { StudentProgress } from "@/screens/StudentProgress"
 import { StudentAvisos } from "@/screens/StudentAvisos"
 import { StudentConta } from "@/screens/StudentConta"
-import { StudentWorkout } from "@/screens/StudentWorkout"
 import type { Divisao } from "@/lib/student"
+
+const StudentWorkout = lazy(() => import("@/screens/StudentWorkout").then((m) => ({ default: m.StudentWorkout })))
 
 export function StudentApp({ userId }: { userId: string }) {
   const [tab, setTab] = useState<Tab>("home")
@@ -62,15 +63,23 @@ export function StudentApp({ userId }: { userId: string }) {
     return (
       <StudentContext.Provider value={data}>
         <div className="theme-aluno dark min-h-screen bg-background text-foreground">
-          <StudentWorkout
-            divisao={workout}
-            coachId={data.student.coach_id ?? ""}
-            studentId={data.student.id}
-            onBack={() => {
-              setWorkout(null)
-              reload()
-            }}
-          />
+          <Suspense
+            fallback={
+              <div className="flex min-h-screen items-center justify-center">
+                <div className="size-7 animate-spin rounded-full border-2 border-muted border-t-primary" />
+              </div>
+            }
+          >
+            <StudentWorkout
+              divisao={workout}
+              coachId={data.student.coach_id ?? ""}
+              studentId={data.student.id}
+              onBack={() => {
+                setWorkout(null)
+                reload()
+              }}
+            />
+          </Suspense>
         </div>
       </StudentContext.Provider>
     )

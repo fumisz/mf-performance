@@ -11,6 +11,8 @@ export type CoachStudent = {
 export type CoachData = {
   coachName: string
   students: CoachStudent[]
+  ativos: number
+  ativosIds: string[]
 }
 
 export async function loadCoachRole(userId: string): Promise<string | null> {
@@ -83,16 +85,33 @@ export async function enviarAviso(
 }
 
 export async function loadCoachData(userId: string): Promise<CoachData> {
-  const [{ data: prof }, { data: st }] = await Promise.all([
+  const cutoff = new Date()
+  cutoff.setDate(cutoff.getDate() - 30)
+  const cut = cutoff.toISOString().slice(0, 10)
+  const [{ data: prof }, { data: st }, { data: hi }] = await Promise.all([
     supabase.from("profiles").select("name").eq("id", userId).maybeSingle(),
     supabase
       .from("assess_students")
       .select("id,name,goal,gender,photo_url")
       .eq("coach_id", userId)
       .order("name"),
+    supabase.from("train_historico").select("student_id").eq("coach_id", userId).gte("data_treino", cut),
   ])
+  const ativosSet = new Set(((hi || []) as { student_id: string }[]).map((h) => h.student_id))
+  const students = (st || []) as CoachStudent[]
+  const ativosIds = students.filter((s) => ativosSet.has(s.id)).map((s) => s.id)
   return {
     coachName: (prof?.name as string) ?? "Treinador",
-    students: (st || []) as CoachStudent[],
+    students,
+    ativos: ativosIds.length,
+    ativosIds,
   }
+}
+
+export async function addStudent(name: string): Promise<boolean> {
+  const { data: u } = await supabase.auth.getUser()
+  const coachId = u?.user?.id
+  if (!coachId) return false
+  const { error } = await supabase.from("assess_students").insert({ coach_id: coachId, name })
+  return !error
 }
