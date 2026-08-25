@@ -3,6 +3,7 @@ import type { CoachStudent as Student } from "@/lib/coach"
 import { loadStudentExtra, gerarCodigo, enviarAviso, type StudentExtra } from "@/lib/coach"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { CoachStudentView } from "@/screens/CoachStudentView"
 
 function initials(n: string) {
   return n.split(" ").filter(Boolean).slice(0, 2).map((x) => x[0]).join("").toUpperCase()
@@ -10,6 +11,7 @@ function initials(n: string) {
 
 export function CoachStudent({ student, onBack }: { student: Student; onBack: () => void }) {
   const [extra, setExtra] = useState<StudentExtra | null>(null)
+  const [verComo, setVerComo] = useState(false)
   const [code, setCode] = useState<string | null>(null)
   const [codeBusy, setCodeBusy] = useState(false)
 
@@ -49,12 +51,20 @@ export function CoachStudent({ student, onBack }: { student: Student; onBack: ()
     { t: "Sua reavaliação está chegando", x: "Semana que vem faremos sua reavaliação.", tipo: "aviso" },
   ]
 
+  if (verComo) return <CoachStudentView student={student} onBack={() => setVerComo(false)} />
+
   return (
     <div className="min-h-screen">
       <div className="pointer-events-none fixed inset-x-0 top-0 -z-10 h-72 bg-[radial-gradient(60%_100%_at_50%_0%,rgba(124,58,237,0.16),transparent_70%)]" />
       <div className="mx-auto max-w-3xl px-5 pb-24 pt-6">
         <button onClick={onBack} className="mb-5 text-sm font-medium text-muted-foreground hover:text-foreground">
           ‹ Alunos
+        </button>
+        <button
+          onClick={() => setVerComo(true)}
+          className="mb-5 ml-3 rounded-lg border border-border/70 bg-card/40 px-3 py-1.5 text-sm font-medium text-primary hover:bg-card/70"
+        >
+          👁 Visão do aluno
         </button>
 
         <header className="mb-8 flex items-center gap-3.5">

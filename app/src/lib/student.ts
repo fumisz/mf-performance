@@ -61,7 +61,10 @@ export async function loadStudentData(userId: string): Promise<StudentData> {
     .limit(1)
   const student = (sr && sr[0]) as Student | undefined
   if (!student) return EMPTY
+  return loadForStudent(student)
+}
 
+export async function loadForStudent(student: Student): Promise<StudentData> {
   const [{ data: hi }, { data: dv }, { data: av }] = await Promise.all([
     supabase
       .from("train_historico")
