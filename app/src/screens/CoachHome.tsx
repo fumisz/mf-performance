@@ -3,6 +3,7 @@ import { supabase } from "@/lib/supabase"
 import { loadCoachData, type CoachData, type CoachStudent as Student } from "@/lib/coach"
 import { Input } from "@/components/ui/input"
 import { CoachStudent } from "@/screens/CoachStudent"
+import { CoachBiblioteca } from "@/screens/CoachBiblioteca"
 
 function initials(n: string) {
   return n.split(" ").filter(Boolean).slice(0, 2).map((x) => x[0]).join("").toUpperCase()
@@ -22,6 +23,7 @@ export function CoachHome({ userId }: { userId: string }) {
   const [data, setData] = useState<CoachData | null>(null)
   const [q, setQ] = useState("")
   const [sel, setSel] = useState<Student | null>(null)
+  const [biblioteca, setBiblioteca] = useState(false)
 
   useEffect(() => {
     let alive = true
@@ -40,6 +42,7 @@ export function CoachHome({ userId }: { userId: string }) {
   }
 
   if (sel) return <CoachStudent student={sel} onBack={() => setSel(null)} />
+  if (biblioteca) return <CoachBiblioteca onBack={() => setBiblioteca(false)} />
 
   const total = data.students.length
   const filtered = data.students.filter((s) => s.name.toLowerCase().includes(q.toLowerCase()))
@@ -75,6 +78,19 @@ export function CoachHome({ userId }: { userId: string }) {
           <Stat value={total} label="Ativos" hint="últimos 30 dias" />
           <Stat value={0} label="A reavaliar" hint="nenhum pendente" />
         </section>
+
+        {/* atalhos */}
+        <button
+          onClick={() => setBiblioteca(true)}
+          className="mb-8 flex w-full items-center gap-3 rounded-xl border border-border/70 bg-card/40 px-4 py-3.5 text-left transition hover:bg-card/70"
+        >
+          <span className="flex size-9 items-center justify-center rounded-lg bg-primary/15 text-primary">▶</span>
+          <div className="flex-1">
+            <p className="font-medium">Biblioteca de exercícios</p>
+            <p className="text-[13px] text-muted-foreground">Vídeos de todos os exercícios + técnicas avançadas</p>
+          </div>
+          <span className="text-muted-foreground/50">›</span>
+        </button>
 
         {/* alunos */}
         <div className="mb-4 flex items-center justify-between">

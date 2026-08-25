@@ -22,6 +22,24 @@ export async function loadCoachRole(userId: string): Promise<string | null> {
   return (data?.role as string) ?? null
 }
 
+export type LibExercicio = {
+  id: string
+  nome: string
+  grupo: string
+  video_url: string | null
+}
+
+export async function loadBiblioteca(): Promise<LibExercicio[]> {
+  const { data } = await supabase
+    .from("train_exercicios")
+    .select("id,nome,grupo_muscular,video_url")
+    .order("grupo_muscular")
+    .order("nome")
+  return ((data || []) as { id: string; nome: string; grupo_muscular: string | null; video_url: string | null }[]).map(
+    (e) => ({ id: e.id, nome: e.nome, grupo: e.grupo_muscular || "Outros", video_url: e.video_url })
+  )
+}
+
 export type StudentExtra = {
   divisoes: { id: string; nome: string | null }[]
   ultimaAvaliacao: string | null
