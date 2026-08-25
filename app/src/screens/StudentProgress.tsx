@@ -7,7 +7,7 @@ import { useStudent } from "@/lib/student-context"
 
 const evol = [40, 42.5, 45, 45, 47.5, 50, 52.5]
 
-export function StudentProgress() {
+export function StudentProgress({ onAval }: { onAval?: () => void }) {
   const { stats, freq } = useStudent()
   const max = Math.max(...evol)
   const pct = freq.meta ? Math.round((freq.done / freq.meta) * 100) : 0
@@ -48,6 +48,18 @@ export function StudentProgress() {
           <div className="mt-1 text-[11px] font-semibold uppercase text-muted-foreground">Sequência</div>
         </MagicCard>
       </BentoGrid>
+
+      <button
+        onClick={onAval}
+        className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-card p-4 text-left transition hover:border-primary/40"
+      >
+        <span className="flex size-10 items-center justify-center rounded-xl bg-secondary text-lg">📋</span>
+        <div className="flex-1">
+          <p className="font-bold">Minha avaliação física</p>
+          <p className="text-sm text-muted-foreground">Peso, % de gordura, medidas e evolução</p>
+        </div>
+        <span className="text-muted-foreground">›</span>
+      </button>
 
       <Card className="mb-4 border-white/10">
         <CardContent className="p-5">

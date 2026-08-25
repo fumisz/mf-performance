@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { CoachStudentView } from "@/screens/CoachStudentView"
 import { CoachFicha } from "@/screens/CoachFicha"
+import { CoachAval } from "@/screens/CoachAval"
 
 function initials(n: string) {
   return n.split(" ").filter(Boolean).slice(0, 2).map((x) => x[0]).join("").toUpperCase()
@@ -14,6 +15,7 @@ export function CoachStudent({ student, onBack }: { student: Student; onBack: ()
   const [extra, setExtra] = useState<StudentExtra | null>(null)
   const [verComo, setVerComo] = useState(false)
   const [ficha, setFicha] = useState(false)
+  const [aval, setAval] = useState(false)
   const [code, setCode] = useState<string | null>(null)
   const [codeBusy, setCodeBusy] = useState(false)
 
@@ -55,6 +57,7 @@ export function CoachStudent({ student, onBack }: { student: Student; onBack: ()
 
   if (verComo) return <CoachStudentView student={student} onBack={() => setVerComo(false)} />
   if (ficha) return <CoachFicha student={student} onBack={() => { setFicha(false); loadStudentExtra(student.id).then(setExtra) }} />
+  if (aval) return <CoachAval student={student} onBack={() => { setAval(false); loadStudentExtra(student.id).then(setExtra) }} />
 
   return (
     <div className="min-h-screen">
@@ -68,6 +71,12 @@ export function CoachStudent({ student, onBack }: { student: Student; onBack: ()
           className="mb-5 ml-3 rounded-lg bg-primary px-3 py-1.5 text-sm font-semibold text-primary-foreground"
         >
           🏋️ Montar treino
+        </button>
+        <button
+          onClick={() => setAval(true)}
+          className="mb-5 ml-2 rounded-lg border border-border/70 bg-card/40 px-3 py-1.5 text-sm font-medium text-primary hover:bg-card/70"
+        >
+          📋 Avaliação
         </button>
         <button
           onClick={() => setVerComo(true)}
