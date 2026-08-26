@@ -8,6 +8,7 @@ import { ShimmerButton } from "@/components/fx/shimmer-button"
 import { useState } from "react"
 import { useStudent } from "@/lib/student-context"
 import { supabase } from "@/lib/supabase"
+import { forcarAtualizacao } from "@/lib/util"
 
 export function StudentConta() {
   const { student, stats } = useStudent()
@@ -80,6 +81,12 @@ export function StudentConta() {
         </CardContent>
       </Card>
 
+      <button
+        onClick={forcarAtualizacao}
+        className="mb-3 w-full rounded-xl border border-white/10 bg-card py-3 text-sm font-semibold text-muted-foreground"
+      >
+        ↻ Atualizar app
+      </button>
       <ShimmerButton
         className="from-secondary to-secondary text-foreground shadow-none"
         onClick={() => supabase.auth.signOut()}

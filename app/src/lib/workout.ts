@@ -20,6 +20,7 @@ type Row = {
   qtd_series: number | null
   faixa_reps: string | null
   intervalo_seg_min: number | null
+  video_url: string | null
   train_exercicios: { nome: string | null; video_url: string | null; grupo_muscular: string | null } | null
 }
 
@@ -27,7 +28,7 @@ export async function loadWorkout(divisaoId: string): Promise<Exercicio[]> {
   const { data } = await supabase
     .from("train_serie_prescrita")
     .select(
-      "id,exercicio_id,exercicio_nome,tipo_serie,qtd_series,faixa_reps,intervalo_seg_min,train_exercicios(nome,video_url,grupo_muscular)"
+      "id,exercicio_id,exercicio_nome,tipo_serie,qtd_series,faixa_reps,intervalo_seg_min,video_url,train_exercicios(nome,video_url,grupo_muscular)"
     )
     .eq("divisao_id", divisaoId)
     .order("ordem")
@@ -37,7 +38,7 @@ export async function loadWorkout(divisaoId: string): Promise<Exercicio[]> {
     exercicio_id: r.exercicio_id,
     nome: r.exercicio_nome || r.train_exercicios?.nome || "Exercício",
     grupo: r.train_exercicios?.grupo_muscular ?? null,
-    video_url: r.train_exercicios?.video_url ?? null,
+    video_url: r.video_url || r.train_exercicios?.video_url || null,
     tipo_serie: r.tipo_serie || "Valida",
     qtd_series: r.qtd_series || 3,
     faixa_reps: r.faixa_reps,

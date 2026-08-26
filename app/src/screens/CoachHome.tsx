@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react"
 import { supabase } from "@/lib/supabase"
 import { loadCoachData, addStudent, type CoachData, type CoachStudent as Student } from "@/lib/coach"
+import { forcarAtualizacao, setAccent, PALETA } from "@/lib/util"
 
 const CoachStudent = lazy(() => import("@/screens/CoachStudent").then((m) => ({ default: m.CoachStudent })))
 const CoachBiblioteca = lazy(() => import("@/screens/CoachBiblioteca").then((m) => ({ default: m.CoachBiblioteca })))
@@ -20,11 +21,20 @@ function initials(n: string) {
 
 type View = "dash" | "alunos" | "biblioteca"
 
-export function CoachHome({ userId }: { userId: string }) {
+export function CoachHome({
+  userId,
+  accent,
+  onAccent,
+}: {
+  userId: string
+  accent: string
+  onAccent: (c: string) => void
+}) {
   const [data, setData] = useState<CoachData | null>(null)
   const [view, setView] = useState<View>("dash")
   const [sel, setSel] = useState<Student | null>(null)
   const [linkOpen, setLinkOpen] = useState(false)
+  const [cfgOpen, setCfgOpen] = useState(false)
 
   const reload = () => loadCoachData(userId).then(setData)
   useEffect(() => {
@@ -85,6 +95,12 @@ export function CoachHome({ userId }: { userId: string }) {
             <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-muted-foreground">Painel</p>
             <h1 className="text-xl font-semibold tracking-tight">{data.coachName}</h1>
           </div>
+          <button
+            onClick={() => setCfgOpen(true)}
+            className="rounded-lg border border-border/70 bg-card/40 px-2.5 py-1.5 text-sm text-muted-foreground hover:text-foreground"
+          >
+            ⚙️
+          </button>
           <button
             onClick={() => supabase.auth.signOut()}
             className="text-sm font-medium text-muted-foreground transition hover:text-foreground"
@@ -149,6 +165,39 @@ export function CoachHome({ userId }: { userId: string }) {
           <span className="text-muted-foreground/50">›</span>
         </button>
       </div>
+
+      {cfgOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-5" onClick={() => setCfgOpen(false)}>
+          <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-5" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="font-semibold">Configurações</h3>
+              <button onClick={() => setCfgOpen(false)} className="text-muted-foreground">✕</button>
+            </div>
+            <p className="mb-2 text-sm font-medium">Cor do relatório</p>
+            <div className="mb-5 flex flex-wrap gap-2.5">
+              {PALETA.map((c) => (
+                <button
+                  key={c}
+                  onClick={() => {
+                    setAccent(userId, c)
+                    onAccent(c)
+                  }}
+                  className="size-9 rounded-full ring-offset-2 ring-offset-card transition"
+                  style={{ background: c, boxShadow: accent === c ? `0 0 0 2px ${c}` : "none" }}
+                  aria-label={c}
+                />
+              ))}
+            </div>
+            <button
+              onClick={forcarAtualizacao}
+              className="w-full rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground"
+            >
+              ↻ Atualizar app (forçar)
+            </button>
+            <p className="mt-2 text-center text-[11px] text-muted-foreground">Limpa o cache e recarrega a versão mais nova.</p>
+          </div>
+        </div>
+      )}
 
       {linkOpen && (
         <div

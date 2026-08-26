@@ -8,6 +8,9 @@ export type Prescricao = {
   grupo: string | null
   qtd_series: number
   faixa_reps: string | null
+  video_url: string | null
+  video_own: string | null
+  temVideo: boolean
   ordem: number
 }
 
@@ -44,14 +47,15 @@ type Row = {
   exercicio_nome: string | null
   qtd_series: number | null
   faixa_reps: string | null
+  video_url: string | null
   ordem: number | null
-  train_exercicios: { nome: string | null; grupo_muscular: string | null } | null
+  train_exercicios: { nome: string | null; grupo_muscular: string | null; video_url: string | null } | null
 }
 
 export async function loadPrescricoes(divisaoId: string): Promise<Prescricao[]> {
   const { data } = await supabase
     .from("train_serie_prescrita")
-    .select("id,exercicio_id,exercicio_nome,qtd_series,faixa_reps,ordem,train_exercicios(nome,grupo_muscular)")
+    .select("id,exercicio_id,exercicio_nome,qtd_series,faixa_reps,video_url,ordem,train_exercicios(nome,grupo_muscular,video_url)")
     .eq("divisao_id", divisaoId)
     .order("ordem")
   return ((data || []) as unknown as Row[]).map((r) => ({
@@ -61,6 +65,9 @@ export async function loadPrescricoes(divisaoId: string): Promise<Prescricao[]> 
     grupo: r.train_exercicios?.grupo_muscular ?? null,
     qtd_series: r.qtd_series || 3,
     faixa_reps: r.faixa_reps,
+    video_url: r.video_url || r.train_exercicios?.video_url || null,
+    video_own: r.video_url || null,
+    temVideo: !!(r.video_url || r.train_exercicios?.video_url),
     ordem: r.ordem || 0,
   }))
 }
@@ -85,7 +92,10 @@ export async function addExercicio(
   return !error
 }
 
-export async function updatePrescricao(id: string, patch: { qtd_series?: number; faixa_reps?: string }) {
+export async function updatePrescricao(
+  id: string,
+  patch: { qtd_series?: number; faixa_reps?: string; video_url?: string | null }
+) {
   await supabase.from("train_serie_prescrita").update(patch).eq("id", id)
 }
 

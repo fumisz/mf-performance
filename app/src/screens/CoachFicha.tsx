@@ -147,6 +147,15 @@ function DivisaoEditor({ divisao, onBack }: { divisao: Divisao; onBack: () => vo
                     />
                   </label>
                 </div>
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="text-[13px] text-muted-foreground">🎬</span>
+                  <input
+                    defaultValue={p.video_own || ""}
+                    placeholder={p.temVideo ? "Vídeo da biblioteca (cole p/ trocar)" : "Cole o link do vídeo (YouTube/gif)"}
+                    onBlur={(e) => updatePrescricao(p.id, { video_url: e.target.value.trim() || null })}
+                    className="flex-1 rounded-lg bg-secondary/60 px-2.5 py-1.5 text-[13px] outline-none"
+                  />
+                </div>
               </div>
             ))}
           </div>
