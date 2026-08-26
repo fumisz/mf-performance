@@ -29,6 +29,14 @@ document.addEventListener('visibilitychange', () => {
 
 // ── Service worker (instalável + HTML sempre fresco) ──
 if ('serviceWorker' in navigator) {
+  // Remove qualquer SW cujo escopo NÃO seja o do app novo (ex.: o SW do app
+  // antigo na raiz, que cobria /preview/ e servia versao velha)
+  navigator.serviceWorker.getRegistrations().then((rs) => {
+    rs.forEach((r) => {
+      if (!r.scope.includes('/preview/')) r.unregister()
+    })
+  }).catch(() => {})
+
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').then((reg) => {
       reg.update()
