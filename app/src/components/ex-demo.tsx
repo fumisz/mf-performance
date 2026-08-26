@@ -1,6 +1,26 @@
+import { useEffect, useState } from "react"
+
 function ytEmbed(url: string): string | null {
   const m = url.match(/(?:youtu\.be\/|[?&]v=|embed\/|shorts\/)([\w-]{11})/)
   return m ? `https://www.youtube-nocookie.com/embed/${m[1]}` : null
+}
+
+// Anima os 2 frames do free-exercise-db (0.jpg / 1.jpg) como um gif
+function AnimGif({ base, nome }: { base: string; nome: string }) {
+  const f0 = base
+  const f1 = base.replace("/0.jpg", "/1.jpg")
+  const [on, setOn] = useState(false)
+  useEffect(() => {
+    const t = setInterval(() => setOn((v) => !v), 650)
+    return () => clearInterval(t)
+  }, [])
+  return (
+    <div className="overflow-hidden rounded-xl bg-white">
+      <img src={on ? f1 : f0} alt={nome} className="mx-auto block max-h-72 w-full object-contain" />
+      {/* pré-carrega o segundo frame */}
+      <img src={f1} alt="" className="hidden" aria-hidden />
+    </div>
+  )
 }
 
 export function ExDemo({ url, nome }: { url: string | null; nome: string }) {
@@ -21,6 +41,8 @@ export function ExDemo({ url, nome }: { url: string | null; nome: string }) {
     )
   }
 
+  if (url.includes("free-exercise-db")) return <AnimGif base={url} nome={nome} />
+
   const yt = ytEmbed(url)
   if (yt) {
     return (
@@ -37,18 +59,8 @@ export function ExDemo({ url, nome }: { url: string | null; nome: string }) {
   }
 
   if (/\.(mp4|webm|mov)(\?|$)/i.test(url)) {
-    return (
-      <video
-        src={url}
-        autoPlay
-        loop
-        muted
-        playsInline
-        className="w-full rounded-xl bg-black"
-      />
-    )
+    return <video src={url} autoPlay loop muted playsInline className="w-full rounded-xl bg-black" />
   }
 
-  // gif / png / jpg / webp ou qualquer imagem
-  return <img src={url} alt={nome} className="w-full rounded-xl bg-black object-contain" />
+  return <img src={url} alt={nome} className="w-full rounded-xl bg-white object-contain" />
 }
