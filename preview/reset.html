@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Atualizando…</title>
+<style>
+  html,body{height:100%;margin:0}
+  body{display:flex;align-items:center;justify-content:center;background:#0d0a16;color:#eee;font-family:system-ui,sans-serif;text-align:center;padding:24px}
+  .s{width:34px;height:34px;border:3px solid #ffffff33;border-top-color:#8b5cf6;border-radius:50%;animation:r 1s linear infinite;margin:0 auto 16px}
+  @keyframes r{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div>
+  <div class="s"></div>
+  <div id="m">Limpando cache e atualizando o app…</div>
+</div>
+<script>
+(async function(){
+  try{
+    if('serviceWorker' in navigator){
+      var rs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(rs.map(function(r){ return r.unregister(); }));
+    }
+  }catch(e){}
+  try{
+    if(window.caches){
+      var ks = await caches.keys();
+      await Promise.all(ks.map(function(k){ return caches.delete(k); }));
+    }
+  }catch(e){}
+  // Recarrega o app com cache-busting
+  location.replace('./?atualizado=' + Date.now());
+})();
+</script>
+</body>
+</html>
