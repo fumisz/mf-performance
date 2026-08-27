@@ -26,7 +26,7 @@ const fade: Variants = {
   }),
 }
 
-export function StudentHome({ onStart }: { onStart?: (d: Divisao) => void }) {
+export function StudentHome({ onStart, onDieta }: { onStart?: (d: Divisao) => void; onDieta?: () => void }) {
   const d = useStudent()
   const nome = d.student?.name?.split(" ")[0] ?? "Atleta"
   const iniciais = (d.student?.name ?? "MF")
@@ -151,8 +151,23 @@ export function StudentHome({ onStart }: { onStart?: (d: Divisao) => void }) {
         </Card>
       </motion.div>
 
-      {/* conquistas */}
+      {/* minha dieta */}
       <motion.div custom={4} initial="hidden" animate="show" variants={fade}>
+        <button
+          onClick={onDieta}
+          className="mb-5 flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-card p-4 text-left transition hover:border-emerald-500/40"
+        >
+          <span className="flex size-10 items-center justify-center rounded-xl bg-secondary text-lg">🥗</span>
+          <div className="flex-1">
+            <p className="font-bold">Minha dieta</p>
+            <p className="text-sm text-muted-foreground">Plano alimentar e macros do dia</p>
+          </div>
+          <span className="text-muted-foreground">›</span>
+        </button>
+      </motion.div>
+
+      {/* conquistas */}
+      <motion.div custom={5} initial="hidden" animate="show" variants={fade}>
         <p className="mb-3 text-xs uppercase tracking-widest text-muted-foreground">Conquistas</p>
         <div className="flex gap-3 overflow-x-auto pb-2">
           {badges.map((b) => (

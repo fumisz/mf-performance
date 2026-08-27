@@ -12,6 +12,7 @@ import type { Divisao } from "@/lib/student"
 
 const StudentWorkout = lazy(() => import("@/screens/StudentWorkout").then((m) => ({ default: m.StudentWorkout })))
 const StudentAval = lazy(() => import("@/screens/StudentAval").then((m) => ({ default: m.StudentAval })))
+const StudentDieta = lazy(() => import("@/screens/StudentDieta").then((m) => ({ default: m.StudentDieta })))
 
 export function StudentApp({ userId }: { userId: string }) {
   const [tab, setTab] = useState<Tab>("home")
@@ -19,6 +20,7 @@ export function StudentApp({ userId }: { userId: string }) {
   const [loading, setLoading] = useState(true)
   const [workout, setWorkout] = useState<Divisao | null>(null)
   const [avalOpen, setAvalOpen] = useState(false)
+  const [dietaOpen, setDietaOpen] = useState(false)
 
   const reload = () => {
     loadStudentData(userId).then(setData)
@@ -58,8 +60,24 @@ export function StudentApp({ userId }: { userId: string }) {
     ) : tab === "conta" ? (
       <StudentConta />
     ) : (
-      <StudentHome onStart={setWorkout} />
+      <StudentHome onStart={setWorkout} onDieta={() => setDietaOpen(true)} />
     )
+
+  if (dietaOpen) {
+    return (
+      <div className="theme-aluno dark min-h-screen bg-background text-foreground">
+        <Suspense
+          fallback={
+            <div className="flex min-h-screen items-center justify-center">
+              <div className="size-7 animate-spin rounded-full border-2 border-muted border-t-primary" />
+            </div>
+          }
+        >
+          <StudentDieta userId={userId} onBack={() => setDietaOpen(false)} />
+        </Suspense>
+      </div>
+    )
+  }
 
   if (avalOpen && data.student) {
     return (
