@@ -72,6 +72,29 @@ export async function addAvaliacao(
   return !error
 }
 
+// Salva com chaves compatíveis com o app antigo (weight/height/bio_fat/sf_*…)
+export async function saveAvaliacaoData(
+  studentId: string,
+  date: string,
+  data: Record<string, number>
+): Promise<boolean> {
+  const { data: u } = await supabase.auth.getUser()
+  const coachId = u?.user?.id
+  if (!coachId) return false
+  const { error } = await supabase.from("assessments").insert({
+    student_id: studentId,
+    coach_id: coachId,
+    date,
+    data,
+  })
+  return !error
+}
+
+export async function loadStudentDob(studentId: string): Promise<string | null> {
+  const { data } = await supabase.from("assess_students").select("dob").eq("id", studentId).maybeSingle()
+  return (data?.dob as string) ?? null
+}
+
 export async function delAvaliacao(id: string) {
   await supabase.from("assessments").delete().eq("id", id)
 }
