@@ -56,7 +56,7 @@ export function StudentHome({ onStart, onDieta }: { onStart?: (d: Divisao) => vo
   ]
 
   return (
-    <div className="mx-auto min-h-screen max-w-md px-4 pb-16 pt-6">
+    <div className="mx-auto min-h-screen max-w-md px-4 pb-28 pt-6">
       {/* header */}
       <motion.div
         custom={0}
