@@ -1,68 +1,51 @@
-# Notificações no celular (Web Push) — passo a passo
+# Notificações no celular (Web Push) — o que falta fazer
 
-As notificações aparecem na **barra do celular** (mesmo com o app fechado) via Web Push.
-Precisa de 3 coisas: rodar o SQL, publicar a Edge Function e (para água) agendar o cron.
+A tabela, as funções e a Edge Function **já estão no ar**. Falta só cadastrar
+as chaves VAPID como *secrets*, porque secret ninguém coloca em arquivo de
+repositório — este repositório é **público**.
 
-> ⚠️ **iPhone**: só funciona se o aluno **adicionar o app à Tela de Início** (Safari → Compartilhar → "Adicionar à Tela de Início") e abrir por lá. Android/Chrome funciona direto.
+> **iPhone**: só funciona se o app for adicionado à Tela de Início
+> (Safari → Compartilhar → "Adicionar à Tela de Início") e aberto por lá.
+> Android/Chrome funciona direto.
 
----
+## Passo único: cadastrar os secrets
 
-## 1. Rodar os SQL (SQL Editor > Run)
-Nesta ordem, se ainda não rodou:
-1. `treino.sql`
-2. `login-aluno.sql`
-3. `avisos.sql`
-4. `push.sql`  ← novo (tabela de inscrições + lembrete de água)
-
-## 2. Chaves VAPID (já geradas para você)
-```
-VAPID_PUBLIC  = BC_YqtYUqpgqbKzuUwiyj6v4ymbNO6RYhJ5XYm7fhYnKob0eW2yLU-kNbf0gzrjfbJRRqysClA2gBLxJJpHSd1s
-VAPID_PRIVATE = 8wAvkreePHKwgbIaA_SuTCvBB8qVVpw_pqg5hcjBYTU
-```
-A **pública** já está dentro do app (`index.html`). A **privada** é secreta — só vai nos secrets abaixo.
-
-## 3. Publicar a Edge Function "push"
-Dashboard do Supabase → **Edge Functions** → **Create a function** → nome **`push`** →
-cole o conteúdo de `functions/push/index.ts` → **Deploy**.
-
-Depois, em **Edge Functions → push → Secrets** (ou Project Settings → Edge Functions), adicione:
+No Supabase → **Edge Functions → push → Secrets**, adicione:
 
 | Secret | Valor |
 |---|---|
-| `VAPID_PUBLIC` | BC_YqtYUqpgqbKzuUwiyj6v4ymbNO6RYhJ5XYm7fhYnKob0eW2yLU-kNbf0gzrjfbJRRqysClA2gBLxJJpHSd1s |
-| `VAPID_PRIVATE` | 8wAvkreePHKwgbIaA_SuTCvBB8qVVpw_pqg5hcjBYTU |
-| `VAPID_SUBJECT` | mailto:seu-email@exemplo.com |
-| `SB_URL` | https://kpxiqtxgjaroijbuwkzm.supabase.co |
-| `SB_ANON_KEY` | (sua anon key — Project Settings → API) |
-| `SB_SERVICE_ROLE_KEY` | (sua service_role key — Project Settings → API) |
+| `VAPID_PUBLIC` | `BP1GyX7qbDDD1o643pIru_CHS6jenWACj4u8h8aOEPKMJ3LsGnavo70yYbeB1ymSMvWoqgtq7i7qf7c0Fszu6vw` |
+| `VAPID_PRIVATE` | *(a chave privada foi enviada em conversa — nunca coloque aqui)* |
+| `VAPID_SUBJECT` | `mailto:seu-email@exemplo.com` |
 
-> Não uso os nomes `SUPABASE_URL`/`SUPABASE_*` porque o Supabase reserva esses. Por isso `SB_`.
+A URL e as chaves do projeto **não precisam ser cadastradas**: o Supabase já
+injeta `SUPABASE_URL`, `SUPABASE_ANON_KEY` e `SUPABASE_SERVICE_ROLE_KEY` no
+ambiente da função.
 
-Pronto: quando o treinador toca no 🔔 (ou "Avisar todos"), o app chama a função e a
-notificação aparece na barra do aluno.
+## Como usar
 
-## 4. Lembrete de água (agendado)
-Precisa das extensões **pg_cron** e **pg_net** (Dashboard → Database → Extensions → ativar as duas).
-Depois rode no SQL Editor (troque `SUA_SERVICE_ROLE_KEY`; horários em **UTC**, Brasil = UTC-3):
+- **Treinador**: *Meu perfil / marca* → **Ativar avisos neste aparelho**.
+  Passa a receber na tela do celular quando um aluno fecha o treino, com a
+  divisão, o número de séries, o volume e os recordes. Vale por aparelho.
+- **Aluno**: aba *Conta* → **Avisos no celular**. Recebe os avisos que você
+  manda pelo perfil dele.
+
+## Lembrete de água (opcional)
+
+Para o lembrete automático, agende no SQL Editor:
 
 ```sql
--- 4 lembretes/dia: 9h, 12h, 15h, 18h (Brasília) = 12,15,18,21 UTC
-select cron.schedule('agua-mfp','0 12,15,18,21 * * *', $$
+select cron.schedule('agua-mfp','0 12,16,20 * * *', $$
   select net.http_post(
-    url := 'https://kpxiqtxgjaroijbuwkzm.functions.supabase.co/push',
-    headers := jsonb_build_object('Content-Type','application/json',
-               'Authorization','Bearer SUA_SERVICE_ROLE_KEY'),
-    body := jsonb_build_object('mode','agua')
-  );
+    url := 'https://kpxiqtxgjaroijbuwkzm.supabase.co/functions/v1/push',
+    headers := jsonb_build_object('content-type','application/json',
+               'authorization','Bearer <SERVICE_ROLE_KEY>'),
+    body := '{"mode":"agua"}'::jsonb);
 $$);
 ```
 
-Para remover depois: `select cron.unschedule('agua-mfp');`
+## Se algum dia vazar a chave privada
 
-## 5. Testar
-1. Abra o app do aluno → aba **Conta** → ligue **"Avisos no celular"** (aceite a permissão).
-2. No app do treinador, toque no 🔔 do aluno e envie.
-3. A notificação deve aparecer na barra do celular.
-
-Se não chegar: confira os Secrets, veja **Edge Functions → push → Logs**, e no iPhone confirme
-que o app foi aberto pela Tela de Início.
+Gere um par novo, troque `VAPID_PUBLIC` no `index.html` e o secret
+`VAPID_PRIVATE`. As inscrições antigas param de funcionar e cada pessoa
+precisa ativar de novo — por isso vale trocar logo, enquanto há poucas.
