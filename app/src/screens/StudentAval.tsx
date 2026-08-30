@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { loadAvaliacoes, imc, type Avaliacao } from "@/lib/aval"
 import { Card, CardContent } from "@/components/ui/card"
+import { BarChart } from "@/components/bar-chart"
 
 function fmtDate(d: string) {
   return new Date(d + "T00:00:00").toLocaleDateString("pt-BR")
@@ -28,7 +29,16 @@ function Stat({ label, value, unit, delta, down }: { label: string; value?: numb
   )
 }
 
-export function StudentAval({ studentId, onBack }: { studentId: string; onBack: () => void }) {
+export function StudentAval({
+  studentId,
+  onBack,
+  mostrarVoltar = true,
+}: {
+  studentId: string
+  onBack: () => void
+  /** false quando a tela já está dentro da barra "Visão do aluno" */
+  mostrarVoltar?: boolean
+}) {
   const [avs, setAvs] = useState<Avaliacao[] | null>(null)
 
   useEffect(() => {
@@ -46,14 +56,14 @@ export function StudentAval({ studentId, onBack }: { studentId: string; onBack: 
   const last = avs[avs.length - 1]
   const prev = avs[avs.length - 2]
   const pesos = avs.map((a) => a.peso).filter((v): v is number => v != null)
-  const maxP = pesos.length ? Math.max(...pesos) : 1
-  const minP = pesos.length ? Math.min(...pesos) : 0
 
   return (
     <div className="mx-auto min-h-screen max-w-md px-4 pb-24 pt-6">
-      <button onClick={onBack} className="mb-4 text-sm font-medium text-muted-foreground hover:text-foreground">
-        ‹ Voltar
-      </button>
+      {mostrarVoltar && (
+        <button onClick={onBack} className="mb-4 text-sm font-medium text-muted-foreground hover:text-foreground">
+          ‹ Voltar
+        </button>
+      )}
       <h1 className="mb-1 text-2xl font-extrabold tracking-tight">Minha avaliação</h1>
 
       {!last ? (
@@ -76,19 +86,11 @@ export function StudentAval({ studentId, onBack }: { studentId: string; onBack: 
             <Card className="mb-5 border-white/10">
               <CardContent className="p-5">
                 <p className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Evolução do peso</p>
-                <div className="flex h-24 items-end gap-1.5">
-                  {avs
+                <BarChart
+                  pontos={avs
                     .filter((a) => a.peso != null)
-                    .map((a) => {
-                      const h = maxP === minP ? 100 : 20 + ((a.peso! - minP) / (maxP - minP)) * 80
-                      return (
-                        <div key={a.id} className="flex flex-1 flex-col items-center gap-1">
-                          <div className="w-full rounded-t bg-gradient-to-t from-violet-600 to-fuchsia-400" style={{ height: `${h}%` }} />
-                          <span className="text-[9px] text-muted-foreground">{a.peso}</span>
-                        </div>
-                      )
-                    })}
-                </div>
+                    .map((a) => ({ valor: a.peso!, rotulo: fmtDate(a.date).slice(0, 5) }))}
+                />
               </CardContent>
             </Card>
           )}
@@ -97,7 +99,7 @@ export function StudentAval({ studentId, onBack }: { studentId: string; onBack: 
             <Card className="mb-5 border-white/10">
               <CardContent className="p-5">
                 <p className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Medidas (cm)</p>
-                <div className="grid grid-cols-2 gap-y-2 text-sm">
+                <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
                   {last.cintura != null && <div className="flex justify-between"><span className="text-muted-foreground">Cintura</span><b>{last.cintura}</b></div>}
                   {last.quadril != null && <div className="flex justify-between"><span className="text-muted-foreground">Quadril</span><b>{last.quadril}</b></div>}
                   {last.braco != null && <div className="flex justify-between"><span className="text-muted-foreground">Braço</span><b>{last.braco}</b></div>}

@@ -13,18 +13,32 @@ function Macro({ label, value, unit, color }: { label: string; value: number; un
   )
 }
 
-export function StudentDieta({ userId, onBack }: { userId: string; onBack: () => void }) {
+export function StudentDieta({
+  userId,
+  onBack,
+  vazioTexto = "Você ainda não tem um plano alimentar ativo. Fale com seu treinador.",
+  mostrarVoltar = true,
+}: {
+  userId: string | null
+  onBack: () => void
+  vazioTexto?: string
+  /** false quando a tela já está dentro da barra "Visão do aluno" */
+  mostrarVoltar?: boolean
+}) {
   const [dieta, setDieta] = useState<Dieta | null | undefined>(undefined)
 
   useEffect(() => {
+    if (!userId) return setDieta(null)
     loadDieta(userId).then(setDieta)
   }, [userId])
 
   return (
     <div className="mx-auto min-h-screen max-w-md px-4 pb-24 pt-6">
-      <button onClick={onBack} className="mb-4 text-sm font-medium text-muted-foreground hover:text-foreground">
-        ‹ Voltar
-      </button>
+      {mostrarVoltar && (
+        <button onClick={onBack} className="mb-4 text-sm font-medium text-muted-foreground hover:text-foreground">
+          ‹ Voltar
+        </button>
+      )}
       <h1 className="mb-1 text-2xl font-extrabold tracking-tight">Minha dieta</h1>
 
       {dieta === undefined ? (
@@ -34,7 +48,7 @@ export function StudentDieta({ userId, onBack }: { userId: string; onBack: () =>
       ) : !dieta ? (
         <Card className="mt-4 border-white/10">
           <CardContent className="p-8 text-center text-muted-foreground">
-            Você ainda não tem um plano alimentar ativo. Fale com seu treinador.
+            {vazioTexto}
           </CardContent>
         </Card>
       ) : (
@@ -62,20 +76,27 @@ export function StudentDieta({ userId, onBack }: { userId: string; onBack: () =>
               return (
                 <Card key={r.id} className="border-white/10">
                   <CardContent className="p-4">
-                    <div className="mb-2 flex items-center justify-between">
-                      <p className="font-bold">{r.nome}</p>
-                      <span className="text-[13px] font-semibold text-emerald-300">{Math.round(t)} kcal</span>
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <p className="min-w-0 truncate font-bold">
+                        {r.nome}
+                        {r.hora && <span className="ml-2 text-[12px] font-medium text-muted-foreground">{r.hora}</span>}
+                      </p>
+                      <span className="shrink-0 text-[13px] font-semibold text-emerald-300">{Math.round(t)} kcal</span>
                     </div>
                     <div className="flex flex-col gap-1.5">
                       {r.itens.map((i) => (
                         <div key={i.id} className="flex items-baseline justify-between gap-2 text-sm">
                           <span>
                             {i.nome} {i.qtd && <span className="text-muted-foreground">· {i.qtd}</span>}
+                            {i.prep && (
+                              <span className="block text-[12px] italic text-muted-foreground/80">{i.prep}</span>
+                            )}
                           </span>
                           <span className="shrink-0 text-[12px] text-muted-foreground">{Math.round(i.kcal)} kcal</span>
                         </div>
                       ))}
                       {r.itens.length === 0 && <p className="text-sm text-muted-foreground">Sem itens.</p>}
+                      {r.notas && <p className="mt-1 text-[12px] italic text-muted-foreground">{r.notas}</p>}
                     </div>
                   </CardContent>
                 </Card>

@@ -69,30 +69,6 @@ export function CoachStudent({ student, onBack }: { student: Student; onBack: ()
         <button onClick={onBack} className="mb-5 text-sm font-medium text-muted-foreground hover:text-foreground">
           ‹ Alunos
         </button>
-        <button
-          onClick={() => setFicha(true)}
-          className="mb-5 ml-3 rounded-lg bg-primary px-3 py-1.5 text-sm font-semibold text-primary-foreground"
-        >
-          🏋️ Montar treino
-        </button>
-        <button
-          onClick={() => setAval(true)}
-          className="mb-5 ml-2 rounded-lg border border-border/70 bg-card/40 px-3 py-1.5 text-sm font-medium text-primary hover:bg-card/70"
-        >
-          📋 Avaliação
-        </button>
-        <button
-          onClick={() => setPeriodiz(true)}
-          className="mb-5 ml-2 rounded-lg border border-border/70 bg-card/40 px-3 py-1.5 text-sm font-medium text-primary hover:bg-card/70"
-        >
-          📅 Periodização
-        </button>
-        <button
-          onClick={() => setVerComo(true)}
-          className="mb-5 ml-2 rounded-lg border border-border/70 bg-card/40 px-3 py-1.5 text-sm font-medium text-primary hover:bg-card/70"
-        >
-          👁 Visão do aluno
-        </button>
 
         <header className="mb-8 flex items-center gap-3.5">
           <div className="flex size-14 items-center justify-center overflow-hidden rounded-full bg-secondary text-base font-semibold">
@@ -107,6 +83,34 @@ export function CoachStudent({ student, onBack }: { student: Student; onBack: ()
             <p className="text-sm text-muted-foreground">{student.goal || "Sem objetivo definido"}</p>
           </div>
         </header>
+
+        {/* ações */}
+        <section className="mb-8 grid grid-cols-2 gap-3">
+          {(
+            [
+              ["🏋️", "Montar treino", "Divisões e exercícios", () => setFicha(true), true],
+              ["📋", "Avaliação física", "Dobras, medidas e % gordura", () => setAval(true), false],
+              ["📅", "Periodização", "Ciclo, meta e mensalidade", () => setPeriodiz(true), false],
+              ["👁", "Visão do aluno", "O app como ele vê", () => setVerComo(true), false],
+            ] as [string, string, string, () => void, boolean][]
+          ).map(([ic, titulo, sub, acao, destaque]) => (
+            <button
+              key={titulo}
+              onClick={acao}
+              className={`flex flex-col gap-1 rounded-2xl p-4 text-left transition ${
+                destaque
+                  ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+                  : "border border-border/70 bg-card/40 hover:bg-card/70"
+              }`}
+            >
+              <span className="text-xl">{ic}</span>
+              <span className="font-semibold leading-tight">{titulo}</span>
+              <span className={`text-[12px] leading-tight ${destaque ? "opacity-80" : "text-muted-foreground"}`}>
+                {sub}
+              </span>
+            </button>
+          ))}
+        </section>
 
         {/* resumo */}
         <section className="mb-8 grid grid-cols-2 gap-3">

@@ -6,6 +6,8 @@ export type CoachStudent = {
   goal: string | null
   gender: string | null
   photo_url: string | null
+  /** conta do aluno no app (null = ainda não vinculou pelo código) */
+  user_id: string | null
 }
 
 export type CoachData = {
@@ -13,6 +15,8 @@ export type CoachData = {
   students: CoachStudent[]
   ativos: number
   ativosIds: string[]
+  /** mensagem quando o carregamento falhou (offline, RLS, coluna faltando…) */
+  erro: string | null
 }
 
 export async function loadCoachRole(userId: string): Promise<string | null> {
@@ -88,11 +92,11 @@ export async function loadCoachData(userId: string): Promise<CoachData> {
   const cutoff = new Date()
   cutoff.setDate(cutoff.getDate() - 30)
   const cut = cutoff.toISOString().slice(0, 10)
-  const [{ data: prof }, { data: st }, { data: hi }] = await Promise.all([
+  const [{ data: prof }, { data: st, error: stErr }, { data: hi }] = await Promise.all([
     supabase.from("profiles").select("name").eq("id", userId).maybeSingle(),
     supabase
       .from("assess_students")
-      .select("id,name,goal,gender,photo_url")
+      .select("id,name,goal,gender,photo_url,user_id")
       .eq("coach_id", userId)
       .order("name"),
     supabase.from("train_historico").select("student_id").eq("coach_id", userId).gte("data_treino", cut),
@@ -105,13 +109,14 @@ export async function loadCoachData(userId: string): Promise<CoachData> {
     students,
     ativos: ativosIds.length,
     ativosIds,
+    erro: stErr ? stErr.message : null,
   }
 }
 
-export async function addStudent(name: string): Promise<boolean> {
+export async function addStudent(name: string): Promise<string | null> {
   const { data: u } = await supabase.auth.getUser()
   const coachId = u?.user?.id
-  if (!coachId) return false
+  if (!coachId) return "Sessão expirada. Entre de novo."
   const { error } = await supabase.from("assess_students").insert({ coach_id: coachId, name })
-  return !error
+  return error ? error.message : null
 }

@@ -8,18 +8,29 @@ export function StudentWorkout({
   divisao,
   coachId,
   studentId,
+  recordes = {},
+  readOnly = false,
+  mostrarVoltar = true,
   onBack,
 }: {
   divisao: Divisao
   coachId: string
   studentId: string
+  /** melhor carga já registrada por exercício — para marcar recorde */
+  recordes?: Record<string, number>
+  /** modo "visão do aluno" do treinador: mostra a ficha sem registrar nada */
+  readOnly?: boolean
+  /** false quando a tela já está dentro da barra "Visão do aluno" */
+  mostrarVoltar?: boolean
   onBack: () => void
 }) {
   const [exs, setExs] = useState<Exercicio[] | null>(null)
   const [demo, setDemo] = useState<Record<string, boolean>>({})
   const [done, setDone] = useState<Record<string, boolean>>({})
+  const [prs, setPrs] = useState<Record<string, boolean>>({})
   const [carga, setCarga] = useState<Record<string, string>>({})
   const [reps, setReps] = useState<Record<string, string>>({})
+  const [erro, setErro] = useState<string | null>(null)
   const [finished, setFinished] = useState(false)
 
   useEffect(() => {
@@ -29,31 +40,41 @@ export function StudentWorkout({
   const key = (ei: number, si: number) => `${ei}_${si}`
 
   const salvarSerie = async (ex: Exercicio, ei: number, si: number) => {
+    if (readOnly) return
     const k = key(ei, si)
     const c = parseFloat(carga[k] || "")
     const r = parseInt(reps[k] || "")
+    if (isNaN(c) || isNaN(r)) {
+      setErro("Preencha a carga (kg) e as repetições antes de marcar a série.")
+      setTimeout(() => setErro(null), 3000)
+      return
+    }
+    const recorde = c > (recordes[ex.nome] ?? 0)
     setDone((d) => ({ ...d, [k]: true }))
-    if (!isNaN(c) && !isNaN(r)) {
-      try {
-        await registrarSerie({
-          coachId,
-          studentId,
-          divisaoId: divisao.id,
-          ex,
-          indice: si + 1,
-          carga: c,
-          reps: r,
-          isPr: false,
-        })
-      } catch {
-        /* ignora erro de rede */
-      }
+    if (recorde) setPrs((p) => ({ ...p, [k]: true }))
+    try {
+      await registrarSerie({
+        coachId,
+        studentId,
+        divisaoId: divisao.id,
+        ex,
+        indice: si + 1,
+        carga: c,
+        reps: r,
+        isPr: recorde,
+      })
+      // a próxima série do mesmo exercício só é recorde se passar desta
+      if (recorde) recordes[ex.nome] = c
+    } catch {
+      setErro("Sem internet: a série ficou marcada, mas não foi salva.")
+      setTimeout(() => setErro(null), 4000)
     }
     if (navigator.vibrate) navigator.vibrate(20)
   }
 
   const totalSets = (exs || []).reduce((a, e) => a + e.qtd_series, 0)
   const doneSets = Object.values(done).filter(Boolean).length
+  const prSets = Object.values(prs).filter(Boolean).length
 
   if (finished) {
     return (
@@ -63,6 +84,11 @@ export function StudentWorkout({
         <p className="mt-1 text-muted-foreground">
           {doneSets} série{doneSets === 1 ? "" : "s"} registrada{doneSets === 1 ? "" : "s"}
         </p>
+        {prSets > 0 && (
+          <p className="mt-1 font-bold text-amber-300">
+            🏆 {prSets} novo{prSets === 1 ? "" : "s"} recorde{prSets === 1 ? "" : "s"}!
+          </p>
+        )}
         <button
           onClick={onBack}
           className="mt-6 rounded-xl bg-primary px-6 py-3 font-semibold text-primary-foreground"
@@ -76,13 +102,21 @@ export function StudentWorkout({
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-md px-4 pb-28 pt-6">
-        <button onClick={onBack} className="mb-4 text-sm font-medium text-muted-foreground hover:text-foreground">
-          ‹ Voltar
-        </button>
+        {mostrarVoltar && (
+          <button onClick={onBack} className="mb-4 text-sm font-medium text-muted-foreground hover:text-foreground">
+            ‹ Voltar
+          </button>
+        )}
         <h1 className="text-2xl font-extrabold tracking-tight">{divisao.nome || "Treino"}</h1>
         <p className="mb-5 text-sm text-muted-foreground">
-          {doneSets}/{totalSets} séries · registre carga e repetições
+          {readOnly
+            ? `${totalSets} série${totalSets === 1 ? "" : "s"} prescritas`
+            : `${doneSets}/${totalSets} séries · registre carga e repetições`}
         </p>
+
+        {erro && (
+          <div className="mb-4 rounded-lg bg-amber-500/15 px-3 py-2 text-sm text-amber-300">{erro}</div>
+        )}
 
         {exs === null ? (
           <div className="flex justify-center py-16">
@@ -102,7 +136,13 @@ export function StudentWorkout({
                     <p className="text-[13px] text-muted-foreground">
                       {ex.grupo ? `${ex.grupo} · ` : ""}
                       {ex.qtd_series}× {ex.faixa_reps || ""}
+                      {ex.intervalo ? ` · ${ex.intervalo}s de intervalo` : ""}
                     </p>
+                    {recordes[ex.nome] != null && (
+                      <p className="mt-0.5 text-[12px] font-semibold text-amber-300">
+                        🏆 Seu recorde: {recordes[ex.nome]} kg
+                      </p>
+                    )}
                   </div>
                   <button
                     onClick={() => setDemo((d) => ({ ...d, [ex.id]: !d[ex.id] }))}
@@ -126,31 +166,42 @@ export function StudentWorkout({
                       <div
                         key={si}
                         className={`flex items-center gap-2 rounded-xl border p-2 ${
-                          isDone ? "border-emerald-500/40 bg-emerald-500/10" : "border-border/60"
+                          prs[k]
+                            ? "border-amber-400/50 bg-amber-500/10"
+                            : isDone
+                              ? "border-emerald-500/40 bg-emerald-500/10"
+                              : "border-border/60"
                         }`}
                       >
                         <span className="w-6 text-center text-sm font-bold text-muted-foreground">{si + 1}</span>
                         <input
                           inputMode="decimal"
+                          disabled={readOnly}
                           value={carga[k] || ""}
                           onChange={(e) => setCarga((c) => ({ ...c, [k]: e.target.value }))}
                           placeholder="kg"
-                          className="w-full rounded-lg bg-secondary/60 px-2.5 py-2 text-center text-sm outline-none"
+                          className="w-full rounded-lg bg-secondary/60 px-2.5 py-2 text-center text-sm outline-none disabled:opacity-50"
                         />
                         <input
                           inputMode="numeric"
+                          disabled={readOnly}
                           value={reps[k] || ""}
                           onChange={(e) => setReps((r) => ({ ...r, [k]: e.target.value }))}
-                          placeholder="reps"
-                          className="w-full rounded-lg bg-secondary/60 px-2.5 py-2 text-center text-sm outline-none"
+                          placeholder={ex.faixa_reps || "reps"}
+                          className="w-full rounded-lg bg-secondary/60 px-2.5 py-2 text-center text-sm outline-none disabled:opacity-50"
                         />
                         <button
                           onClick={() => salvarSerie(ex, ei, si)}
-                          className={`flex size-9 shrink-0 items-center justify-center rounded-lg text-sm font-bold ${
-                            isDone ? "bg-emerald-500 text-white" : "bg-primary/20 text-primary"
+                          disabled={readOnly}
+                          className={`flex size-9 shrink-0 items-center justify-center rounded-lg text-sm font-bold disabled:opacity-40 ${
+                            prs[k]
+                              ? "bg-amber-400 text-black"
+                              : isDone
+                                ? "bg-emerald-500 text-white"
+                                : "bg-primary/20 text-primary"
                           }`}
                         >
-                          ✓
+                          {prs[k] ? "🏆" : "✓"}
                         </button>
                       </div>
                     )
@@ -162,7 +213,7 @@ export function StudentWorkout({
         )}
       </div>
 
-      {exs && exs.length > 0 && (
+      {!readOnly && exs && exs.length > 0 && (
         <div className="fixed inset-x-0 bottom-0 mx-auto max-w-md p-4">
           <ShimmerButton onClick={() => setFinished(true)}>Finalizar treino</ShimmerButton>
         </div>

@@ -35,11 +35,25 @@ export function CoachHome({
   const [sel, setSel] = useState<Student | null>(null)
   const [linkOpen, setLinkOpen] = useState(false)
   const [cfgOpen, setCfgOpen] = useState(false)
+  const [falha, setFalha] = useState<string | null>(null)
 
-  const reload = () => loadCoachData(userId).then(setData)
+  const reload = () =>
+    loadCoachData(userId)
+      .then((d) => {
+        setData(d)
+        setFalha(d.erro)
+      })
+      .catch(() => setFalha("Não foi possível carregar seus alunos. Verifique a conexão."))
+
   useEffect(() => {
     let alive = true
-    loadCoachData(userId).then((d) => alive && setData(d))
+    loadCoachData(userId)
+      .then((d) => {
+        if (!alive) return
+        setData(d)
+        setFalha(d.erro)
+      })
+      .catch(() => alive && setFalha("Não foi possível carregar seus alunos. Verifique a conexão."))
     return () => {
       alive = false
     }
@@ -47,7 +61,24 @@ export function CoachHome({
 
   const ativosIds = useMemo(() => new Set(data?.ativosIds ?? []), [data])
 
-  if (!data) return <Spinner />
+  if (!data)
+    return falha ? (
+      <div className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-6 text-center">
+        <div className="text-4xl">📡</div>
+        <p className="mt-3 font-semibold">{falha}</p>
+        <button
+          onClick={() => {
+            setFalha(null)
+            reload()
+          }}
+          className="mt-4 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground"
+        >
+          Tentar de novo
+        </button>
+      </div>
+    ) : (
+      <Spinner />
+    )
 
   if (sel)
     return (
@@ -75,9 +106,9 @@ export function CoachHome({
   const novoAluno = async () => {
     const nome = window.prompt("Nome do novo aluno:")
     if (!nome || !nome.trim()) return
-    const ok = await addStudent(nome.trim())
-    if (ok) reload()
-    else alert("Não foi possível adicionar.")
+    const erro = await addStudent(nome.trim())
+    if (erro) alert("Não foi possível adicionar: " + erro)
+    else reload()
   }
 
   const appUrl = "https://fumisz.github.io/mf-performance/preview/"
@@ -108,6 +139,15 @@ export function CoachHome({
             Sair
           </button>
         </header>
+
+        {falha && (
+          <div className="mb-3 flex items-center gap-2 rounded-lg bg-amber-500/15 px-3 py-2 text-sm text-amber-300">
+            <span className="flex-1">{falha}</span>
+            <button onClick={reload} className="font-bold underline">
+              recarregar
+            </button>
+          </div>
+        )}
 
         <p className="mb-3 text-[15px] font-semibold">Seus alunos</p>
 

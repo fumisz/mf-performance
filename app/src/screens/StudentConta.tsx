@@ -10,10 +10,26 @@ import { useStudent } from "@/lib/student-context"
 import { supabase } from "@/lib/supabase"
 import { forcarAtualizacao } from "@/lib/util"
 
-export function StudentConta() {
+function lerPref(k: string, padrao: boolean) {
+  try {
+    const v = localStorage.getItem(k)
+    return v == null ? padrao : v === "1"
+  } catch {
+    return padrao
+  }
+}
+function gravarPref(k: string, v: boolean) {
+  try {
+    localStorage.setItem(k, v ? "1" : "0")
+  } catch {
+    /* ignora */
+  }
+}
+
+export function StudentConta({ readOnly = false }: { readOnly?: boolean }) {
   const { student, stats } = useStudent()
-  const [push, setPush] = useState(false)
-  const [agua, setAgua] = useState(true)
+  const [push, setPush] = useState(() => lerPref("mfp_pref_push", false))
+  const [agua, setAgua] = useState(() => lerPref("mfp_pref_agua", true))
   const nome = student?.name ?? "Aluno(a)"
   const iniciais = nome.split(" ").filter(Boolean).slice(0, 2).map((n) => n[0]).join("").toUpperCase()
 
@@ -67,7 +83,14 @@ export function StudentConta() {
               <p className="font-semibold">Avisos no celular</p>
               <p className="text-sm text-muted-foreground">Receba avisos do treinador</p>
             </div>
-            <Switch checked={push} onCheckedChange={setPush} />
+            <Switch
+              checked={push}
+              disabled={readOnly}
+              onCheckedChange={(v) => {
+                setPush(v)
+                gravarPref("mfp_pref_push", v)
+              }}
+            />
           </div>
           <div className="my-4 h-px bg-border" />
           <div className="flex items-center gap-3">
@@ -76,23 +99,34 @@ export function StudentConta() {
               <p className="font-semibold">Lembrete de beber água</p>
               <p className="text-sm text-muted-foreground">Toques ao longo do dia</p>
             </div>
-            <Switch checked={agua} onCheckedChange={setAgua} />
+            <Switch
+              checked={agua}
+              disabled={readOnly}
+              onCheckedChange={(v) => {
+                setAgua(v)
+                gravarPref("mfp_pref_agua", v)
+              }}
+            />
           </div>
         </CardContent>
       </Card>
 
-      <button
-        onClick={forcarAtualizacao}
-        className="mb-3 w-full rounded-xl border border-white/10 bg-card py-3 text-sm font-semibold text-muted-foreground"
-      >
-        ↻ Atualizar app
-      </button>
-      <ShimmerButton
-        className="from-secondary to-secondary text-foreground shadow-none"
-        onClick={() => supabase.auth.signOut()}
-      >
-        Sair da conta
-      </ShimmerButton>
+      {!readOnly && (
+        <>
+          <button
+            onClick={forcarAtualizacao}
+            className="mb-3 w-full rounded-xl border border-white/10 bg-card py-3 text-sm font-semibold text-muted-foreground"
+          >
+            ↻ Atualizar app
+          </button>
+          <ShimmerButton
+            className="from-secondary to-secondary text-foreground shadow-none"
+            onClick={() => supabase.auth.signOut()}
+          >
+            Sair da conta
+          </ShimmerButton>
+        </>
+      )}
     </div>
   )
 }

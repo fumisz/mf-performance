@@ -5,8 +5,17 @@ const n0 = (v: unknown) => {
   return typeof x === "number" && !isNaN(x) ? x : 0
 }
 
-export type DietaItem = { id: string; nome: string; qtd: string; kcal: number; protein: number; carb: number; fat: number }
-export type DietaRefeicao = { id: string; nome: string; itens: DietaItem[] }
+export type DietaItem = {
+  id: string
+  nome: string
+  qtd: string
+  prep: string | null
+  kcal: number
+  protein: number
+  carb: number
+  fat: number
+}
+export type DietaRefeicao = { id: string; nome: string; hora: string | null; notas: string | null; itens: DietaItem[] }
 export type Dieta = {
   titulo: string
   notas: string | null
@@ -15,6 +24,8 @@ export type Dieta = {
   totais: { kcal: number; protein: number; carb: number; fat: number }
 }
 
+// O plano alimentar vem do MF Nutrition: meal_plans.student_id é o id do
+// usuário (auth), não o id do cadastro em assess_students.
 export async function loadDieta(studentUserId: string): Promise<Dieta | null> {
   const { data: plan } = await supabase
     .from("meal_plans")
@@ -34,15 +45,24 @@ export async function loadDieta(studentUserId: string): Promise<Dieta | null> {
     items = (ri.data || []) as Record<string, unknown>[]
   }
 
+  const txt = (...vs: unknown[]) => {
+    for (const v of vs) if (typeof v === "string" && v.trim()) return v.trim()
+    return ""
+  }
+
   const refeicoes: DietaRefeicao[] = (meals || []).map((m: Record<string, unknown>) => ({
     id: m.id as string,
-    nome: (m.name as string) || (m.title as string) || "Refeição",
+    nome: txt(m.name, m.title) || "Refeição",
+    hora: txt(m.time) ? txt(m.time).slice(0, 5) : null,
+    notas: txt(m.notes) || null,
     itens: items
       .filter((i) => i.meal_id === m.id)
       .map((i) => ({
         id: i.id as string,
-        nome: (i.name as string) || (i.food_name as string) || (i.descricao as string) || "Item",
-        qtd: (i.qty as string) || (i.quantity as string) || (i.amount as string) || (i.medida as string) || "",
+        // no banco do Nutrition a coluna do alimento chama-se "food"
+        nome: txt(i.food, i.name, i.food_name, i.descricao) || "Item",
+        qtd: txt(i.qty, i.quantity, i.amount, i.medida),
+        prep: txt(i.prep) || null,
         kcal: n0(i.kcal),
         protein: n0(i.protein),
         carb: n0(i.carb),
@@ -58,8 +78,8 @@ export async function loadDieta(studentUserId: string): Promise<Dieta | null> {
     )
 
   return {
-    titulo: (plan.title as string) || "Meu plano alimentar",
-    notas: (plan.notes as string) || null,
+    titulo: txt(plan.title) || "Meu plano alimentar",
+    notas: txt(plan.notes) || null,
     aguaMl: (plan.water_goal_ml as number) ?? null,
     refeicoes,
     totais,
