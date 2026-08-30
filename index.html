@@ -134,6 +134,16 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:1
 .s-name{font-size:15.5px;font-weight:600;margin-bottom:3px}
 .s-meta{font-size:12px;color:var(--text2);line-height:1.6}
 /* ── Dashboard KPIs / filtros / distribuições ── */
+/* Atalhos do painel — a faixa de ações do dia */
+.atalhos{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:18px}
+.atalho{display:flex;flex-direction:column;gap:3px;align-items:flex-start;text-align:left;cursor:pointer;
+  background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:13px 14px;min-height:64px;
+  transition:border-color .15s,transform .12s,box-shadow .15s}
+.atalho:hover{border-color:var(--accent);box-shadow:var(--shadow)}
+.atalho:active{transform:scale(.985)}
+.atalho-t{font-weight:600;font-size:14.5px;color:var(--text)}
+.atalho-d{font-size:11.5px;color:var(--text3);line-height:1.35}
+
 .kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px}
 .kpi{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:15px 16px;position:relative;overflow:hidden}
 .kpi::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent)}
@@ -721,7 +731,7 @@ const CFG = window.MFP_CONFIG || {};
 const CONFIGURED = !!(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY);
 let sb = null;
 if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY);
-const APP_VERSION='2026.08.30c';   // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION='2026.08.31';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
 
@@ -938,6 +948,34 @@ async function ativarPush(){
   if(error)return{ok:false,msg:error.message};
   return{ok:true};
 }
+// O treinador se inscreve para receber no celular quando um aluno treinar.
+async function ativarPushTreinador(){
+  if(!pushSuportado())return{ok:false,msg:'Este aparelho/navegador não suporta notificações. No iPhone, adicione o app à Tela de Início e abra por lá.'};
+  const perm=await Notification.requestPermission();
+  if(perm!=='granted')return{ok:false,msg:'Permissão negada. Libere as notificações nas configurações do navegador.'};
+  const reg=await navigator.serviceWorker.ready;
+  let sub=await reg.pushManager.getSubscription();
+  if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:_u8(VAPID_PUBLIC)});
+  const j=sub.toJSON();
+  const {error}=await sb.rpc('push_salvar_treinador',{p_endpoint:j.endpoint,p_p256dh:j.keys.p256dh,p_auth:j.keys.auth});
+  if(error)return{ok:false,msg:/SOMENTE_TREINADOR/.test(error.message)?'Só a conta de treinador recebe este aviso.':error.message};
+  return{ok:true};
+}
+
+// Chamado quando o aluno fecha o treino: o treinador recebe na hora.
+async function avisarTreinoConcluido(divisaoNome){
+  try{
+    const {data:sess}=await sb.auth.getSession();
+    const token=sess&&sess.session&&sess.session.access_token;
+    if(!token)return;
+    await fetch(CFG.SUPABASE_URL+'/functions/v1/push',{
+      method:'POST',
+      headers:{'content-type':'application/json',apikey:CFG.SUPABASE_ANON_KEY,authorization:'Bearer '+token},
+      body:JSON.stringify({mode:'treino-concluido',divisao:divisaoNome||''}),
+    });
+  }catch(e){/* sem internet: o treino já está salvo, só o aviso não sai */}
+}
+
 async function desativarPush(){try{const reg=await navigator.serviceWorker.ready;const sub=await reg.pushManager.getSubscription();if(sub){await sb.rpc('push_remover',{p_endpoint:sub.toJSON().endpoint}).catch(()=>{});await sub.unsubscribe();}}catch(e){}}
 
 /* ── Logo (letreiro LED + pulso) ── */
@@ -1794,7 +1832,7 @@ function PainelEvolucao({rows,onSelect}){
   </div>);
 }
 
-function Dashboard({students,evals,onSelect,onNew,onDelete,onReassess,onSchedule,onTrain,demo}){
+function Dashboard({students,evals,onSelect,onNew,onDelete,onReassess,onSchedule,onTrain,onIr,demo}){
   const [q,setQ]=useState('');
   const [filter,setFilter]=useState('todos');
   const [sortBy,setSortBy]=useState('urgencia');
@@ -1858,6 +1896,22 @@ function Dashboard({students,evals,onSelect,onNew,onDelete,onReassess,onSchedule
           <div className="ph-sub">{students.length} aluno{students.length!==1?'s':''} · {evals.length} avaliaç{evals.length!==1?'ões':'ão'}</div></div>
         <button className="btn btn-primary" onClick={onNew}>+ Novo aluno</button>
       </div>
+      {/* atalhos: o que o treinador faz todo dia, a um toque */}
+      <div className="atalhos">
+        {[
+          ['Novo aluno','Cadastrar e montar a ficha',onNew],
+          ['Montar treino','Fichas e divisões',()=>onIr&&onIr('train')],
+          ['Avaliação','Dobras, medidas e relatório',()=>onIr&&onIr('tech')],
+          ['Nutrição','Cardápio e macros',()=>onIr&&onIr('nutri')],
+          ['Agenda','Horários e avaliações',()=>onIr&&onIr('agenda')],
+          ['Periodização','Ciclos e fases',()=>onIr&&onIr('perio')],
+        ].map(([t,d,fn])=>(
+          <button key={t} className="atalho" onClick={fn}>
+            <span className="atalho-t">{t}</span>
+            <span className="atalho-d">{d}</span>
+          </button>))}
+      </div>
+
       <PainelHoje students={students} onSelect={onSelect} demo={demo}/>
       <PainelEvolucao rows={rows} onSelect={onSelect}/>
 
@@ -4300,8 +4354,32 @@ function BrandScreen({profile,setProfile,onBack}){
   const stored=(()=>{try{return JSON.parse(localStorage.getItem('mfp_brand_'+profile.id)||'{}');}catch{return{};}})();
   const [f,setF]=useState({brand_name:profile.brand_name||stored.brand_name||'',name:profile.name||stored.name||'',cref:profile.cref||stored.cref||'',phone:profile.phone||stored.phone||'',instagram:profile.instagram||stored.instagram||'',logo_url:profile.logo_url||stored.logo_url||''});
   const [busy,setBusy]=useState(false);const [msg,setMsg]=useState(null);
+  const [avisoOn,setAvisoOn]=useState(false);
+  const [avisoBusy,setAvisoBusy]=useState(false);
+  const [avisoMsg,setAvisoMsg]=useState(null);
   const s=(k,v)=>setF(p=>({...p,[k]:v}));
   const ref=useRef();
+
+  // já está inscrito neste aparelho?
+  useEffect(()=>{if(profile._demo||!sb)return;(async()=>{
+    try{
+      if(!pushSuportado()||Notification.permission!=='granted')return;
+      const reg=await navigator.serviceWorker.ready;
+      const sub=await reg.pushManager.getSubscription();
+      if(!sub)return;
+      const {data}=await sb.from('train_push').select('endpoint')
+        .eq('endpoint',sub.toJSON().endpoint).eq('papel','treinador').maybeSingle();
+      setAvisoOn(!!data);
+    }catch(e){}
+  })();},[]);
+
+  const alternarAviso=async()=>{
+    if(profile._demo){setAvisoOn(v=>!v);return;}
+    setAvisoBusy(true);setAvisoMsg(null);
+    if(avisoOn){await desativarPush();setAvisoOn(false);}
+    else{const r=await ativarPushTreinador();if(r.ok)setAvisoOn(true);else setAvisoMsg(r.msg);}
+    setAvisoBusy(false);
+  };
   const pickLogo=file=>{if(!file)return;const r=new FileReader();
     r.onload=e=>{const src=e.target.result;const img=new Image();
       img.onload=()=>{try{
@@ -4334,6 +4412,28 @@ function BrandScreen({profile,setProfile,onBack}){
         <button className="btn btn-primary" disabled={busy} onClick={save}>{busy?'…':' Salvar'}</button>
       </div>
       {msg&&<div className={`alert alert-${msg.t==='error'?'error':'success'}`}>{msg.x}</div>}
+
+      <div className="card" style={{marginBottom:16}}>
+        <h4 style={{margin:'0 0 4px'}}>Aviso no celular</h4>
+        <p className="s-meta" style={{marginBottom:12}}>
+          Receba uma notificação na tela do celular assim que um aluno terminar o treino,
+          com a divisão, o número de séries, o volume e os recordes.
+        </p>
+        {avisoMsg&&<div className="alert alert-warn" style={{marginBottom:12}}>{avisoMsg}</div>}
+        <div style={{display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}}>
+          <button className={'btn '+(avisoOn?'btn-secondary':'btn-primary')} disabled={avisoBusy} onClick={alternarAviso}>
+            {avisoBusy?'…':avisoOn?'Desligar avisos neste aparelho':'Ativar avisos neste aparelho'}
+          </button>
+          <span style={{fontSize:12.5,color:avisoOn?'var(--green)':'var(--text3)',fontWeight:600}}>
+            {avisoOn?'Ligado neste aparelho':'Desligado'}
+          </span>
+        </div>
+        <div style={{fontSize:11.5,color:'var(--text3)',marginTop:10,lineHeight:1.5}}>
+          Vale por aparelho — ative em cada celular que você usa.
+          No iPhone, adicione o app à Tela de Início (Compartilhar → Adicionar à Tela de Início) e ative por lá.
+        </div>
+      </div>
+
       <div className="card">
         <div style={{display:'flex',gap:20,alignItems:'flex-start',flexWrap:'wrap',marginBottom:16}}>
           <div className="fg"><label className="flbl">Logo (aparece no relatório)</label>
@@ -5585,16 +5685,171 @@ function buildTemplatePayload(meals, templateId){
   return {mealsP,itemsP,subsP};
 }
 
-function NutriTotais({s,label}){
-  const it=[['kcal','Kcal',''],['protein','Proteína','g'],['carb','Carbo','g'],['fat','Gordura','g']];
+function NutriTotais({s,label,meta,peso}){
+  const it=[['kcal','Kcal','','kcal_alvo'],['protein','Proteína','g','prot_alvo'],['carb','Carbo','g','carb_alvo'],['fat','Gordura','g','fat_alvo']];
+  const temMeta=meta&&n0(meta.kcal_alvo)>0;
+  // 5% de folga para cima ou para baixo é o que se considera "fechado"
+  const situacao=(v,alvo)=>{
+    if(!alvo)return null;
+    const d=(v-alvo)/alvo;
+    if(Math.abs(d)<=0.05)return{cor:'var(--green)',txt:'na meta'};
+    return d<0?{cor:'var(--gold)',txt:r0(alvo-v)+' abaixo'}:{cor:'var(--red)',txt:r0(v-alvo)+' acima'};
+  };
   return(<div>
     <div style={{display:'flex',gap:10,marginTop:12}}>
-      {it.map(([k,l,u])=>(<div key={k} style={{flex:1,textAlign:'center',background:'var(--bg3,#f7f4ef)',borderRadius:12,padding:'10px 4px'}}>
-        <div style={{fontFamily:'var(--serif)',fontSize:19,fontWeight:700,color:'var(--accent)'}}>{r0(s[k])}<span style={{fontSize:11,fontWeight:600}}>{u}</span></div>
-        <div style={{fontSize:10.5,color:'var(--text2)',textTransform:'uppercase',letterSpacing:.5,fontWeight:700}}>{l}</div>
-      </div>))}
+      {it.map(([k,l,u,mk])=>{
+        const alvo=temMeta?n0(meta[mk]):0;
+        const st=situacao(n0(s[k]),alvo);
+        const pct=alvo?Math.min(100,Math.round((n0(s[k])/alvo)*100)):0;
+        return(<div key={k} style={{flex:1,textAlign:'center',background:'var(--bg3,#f7f4ef)',borderRadius:12,padding:'10px 4px'}}>
+          <div style={{fontFamily:'var(--serif)',fontSize:19,fontWeight:700,color:'var(--accent)'}}>{r0(s[k])}<span style={{fontSize:11,fontWeight:600}}>{u}</span></div>
+          <div style={{fontSize:10.5,color:'var(--text2)',textTransform:'uppercase',letterSpacing:.5,fontWeight:700}}>{l}</div>
+          {alvo>0&&<>
+            <div style={{height:4,borderRadius:3,background:'var(--bg4,#e9ddd3)',margin:'7px 6px 4px',overflow:'hidden'}}>
+              <div style={{height:'100%',width:pct+'%',background:st?st.cor:'var(--accent)',borderRadius:3,transition:'width .4s'}}/>
+            </div>
+            <div style={{fontSize:10,color:st?st.cor:'var(--text3)',fontWeight:700}}>
+              meta {r0(alvo)}{u} · {st?st.txt:''}</div>
+          </>}
+        </div>);
+      })}
     </div>
+    {temMeta&&n0(peso)>0&&
+      <div style={{fontSize:11.5,color:'var(--text2)',textAlign:'center',marginTop:8}}>
+        Proteína do cardápio: <b>{(n0(s.protein)/n0(peso)).toFixed(1).replace('.',',')} g por kg</b> de peso
+        {(n0(s.protein)/n0(peso))<1.4?' — pouco para quem treina força':''}
+      </div>}
     {label&&<div style={{fontSize:11,color:'var(--text3)',textAlign:'center',marginTop:6}}>{label}</div>}
+  </div>);
+}
+
+/* ── Meta calórica do plano ──────────────────────────────────────────
+   Gasto energético por Mifflin-St Jeor (o mais usado em consultório),
+   fator de atividade e ajuste pelo objetivo. Proteína e gordura saem de
+   g por kg; o carboidrato fecha a conta do que sobra. */
+const FATORES=[
+  ['1.2','Sedentário — só trabalho e casa'],
+  ['1.375','Leve — treina 1 a 3× por semana'],
+  ['1.55','Moderado — treina 3 a 5× por semana'],
+  ['1.725','Intenso — treina 6 a 7× por semana'],
+  ['1.9','Atleta — 2 sessões por dia ou trabalho pesado'],
+];
+const OBJETIVOS=[
+  ['-20','Emagrecer rápido (−20%)'],
+  ['-15','Emagrecer (−15%)'],
+  ['-10','Emagrecer devagar (−10%)'],
+  ['0','Manter o peso'],
+  ['10','Ganhar massa (+10%)'],
+  ['15','Ganhar massa (+15%)'],
+];
+function NutriMeta({plan,setPlan,studentUid,demo,total}){
+  const calc=(plan&&plan.calc)||{};
+  const [f,setF]=useState({
+    sexo:calc.sexo||'M', idade:calc.idade||'', peso:calc.peso||'', altura:calc.altura||'',
+    fator:calc.fator||'1.55', objetivo:calc.objetivo!=null?String(calc.objetivo):'0',
+    ptn:calc.ptn||'1.8', gord:calc.gord||'0.9',
+  });
+  const [aberto,setAberto]=useState(!n0(plan&&plan.kcal_alvo));
+  const [buscando,setBuscando]=useState(false);
+  const [aviso,setAviso]=useState(null);
+  const set=(k,v)=>setF(p=>({...p,[k]:v}));
+
+  // puxa peso, altura, idade e sexo da última avaliação física do aluno
+  const puxarDaAvaliacao=async()=>{
+    if(demo||!sb)return;
+    setBuscando(true);setAviso(null);
+    try{
+      const {data:st}=await sb.from('assess_students').select('id,gender,dob').eq('user_id',studentUid).limit(1);
+      const aluno=st&&st[0];
+      if(!aluno){setAviso('Este aluno ainda não tem cadastro de avaliação física.');setBuscando(false);return;}
+      const {data:av}=await sb.from('assessments').select('data,date').eq('student_id',aluno.id)
+        .order('date',{ascending:false}).limit(1);
+      const d=(av&&av[0]&&av[0].data)||{};
+      const peso=d.weight??d.peso, altura=d.height??d.altura;
+      const idade=aluno.dob?Math.floor((Date.now()-new Date(aluno.dob).getTime())/31557600000):null;
+      setF(p=>({...p,
+        sexo:aluno.gender==='F'?'F':'M',
+        peso:peso!=null?String(peso):p.peso,
+        altura:altura!=null?String(altura):p.altura,
+        idade:idade?String(idade):p.idade}));
+      if(peso==null)setAviso('A última avaliação não tem peso registrado — preencha à mão.');
+    }catch(e){setAviso('Não consegui buscar: '+(e.message||e));}
+    setBuscando(false);
+  };
+
+  const peso=n0(f.peso), altura=n0(f.altura), idade=n0(f.idade);
+  const tmb=(peso&&altura&&idade)
+    ? Math.round(10*peso + 6.25*altura - 5*idade + (f.sexo==='F'?-161:5)) : 0;
+  const get=tmb?Math.round(tmb*parseFloat(f.fator)):0;
+  const kcal=get?Math.round(get*(1+parseFloat(f.objetivo)/100)):0;
+  const prot=peso?Math.round(peso*parseFloat(f.ptn)):0;
+  const gord=peso?Math.round(peso*parseFloat(f.gord)):0;
+  const carb=kcal?Math.max(0,Math.round((kcal-prot*4-gord*9)/4)):0;
+  const pronto=kcal>0;
+
+  const aplicar=()=>{
+    setPlan({...plan,kcal_alvo:kcal,prot_alvo:prot,carb_alvo:carb,fat_alvo:gord,
+      calc:{sexo:f.sexo,idade:idade,peso:peso,altura:altura,fator:f.fator,objetivo:f.objetivo,ptn:f.ptn,gord:f.gord,tmb:tmb,get:get}});
+    setAberto(false);
+  };
+
+  const alvoAtual=n0(plan&&plan.kcal_alvo);
+  return(<div className="dash-panel" style={{marginBottom:14}}>
+    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,flexWrap:'wrap'}}>
+      <h4 style={{margin:0}}>Meta do plano</h4>
+      <button className="btn btn-ghost btn-sm" onClick={()=>setAberto(a=>!a)}>{aberto?'Fechar':alvoAtual?'Recalcular':'Calcular meta'}</button>
+    </div>
+    {!aberto&&alvoAtual>0&&
+      <p className="s-meta" style={{marginTop:6}}>
+        {r0(alvoAtual)} kcal · {r0(plan.prot_alvo)} g de proteína · {r0(plan.carb_alvo)} g de carboidrato · {r0(plan.fat_alvo)} g de gordura
+        {calc.get?' (gasto estimado '+r0(calc.get)+' kcal)':''}
+      </p>}
+    {!aberto&&!alvoAtual&&
+      <p className="s-meta" style={{marginTop:6}}>Sem meta definida — o cardápio fica sem referência de quanto fechar no dia.</p>}
+
+    {aberto&&<div style={{marginTop:12}}>
+      {aviso&&<div className="alert alert-warn" style={{marginBottom:10}}>{aviso}</div>}
+      {!demo&&<button className="btn btn-secondary btn-sm" style={{marginBottom:12}} disabled={buscando} onClick={puxarDaAvaliacao}>
+        {buscando?'Buscando…':'Puxar da última avaliação'}</button>}
+      <div className="fgrid">
+        <div className="fg"><label className="flbl">Sexo</label>
+          <select className="fi" value={f.sexo} onChange={e=>set('sexo',e.target.value)}>
+            <option value="M">Masculino</option><option value="F">Feminino</option></select></div>
+        <FI label="Idade" unit="anos" type="number" value={f.idade} onChange={e=>set('idade',e.target.value)}/>
+        <FI label="Peso" unit="kg" type="number" value={f.peso} onChange={e=>set('peso',e.target.value)}/>
+        <FI label="Altura" unit="cm" type="number" value={f.altura} onChange={e=>set('altura',e.target.value)}/>
+      </div>
+      <div className="fgrid" style={{marginTop:10}}>
+        <div className="fg"><label className="flbl">Nível de atividade</label>
+          <select className="fi" value={f.fator} onChange={e=>set('fator',e.target.value)}>
+            {FATORES.map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></div>
+        <div className="fg"><label className="flbl">Objetivo</label>
+          <select className="fi" value={f.objetivo} onChange={e=>set('objetivo',e.target.value)}>
+            {OBJETIVOS.map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></div>
+        <FI label="Proteína" unit="g/kg" type="number" step="0.1" value={f.ptn} onChange={e=>set('ptn',e.target.value)}/>
+        <FI label="Gordura" unit="g/kg" type="number" step="0.1" value={f.gord} onChange={e=>set('gord',e.target.value)}/>
+      </div>
+      <div style={{fontSize:11.5,color:'var(--text3)',marginTop:8,lineHeight:1.5}}>
+        Referência: 1,6 a 2,2 g de proteína por kg para quem treina força; gordura não deve ficar
+        abaixo de 0,6 g/kg. O carboidrato preenche o que sobrar das calorias.
+      </div>
+      {pronto?(<>
+        <div style={{display:'flex',gap:10,marginTop:14,flexWrap:'wrap'}}>
+          {[['Gasto de repouso',tmb+' kcal'],['Gasto total',get+' kcal'],['Meta do plano',kcal+' kcal']].map(([l,v])=>(
+            <div key={l} style={{flex:1,minWidth:120,textAlign:'center',background:'var(--bg3)',borderRadius:12,padding:'10px 6px'}}>
+              <div style={{fontFamily:'var(--serif)',fontSize:18,fontWeight:700,color:'var(--accent)'}}>{v}</div>
+              <div style={{fontSize:10.5,color:'var(--text2)',textTransform:'uppercase',letterSpacing:.5,fontWeight:700}}>{l}</div>
+            </div>))}
+        </div>
+        <p className="s-meta" style={{marginTop:10}}>
+          Divisão: <b>{prot} g</b> de proteína · <b>{carb} g</b> de carboidrato · <b>{gord} g</b> de gordura
+          {carb<50?' — carboidrato muito baixo, reveja a proteína ou a gordura':''}
+        </p>
+        <button className="btn btn-primary" style={{marginTop:12}} onClick={aplicar}>Usar esta meta no plano</button>
+      </>):(
+        <p className="s-meta" style={{marginTop:12}}>Preencha idade, peso e altura para calcular.</p>
+      )}
+    </div>}
   </div>);
 }
 
@@ -5704,7 +5959,7 @@ function NutriMealsEditor({meals,setMeals,foods,coachId,onFoodsChange}){
       <div className="card" key={m.id} style={{marginTop:12}}>
         <div className="fgrid" style={{gridTemplateColumns:'2fr 1fr auto'}}>
           <FI label="Refeição" value={m.name} onChange={e=>updMeal(m.id,'name',e.target.value)} placeholder="Café da manhã"/>
-          <FI label="Horário" value={m.time||''} onChange={e=>updMeal(m.id,'time',e.target.value)} placeholder="08:00"/>
+          <FI label="Horário" type="time" value={String(m.time||'').slice(0,5)} onChange={e=>updMeal(m.id,'time',e.target.value)}/>
           <div style={{display:'flex',alignItems:'flex-end'}}><button className="btn-icon" onClick={()=>delMeal(m.id)} title="Excluir refeição">×</button></div>
         </div>
         <div style={{margin:'12px 0 4px',fontSize:11,color:'var(--text2)'}}>{r0(ms.kcal)} kcal · P {r0(ms.protein)}g · C {r0(ms.carb)}g · G {r0(ms.fat)}g</div>
@@ -5778,7 +6033,9 @@ function NutriPlanEditor({coach,studentUid,studentName,demo}){
     if(demo){setSaved(true);setTimeout(()=>setSaved(false),1600);return;}
     setBusy(true);
     try{
-      await sb.from('meal_plans').update({title:plan.title,notes:plan.notes,water_goal_ml:n0(plan.water_goal_ml)}).eq('id',plan.id);
+      await sb.from('meal_plans').update({title:plan.title,notes:plan.notes,water_goal_ml:n0(plan.water_goal_ml),
+        kcal_alvo:plan.kcal_alvo??null,prot_alvo:plan.prot_alvo??null,
+        carb_alvo:plan.carb_alvo??null,fat_alvo:plan.fat_alvo??null,calc:plan.calc??null}).eq('id',plan.id);
       const mealsPayload=meals.map((m,i)=>({id:m.id,plan_id:plan.id,name:m.name,time:m.time,notes:m.notes,order_index:i}));
       if(mealsPayload.length) await sb.from('meals').upsert(mealsPayload);
       const curM=meals.map(m=>m.id), delM=orig.meals.filter(id=>!curM.includes(id));
@@ -5840,8 +6097,9 @@ function NutriPlanEditor({coach,studentUid,studentName,demo}){
         <FI label="Meta de água" unit="ml" type="number" value={plan.water_goal_ml||''} onChange={e=>setPlan({...plan,water_goal_ml:e.target.value})}/>
       </div>
       <div style={{marginTop:12}}><FTA label="Observações gerais" value={plan.notes||''} onChange={e=>setPlan({...plan,notes:e.target.value})} placeholder="Beba água, evite frituras, etc."/></div>
-      <NutriTotais s={total} label="Totais diários do plano"/>
+      <NutriTotais s={total} meta={plan} peso={plan.calc&&plan.calc.peso} label="Totais diários do plano"/>
     </div>
+    <NutriMeta plan={plan} setPlan={setPlan} studentUid={studentUid} demo={demo} total={total}/>
     <NutriMealsEditor meals={meals} setMeals={setMeals} foods={foods} coachId={coach.id} onFoodsChange={()=>getFoods().then(setFoods)}/>
     <div style={{position:'sticky',bottom:0,padding:'14px 0',marginTop:8}}>
       <button className="btn btn-primary" style={{width:'100%'}} disabled={busy} onClick={save}>{busy?'Salvando…':saved?'✓ Plano salvo':'Salvar plano'}</button>
@@ -6573,7 +6831,8 @@ function App({profile,setProfile}){
           {view==='dashboard'&&<Dashboard students={students} evals={evals}
             onSelect={s=>{setSelStudent(s);go('detail');}} onNew={()=>{setEditStu(null);go('stu-form');}} onDelete={delStu}
             onReassess={s=>{setSelStudent(s);setEditEv(null);setReassess(true);go('ev-form');}}
-            onSchedule={s=>{setSelStudent(s);go('agenda');}} onTrain={s=>{setSelStudent(s);go('train');}} demo={!!profile._demo}/>}
+            onSchedule={s=>{setSelStudent(s);go('agenda');}} onTrain={s=>{setSelStudent(s);go('train');}}
+            onIr={v=>{setSelStudent(null);go(v);}} demo={!!profile._demo}/>}
           {view==='agenda'&&<AgendaScreen coach={profile} students={students} preStudent={selStudent} onBack={()=>go('dashboard')}/>}
           {view==='intakes'&&<IntakeInbox coach={profile} students={students} onImport={importIntake} onBack={()=>go('dashboard')}/>}
           {view==='tech'&&<TechScreen coach={profile} students={students} preStudent={selStudent} onBack={()=>go('dashboard')}/>}
@@ -6819,6 +7078,8 @@ function TrainExec({student,divisao,demo,somenteLeitura,best,onBack,onSaved,onFi
       const prs=Object.values(done).filter(d=>d.isPr).length;
       setFinished({sets:Object.keys(done).length,ton:Math.round(ton),prs,tempo:tot});
       try{navigator.vibrate&&navigator.vibrate([50,50,50,50,120]);}catch(e){}
+      // o treinador recebe na tela do celular que este aluno acabou de treinar
+      if(!demo&&!somenteLeitura)avisarTreinoConcluido(divisao&&divisao.nome);
     }}>✓ Finalizar treino</button>}
     <div style={{height:rest>0?96:16}}/>
 
