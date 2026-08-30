@@ -502,6 +502,9 @@ textarea.fi{resize:vertical;min-height:70px;line-height:1.5}
 .lv-pill{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:20px;font-size:12px;font-weight:700}
 .lv-rest{position:fixed;left:14px;right:14px;bottom:14px;max-width:540px;margin:0 auto;background:var(--lvc);border:1px solid var(--lvrx);border-radius:18px;padding:13px 16px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 0 40px rgba(139,92,246,.35);z-index:40}
 .lv-restnum{font-family:'Playfair Display',Georgia,serif;font-size:30px;font-weight:700;line-height:1}
+.lv-rest{display:block}
+.lv-restbar{height:4px;border-radius:3px;background:var(--lvc2);overflow:hidden;margin-bottom:10px}
+.lv-restbar i{display:block;height:100%;background:var(--lvrx);border-radius:3px;transition:width 1s linear}
 .lv-round{width:44px;height:44px;border-radius:50%;background:var(--lvrx);color:#fff;border:none;font-size:16px;cursor:pointer}
 .lv-tot{font-family:'Playfair Display',Georgia,serif;font-size:26px;font-weight:700;text-align:center;line-height:1}
 /* Celebração de PR */
@@ -718,7 +721,7 @@ const CFG = window.MFP_CONFIG || {};
 const CONFIGURED = !!(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY);
 let sb = null;
 if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY);
-const APP_VERSION='2026.08.30b';   // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION='2026.08.30c';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
 
@@ -5211,8 +5214,26 @@ const exMediaUrl=path=>{
 };
 /* Demonstração do exercício embutida (gif/imagem/vídeo/youtube), sem sair do app.
    Prioridade: arquivo enviado pelo treinador > link colado. */
+/* Os desenhos do free-exercise-db vêm em dois quadros (0.jpg e 1.jpg).
+   Alternar os dois dá o movimento — é o "gif" do exercício. */
+function GifDoisQuadros({base,name}){
+  const q0=base, q1=base.replace(/\/0\.jpg$/i,'/1.jpg');
+  const [on,setOn]=useState(false);
+  useEffect(()=>{
+    if(SEM_MOTION)return;
+    const t=setInterval(()=>setOn(v=>!v),620);
+    return()=>clearInterval(t);
+  },[]);
+  return(<div style={{background:'#fff',borderRadius:12,overflow:'hidden'}}>
+    <img src={on?q1:q0} alt={name||''} loading="lazy"
+      style={{width:'100%',display:'block',aspectRatio:'4 / 3',objectFit:'contain'}}/>
+    <img src={q1} alt="" aria-hidden="true" style={{display:'none'}}/>
+  </div>);
+}
+
 function ExDemo({url,path,name}){
   const u=(exMediaUrl(path)||url||'').trim();
+  if(/free-exercise-db/.test(u)&&/\/0\.jpg$/i.test(u))return <GifDoisQuadros base={u} name={name}/>;
   if(!u)return <div style={{padding:14,textAlign:'center',color:'var(--lvt3,#6c6c7c)',background:'var(--lvc2,#23232d)',borderRadius:12,fontSize:12.5}}>Sem demonstração ainda.
     <div style={{marginTop:8}}><button className="lv-ghost" onClick={()=>openVideo(null,name)}>Buscar no YouTube ↗</button></div></div>;
   if(/\.(gif|png|jpe?g|webp|avif)(\?|$)/i.test(u))return <img src={u} alt={name} loading="lazy" style={{width:'100%',borderRadius:12,display:'block'}}/>;
@@ -5231,6 +5252,7 @@ function ExerciseLibrary({coach,onBack}){
   const [nf,setNf]=useState({nome:'',grupo_muscular:'Peito',video_url:''});
   const [subindo,setSubindo]=useState(null);
   const [verDemo,setVerDemo]=useState(null);
+  const [grupoFiltro,setGrupoFiltro]=useState('Todos');
   const fileRef=useRef();
   const alvoRef=useRef(null);
   const load=async()=>{if(demo)return;const {data}=await sb.from('train_exercicios').select('*').order('grupo_muscular').order('nome');setLib(data||[]);};
@@ -5266,8 +5288,8 @@ function ExerciseLibrary({coach,onBack}){
       setMsg({t:'ok',m:'Demonstração de "'+ex.nome+'" enviada.'});
     }catch(e){
       const m=e.message||String(e);
-      setMsg({t:'err',m:/not found/i.test(m)
-        ?'Rode o arquivo "videos-exercicios.sql" no Supabase para criar o espaço dos vídeos.'
+      setMsg({t:'err',m:/exceeded|too large|payload/i.test(m)
+        ?'O arquivo passou do limite do servidor. Corte o vídeo para 5 a 15 segundos e tente de novo.'
         :'Não consegui enviar: '+m});
     }
     setSubindo(null);alvoRef.current=null;
@@ -5280,7 +5302,9 @@ function ExerciseLibrary({coach,onBack}){
     if(error){setMsg({t:'err',m:'Erro: '+error.message});return;}
     await load();};
   const del=async(ex)=>{if(ex.coach_id!==coach.id)return;if(!confirm('Remover "'+ex.nome+'"?'))return;setLib(p=>p.filter(x=>x.id!==ex.id));if(!demo)await sb.from('train_exercicios').delete().eq('id',ex.id);};
-  const list=(lib||[]).filter(e=>e.nome.toLowerCase().includes(q.toLowerCase()));
+  const list=(lib||[]).filter(e=>e.nome.toLowerCase().includes(q.toLowerCase()))
+    .filter(e=>grupoFiltro==='Todos'||(e.grupo_muscular||'Outros')===grupoFiltro);
+  const gruposDisponiveis=['Todos',...[...new Set((lib||[]).map(e=>e.grupo_muscular||'Outros'))].sort()];
   const groups=(()=>{const g={};list.forEach(e=>{(g[e.grupo_muscular||'Outros']=g[e.grupo_muscular||'Outros']||[]).push(e);});return Object.entries(g);})();
   const comDemo=(lib||[]).filter(e=>e.video_path||e.video_url).length;
   return(<div>
@@ -5289,9 +5313,10 @@ function ExerciseLibrary({coach,onBack}){
     <div className="abar"><div><div className="breadcrumb" onClick={onBack}>← Treino</div>
       <div className="ph-title">Biblioteca de exercícios</div>
       <div className="ph-sub">{(lib||[]).length} exercícios · {comDemo} com demonstração</div></div></div>
-    {(lib||[]).length>0&&comDemo===0&&<div className="alert alert-info">
-      Nenhum exercício tem demonstração ainda, então o aluno vê "sem demonstração" na hora do treino.
-      Grave de 5 a 15 segundos com o celular na horizontal e use <b>Enviar vídeo</b>. Toca em loop e sem som, como um GIF.</div>}
+    <div className="alert alert-info">
+      Os exercícios da base já vêm com demonstração ilustrada, que toca dentro do app, sem anúncio.
+      Para gravar a sua: toque em <b>Enviar vídeo</b> e escolha da <b>galeria</b> ou grave na hora —
+      5 a 15 segundos, celular na horizontal. O vídeo do treinador substitui a ilustração para os alunos dele.</div>
     {msg&&<div className={`alert ${msg.t==='err'?'alert-danger':'alert-success'}`}>{msg.m}</div>}
     <div className="dash-panel" style={{marginBottom:16}}><h4>Adicionar exercício</h4>
       <div style={{display:'flex',gap:10,flexWrap:'wrap',alignItems:'flex-end'}}>
@@ -5301,8 +5326,14 @@ function ExerciseLibrary({coach,onBack}){
         <button className="btn btn-primary" onClick={add}>Adicionar</button>
       </div>
     </div>
-    <div className="search-wrap" style={{marginBottom:14}}><span className="search-icon"><IconBusca/></span>
-      <input className="fi" placeholder="Buscar exercício..." value={q} onChange={e=>setQ(e.target.value)}/></div>
+    <div style={{display:'flex',gap:10,flexWrap:'wrap',alignItems:'center',marginBottom:14}}>
+      <div className="search-wrap" style={{margin:0}}><span className="search-icon"><IconBusca/></span>
+        <input className="fi" placeholder="Buscar exercício..." value={q} onChange={e=>setQ(e.target.value)}/></div>
+      <select className="fi" style={{width:'auto',minWidth:160}} value={grupoFiltro} onChange={e=>setGrupoFiltro(e.target.value)}>
+        {gruposDisponiveis.map(g=><option key={g} value={g}>{g==='Todos'?'Todos os grupos':g}</option>)}
+      </select>
+      <span style={{fontSize:12.5,color:'var(--text3)'}}>{list.length} exercício{list.length===1?'':'s'}</span>
+    </div>
     {lib===null?<div className="center-screen"><div className="spinner"/></div>:
      groups.map(([g,items])=>(<div key={g} style={{marginBottom:14}}>
        <div style={{fontSize:12,fontWeight:700,textTransform:'uppercase',letterSpacing:1,color:'var(--text3)',marginBottom:8}}>{g}</div>
@@ -5339,9 +5370,11 @@ function TrainScreen({coach,students,preStudent,onBack}){
   const [nd,setNd]=useState('');
   const [msg,setMsg]=useState(null);
   const blankEx={nome:'',grupo:'Todos',tipo_serie:'Valida',qtd_series:3,faixa_reps:'8-12',intervalo_seg_min:60};
+  const [verEx,setVerEx]=useState(null);
   const [ex,setEx]=useState(blankEx);
   const libGrupos=['Todos',...[...new Set((lib||[]).map(x=>x.grupo_muscular).filter(Boolean))].sort()];
   const libFiltered=(lib||[]).filter(x=>ex.grupo==='Todos'||x.grupo_muscular===ex.grupo);
+  const exSelecionado=(lib||[]).find(x=>x.nome.toLowerCase()===(ex.nome||'').trim().toLowerCase())||null;
 
   useEffect(()=>{(async()=>{
     if(demo){setLib([{id:'x1',nome:'Agachamento Livre'},{id:'x2',nome:'Leg Press'},{id:'x3',nome:'Cadeira Extensora'},{id:'x4',nome:'Stiff'}]);return;}
@@ -5373,6 +5406,21 @@ function TrainScreen({coach,students,preStudent,onBack}){
     setSeries(p=>({...p,[divId]:[...cur,data]}));setEx(blankEx);
   };
   const delEx=async(divId,id)=>{setSeries(p=>({...p,[divId]:(p[divId]||[]).filter(s=>s.id!==id)}));if(!demo)await sb.from('train_serie_prescrita').delete().eq('id',id);};
+  // dá para ajustar séries, reps e descanso sem apagar e cadastrar de novo
+  const updEx=async(divId,id,campos)=>{
+    setSeries(p=>({...p,[divId]:(p[divId]||[]).map(s=>s.id===id?{...s,...campos}:s)}));
+    if(!demo){const {error}=await sb.from('train_serie_prescrita').update(campos).eq('id',id);
+      if(error)setMsg({t:'err',m:'Não salvou: '+error.message});}
+  };
+  // move o exercício na ordem em que o aluno vai executar
+  const moverEx=async(divId,id,dir)=>{
+    const lista=[...(series[divId]||[])];
+    const i=lista.findIndex(s=>s.id===id);const j=i+dir;
+    if(i<0||j<0||j>=lista.length)return;
+    [lista[i],lista[j]]=[lista[j],lista[i]];
+    setSeries(p=>({...p,[divId]:lista}));
+    if(!demo)await Promise.all(lista.map((s,k)=>sb.from('train_serie_prescrita').update({ordem:k}).eq('id',s.id)));
+  };
 
   if(showLib)return <ExerciseLibrary coach={coach} onBack={()=>setShowLib(false)}/>;
   // seleção de aluno
@@ -5425,13 +5473,34 @@ function TrainScreen({coach,students,preStudent,onBack}){
         </div>
         {open&&<div style={{marginTop:12}}>
           {ss.length>0&&<table className="rpt-tbl" style={{width:'100%',marginBottom:10}}><tbody>
-            {ss.map(s=>(<tr key={s.id}>
-              <td style={{fontWeight:600}}>{s.exercicio_nome}</td>
+            {ss.map((s,i)=>{const dem=lib.find(x=>x.id===s.exercicio_id);return(<tr key={s.id}>
+              <td style={{fontWeight:600}}>
+                {s.exercicio_nome}
+                {dem&&(dem.video_url||dem.video_path)
+                  ? <button className="link" style={{marginLeft:8,fontSize:11,background:'none',border:'none',padding:0,cursor:'pointer'}}
+                      onClick={()=>setVerEx(v=>v===s.id?null:s.id)}>{verEx===s.id?'fechar':'ver'}</button>
+                  : <span style={{marginLeft:8,fontSize:11,color:'var(--text3)'}}>sem demo</span>}
+                {verEx===s.id&&dem&&<div style={{marginTop:8,maxWidth:280}}><ExDemo url={dem.video_url} path={dem.video_path} name={dem.nome}/></div>}
+              </td>
               <td><span className="badge" style={{background:'transparent',color:tierColor(s.tipo_serie),border:'1px solid '+tierColor(s.tipo_serie)}}>{s.tipo_serie}</span></td>
-              <td>{s.qtd_series}× {s.faixa_reps}</td>
-              <td>{s.intervalo_seg_min}s desc.</td>
-              <td style={{textAlign:'right'}}><button className="btn-icon btn-sm" onClick={()=>delEx(dv.id,s.id)}>×</button></td>
-            </tr>))}
+              <td style={{whiteSpace:'nowrap'}}>
+                <input className="fi" type="number" min="1" style={{width:52,padding:'4px 6px',display:'inline-block'}}
+                  defaultValue={s.qtd_series} onBlur={e=>{const v=parseInt(e.target.value)||1;if(v!==s.qtd_series)updEx(dv.id,s.id,{qtd_series:v});}}/>
+                <span style={{margin:'0 4px'}}>×</span>
+                <input className="fi" style={{width:72,padding:'4px 6px',display:'inline-block'}}
+                  defaultValue={s.faixa_reps||''} onBlur={e=>{const v=e.target.value.trim();if(v!==(s.faixa_reps||''))updEx(dv.id,s.id,{faixa_reps:v});}}/>
+              </td>
+              <td style={{whiteSpace:'nowrap'}}>
+                <input className="fi" type="number" min="0" step="15" style={{width:64,padding:'4px 6px',display:'inline-block'}}
+                  defaultValue={s.intervalo_seg_min||60} onBlur={e=>{const v=parseInt(e.target.value)||0;if(v!==s.intervalo_seg_min)updEx(dv.id,s.id,{intervalo_seg_min:v});}}/>
+                <span style={{marginLeft:4,color:'var(--text3)'}}>s</span>
+              </td>
+              <td style={{textAlign:'right',whiteSpace:'nowrap'}}>
+                <button className="btn-icon btn-sm" title="Subir" disabled={i===0} onClick={()=>moverEx(dv.id,s.id,-1)}>↑</button>
+                <button className="btn-icon btn-sm" title="Descer" disabled={i===ss.length-1} onClick={()=>moverEx(dv.id,s.id,1)}>↓</button>
+                <button className="btn-icon btn-sm" title="Remover" onClick={()=>delEx(dv.id,s.id)}>×</button>
+              </td>
+            </tr>);})}
           </tbody></table>}
           <datalist id="trainlibf">{libFiltered.map(x=><option key={x.id} value={x.nome}/>)}</datalist>
           <div style={{display:'flex',gap:8,flexWrap:'wrap',alignItems:'flex-end',background:'var(--bg3)',padding:10,borderRadius:10}}>
@@ -5448,6 +5517,16 @@ function TrainScreen({coach,students,preStudent,onBack}){
             <div className="fg" style={{margin:0}}><label className="flbl">Descanso (s)</label>
               <input className="fi" type="number" style={{width:90}} value={ex.intervalo_seg_min} onChange={e=>setEx(p=>({...p,intervalo_seg_min:e.target.value}))}/></div>
             <button className="btn btn-secondary" onClick={()=>addEx(dv.id)}>Adicionar</button>
+            <div style={{flexBasis:'100%',display:'flex',gap:6,alignItems:'center',flexWrap:'wrap'}}>
+              <span style={{fontSize:11,color:'var(--text3)',textTransform:'uppercase',letterSpacing:.5}}>Descanso rápido</span>
+              {[30,45,60,90,120,180].map(v=>(
+                <button key={v} type="button"
+                  className={'btn btn-sm '+(String(ex.intervalo_seg_min)===String(v)?'btn-primary':'btn-ghost')}
+                  onClick={()=>setEx(p=>({...p,intervalo_seg_min:v}))}>{v>=60?(v/60)+' min':v+'s'}</button>))}
+            </div>
+            {exSelecionado&&(exSelecionado.video_url||exSelecionado.video_path)&&
+              <div style={{flexBasis:'100%',maxWidth:300}}>
+                <ExDemo url={exSelecionado.video_url} path={exSelecionado.video_path} name={exSelecionado.nome}/></div>}
           </div>
         </div>}
       </div>);})}
@@ -6004,6 +6083,37 @@ function NutriScreen({coach,students,preStudent,onBack}){
 /* ════════════ PERIODIZAÇÃO (macro > meso > micro) ════════════ */
 const PERIO_MODELOS=['Linear','Ondulatória semanal','Ondulatória diária','Em blocos','Conjugada','Reversa','Alternada'];
 
+/* Ciclos prontos: o treinador aplica em um toque e depois ajusta o que quiser.
+   volume/intensidade são percentuais relativos, do jeito que a tela já usa. */
+const MODELOS_PERIO=[
+  {id:'hipertrofia12', nome:'Hipertrofia — 12 semanas',
+   resumo:'3 fases: adaptação, acúmulo e intensificação, com uma semana leve no fim de cada.',
+   fases:[
+     {nome:'Adaptação',      modelo:'Linear',      micros:[{nome:'Semanas 1–3',semanas:3,volume:85,intensidade:65},{nome:'Descarga',semanas:1,volume:55,intensidade:60}]},
+     {nome:'Acúmulo',        modelo:'Linear',      micros:[{nome:'Semanas 5–7',semanas:3,volume:110,intensidade:75},{nome:'Descarga',semanas:1,volume:60,intensidade:65}]},
+     {nome:'Intensificação', modelo:'Ondulatório', micros:[{nome:'Semanas 9–11',semanas:3,volume:95,intensidade:88},{nome:'Descarga',semanas:1,volume:50,intensidade:60}]},
+   ]},
+  {id:'forca12', nome:'Força — 12 semanas',
+   resumo:'Volume cai e carga sobe a cada fase, fechando com pico e semana de recuperação.',
+   fases:[
+     {nome:'Base',   modelo:'Linear', micros:[{nome:'Semanas 1–4',semanas:4,volume:100,intensidade:70}]},
+     {nome:'Força',  modelo:'Linear', micros:[{nome:'Semanas 5–8',semanas:4,volume:80,intensidade:85}]},
+     {nome:'Pico',   modelo:'Linear', micros:[{nome:'Semanas 9–11',semanas:3,volume:60,intensidade:95},{nome:'Recuperação',semanas:1,volume:40,intensidade:55}]},
+   ]},
+  {id:'emagrecimento8', nome:'Emagrecimento — 8 semanas',
+   resumo:'Volume alto e descanso curto, com metabólico no fim de cada bloco.',
+   fases:[
+     {nome:'Bloco 1', modelo:'Circuito', micros:[{nome:'Semanas 1–3',semanas:3,volume:115,intensidade:65},{nome:'Descarga',semanas:1,volume:60,intensidade:55}]},
+     {nome:'Bloco 2', modelo:'Circuito', micros:[{nome:'Semanas 5–7',semanas:3,volume:125,intensidade:70},{nome:'Descarga',semanas:1,volume:60,intensidade:55}]},
+   ]},
+  {id:'iniciante8', nome:'Iniciante — 8 semanas',
+   resumo:'Aprender o movimento primeiro; a carga entra só na segunda fase.',
+   fases:[
+     {nome:'Aprendizado', modelo:'Linear', micros:[{nome:'Semanas 1–4',semanas:4,volume:70,intensidade:55}]},
+     {nome:'Progressão',  modelo:'Linear', micros:[{nome:'Semanas 5–8',semanas:4,volume:90,intensidade:70}]},
+   ]},
+];
+
 function PeriodizacaoScreen({coach,students,preStudent,onBack}){
   const demo=!!coach._demo;
   const [stu,setStu]=useState(preStudent||null);
@@ -6046,6 +6156,30 @@ function PeriodizacaoScreen({coach,students,preStudent,onBack}){
   };
   const salvarMacro=async(campos)=>{setMacro(m=>({...m,...campos}));
     if(!demo)await sb.from('train_macro').update(campos).eq('id',macro.id);};
+
+  // Cria o macrociclo já com as fases e os microciclos do modelo escolhido.
+  const usarModelo=async(mod)=>{
+    if(demo)return;
+    setBusy(true);setMsg(null);
+    try{
+      const {data:ma,error:e1}=await sb.from('train_macro').insert({coach_id:coach.id,student_id:stu.id,
+        nome:mod.nome,data_inicio:todayStr()}).select().single();
+      if(e1)throw e1;
+      for(const [i,fase] of mod.fases.entries()){
+        const {data:me,error:e2}=await sb.from('train_meso').insert({macro_id:ma.id,
+          nome:fase.nome,modelo:fase.modelo,ordem:i}).select().single();
+        if(e2)throw e2;
+        for(const [j,mi] of fase.micros.entries()){
+          const {error:e3}=await sb.from('train_micro').insert({meso_id:me.id,nome:mi.nome,ordem:j,
+            semanas:mi.semanas,volume:mi.volume,intensidade:mi.intensidade});
+          if(e3)throw e3;
+        }
+      }
+      await load(stu.id);
+      setMsg({t:'ok',m:'Ciclo "'+mod.nome+'" criado. Ajuste o que quiser abaixo.'});
+    }catch(e){erro(e);}
+    setBusy(false);
+  };
 
   const addMeso=async()=>{
     const {data,error}=await sb.from('train_meso').insert({macro_id:macro.id,
@@ -6100,12 +6234,27 @@ function PeriodizacaoScreen({coach,students,preStudent,onBack}){
     {demo&&<div className="alert alert-warn">Modo demonstração: o plano não é salvo.</div>}
 
     {macro===undefined?<div className="center-screen" style={{minHeight:180}}><div className="spinner"/></div>:
-     macro===null?(<div className="empty">
-       <div className="empty-title">Nenhum macrociclo</div>
-       <p className="s-meta" style={{maxWidth:460,margin:'0 auto 16px'}}>
-         O macrociclo é o plano inteiro. Dentro dele você cria fases (mesociclos) e,
-         dentro de cada fase, os microciclos — que podem ter uma ou várias semanas cada.</p>
-       <button className="btn btn-primary" disabled={busy} onClick={criarMacro}>Criar macrociclo</button></div>):
+     macro===null?(<div>
+       <div style={{textAlign:'center',padding:'26px 20px 6px'}}>
+         <div className="empty-title">Nenhum ciclo montado</div>
+         <p className="s-meta" style={{maxWidth:480,margin:'6px auto 0'}}>
+           Comece por um modelo pronto e ajuste as fases depois — ou monte do zero.</p>
+       </div>
+       <div className="student-grid" style={{marginTop:16}}>
+         {MODELOS_PERIO.map(m=>(
+           <div key={m.id} className="student-card" style={{cursor:busy?'default':'pointer',textAlign:'left'}}
+             onClick={()=>{if(!busy)usarModelo(m);}}>
+             <div className="s-name">{m.nome}</div>
+             <div className="s-meta" style={{marginTop:6,lineHeight:1.5}}>{m.resumo}</div>
+             <div style={{marginTop:10,fontSize:11.5,color:'var(--text3)'}}>
+               {m.fases.length} fases · {m.fases.reduce((a,f)=>a+f.micros.reduce((b,x)=>b+x.semanas,0),0)} semanas</div>
+             <button className="btn btn-primary btn-sm" style={{marginTop:12}} disabled={busy}
+               onClick={ev=>{ev.stopPropagation();usarModelo(m);}}>{busy?'Criando…':'Usar este'}</button>
+           </div>))}
+       </div>
+       <div style={{textAlign:'center',marginTop:18}}>
+         <button className="btn btn-secondary" disabled={busy} onClick={criarMacro}>Montar do zero</button></div>
+     </div>):
     (<>
       <div className="card" style={{marginBottom:14}}>
         <div className="fgrid">
@@ -6547,13 +6696,53 @@ function TrainExec({student,divisao,demo,somenteLeitura,best,onBack,onSaved,onFi
   const [series,setSeries]=useState(demo?(_DEMO_ALUNO_SERIES[divisao.id]||[]):null);
   const [vals,setVals]=useState({});const [done,setDone]=useState({});const [active,setActive]=useState({});
   const [openEx,setOpenEx]=useState(0);const [rest,setRest]=useState(0);const [restName,setRestName]=useState('');
-  const [paused,setPaused]=useState(false);const [tot,setTot]=useState(0);const [cel,setCel]=useState(null);const [vid,setVid]=useState({});const [demoOn,setDemoOn]=useState({});const [finished,setFinished]=useState(null);const [fbAberto,setFbAberto]=useState(false);
+  const [paused,setPaused]=useState(false);const [tot,setTot]=useState(0);
+  const [restTotal,setRestTotal]=useState(60);
+  const audioRef=useRef(null);const [cel,setCel]=useState(null);const [vid,setVid]=useState({});const [demoOn,setDemoOn]=useState({});const [finished,setFinished]=useState(null);const [fbAberto,setFbAberto]=useState(false);
   useEffect(()=>{if(demo)return;(async()=>{const {data}=await sb.from('train_serie_prescrita').select('*').eq('divisao_id',divisao.id).order('ordem');setSeries(data||[]);
     const ids=[...new Set((data||[]).map(s=>s.exercicio_id).filter(Boolean))];
     if(ids.length){const {data:ex}=await sb.from('train_exercicios').select('id,video_url,video_path').in('id',ids);
       const m={};(ex||[]).forEach(e=>{if(e.video_url||e.video_path)m[e.id]={url:e.video_url,path:e.video_path};});setVid(m);}})();},[]);
   useEffect(()=>{const t=setInterval(()=>setTot(x=>x+1),1000);return()=>clearInterval(t);},[]);
-  useEffect(()=>{if(rest<=0||paused)return;const t=setInterval(()=>setRest(r=>r<=1?0:r-1),1000);return()=>clearInterval(t);},[rest>0,paused]);
+
+  // A tela fica acesa durante o treino — ninguém quer destravar o celular
+  // a cada série. Se o aparelho não suportar, segue normal.
+  useEffect(()=>{
+    let lock=null;
+    const pegar=async()=>{try{if(navigator.wakeLock&&document.visibilityState==='visible')lock=await navigator.wakeLock.request('screen');}catch(e){}};
+    pegar();
+    const onVis=()=>{if(document.visibilityState==='visible')pegar();};
+    document.addEventListener('visibilitychange',onVis);
+    return()=>{document.removeEventListener('visibilitychange',onVis);try{lock&&lock.release();}catch(e){}};
+  },[]);
+
+  // Apito do fim do descanso. O contexto de áudio nasce no toque do aluno
+  // (concluir série), senão o iPhone bloqueia o som.
+  const bipar=()=>{
+    try{
+      const ctx=audioRef.current;if(!ctx)return;
+      if(ctx.state==='suspended')ctx.resume();
+      const toque=(t,f)=>{
+        const o=ctx.createOscillator(),g=ctx.createGain();
+        o.connect(g);g.connect(ctx.destination);o.type='sine';o.frequency.value=f;
+        g.gain.setValueAtTime(.0001,t);
+        g.gain.exponentialRampToValueAtTime(.22,t+.02);
+        g.gain.exponentialRampToValueAtTime(.0001,t+.28);
+        o.start(t);o.stop(t+.3);
+      };
+      const t0=ctx.currentTime;
+      toque(t0,880);toque(t0+.34,1175);
+    }catch(e){}
+  };
+
+  useEffect(()=>{
+    if(rest<=0||paused)return;
+    const t=setInterval(()=>setRest(r=>{
+      if(r<=1){bipar();vibrar([90,60,90]);return 0;}
+      return r-1;
+    }),1000);
+    return()=>clearInterval(t);
+  },[rest>0,paused]);
   const exs=React.useMemo(()=>{const m=new Map();(series||[]).forEach(s=>{const k=s.exercicio_id||s.exercicio_nome;if(!m.has(k))m.set(k,{key:k,nome:s.exercicio_nome,exercicio_id:s.exercicio_id,tiers:[]});m.get(k).tiers.push(s);});const ord={Aquecimento:0,Preparatoria:1,Valida:2};const a=[...m.values()];a.forEach(e=>e.tiers.sort((x,y)=>(ord[x.tipo_serie]??9)-(ord[y.tipo_serie]??9)));return a;},[series]);
   const setV=(k,f,v)=>setVals(p=>({...p,[k]:{...(p[k]||{}),[f]:v}}));
   const firstUndone=s=>{for(let i=0;i<s.qtd_series;i++)if(!done[s.id+'_'+i])return i;return s.qtd_series;};
@@ -6566,7 +6755,13 @@ function TrainExec({student,divisao,demo,somenteLeitura,best,onBack,onSaved,onFi
     const isPr=s.tipo_serie==='Valida'&&carga>(best[s.exercicio_id]||0);
     setDone(p=>({...p,[k]:{carga,reps,isPr}}));
     let nx=i+1;while(nx<s.qtd_series&&done[s.id+'_'+nx])nx++;setActive(p=>({...p,[s.id]:nx}));
-    setRest(s.intervalo_seg_min||60);setRestName(s.exercicio_nome);setPaused(false);
+    try{
+      const A=window.AudioContext||window.webkitAudioContext;
+      if(A&&!audioRef.current)audioRef.current=new A();
+      if(audioRef.current&&audioRef.current.state==='suspended')audioRef.current.resume();
+    }catch(e){}
+    const desc=s.intervalo_seg_min||60;
+    setRestTotal(desc);setRest(desc);setRestName(s.exercicio_nome);setPaused(false);
     if(onSaved)onSaved(s.exercicio_id,carga);
     if(isPr)celebrate(carga);
     if(!demo&&!somenteLeitura){try{await sb.from('train_historico').insert({coach_id:student.coach_id,student_id:student.id,divisao_id:divisao.id,exercicio_id:s.exercicio_id,exercicio_nome:s.exercicio_nome,data_treino:todayStr(),indice_serie:i+1,tipo_serie:s.tipo_serie,carga,reps,is_pr:isPr});}catch(e){}}
@@ -6644,11 +6839,19 @@ function TrainExec({student,divisao,demo,somenteLeitura,best,onBack,onSaved,onFi
     </div></>}
 
     {rest>0&&!finished&&<div className="lv-rest">
-      <div><div className="lv-kick">Descanso{restName?' — '+restName:''}</div><div className="lv-restnum">{fmtT(rest)}</div></div>
-      <div style={{display:'flex',gap:8,alignItems:'center'}}>
-        <button className="lv-ghost" onClick={()=>setRest(r=>r+30)}>+30s</button>
-        <button className="lv-round" onClick={()=>setPaused(p=>!p)}>{paused?'▶':'❚❚'}</button>
-        <button className="lv-ghost" onClick={()=>setRest(0)}>Pular</button>
+      <div className="lv-restbar"><i style={{width:Math.max(0,Math.min(100,(rest/(restTotal||1))*100))+'%'}}/></div>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}>
+        <div>
+          <div className="lv-kick" style={{maxWidth:170,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
+            Descanso{restName?' — '+restName:''}</div>
+          <div className="lv-restnum">{fmtT(rest)}</div>
+        </div>
+        <div style={{display:'flex',gap:7,alignItems:'center'}}>
+          <button className="lv-ghost" onClick={()=>{vibrar(8);setRest(r=>Math.max(1,r-15));}}>−15s</button>
+          <button className="lv-ghost" onClick={()=>{vibrar(8);setRest(r=>r+30);setRestTotal(t=>t+30);}}>+30s</button>
+          <button className="lv-round" onClick={()=>setPaused(p=>!p)}>{paused?'▶':'❚❚'}</button>
+          <button className="lv-ghost" onClick={()=>{vibrar(8);setRest(0);}}>Pular</button>
+        </div>
       </div>
     </div>}
   </div>);
