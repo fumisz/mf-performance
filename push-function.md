@@ -1,51 +1,43 @@
-# Notificações no celular (Web Push) — o que falta fazer
+# Notificações no celular (Web Push) — já está tudo ligado
 
-A tabela, as funções e a Edge Function **já estão no ar**. Falta só cadastrar
-as chaves VAPID como *secrets*, porque secret ninguém coloca em arquivo de
-repositório — este repositório é **público**.
+Não há nada a configurar. A tabela, as funções, a Edge Function e o
+agendador do lembrete de água **já estão no ar** neste projeto.
 
 > **iPhone**: só funciona se o app for adicionado à Tela de Início
 > (Safari → Compartilhar → "Adicionar à Tela de Início") e aberto por lá.
 > Android/Chrome funciona direto.
 
-## Passo único: cadastrar os secrets
-
-No Supabase → **Edge Functions → push → Secrets**, adicione:
-
-| Secret | Valor |
-|---|---|
-| `VAPID_PUBLIC` | `BP1GyX7qbDDD1o643pIru_CHS6jenWACj4u8h8aOEPKMJ3LsGnavo70yYbeB1ymSMvWoqgtq7i7qf7c0Fszu6vw` |
-| `VAPID_PRIVATE` | *(a chave privada foi enviada em conversa — nunca coloque aqui)* |
-| `VAPID_SUBJECT` | `mailto:seu-email@exemplo.com` |
-
-A URL e as chaves do projeto **não precisam ser cadastradas**: o Supabase já
-injeta `SUPABASE_URL`, `SUPABASE_ANON_KEY` e `SUPABASE_SERVICE_ROLE_KEY` no
-ambiente da função.
-
 ## Como usar
 
-- **Treinador**: *Meu perfil / marca* → **Ativar avisos neste aparelho**.
+- **Treinador** — *Meu perfil / marca* → **Ativar avisos neste aparelho**.
   Passa a receber na tela do celular quando um aluno fecha o treino, com a
-  divisão, o número de séries, o volume e os recordes. Vale por aparelho.
-- **Aluno**: aba *Conta* → **Avisos no celular**. Recebe os avisos que você
-  manda pelo perfil dele.
+  divisão, o número de séries, o volume e os recordes. Vale por aparelho:
+  ative em cada celular que você usa.
+- **Aluno** — aba *Conta* → **Avisos no celular** (recebe os seus avisos) e
+  **Lembrete de beber água** (o automático abaixo).
 
-## Lembrete de água (opcional)
+## Lembrete de água
 
-Para o lembrete automático, agende no SQL Editor:
+Sai sozinho às **10h, 14h e 18h** (Brasília), só para quem ligou o lembrete
+e **ainda não bateu a meta do dia** — quem já bateu não é incomodado.
+
+Agendado no banco (`pg_cron` + `pg_net`), no job `mfp-lembrete-agua`.
+Para conferir ou mudar o horário:
 
 ```sql
-select cron.schedule('agua-mfp','0 12,16,20 * * *', $$
-  select net.http_post(
-    url := 'https://kpxiqtxgjaroijbuwkzm.supabase.co/functions/v1/push',
-    headers := jsonb_build_object('content-type','application/json',
-               'authorization','Bearer <SERVICE_ROLE_KEY>'),
-    body := '{"mode":"agua"}'::jsonb);
-$$);
+select jobname, schedule, active from cron.job;
+-- mudar para 9h, 13h e 17h de Brasília (12, 16 e 20 UTC):
+select cron.alter_job((select jobid from cron.job where jobname='mfp-lembrete-agua'),
+                      schedule := '0 12,16,20 * * *');
 ```
 
-## Se algum dia vazar a chave privada
+## Onde ficam as chaves
 
-Gere um par novo, troque `VAPID_PUBLIC` no `index.html` e o secret
-`VAPID_PRIVATE`. As inscrições antigas param de funcionar e cada pessoa
-precisa ativar de novo — por isso vale trocar logo, enquanto há poucas.
+As chaves VAPID estão **dentro da Edge Function**, que vive no projeto
+Supabase (só quem administra o projeto lê). Não estão neste repositório,
+que é público. Se um dia quiser movê-las para *secrets*
+(`VAPID_PUBLIC`, `VAPID_PRIVATE`, `VAPID_SUBJECT`), a função dá
+preferência ao secret automaticamente — não precisa mexer no código.
+
+A chave **pública** fica no `index.html` (`VAPID_PUBLIC`), como manda o
+padrão: ela é pública por natureza.
