@@ -1,8 +1,7 @@
-const CACHE='mfp-v60';
+const CACHE='mfp-v61';
 const ASSETS=[
   './','./index.html','./config.js','./manifest.json',
   './lib/react.js','./lib/react-dom.js','./lib/babel.js',
-  './lib/three.min.js','./lib/gsap.min.js','./lib/anime.min.js','./lib/motion.js',
   './icons/icon-192.png','./icons/icon-512.png','./icons/icon-180.png'
 ];
 self.addEventListener('install',e=>{
