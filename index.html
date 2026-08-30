@@ -466,84 +466,118 @@ textarea.fi{resize:vertical;min-height:70px;line-height:1.5}
   .eval-row .bgroup .btn,.eval-row .bgroup .btn-icon{flex:1}
 }
 /* ══ App do aluno — tema escuro roxo/neon (LV) ══ */
-.lv{--lvbg:var(--bg);--lvc:var(--bg2);--lvc2:var(--bg3);--lvbd:var(--border);--lvtx:var(--text);--lvt2:var(--text2);--lvt3:var(--text3);--lvrx:var(--accent);--lvneon:var(--green);--lvamber:var(--gold);--lvwine:var(--red);
-  background:var(--lvbg);color:var(--lvtx);min-height:100vh;font-family:var(--font);-webkit-tap-highlight-color:transparent}
+.lv{--lvbg:#0e0e13;--lvc:#1a1a21;--lvc2:#23232d;--lvbd:#2e2e3a;--lvtx:#f4f4f7;--lvt2:#a2a2b0;--lvt3:#6c6c7c;--lvrx:#8b5cf6;--lvneon:#4ade80;--lvamber:#f59e0b;--lvwine:#e11d48;
+  background:var(--lvbg);color:var(--lvtx);min-height:100vh;font-family:'Inter',system-ui,-apple-system,sans-serif;-webkit-tap-highlight-color:transparent}
 .lv *{box-sizing:border-box}
-.lv-top{display:flex;align-items:center;gap:10px;padding:13px 16px;position:sticky;top:0;z-index:20;background:var(--bg2);border-bottom:1px solid var(--lvbd)}
+.lv-top{display:flex;align-items:center;gap:10px;padding:13px 16px;position:sticky;top:0;z-index:20;background:rgba(14,14,19,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--lvbd)}
 .lv-top .sp{flex:1}
-.lv-somenteleitura{font-size:10px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--accent);background:var(--accent-dim);border-radius:20px;padding:4px 10px;white-space:nowrap}
-.lv-ghost{background:var(--accent-dim);color:var(--accent);border:none;border-radius:20px;padding:7px 14px;font-weight:600;font-size:13px;cursor:pointer;white-space:nowrap;flex-shrink:0}
+.lv-ghost{background:rgba(139,92,246,.16);color:#c4b5fd;border:none;border-radius:20px;padding:7px 14px;font-weight:700;font-size:13px;cursor:pointer}
 .lv-x{background:none;border:none;color:var(--lvt2);font-size:14px;font-weight:600;cursor:pointer}
 .lv-wrap{max-width:560px;margin:0 auto;padding:16px}
-.lv-title{font-family:var(--serif);font-size:24px;font-weight:600;letter-spacing:-.2px}
+.lv-title{font-size:23px;font-weight:800;letter-spacing:-.3px}
 .lv-sub{color:var(--lvt2);font-size:13px;margin-top:2px}
-.lv-kick{font-size:10.5px;letter-spacing:1.6px;text-transform:uppercase;color:var(--lvt3);font-weight:600}
-.lv-card{background:var(--lvc);border:1px solid var(--lvbd);border-radius:16px;padding:16px;margin-bottom:14px;box-shadow:var(--shadow)}
-.lv-hero{background:var(--accent);border:1px solid var(--accent2);color:var(--cream);box-shadow:var(--shadow)}
-.lv-hero .lv-kick,.lv-hero .lv-sub{color:rgba(255,255,255,.72)}
-.lv-btn{background:var(--lvrx);color:#fff;border:none;border-radius:13px;padding:13px 16px;font-weight:600;font-size:15px;cursor:pointer;width:100%;transition:transform .1s,filter .15s}
+.lv-kick{font-size:10.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--lvt3);font-weight:700}
+.lv-card{background:var(--lvc);border:1px solid var(--lvbd);border-radius:18px;padding:16px;margin-bottom:14px}
+.lv-hero{background:linear-gradient(135deg,#7c3aed,#4c1d95);border:1px solid #6d28d9;box-shadow:0 8px 30px rgba(124,58,237,.35)}
+.lv-btn{background:var(--lvrx);color:#fff;border:none;border-radius:13px;padding:13px 16px;font-weight:800;font-size:15px;cursor:pointer;width:100%;transition:transform .1s,filter .15s}
 .lv-btn:active{transform:scale(.97)}
-.lv-btn.light{background:var(--cream);color:var(--accent)}
-.lv-btn.neon{background:var(--lvneon);color:#fff}
+.lv-btn.light{background:#fff;color:#4c1d95}
+.lv-btn.neon{background:var(--lvneon);color:#0b2b16;box-shadow:0 0 24px rgba(74,222,128,.4)}
 .lv-btn:disabled{opacity:.5}
-.lv-avatar{width:44px;height:44px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:600;color:#fff}
-.lv-freq{height:8px;background:var(--bg3);border-radius:6px;overflow:hidden;margin-top:8px}
-.lv-freq i{display:block;height:100%;background:var(--accent);border-radius:6px;transition:width .4s}
+.lv-avatar{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#8b5cf6,#6d28d9);display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff}
+.lv-freq{height:9px;background:#2e2e3a;border-radius:6px;overflow:hidden;margin-top:8px}
+.lv-freq i{display:block;height:100%;background:linear-gradient(90deg,#8b5cf6,#c084fc);border-radius:6px;transition:width .4s}
 .lv-treino{display:flex;align-items:center;gap:12px;padding:14px;border:1px solid var(--lvbd);border-radius:16px;background:var(--lvc);cursor:pointer;transition:border-color .15s,transform .1s}
 .lv-treino:active{transform:scale(.99)}
 .lv-treino:hover{border-color:var(--lvrx)}
-.lv-tierhead{display:flex;align-items:center;gap:9px;padding:12px 14px;border-radius:12px;background:var(--lvc2);cursor:pointer}
+.lv-tierhead{display:flex;align-items:center;gap:9px;padding:12px 14px;border-radius:14px;background:var(--lvc2);cursor:pointer}
 .lv-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
 .lv-setchips{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
-.lv-setchip{flex:1;min-width:64px;text-align:center;padding:11px 6px;border-radius:10px;border:1.5px solid var(--lvbd);background:var(--lvc2);color:var(--lvt2);font-weight:600;font-size:13px;cursor:pointer}
-.lv-setchip.active{border-color:var(--lvrx);background:var(--accent-dim);color:var(--accent)}
-.lv-setchip.done{border-color:var(--lvneon);background:var(--green-dim);color:var(--green)}
+.lv-setchip{flex:1;min-width:64px;text-align:center;padding:11px 6px;border-radius:12px;border:1.5px solid var(--lvbd);background:var(--lvc2);color:var(--lvt2);font-weight:700;font-size:13px;cursor:pointer}
+.lv-setchip.active{border-color:var(--lvrx);background:rgba(139,92,246,.18);color:#fff}
+.lv-setchip.done{border-color:var(--lvneon);background:rgba(74,222,128,.14);color:#86efac}
 .lv-in{width:100%;background:var(--lvc2);border:1px solid var(--lvbd);border-radius:12px;padding:12px 13px;color:var(--lvtx);font-size:16px;outline:none}
 .lv-in:focus{border-color:var(--lvrx)}
-.lv-inlbl{font-size:10px;letter-spacing:1.1px;text-transform:uppercase;color:var(--lvt3);font-weight:600;margin-bottom:5px;display:block}
-.lv-pill{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:20px;font-size:12px;font-weight:600}
-.lv-rest{position:fixed;left:14px;right:14px;bottom:14px;max-width:540px;margin:0 auto;background:var(--lvc);border:1px solid var(--lvrx);border-radius:18px;padding:13px 16px;display:flex;align-items:center;justify-content:space-between;box-shadow:var(--shadow-lg);z-index:40}
+.lv-inlbl{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--lvt3);font-weight:700;margin-bottom:5px;display:block}
+.lv-pill{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:20px;font-size:12px;font-weight:700}
+.lv-rest{position:fixed;left:14px;right:14px;bottom:14px;max-width:540px;margin:0 auto;background:var(--lvc);border:1px solid var(--lvrx);border-radius:18px;padding:13px 16px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 0 40px rgba(139,92,246,.35);z-index:40}
 .lv-restnum{font-family:'Playfair Display',Georgia,serif;font-size:30px;font-weight:700;line-height:1}
 .lv-round{width:44px;height:44px;border-radius:50%;background:var(--lvrx);color:#fff;border:none;font-size:16px;cursor:pointer}
 .lv-tot{font-family:'Playfair Display',Georgia,serif;font-size:26px;font-weight:700;text-align:center;line-height:1}
 /* Celebração de PR */
-.lv-cel{position:fixed;inset:0;z-index:120;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(20,17,16,.86);animation:lvfade .2s ease;color:var(--cream);text-align:center;padding:24px}
+.lv-cel{position:fixed;inset:0;z-index:120;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(8,6,12,.82);animation:lvfade .2s ease}
 @keyframes lvfade{from{opacity:0}to{opacity:1}}
-.lv-cel .rule{width:64px;height:1px;background:var(--gold);margin:0 auto 14px}
 @keyframes lvpop{0%{transform:scale(0) rotate(-20deg)}100%{transform:scale(1) rotate(0)}}
-.lv-cel h2{font-family:var(--serif);font-size:27px;font-weight:600;letter-spacing:.5px;margin:0 0 6px;color:var(--gold2)}
-.lv-waterbtn{flex:1;background:var(--lvc2);border:1px solid var(--lvbd);color:var(--lvtx);border-radius:11px;padding:13px 6px;font-weight:600;font-size:13.5px;cursor:pointer}
+.lv-cel h2{font-size:30px;font-weight:900;letter-spacing:1px;margin:12px 0 4px;background:linear-gradient(90deg,#fbbf24,#f59e0b);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.lv-glow{animation:lvglow 1.3s ease infinite}
+@keyframes lvglow{0%,100%{filter:drop-shadow(0 0 6px rgba(74,222,128,.5))}50%{filter:drop-shadow(0 0 20px rgba(74,222,128,.95))}}
+.lv-waterbtn{flex:1;background:var(--lvc2);border:1px solid var(--lvbd);color:var(--lvtx);border-radius:13px;padding:13px 6px;font-weight:700;font-size:13.5px;cursor:pointer}
 .lv-waterbtn:active{transform:scale(.96)}
 /* Barra de navegação do aluno */
-.lv-nav{position:fixed;left:0;right:0;bottom:0;z-index:60;display:flex;justify-content:space-around;align-items:stretch;background:var(--bg2);border-top:1px solid var(--lvbd);padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
-.lv-navb{flex:1;background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 0 8px;color:var(--lvt3);font-size:11.5px;font-weight:600;position:relative;transition:color .15s}
+.lv-nav{position:fixed;left:0;right:0;bottom:0;z-index:60;display:flex;justify-content:space-around;align-items:stretch;background:rgba(18,18,24,.92);backdrop-filter:blur(14px);border-top:1px solid var(--lvbd);padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
+.lv-navb{flex:1;background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 0 8px;color:var(--lvt3);font-size:11.5px;font-weight:700;position:relative;transition:color .15s}
 .lv-navmark{display:block;width:20px;height:3px;border-radius:2px;background:transparent;transition:background .18s,width .18s}
 .lv-navb.on .lv-navmark{background:var(--lvrx);width:26px}
 .lv-navb .ic{font-size:20px;line-height:1;filter:grayscale(.4);opacity:.7;transition:.15s}
 .lv-navb.on{color:var(--lvrx)}
 .lv-navb.on .ic{filter:none;opacity:1;transform:translateY(-1px)}
-.lv-navbadge{position:absolute;top:2px;right:calc(50% - 20px);min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:var(--accent);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px var(--bg2)}
+.lv-navbadge{position:absolute;top:2px;right:calc(50% - 20px);min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#ef4444;color:#fff;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px rgba(18,18,24,.92)}
 /* Sequência / streak */
-.lv-streak{display:inline-flex;align-items:center;gap:5px;background:var(--gold-dim);border:1px solid var(--gold);color:var(--gold);padding:5px 11px;border-radius:20px;font-weight:600;font-size:13px}
+.lv-streak{display:inline-flex;align-items:center;gap:5px;background:linear-gradient(135deg,rgba(251,146,60,.18),rgba(239,68,68,.14));border:1px solid rgba(251,146,60,.35);color:#fdba74;padding:5px 11px;border-radius:20px;font-weight:800;font-size:13px}
+.lv-flame{font-size:15px;animation:lvflk 1.4s ease infinite}
+@keyframes lvflk{0%,100%{transform:scale(1) rotate(-3deg)}50%{transform:scale(1.15) rotate(3deg)}}
 /* Cards de estatística */
 .lv-stats{display:flex;gap:10px;margin-bottom:14px}
 .lv-stat{flex:1;background:var(--lvc);border:1px solid var(--lvbd);border-radius:16px;padding:13px 10px;text-align:center}
-.lv-stat b{display:block;font-family:var(--serif);font-size:26px;font-weight:600;line-height:1;color:var(--accent)}
-.lv-stat span{font-size:10.5px;color:var(--lvt3);font-weight:600;text-transform:uppercase;letter-spacing:.6px}
+.lv-stat b{display:block;font-size:24px;font-weight:900;line-height:1;background:linear-gradient(135deg,#c084fc,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.lv-stat span{font-size:10.5px;color:var(--lvt3);font-weight:700;text-transform:uppercase;letter-spacing:.5px}
 /* Faixa motivacional */
-.lv-motiv{background:var(--bg3);border-left:2px solid var(--gold);border-radius:0 12px 12px 0;padding:13px 16px;margin-bottom:14px;font-family:var(--serif2);font-size:16px;font-style:italic;color:var(--text2)}
+.lv-motiv{background:linear-gradient(120deg,rgba(139,92,246,.16),rgba(74,222,128,.10));border:1px solid var(--lvbd);border-radius:16px;padding:13px 15px;margin-bottom:14px;display:flex;align-items:center;gap:11px}
+.lv-motiv .q{font-size:24px}
 /* Conquistas */
 .lv-badges{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px;margin-bottom:6px}
 .lv-badge{flex:0 0 auto;width:82px;text-align:center;background:var(--lvc);border:1px solid var(--lvbd);border-radius:16px;padding:12px 6px}
-.lv-badge .em{font-family:var(--serif);font-size:22px;font-weight:600;display:block;color:var(--text3);opacity:.5}
-.lv-badge.got .em{color:var(--accent);opacity:1}
-.lv-badge small{display:block;font-size:9.5px;font-weight:600;color:var(--lvt3);margin-top:5px;line-height:1.15}
+.lv-badge .em{font-size:26px;display:block;filter:grayscale(1);opacity:.35}
+.lv-badge.got .em{filter:none;opacity:1;animation:lvpop .4s cubic-bezier(.2,1.4,.4,1)}
+.lv-badge small{display:block;font-size:9.5px;font-weight:700;color:var(--lvt3);margin-top:5px;line-height:1.15}
 .lv-badge.got small{color:var(--lvt)}
 /* Avisos */
 .lv-aviso{display:flex;gap:12px;background:var(--lvc);border:1px solid var(--lvbd);border-radius:16px;padding:14px;margin-bottom:10px;position:relative}
-.lv-aviso.unread{border-color:var(--lvrx)}
+.lv-aviso.unread{border-color:var(--lvrx);box-shadow:0 0 0 1px rgba(139,92,246,.25)}
 .lv-aviso .ic{width:38px;height:38px;border-radius:11px;background:var(--lvc2);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
 .lv-aviso .un{position:absolute;top:12px;right:12px;width:9px;height:9px;border-radius:50%;background:var(--lvrx)}
+
+/* O app do aluno tem identidade própria: escuro, roxo e neon. Redefinir os
+   tokens aqui dentro faz os estilos inline (var(--accent), var(--green)…)
+   seguirem esta paleta sem tocar no painel do treinador. */
+.lv{
+  --bg:#0e0e13;--bg2:#1a1a21;--bg3:#23232d;--bg4:#2e2e3a;
+  --border:#2e2e3a;--border2:#3a3a48;
+  --text:#f4f4f7;--text2:#a2a2b0;--text3:#6c6c7c;
+  --accent:#8b5cf6;--accent2:#7c3aed;--accent3:#c084fc;--accent-dim:rgba(139,92,246,.18);
+  --gold:#f59e0b;--gold2:#fbbf24;--gold-dim:rgba(245,158,11,.16);
+  --green:#4ade80;--green-dim:rgba(74,222,128,.16);
+  --red:#e11d48;--red-dim:rgba(225,29,72,.16);
+  --blue:#38bdf8;--blue-dim:rgba(56,189,248,.16);
+  --cream:#ffffff;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 26px rgba(0,0,0,.45);
+  --shadow-lg:0 18px 50px rgba(0,0,0,.6);
+  /* usados pelas comemorações */
+  --lvsel:#f59e0b;--lvsel2:#fbbf24;--lvbrilho:rgba(255,255,255,.16);--lvclaro:#ffffff;
+}
+
+/* conquistas viraram monograma (1, 7, 10, PR) no lugar de emoji */
+.lv-badge .em{font-size:20px;font-weight:800;display:block;color:var(--lvt3);opacity:.45;letter-spacing:-.5px}
+.lv-badge.got .em{color:var(--lvrx);opacity:1;animation:lvpop .4s cubic-bezier(.2,1.4,.4,1)}
+
+/* fio dourado das telas de comemoração */
+.lv-cel .rule{width:64px;height:1px;background:var(--lvsel);margin:0 auto 14px}
+
+/* selo da "Visão do aluno" (treinador olhando, sem poder gravar) */
+.lv-somenteleitura{font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;
+  color:var(--lvrx);background:rgba(139,92,246,.16);border-radius:20px;padding:4px 10px;white-space:nowrap}
+.lv-ghost{white-space:nowrap;flex-shrink:0}
+
 
 /* ═════════ Camada de movimento ═════════
    Tudo respeita prefers-reduced-motion no bloco do fim. */
@@ -586,10 +620,6 @@ textarea.fi{resize:vertical;min-height:70px;line-height:1.5}
 @keyframes lvhalo{0%,100%{transform:scale(1);opacity:.55}50%{transform:scale(1.35);opacity:0}}
 .lv-halo{position:absolute;inset:-18px;border-radius:50%;background:radial-gradient(circle,rgba(74,222,128,.55),transparent 65%);animation:lvhalo 1.6s ease-out infinite}
 
-/* numero que sobe contando */
-@keyframes lvcount{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-.lv-num{display:inline-block;animation:lvcount .3s ease both}
-
 /* troca de aba desliza */
 @keyframes lvslide{from{opacity:0;transform:translateX(10px)}to{opacity:1;transform:none}}
 .lv-tabin{animation:lvslide .28s cubic-bezier(.22,.9,.3,1) both}
@@ -600,8 +630,65 @@ textarea.fi{resize:vertical;min-height:70px;line-height:1.5}
 .dash-panel{animation:fadeup .32s ease both}
 
 /* quem pediu menos movimento, recebe menos movimento */
+/* ═════════ Imersão: o app do aluno tem que parecer app, não site ═════════ */
+.lv{overscroll-behavior-y:contain;-webkit-user-select:none;user-select:none;touch-action:manipulation}
+.lv input,.lv textarea,.lv select{-webkit-user-select:text;user-select:text}
+.lv-wrap{padding-bottom:calc(16px + env(safe-area-inset-bottom))}
+.lv-top{padding-top:calc(13px + env(safe-area-inset-top))}
+
+/* troca de aba: o conteúdo entra deslizando, dá sensação de app nativo */
+@keyframes lvtab{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.lv-tabfx{animation:lvtab .3s cubic-bezier(.22,.9,.3,1) both}
+
+/* ═════════ Recompensa: o que faz querer voltar amanhã ═════════ */
+/* confete na paleta da casa — comemora sem virar festa de aniversário */
+@keyframes lvfall{
+  0%{transform:translateY(-12vh) rotate(0) scale(1);opacity:1}
+  100%{transform:translateY(108vh) rotate(560deg) scale(.75);opacity:.1}}
+.lv-confetti{position:fixed;top:-14px;width:8px;height:13px;border-radius:2px;z-index:121;pointer-events:none;animation:lvfall linear forwards}
+.lv-confetti:nth-child(3n){border-radius:50%;width:7px;height:7px}
+.lv-confetti:nth-child(4n){width:4px;height:15px}
+
+/* selo do recorde: monograma em vez de emoji */
+.lv-selo{position:relative;width:96px;height:96px;border-radius:50%;border:1px solid var(--lvsel);display:flex;align-items:center;
+  justify-content:center;font-family:var(--serif);font-size:30px;font-weight:600;color:var(--lvsel2);margin:0 auto 16px;
+  animation:lvselo .7s cubic-bezier(.2,1.5,.4,1) both}
+@keyframes lvselo{0%{transform:scale(.4) rotate(-12deg);opacity:0}60%{transform:scale(1.08) rotate(2deg)}100%{transform:scale(1) rotate(0);opacity:1}}
+.lv-selo::after{content:'';position:absolute;width:120px;height:120px;border-radius:50%;border:1px solid var(--lvsel);
+  opacity:0;animation:lvonda 1.6s ease-out .25s infinite}
+@keyframes lvonda{0%{transform:scale(.8);opacity:.55}100%{transform:scale(1.5);opacity:0}}
+
+/* número que sobe contando — herda a tipografia de quem o contém */
+@keyframes lvcount{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.lv .lv-num{display:inline;font:inherit;color:inherit;letter-spacing:inherit;
+  text-transform:none;font-variant-numeric:tabular-nums;animation:lvcount .3s ease both}
+/* o número dos cards fica dentro de um texto em degradê: o recorte precisa
+   valer para o próprio <span>, senão ele sai transparente e some */
+.lv-stat b .lv-num{background:linear-gradient(135deg,#c084fc,#8b5cf6);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+
+/* série concluída: o chip dá um pulinho */
+@keyframes lvcheck{0%{transform:scale(1)}45%{transform:scale(1.14)}100%{transform:scale(1)}}
+.lv-setchip.done{animation:lvcheck .34s cubic-bezier(.2,1.4,.4,1)}
+
+/* chama da sequência */
+@keyframes lvchama{0%,100%{transform:scale(1) rotate(-3deg)}50%{transform:scale(1.14) rotate(3deg)}}
+.lv-chama{display:inline-block;transform-origin:50% 85%;animation:lvchama 1.5s ease-in-out infinite}
+
+/* conquista destravada: brilho dourado passando por cima */
+@keyframes lvshine{0%{left:-140%}100%{left:140%}}
+.lv-badge.got{position:relative;overflow:hidden}
+.lv-badge.got::after{content:'';position:absolute;top:0;bottom:0;width:55%;left:-140%;pointer-events:none;
+  background:linear-gradient(100deg,transparent,var(--lvbrilho),transparent);
+  animation:lvshine 3.2s ease-in-out 1.4s infinite}
+
+/* meta batida: a barra pulsa uma vez */
+@keyframes lvcheia{0%{box-shadow:0 0 0 0 var(--lvbrilho)}70%{box-shadow:0 0 0 8px transparent}100%{box-shadow:0 0 0 0 transparent}}
+.lv-freq.cheia{animation:lvcheia 1.4s ease-out 2}
+
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.001s!important;animation-iteration-count:1!important;transition-duration:.001s!important}
+  .lv-confetti{display:none}
 }
 </style>
 </head>
@@ -631,7 +718,7 @@ const CFG = window.MFP_CONFIG || {};
 const CONFIGURED = !!(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY);
 let sb = null;
 if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY);
-const APP_VERSION='2026.08.30';   // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION='2026.08.30b';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
 
@@ -6489,9 +6576,9 @@ function TrainExec({student,divisao,demo,somenteLeitura,best,onBack,onSaved,onFi
   const tlabel=t=>t==='Aquecimento'?'Aquec':t==='Preparatoria'?'Prep':'Válidas';
 
   return(<div className="lv-wrap">
-    {cel&&<div className="lv-cel"><div className="rule"/><h2>Novo recorde</h2>
-      <div style={{fontFamily:'var(--serif)',fontSize:22,fontWeight:600}}>{cel.carga} kg</div>
-      <div className="lv-sub" style={{marginTop:6}}>Você superou sua melhor carga neste exercício.</div></div>}
+    {cel&&<><div className="lv-cel"><div className="lv-selo">PR</div><h2>Novo recorde</h2>
+      <div style={{fontSize:24,fontWeight:900,color:'var(--lvclaro)'}}><Conta valor={cel.carga} dec={String(cel.carga).includes('.')?1:0}/> kg</div>
+      <div className="lv-sub" style={{marginTop:6}}>Você superou sua melhor carga neste exercício.</div></div><Confete n={22}/></>}
 
     <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
       <button className="lv-ghost" onClick={onBack}>‹ Voltar</button>
@@ -6544,18 +6631,17 @@ function TrainExec({student,divisao,demo,somenteLeitura,best,onBack,onSaved,onFi
       <FeedbackTreino divisao={divisao} demo={demo}
         onPronto={()=>{setFbAberto(false);if(onFinish)onFinish();onBack();}}/>
     </div>}
-    {finished&&!fbAberto&&<div className="lv-cel" style={{padding:'24px 20px'}}>
-      
+    {finished&&!fbAberto&&<><Confete n={20}/><div className="lv-cel" style={{padding:'24px 20px'}}>
       <div className="rule"/><h2>Treino concluído</h2>
       <div style={{display:'flex',gap:22,marginTop:16}}>
-        <div style={{textAlign:'center'}}><div style={{fontSize:26,fontWeight:800}}>{finished.sets}</div><div className="lv-sub">séries</div></div>
-        <div style={{textAlign:'center'}}><div style={{fontSize:26,fontWeight:800}}>{(finished.ton/1000).toFixed(1).replace('.',',')}t</div><div className="lv-sub">volume</div></div>
+        <div style={{textAlign:'center'}}><div style={{fontSize:26,fontWeight:800}}><Conta valor={finished.sets}/></div><div className="lv-sub">séries</div></div>
+        <div style={{textAlign:'center'}}><div style={{fontSize:26,fontWeight:800}}><Conta valor={finished.ton/1000} dec={1}/>t</div><div className="lv-sub">volume</div></div>
         <div style={{textAlign:'center'}}><div style={{fontSize:26,fontWeight:800}}>{fmtT(finished.tempo)}</div><div className="lv-sub">tempo</div></div>
       </div>
-      {finished.prs>0&&<div className="lv-pill" style={{background:'rgba(251,191,36,.16)',color:'var(--gold)',marginTop:16,fontSize:14}}>{finished.prs} novo{finished.prs>1?'s':''} recorde{finished.prs>1?'s':''}!</div>}
+      {finished.prs>0&&<div className="lv-pill" style={{background:'var(--lvbrilho)',color:'var(--lvsel2)',marginTop:16,fontSize:14}}>{finished.prs} novo{finished.prs>1?'s':''} recorde{finished.prs>1?'s':''}!</div>}
       <button className="lv-btn" style={{marginTop:22,maxWidth:280}} onClick={()=>setFbAberto(true)}>Contar como foi</button>
       <button className="lv-ghost" style={{marginTop:10,padding:'10px 22px'}} onClick={()=>{if(onFinish)onFinish();onBack();}}>Voltar ao início</button>
-    </div>}
+    </div></>}
 
     {rest>0&&!finished&&<div className="lv-rest">
       <div><div className="lv-kick">Descanso{restName?' — '+restName:''}</div><div className="lv-restnum">{fmtT(rest)}</div></div>
@@ -6660,8 +6746,8 @@ function HydraScreen({student,demo,onBack}){
   const fillY=118-pct*(118-8);
   const weekMax=Math.max(meta,...((week||[]).map(w=>w[1])),1);
   return(<div className="lv-wrap">
-    {cel&&<div className="lv-cel"><div className="rule"/><h2>Meta de água batida</h2>
-      <div className="lv-sub" style={{marginTop:6}}>Hidratação do dia completa.</div></div>}
+    {cel&&<><div className="lv-cel"><div className="rule"/><h2>Meta de água batida</h2>
+      <div className="lv-sub" style={{marginTop:6}}>Hidratação do dia completa.</div></div><Confete n={14}/></>}
     <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14}}>
       <button className="lv-ghost" onClick={onBack}>‹ Voltar</button>
       <div className="lv-title" style={{flex:1}}>Hidratação</div>
@@ -6837,6 +6923,51 @@ function AvalScreen({student,demo,onBack}){
     </div>
     <button className="lv-btn" onClick={()=>setShowRep(true)}>Ver relatório completo</button>
   </div>);
+}
+
+/* ═══ Pecinhas de movimento do app do aluno ═══
+   Servem a um propósito: mostrar progresso acontecendo. Todas respeitam
+   quem pediu menos animação no sistema. */
+const SEM_MOTION=(()=>{try{return matchMedia('(prefers-reduced-motion: reduce)').matches;}catch(e){return false;}})();
+const vibrar=p=>{try{navigator.vibrate&&navigator.vibrate(p);}catch(e){}};
+
+/* Número que sobe contando até o valor — o progresso "acontece" na frente do aluno */
+function Conta({valor,dur=900,dec=0}){
+  const alvo=Number(valor)||0;
+  const [v,setV]=useState(SEM_MOTION?alvo:0);
+  useEffect(()=>{
+    if(SEM_MOTION||alvo===0){setV(alvo);return;}
+    let raf,ini=null;
+    const passo=t=>{
+      if(ini==null)ini=t;
+      const p=Math.min(1,(t-ini)/dur);
+      setV(alvo*(1-Math.pow(1-p,3)));
+      if(p<1)raf=requestAnimationFrame(passo);
+    };
+    raf=requestAnimationFrame(passo);
+    return()=>{if(raf)cancelAnimationFrame(raf);};
+  },[alvo,dur]);
+  return <span className="lv-num">{dec?v.toFixed(dec):Math.round(v)}</span>;
+}
+
+/* Chama da sequência de dias (desenhada, não emoji) */
+function Chama({size=13}){
+  return(<svg className="lv-chama" width={size} height={size*1.25} viewBox="0 0 16 20" aria-hidden="true">
+    <path d="M8 0c.6 3.2-1.3 4.3-2.6 5.8C3.7 7.7 2 9.6 2 12.4 2 16.6 5 20 8 20s6-3.4 6-7.6c0-2.4-1.2-4-2.3-5.4-.5.9-1.2 1.5-2 1.8.6-3.1-.4-6.2-1.7-8.8Z" fill="currentColor" opacity=".85"/>
+    <path d="M8 20c-1.8 0-3.2-1.7-3.2-3.8 0-2.2 1.9-3.2 2.5-5 .9 1.1 3.9 2.4 3.9 5 0 2.1-1.4 3.8-3.2 3.8Z" fill="var(--lvsel2)"/>
+  </svg>);
+}
+
+/* Confete nas cores da casa. Some sozinho; não atrapalha o toque. */
+function Confete({n=18}){
+  const pecas=React.useMemo(()=>Array.from({length:n},()=>({
+    l:Math.random()*100,
+    c:['var(--lvrx)','var(--lvsel)','var(--lvsel2)','var(--lvneon)','var(--lvclaro)'][Math.floor(Math.random()*5)],
+    d:Math.random()*.45, t:1.3+Math.random()*1,
+  })),[n]);
+  if(SEM_MOTION)return null;
+  return pecas.map((p,i)=><div key={i} className="lv-confetti"
+    style={{left:p.l+'vw',background:p.c,animationDuration:p.t+'s',animationDelay:p.d+'s'}}/>);
 }
 
 function LvToggle({on,busy,onClick}){return(
@@ -7087,9 +7218,9 @@ function DietaScreen({profile,demo,onBack,onHidra}){
   const pct=total.kcal>0?Math.min(consumed.kcal/total.kcal,1):0;
 
   return(<div className="lv-wrap">
-    {cel&&<div className="lv-cel">
+    {cel&&<><div className="lv-cel">
       <div className="rule"/><h2>Dieta em dia</h2>
-      <div className="lv-sub" style={{marginTop:6}}>Todas as refeições do dia concluídas. É assim que resultado se constrói.</div></div>}
+      <div className="lv-sub" style={{marginTop:6}}>Todas as refeições do dia concluídas. É assim que resultado se constrói.</div></div><Confete n={16}/></>}
     {head}
 
     <div className="lv-card">
@@ -7455,7 +7586,7 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
   const toggleAgua=async(v)=>{if(espiando)return;setAgua(v);if(!demo)sb.rpc('lembrete_agua',{p_ativo:v}).catch(()=>{});};
   const hr=new Date().getHours();const saud=hr<12?'Bom dia':hr<18?'Boa tarde':'Boa noite';
 
-  const goTab=t=>{setExec(null);setEvol(false);setHydra(false);setChk(false);setCiclo(false);setAval(false);setDiario(false);setMetas(false);setTab(t);window.scrollTo(0,0);};
+  const goTab=t=>{if(t!==tab)vibrar(8);setExec(null);setEvol(false);setHydra(false);setChk(false);setCiclo(false);setAval(false);setDiario(false);setMetas(false);setTab(t);window.scrollTo(0,0);};
   const navItem=(t,ic,lb,badge)=>(<button className={'lv-navb'+(tab===t?' on':'')} onClick={()=>goTab(t)}>
     <span className="lv-navmark"/>{lb}{badge>0&&<span className="lv-navbadge">{badge>9?'9+':badge}</span>}</button>);
   const shell=(inner,nav)=>(<div className="lv">
@@ -7506,7 +7637,7 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
   const header=(<div style={{display:'flex',alignItems:'center',gap:12,marginBottom:16}}>
     <div className="lv-avatar">{initials(stu.name)}</div>
     <div style={{flex:1,minWidth:0}}><div className="lv-kick">{saud}</div><div className="lv-title">{nm}</div></div>
-    {stats.streak>0&&<span className="lv-streak">{stats.streak} {stats.streak===1?'dia':'dias'}</span>}
+    {stats.streak>0&&<span className="lv-streak"><Chama/> {stats.streak} {stats.streak===1?'dia':'dias'}</span>}
   </div>);
 
   const homeTab=(<div className="lv-wrap">
@@ -7519,9 +7650,9 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
     <PesoStatus demo={demo}/>
     <div className="lv-motiv"><div style={{fontSize:13.5,fontWeight:600,fontStyle:'italic',color:'var(--lvt)'}}>{frase}</div></div>
     <div className="lv-stats">
-      <div className="lv-stat"><b>{stats.total}</b><span>Treinos</span></div>
-      <div className="lv-stat"><b>{stats.prs}</b><span>Recordes</span></div>
-      <div className="lv-stat"><b>{stats.mes}</b><span>Este mês</span></div>
+      <div className="lv-stat"><b><Conta valor={stats.total}/></b><span>Treinos</span></div>
+      <div className="lv-stat"><b><Conta valor={stats.prs}/></b><span>Recordes</span></div>
+      <div className="lv-stat"><b><Conta valor={stats.mes}/></b><span>Este mês</span></div>
     </div>
     {list.length===0?<div className="lv-card" style={{textAlign:'center',color:'var(--lvt2)'}}>Seu treinador ainda não montou sua ficha de treino.</div>:<>
       <div className="lv-card lv-hero">
@@ -7537,15 +7668,15 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
     </>}
     <div className="lv-card" onClick={()=>setMetas(true)} style={{cursor:'pointer',background:'var(--bg3)',border:'1px solid var(--lvbd)'}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}><div className="lv-kick">Minhas metas & desafios</div><span style={{color:'var(--lvt3)'}}>›</span></div>
-      <div style={{fontWeight:800,fontSize:15,marginTop:6}}>Desafio da semana: {freq.done}/{freq.meta} treinos</div>
-      <div className="lv-freq" style={{marginTop:8}}><i style={{width:pct+'%'}}/></div>
+      <div style={{fontWeight:700,fontSize:15,marginTop:6}}>Desafio da semana: {freq.done}/{freq.meta} treinos</div>
+      <div className={'lv-freq'+(pct>=100?' cheia':'')} style={{marginTop:8}}><i style={{width:pct+'%'}}/></div>
     </div>
     <div className="lv-card">
       <div className="lv-kick" style={{marginBottom:10}}>Resumo da semana</div>
       <div style={{display:'flex',gap:10,textAlign:'center'}}>
-        <div style={{flex:1}}><div style={{fontSize:20,fontWeight:900,color:'var(--lvrx)'}}>{freq.done}</div><div className="lv-sub" style={{fontSize:11}}>treinos</div></div>
-        <div style={{flex:1}}><div style={{fontSize:20,fontWeight:900,color:'var(--lvrx)'}}>{stats.prs}</div><div className="lv-sub" style={{fontSize:11}}>recordes</div></div>
-        <div style={{flex:1}}><div style={{fontSize:20,fontWeight:900,color:'var(--lvrx)'}}>{stats.streak}</div><div className="lv-sub" style={{fontSize:11}}>seq. dias</div></div>
+        <div style={{flex:1}}><div style={{fontSize:22,fontWeight:900,color:'var(--lvrx)'}}><Conta valor={freq.done}/></div><div className="lv-sub" style={{fontSize:11}}>treinos</div></div>
+        <div style={{flex:1}}><div style={{fontSize:22,fontWeight:900,color:'var(--lvrx)'}}><Conta valor={stats.prs}/></div><div className="lv-sub" style={{fontSize:11}}>recordes</div></div>
+        <div style={{flex:1}}><div style={{fontSize:22,fontWeight:900,color:'var(--lvrx)'}}><Conta valor={stats.streak}/></div><div className="lv-sub" style={{fontSize:11}}>seq. dias</div></div>
       </div>
       <div className="lv-sub" style={{marginTop:10,lineHeight:1.5}}>{freq.done>=freq.meta?'Semana fechada com chave de ouro! Orgulho do seu compromisso.':`Faltam ${Math.max(0,freq.meta-freq.done)} treino(s) pra bater sua meta da semana. Bora!`}</div>
     </div>
@@ -7658,7 +7789,7 @@ Nenhum aviso por aqui ainda.<div className="lv-sub" style={{marginTop:4}}>Seus l
 
   const dietaTab=<DietaScreen profile={espiando?{...profile,id:contaAluno}:profile} demo={demo} onBack={()=>goTab('home')} onHidra={()=>setHydra(true)}/>;
   const content=tab==='dieta'?dietaTab:tab==='prog'?progTab:tab==='avisos'?avisosTab:tab==='conta'?contaTab:homeTab;
-  return shell(content,true);
+  return shell(<div className="lv-tabfx" key={tab}>{content}</div>,true);
 }
 
 /* ── Root: sessão + perfil + portão de assinatura ── */
@@ -7751,7 +7882,27 @@ ReactDOM.createRoot(document.getElementById('root')).render(<Root/>);
 
 /* Escotilha de emergencia: apaga tudo que esta guardado e recarrega do zero.
    Chamada pelo botao "Forcar atualizacao" dentro do app. */
+// Qual versão está PUBLICADA no servidor, ignorando qualquer cache.
+// Sem isso não dava para saber se o app estava velho ou se o site é que
+// ainda não tinha recebido a atualização.
+window.MFP_versaoPublicada=async function(){
+  try{
+    var r=await fetch('./index.html?_=' + Date.now(),{cache:'no-store'});
+    var t=await r.text();
+    var m=t.match(/APP_VERSION\s*=\s*'([^']+)'/);
+    return m?m[1]:null;
+  }catch(e){return null;}
+};
+
 window.MFP_forcarAtualizacao=async function(){
+  var publicada=await window.MFP_versaoPublicada();
+  var atual=(typeof APP_VERSION!=='undefined')?APP_VERSION:null;
+  if(publicada&&atual&&publicada===atual){
+    alert('Você já está na versão mais nova que existe no ar ('+atual+').\n\n'
+      +'Se o app ainda parece antigo, é o site publicado que ainda não recebeu '
+      +'a atualização — não é o cache do seu aparelho.');
+    return;
+  }
   try{
     if('serviceWorker' in navigator){
       var regs=await navigator.serviceWorker.getRegistrations();
