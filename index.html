@@ -70,22 +70,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:1
 .center-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
 .auth-wrap{width:100%;max-width:420px}
 .auth-card{background:var(--bg2);border:1px solid var(--border);border-radius:24px;padding:34px 28px;box-shadow:var(--shadow-lg)}
-/* ── Login premium (three.js + gsap + anime + motion) ── */
-.auth-fx{background:radial-gradient(150% 120% at 50% -10%,#221a3d 0%,#0d0a16 52%,#050308 100%);overflow:hidden}
-#auth3d{position:fixed;inset:0;z-index:0;pointer-events:none}
-#auth3d canvas{display:block;width:100%!important;height:100%!important}
-.fx-vignette{position:fixed;inset:0;z-index:1;pointer-events:none;background:radial-gradient(115% 90% at 50% 18%,transparent 42%,rgba(6,4,12,.55) 100%)}
-.auth-fx .auth-wrap{position:relative;z-index:2}
-.fx-brand{font-family:'Playfair Display',Georgia,serif;text-align:center;letter-spacing:6px;font-weight:600;font-size:16px;color:#efe9ff;margin:0 0 4px;text-shadow:0 2px 24px rgba(139,92,246,.45)}
-.fx-brand span{display:inline-block;will-change:transform,opacity}
-.fx-tag{text-align:center;font-family:'Cormorant Garamond',Georgia,serif;font-style:italic;font-size:14px;color:#b9b1d6;margin-bottom:20px}
-.auth-card.fx-card{background:rgba(255,255,255,.82);backdrop-filter:blur(20px) saturate(1.15);-webkit-backdrop-filter:blur(20px) saturate(1.15);border:1px solid rgba(255,255,255,.55);box-shadow:0 34px 90px -24px rgba(20,10,40,.6),0 0 0 1px rgba(139,92,246,.08)}
-:root[data-theme="dark"] .auth-card.fx-card{background:rgba(22,19,32,.66);border-color:rgba(180,160,255,.12)}
-.auth-fx.v-aluno{background:radial-gradient(150% 120% at 50% -10%,#10233a 0%,#0a1020 48%,#06040c 100%)}
-.auth-fx.v-aluno .fx-brand{color:#eafff2;text-shadow:0 2px 26px rgba(74,222,128,.5)}
-.auth-fx.v-aluno .fx-tag{color:#a7e8c4}
-.fx-role button.on{background:linear-gradient(135deg,#7c3aed,#5b21b6)!important;color:#fff!important}
-.auth-fx.v-aluno .fx-role button.on{background:linear-gradient(135deg,#22c55e,#16a34a)!important;color:#04220f!important}
+/* ── Entrada: sóbria, na identidade da marca ── */
+.auth-clean{background:var(--bg)}
+.auth-tag{text-align:center;font-family:var(--serif2);font-style:italic;font-size:15px;color:var(--text2);margin:0 0 18px}
 .seg{display:flex;background:var(--bg3);border-radius:12px;padding:4px;gap:4px;margin-bottom:16px}
 .seg button{flex:1;padding:10px;border:none;background:none;color:var(--text2);font-size:13px;font-weight:600;border-radius:9px;cursor:pointer;transition:all .15s;min-height:42px}
 .seg button.on{background:var(--accent);color:var(--cream);box-shadow:0 3px 10px rgba(90,30,46,.2)}
@@ -246,7 +233,7 @@ textarea.fi{resize:vertical;min-height:70px;line-height:1.5}
 
 /* ── Search ── */
 .search-wrap{position:relative;flex:1;max-width:360px;min-width:200px}
-.search-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text3);pointer-events:none;font-size:14px}
+.search-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text3);pointer-events:none;line-height:0}
 .search-wrap .fi{padding-left:36px}
 
 /* ── Empty ── */
@@ -281,7 +268,7 @@ textarea.fi{resize:vertical;min-height:70px;line-height:1.5}
 .rpt-tbl tr:last-child td{border-bottom:none}
 .rpt-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}
 .delta{font-size:11px;font-weight:600;text-align:right;white-space:nowrap;width:64px}
-.d-good{color:#4ade80}.d-bad{color:#f87171}.d-neutral{color:var(--text3)}
+.d-good{color:var(--green)}.d-bad{color:var(--red)}.d-neutral{color:var(--text3)}
 
 /* ── Compare cards ── */
 .cmp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:6px}
@@ -294,7 +281,7 @@ textarea.fi{resize:vertical;min-height:70px;line-height:1.5}
 .cmp-arrow{color:var(--text3);font-size:11px}
 .cmp-to{font-size:19px;font-weight:700;letter-spacing:-.3px}
 .cmp-delta{margin-top:8px;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:4px}
-.cmp-delta.good{color:#4ade80}.cmp-delta.bad{color:#f87171}.cmp-delta.neutral{color:var(--text2)}
+.cmp-delta.good{color:var(--green)}.cmp-delta.bad{color:var(--red)}.cmp-delta.neutral{color:var(--text2)}
 .cmp-bar{height:5px;background:var(--bg4);border-radius:3px;margin-top:10px;overflow:hidden}
 .cmp-bar-fill{height:100%;border-radius:3px;transition:width .3s}
 
@@ -520,11 +507,8 @@ textarea.fi{resize:vertical;min-height:70px;line-height:1.5}
 /* Celebração de PR */
 .lv-cel{position:fixed;inset:0;z-index:120;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(8,6,12,.82);animation:lvfade .2s ease}
 @keyframes lvfade{from{opacity:0}to{opacity:1}}
-.lv-trophy{font-size:96px;filter:drop-shadow(0 0 30px rgba(245,190,60,.8));animation:lvpop .5s cubic-bezier(.2,1.4,.4,1)}
 @keyframes lvpop{0%{transform:scale(0) rotate(-20deg)}100%{transform:scale(1) rotate(0)}}
 .lv-cel h2{font-size:30px;font-weight:900;letter-spacing:1px;margin:12px 0 4px;background:linear-gradient(90deg,#fbbf24,#f59e0b);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.lv-confetti{position:fixed;top:-12px;width:10px;height:14px;border-radius:2px;z-index:121;animation:lvfall linear forwards}
-@keyframes lvfall{to{transform:translateY(105vh) rotate(720deg);opacity:.9}}
 .lv-glow{animation:lvglow 1.3s ease infinite}
 @keyframes lvglow{0%,100%{filter:drop-shadow(0 0 6px rgba(74,222,128,.5))}50%{filter:drop-shadow(0 0 20px rgba(74,222,128,.95))}}
 .lv-waterbtn{flex:1;background:var(--lvc2);border:1px solid var(--lvbd);color:var(--lvtx);border-radius:13px;padding:13px 6px;font-weight:700;font-size:13.5px;cursor:pointer}
@@ -563,6 +547,38 @@ textarea.fi{resize:vertical;min-height:70px;line-height:1.5}
 .lv-aviso .ic{width:38px;height:38px;border-radius:11px;background:var(--lvc2);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
 .lv-aviso .un{position:absolute;top:12px;right:12px;width:9px;height:9px;border-radius:50%;background:var(--lvrx)}
 
+/* O app do aluno tem identidade própria: escuro, roxo e neon. Redefinir os
+   tokens aqui dentro faz os estilos inline (var(--accent), var(--green)…)
+   seguirem esta paleta sem tocar no painel do treinador. */
+.lv{
+  --bg:#0e0e13;--bg2:#1a1a21;--bg3:#23232d;--bg4:#2e2e3a;
+  --border:#2e2e3a;--border2:#3a3a48;
+  --text:#f4f4f7;--text2:#a2a2b0;--text3:#6c6c7c;
+  --accent:#8b5cf6;--accent2:#7c3aed;--accent3:#c084fc;--accent-dim:rgba(139,92,246,.18);
+  --gold:#f59e0b;--gold2:#fbbf24;--gold-dim:rgba(245,158,11,.16);
+  --green:#4ade80;--green-dim:rgba(74,222,128,.16);
+  --red:#e11d48;--red-dim:rgba(225,29,72,.16);
+  --blue:#38bdf8;--blue-dim:rgba(56,189,248,.16);
+  --cream:#ffffff;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 26px rgba(0,0,0,.45);
+  --shadow-lg:0 18px 50px rgba(0,0,0,.6);
+  /* usados pelas comemorações */
+  --lvsel:#f59e0b;--lvsel2:#fbbf24;--lvbrilho:rgba(255,255,255,.16);--lvclaro:#ffffff;
+}
+
+/* conquistas viraram monograma (1, 7, 10, PR) no lugar de emoji */
+.lv-badge .em{font-size:20px;font-weight:800;display:block;color:var(--lvt3);opacity:.45;letter-spacing:-.5px}
+.lv-badge.got .em{color:var(--lvrx);opacity:1;animation:lvpop .4s cubic-bezier(.2,1.4,.4,1)}
+
+/* fio dourado das telas de comemoração */
+.lv-cel .rule{width:64px;height:1px;background:var(--lvsel);margin:0 auto 14px}
+
+/* selo da "Visão do aluno" (treinador olhando, sem poder gravar) */
+.lv-somenteleitura{font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;
+  color:var(--lvrx);background:rgba(139,92,246,.16);border-radius:20px;padding:4px 10px;white-space:nowrap}
+.lv-ghost{white-space:nowrap;flex-shrink:0}
+
+
 /* ═════════ Camada de movimento ═════════
    Tudo respeita prefers-reduced-motion no bloco do fim. */
 
@@ -591,34 +607,18 @@ textarea.fi{resize:vertical;min-height:70px;line-height:1.5}
 .lv-anel circle.val{animation:lvdraw 1s cubic-bezier(.22,.9,.3,1) both}
 
 /* conquista destravada: pulo + brilho passando por cima */
-@keyframes lvunlock{0%{transform:scale(.7);opacity:0}55%{transform:scale(1.12)}100%{transform:scale(1);opacity:1}}
-@keyframes lvshine{0%{left:-140%}100%{left:140%}}
-.lv-badge.got{animation:lvunlock .5s cubic-bezier(.2,1.5,.4,1) both;position:relative;overflow:hidden}
-.lv-badge.got::after{content:'';position:absolute;top:0;bottom:0;width:60%;left:-140%;
-  background:linear-gradient(100deg,transparent,rgba(255,255,255,.22),transparent);
-  animation:lvshine 2.6s ease-in-out 1.1s infinite}
+@keyframes lvunlock{0%{transform:scale(.86);opacity:0}100%{transform:scale(1);opacity:1}}
+.lv-badge.got{animation:lvunlock .4s cubic-bezier(.22,.9,.3,1) both}
 
 /* agua: onda de verdade dentro da garrafa + gota ao registrar */
 @keyframes lvwave{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 .lv-wave{animation:lvwave 2.6s linear infinite}
 @keyframes lvsplash{0%{transform:scale(.3);opacity:.85}100%{transform:scale(2.4);opacity:0}}
-.lv-splash{position:absolute;border-radius:50%;border:2px solid #38bdf8;animation:lvsplash .65s ease-out forwards;pointer-events:none}
+.lv-splash{position:absolute;border-radius:50%;border:2px solid var(--blue);animation:lvsplash .65s ease-out forwards;pointer-events:none}
 
 /* comemoracao: o brilho respira em vez de piscar */
 @keyframes lvhalo{0%,100%{transform:scale(1);opacity:.55}50%{transform:scale(1.35);opacity:0}}
 .lv-halo{position:absolute;inset:-18px;border-radius:50%;background:radial-gradient(circle,rgba(74,222,128,.55),transparent 65%);animation:lvhalo 1.6s ease-out infinite}
-
-/* confete com formas variadas caindo em velocidades diferentes */
-@keyframes lvfall2{
-  0%{transform:translateY(-10vh) rotate(0) scale(1);opacity:1}
-  100%{transform:translateY(108vh) rotate(900deg) scale(.7);opacity:.15}}
-.lv-confetti{animation-name:lvfall2}
-.lv-confetti:nth-child(3n){border-radius:50%}
-.lv-confetti:nth-child(4n){width:6px;height:16px}
-
-/* numero que sobe contando */
-@keyframes lvcount{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-.lv-num{display:inline-block;animation:lvcount .3s ease both}
 
 /* troca de aba desliza */
 @keyframes lvslide{from{opacity:0;transform:translateX(10px)}to{opacity:1;transform:none}}
@@ -630,8 +630,65 @@ textarea.fi{resize:vertical;min-height:70px;line-height:1.5}
 .dash-panel{animation:fadeup .32s ease both}
 
 /* quem pediu menos movimento, recebe menos movimento */
+/* ═════════ Imersão: o app do aluno tem que parecer app, não site ═════════ */
+.lv{overscroll-behavior-y:contain;-webkit-user-select:none;user-select:none;touch-action:manipulation}
+.lv input,.lv textarea,.lv select{-webkit-user-select:text;user-select:text}
+.lv-wrap{padding-bottom:calc(16px + env(safe-area-inset-bottom))}
+.lv-top{padding-top:calc(13px + env(safe-area-inset-top))}
+
+/* troca de aba: o conteúdo entra deslizando, dá sensação de app nativo */
+@keyframes lvtab{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.lv-tabfx{animation:lvtab .3s cubic-bezier(.22,.9,.3,1) both}
+
+/* ═════════ Recompensa: o que faz querer voltar amanhã ═════════ */
+/* confete na paleta da casa — comemora sem virar festa de aniversário */
+@keyframes lvfall{
+  0%{transform:translateY(-12vh) rotate(0) scale(1);opacity:1}
+  100%{transform:translateY(108vh) rotate(560deg) scale(.75);opacity:.1}}
+.lv-confetti{position:fixed;top:-14px;width:8px;height:13px;border-radius:2px;z-index:121;pointer-events:none;animation:lvfall linear forwards}
+.lv-confetti:nth-child(3n){border-radius:50%;width:7px;height:7px}
+.lv-confetti:nth-child(4n){width:4px;height:15px}
+
+/* selo do recorde: monograma em vez de emoji */
+.lv-selo{position:relative;width:96px;height:96px;border-radius:50%;border:1px solid var(--lvsel);display:flex;align-items:center;
+  justify-content:center;font-family:var(--serif);font-size:30px;font-weight:600;color:var(--lvsel2);margin:0 auto 16px;
+  animation:lvselo .7s cubic-bezier(.2,1.5,.4,1) both}
+@keyframes lvselo{0%{transform:scale(.4) rotate(-12deg);opacity:0}60%{transform:scale(1.08) rotate(2deg)}100%{transform:scale(1) rotate(0);opacity:1}}
+.lv-selo::after{content:'';position:absolute;width:120px;height:120px;border-radius:50%;border:1px solid var(--lvsel);
+  opacity:0;animation:lvonda 1.6s ease-out .25s infinite}
+@keyframes lvonda{0%{transform:scale(.8);opacity:.55}100%{transform:scale(1.5);opacity:0}}
+
+/* número que sobe contando — herda a tipografia de quem o contém */
+@keyframes lvcount{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.lv .lv-num{display:inline;font:inherit;color:inherit;letter-spacing:inherit;
+  text-transform:none;font-variant-numeric:tabular-nums;animation:lvcount .3s ease both}
+/* o número dos cards fica dentro de um texto em degradê: o recorte precisa
+   valer para o próprio <span>, senão ele sai transparente e some */
+.lv-stat b .lv-num{background:linear-gradient(135deg,#c084fc,#8b5cf6);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+
+/* série concluída: o chip dá um pulinho */
+@keyframes lvcheck{0%{transform:scale(1)}45%{transform:scale(1.14)}100%{transform:scale(1)}}
+.lv-setchip.done{animation:lvcheck .34s cubic-bezier(.2,1.4,.4,1)}
+
+/* chama da sequência */
+@keyframes lvchama{0%,100%{transform:scale(1) rotate(-3deg)}50%{transform:scale(1.14) rotate(3deg)}}
+.lv-chama{display:inline-block;transform-origin:50% 85%;animation:lvchama 1.5s ease-in-out infinite}
+
+/* conquista destravada: brilho dourado passando por cima */
+@keyframes lvshine{0%{left:-140%}100%{left:140%}}
+.lv-badge.got{position:relative;overflow:hidden}
+.lv-badge.got::after{content:'';position:absolute;top:0;bottom:0;width:55%;left:-140%;pointer-events:none;
+  background:linear-gradient(100deg,transparent,var(--lvbrilho),transparent);
+  animation:lvshine 3.2s ease-in-out 1.4s infinite}
+
+/* meta batida: a barra pulsa uma vez */
+@keyframes lvcheia{0%{box-shadow:0 0 0 0 var(--lvbrilho)}70%{box-shadow:0 0 0 8px transparent}100%{box-shadow:0 0 0 0 transparent}}
+.lv-freq.cheia{animation:lvcheia 1.4s ease-out 2}
+
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.001s!important;animation-iteration-count:1!important;transition-duration:.001s!important}
+  .lv-confetti{display:none}
 }
 </style>
 </head>
@@ -661,7 +718,7 @@ const CFG = window.MFP_CONFIG || {};
 const CONFIGURED = !!(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY);
 let sb = null;
 if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY);
-const APP_VERSION='2026.08.12c';   // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION='2026.08.30b';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
 
@@ -935,11 +992,19 @@ function LogoLifter({size=120}){
         <rect x="136" y="123" width="4" height="10" rx="2"/>
       </g>
       {/* wordmark */}
-      <text x="100" y="192" textAnchor="middle" fontSize="21" fontWeight="700" fill="var(--accent)"
-        fontFamily="'Cormorant Garamond',Georgia,serif" letterSpacing="7">PERFORMANCE</text>
-      <line x1="52" y1="206" x2="148" y2="206" stroke="var(--gold)" strokeWidth="1"/>
+      <text x="100" y="192" textAnchor="middle" fontSize="15" fontWeight="600" fill="var(--accent)"
+        fontFamily="'Cormorant Garamond',Georgia,serif"
+        textLength="132" lengthAdjust="spacingAndGlyphs">PERFORMANCE</text>
+      <line x1="34" y1="204" x2="166" y2="204" stroke="var(--gold)" strokeWidth="1"/>
     </svg>
   );
+}
+
+/* Lupa do campo de busca (o espaço reservado estava vazio) */
+function IconBusca(){
+  return(<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+    strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
+    <circle cx="6.8" cy="6.8" r="4.6"/><line x1="10.3" y1="10.3" x2="14" y2="14"/></svg>);
 }
 
 /* Emblema compacto: MF + barra, em badge */
@@ -1468,7 +1533,7 @@ function MetasCoach({student,onClose}){
         <div className="fg" style={{width:80}}><label className="flbl">Unidade</label><input className="fi" value={f.unidade} onChange={e=>setF(p=>({...p,unidade:e.target.value}))}/></div>
       </div>
       <div className="fg"><label className="flbl">Prazo (opcional)</label><input className="fi" type="date" value={f.prazo} onChange={e=>setF(p=>({...p,prazo:e.target.value}))}/></div>
-      <button className="btn btn-primary" style={{width:'100%'}} disabled={busy} onClick={add}>{busy?'Salvando…':'＋ Adicionar meta'}</button>
+      <button className="btn btn-primary" style={{width:'100%'}} disabled={busy} onClick={add}>{busy?'Salvando…':'+ Adicionar meta'}</button>
     </div>
   </div>);
 }
@@ -1550,7 +1615,7 @@ function PainelHoje({onSelect,students,demo}){
       alertas.push({p:70,id:r.student_id,nome:r.nome,ic:'',cor:'#b45309',
         t:`Sem reavaliar há ${Math.floor(r.aval_dias/30)} meses`,d:'Sem medida nova não dá para mostrar evolução.'});
     if(r.aval_dias==null)
-      alertas.push({p:65,id:r.student_id,nome:r.nome,ic:'',cor:'#7c3aed',
+      alertas.push({p:65,id:r.student_id,nome:r.nome,ic:'',cor:'var(--accent)',
         t:'Nunca foi avaliado',d:'Fazer a avaliação inicial define a linha de base.'});
     if(r.refeicoes_total>0&&r.refeicoes_ok===0)
       alertas.push({p:40,id:r.student_id,nome:r.nome,ic:'',cor:'#b45309',
@@ -1571,7 +1636,7 @@ function PainelHoje({onSelect,students,demo}){
   const aguaOk=rows.filter(r=>r.agua_meta>0&&r.agua_ml>=r.agua_meta).length;
   const responderam=rows.filter(r=>r.checkin_sinal).length;
   const kpis=[
-    ['Treinaram hoje',treinaram,rows.length,'#7c3aed'],
+    ['Treinaram hoje',treinaram,rows.length,'var(--accent)'],
     ['Dieta em dia',dietaOk,comPlano,'#15803d'],
     ['Bateram a água',aguaOk,rows.length,'#0891b2'],
     ['Fizeram check-in',responderam,rows.length,'#b45309'],
@@ -1788,7 +1853,7 @@ function Dashboard({students,evals,onSelect,onNew,onDelete,onReassess,onSchedule
       <div className="abar">
         <div><div className="ph-title">Painel do treinador</div>
           <div className="ph-sub">{students.length} aluno{students.length!==1?'s':''} · {evals.length} avaliaç{evals.length!==1?'ões':'ão'}</div></div>
-        <button className="btn btn-primary" onClick={onNew}>＋ Novo aluno</button>
+        <button className="btn btn-primary" onClick={onNew}>+ Novo aluno</button>
       </div>
       <PainelHoje students={students} onSelect={onSelect} demo={demo}/>
       <PainelEvolucao rows={rows} onSelect={onSelect}/>
@@ -1832,7 +1897,7 @@ function Dashboard({students,evals,onSelect,onNew,onDelete,onReassess,onSchedule
       </>}
 
       <div style={{display:'flex',gap:12,marginBottom:12,flexWrap:'wrap',alignItems:'center'}}>
-        <div className="search-wrap" style={{flex:1,minWidth:180}}><span className="search-icon"></span>
+        <div className="search-wrap" style={{flex:1,minWidth:180}}><span className="search-icon"><IconBusca/></span>
           <input className="fi" placeholder="Buscar aluno..." value={q} onChange={e=>setQ(e.target.value)}/></div>
         <select className="fi" style={{width:'auto',minWidth:170}} value={sortBy} onChange={e=>setSortBy(e.target.value)}>
           <option value="urgencia">Ordenar: urgência</option>
@@ -1845,12 +1910,10 @@ function Dashboard({students,evals,onSelect,onNew,onDelete,onReassess,onSchedule
         {chips.map(([k,l,n])=><button key={k} type="button" className={`chip ${filter===k?'active':''}`} onClick={()=>setFilter(k)}>{l}<span className="cn">{n}</span></button>)}
       </div>
 
-      {students.length===0&&<div className="empty"><div className="empty-icon"></div>
-        <div className="empty-title">Nenhum aluno cadastrado</div>
+      {students.length===0&&<div className="empty">        <div className="empty-title">Nenhum aluno cadastrado</div>
         <p style={{marginBottom:16,fontSize:13}}>Comece adicionando o primeiro aluno</p>
-        <button className="btn btn-primary" onClick={onNew}>＋ Novo aluno</button></div>}
-      {students.length>0&&filtered.length===0&&<div className="empty"><div className="empty-icon"></div>
-        <div className="empty-title">Nenhum aluno neste filtro</div></div>}
+        <button className="btn btn-primary" onClick={onNew}>+ Novo aluno</button></div>}
+      {students.length>0&&filtered.length===0&&<div className="empty">        <div className="empty-title">Nenhum aluno neste filtro</div></div>}
 
       {filtered.length>0&&<div style={{display:'flex',alignItems:'center',justifyContent:'space-between',margin:'4px 2px 10px'}}>
         <div className="kpi-lbl">Acompanhamento de alunos</div>
@@ -2108,7 +2171,7 @@ function StudentForm({student,onSave,onCancel}){
           <div className="ph-sub">Dados cadastrais e anamnese</div></div>
         <div className="bgroup">
           <button className="btn btn-ghost" onClick={onCancel}>Cancelar</button>
-          <button className="btn btn-primary" onClick={()=>{if(!f.name.trim()){alert('Nome é obrigatório');return;}onSave({...f,id:student?.id||uid()});}}> Salvar</button>
+          <button className="btn btn-primary" onClick={()=>{if(!f.name.trim()){alert('Nome é obrigatório');return;}onSave({...f,id:student?.id||uid()});}}>Salvar</button>
         </div>
       </div>
       <div className="card">
@@ -2243,7 +2306,7 @@ function EvalForm({student,evalData,carryHeight,isReassess,onSave,onCancel}){
           {isReassess&&<div className="ph-sub">Estatura preenchida da última avaliação · ajuste se necessário</div>}</div>
         <div className="bgroup">
           <button className="btn btn-ghost" onClick={onCancel}>Cancelar</button>
-          <button className="btn btn-primary" onClick={()=>onSave({...f,id:evalData?.id||uid()})}> Salvar avaliação</button>
+          <button className="btn btn-primary" onClick={()=>onSave({...f,id:evalData?.id||uid()})}>Salvar avaliação</button>
         </div>
       </div>
       {(d.bmi||bpCls||d.fatPct||d.dynAvg||d.hidr)&&(
@@ -2256,7 +2319,7 @@ function EvalForm({student,evalData,carryHeight,isReassess,onSave,onCancel}){
           {d.hidr&&<Stat lbl="Hidratação/dia" val={(d.hidr/1000).toFixed(1).replace('.',',')} unit="L"/>}
         </div>)}
       <div className="card" style={{marginBottom:16}}>
-        <div className="sec-title" style={{marginBottom:12}}> Protocolos desta avaliação</div>
+        <div className="sec-title" style={{marginBottom:12}}>Protocolos desta avaliação</div>
         <div className="bgroup" style={{marginBottom:12}}>
           {EVAL_PRESETS.map(([lbl,arr])=><button key={lbl} type="button" className="btn btn-ghost btn-sm" onClick={()=>setPreset(arr)}>{lbl}</button>)}
         </div>
@@ -2711,7 +2774,7 @@ function FeedbacksAluno({student,demo}){
   </div>);
 }
 
-function StudentDetail({student,evals,onNewEval,onReassess,onEditEval,onDeleteEval,onReport,onBack,onEdit,onTech,onTrain,onNutri}){
+function StudentDetail({student,evals,onNewEval,onReassess,onEditEval,onDeleteEval,onReport,onBack,onEdit,onTech,onTrain,onNutri,onPreview}){
   const [cmp,setCmp]=useState(false);
   const [diarioOpen,setDiarioOpen]=useState(false);
   const [metasOpen,setMetasOpen]=useState(false);
@@ -2751,25 +2814,26 @@ function StudentDetail({student,evals,onNewEval,onReassess,onEditEval,onDeleteEv
           </div>
         </div>
         <div className="bgroup">
-          <button className="btn btn-ghost btn-sm" onClick={onEdit}>Editar Editar ficha</button>
+          <button className="btn btn-ghost btn-sm" onClick={onEdit}>Editar ficha</button>
           <button className="btn btn-ghost btn-sm" onClick={onTrain}>Treino</button>
           <button className="btn btn-ghost btn-sm" onClick={onNutri}>Nutrição</button>
           <button className="btn btn-ghost btn-sm" onClick={()=>setAcc('')}>Acesso do aluno</button>
           {sb&&!student._demo&&<button className="btn btn-ghost btn-sm" onClick={()=>setDiarioOpen(true)}>Diário de saúde</button>}
           {sb&&!student._demo&&<button className="btn btn-ghost btn-sm" onClick={()=>setMetasOpen(true)}>Metas</button>}
           <button className="btn btn-ghost btn-sm" onClick={onTech}>Avaliação técnica</button>
+          {onPreview&&<button className="btn btn-ghost btn-sm" onClick={onPreview}>Visão do aluno</button>}
           {photoEvals>=2&&<button className="btn btn-ghost btn-sm" onClick={()=>setCmp(true)}>Comparar fotos</button>}
-          {sorted.length>0&&<button className="btn btn-secondary" onClick={onReassess}> Reavaliação</button>}
-          <button className="btn btn-primary" onClick={onNewEval}>＋ Nova avaliação</button>
+          {sorted.length>0&&<button className="btn btn-secondary" onClick={onReassess}>Reavaliação</button>}
+          <button className="btn btn-primary" onClick={onNewEval}>+ Nova avaliação</button>
         </div>
       </div>
 
       <div style={{marginBottom:20,display:'flex',flexWrap:'wrap',gap:0}}>
-        {student.goal&&<span className="info-pill"> {student.goal}</span>}
-        {student.profession&&<span className="info-pill"> {student.profession}</span>}
-        {student.schedule&&<span className="info-pill"> {student.schedule}</span>}
-        {student.phone&&<span className="info-pill"> {student.phone}</span>}
-        {(student.health||student.injuries)&&<span className="info-pill" style={{borderColor:'rgba(234,179,8,.3)',color:'#fde047'}}> Anamnese registrada</span>}
+        {student.goal&&<span className="info-pill">{student.goal}</span>}
+        {student.profession&&<span className="info-pill">{student.profession}</span>}
+        {student.schedule&&<span className="info-pill">{student.schedule}</span>}
+        {student.phone&&<span className="info-pill">{student.phone}</span>}
+        {(student.health||student.injuries)&&<span className="info-pill" style={{borderColor:'rgba(234,179,8,.3)',color:'#fde047'}}>Anamnese registrada</span>}
       </div>
 
       {last&&d&&(
@@ -2788,10 +2852,9 @@ function StudentDetail({student,evals,onNewEval,onReassess,onEditEval,onDeleteEv
 
       <div style={{fontSize:15,fontWeight:600,margin:'24px 0 14px'}}>Histórico de avaliações</div>
       {sorted.length===0?(
-        <div className="empty"><div className="empty-icon"></div>
-          <div className="empty-title">Nenhuma avaliação registrada</div>
+        <div className="empty">          <div className="empty-title">Nenhuma avaliação registrada</div>
           <p style={{marginBottom:16,fontSize:13}}>Clique em "Nova avaliação" para começar</p>
-          <button className="btn btn-primary" onClick={onNewEval}>＋ Nova avaliação</button></div>
+          <button className="btn btn-primary" onClick={onNewEval}>+ Nova avaliação</button></div>
       ):sorted.map((ev,i)=>{
         const dd=derive(student,ev);
         return(
@@ -2807,7 +2870,7 @@ function StudentDetail({student,evals,onNewEval,onReassess,onEditEval,onDeleteEv
             </div>
             <div className="bgroup">
               <button className="btn-icon" title="Editar" onClick={()=>onEditEval(ev)}>Editar</button>
-              <button className="btn btn-secondary btn-sm" onClick={()=>onReport(ev)}> Relatório</button>
+              <button className="btn btn-secondary btn-sm" onClick={()=>onReport(ev)}>Relatório</button>
               <button className="btn-icon" title="Excluir" onClick={()=>{if(confirm('Excluir esta avaliação?'))onDeleteEval(ev.id);}}>Excluir</button>
             </div>
           </div>);
@@ -3254,8 +3317,8 @@ function Report({student,evalData,allEvals,onBack,coach}){
               <option value="">Sem comparação</option>
               {others.map(e=><option key={e.id} value={e.id}>Comparar com {fmtDate(e.date)}</option>)}
             </select>)}
-          <button className="btn btn-secondary" onClick={()=>shareWhatsApp(student,evalData,prevEval)}> WhatsApp</button>
-          <button className="btn btn-primary" onClick={()=>window.print()}> Imprimir / PDF</button>
+          <button className="btn btn-secondary" onClick={()=>shareWhatsApp(student,evalData,prevEval)}>WhatsApp</button>
+          <button className="btn btn-primary" onClick={()=>window.print()}>Imprimir / PDF</button>
         </div>
       </div>
 
@@ -3853,121 +3916,18 @@ function Report({student,evalData,allEvals,onBack,coach}){
 /* ── Mapeamento DB <-> objetos do app ── */
 const STU_COLS=['name','dob','gender','phone','email','profession','goal','activity','schedule','train_time','health','meds','family_hist','injuries','smoker','alcohol','sleep','obs'];
 function stuToRow(s,coachId){const r={coach_id:coachId};STU_COLS.forEach(k=>r[k]=(s[k]===''?null:s[k])??null);r.photo_url=s.photo||null;return r;}
-function rowToStu(r){const s={id:r.id,photo:r.photo_url||'',created_at:r.created_at||null};STU_COLS.forEach(k=>s[k]=r[k]??'');if(!s.gender)s.gender='M';try{s.profile_type=localStorage.getItem('mfp_ptype_'+r.id)||'';}catch(e){s.profile_type='';}return s;}
+function rowToStu(r){const s={id:r.id,photo:r.photo_url||'',created_at:r.created_at||null,user_id:r.user_id||null,coach_id:r.coach_id||null};STU_COLS.forEach(k=>s[k]=r[k]??'');if(!s.gender)s.gender='M';try{s.profile_type=localStorage.getItem('mfp_ptype_'+r.id)||'';}catch(e){s.profile_type='';}return s;}
 const EVAL_META=['id','studentId','date','obs'];
 function evalToRow(e,coachId){const data={};Object.keys(e).forEach(k=>{if(!EVAL_META.includes(k))data[k]=e[k];});return{student_id:e.studentId,coach_id:coachId,date:e.date,obs:e.obs||null,data};}
 function rowToEval(r){return{id:r.id,studentId:r.student_id,date:r.date,obs:r.obs||'',...(r.data||{})};}
 
 /* ── Tela de autenticação (treinadores) ── */
-/* ── Efeitos premium do login (carregados só aqui) ── */
-function fxLoadScript(src){return new Promise((res,rej)=>{const has=document.querySelector('script[data-fx="'+src+'"]');if(has){if(has.dataset.ok)res();else{has.addEventListener('load',()=>res());has.addEventListener('error',()=>rej());}return;}const s=document.createElement('script');s.src=src;s.async=true;s.dataset.fx=src;s.onload=()=>{s.dataset.ok='1';res();};s.onerror=()=>rej(new Error('fx '+src));document.head.appendChild(s);});}
-function fxEnvTexture(THREE,renderer){
-  const c=document.createElement('canvas');c.width=32;c.height=256;const ctx=c.getContext('2d');
-  const g=ctx.createLinearGradient(0,0,0,256);g.addColorStop(0,'#3a2f63');g.addColorStop(.45,'#141020');g.addColorStop(.75,'#0a0810');g.addColorStop(1,'#5b3aa6');
-  ctx.fillStyle=g;ctx.fillRect(0,0,32,256);
-  ctx.fillStyle='rgba(255,214,140,.5)';ctx.fillRect(0,150,32,10);
-  const tex=new THREE.CanvasTexture(c);tex.mapping=THREE.EquirectangularReflectionMapping;
-  const pm=new THREE.PMREMGenerator(renderer);const env=pm.fromEquirectangular(tex).texture;tex.dispose();pm.dispose();return env;
-}
-function fxDumbbell(THREE){
-  const g=new THREE.Group();
-  const chrome=new THREE.MeshStandardMaterial({color:0xe6e9ee,metalness:1,roughness:.16});
-  const plate=new THREE.MeshStandardMaterial({color:0x15151b,metalness:.75,roughness:.3});
-  const accent=new THREE.MeshStandardMaterial({color:0x8b5cf6,metalness:.5,roughness:.28,emissive:0x4c1d95,emissiveIntensity:.5});
-  const bar=new THREE.Mesh(new THREE.CylinderGeometry(.12,.12,4.4,40),chrome);bar.rotation.z=Math.PI/2;g.add(bar);
-  [1,-1].forEach(dir=>{
-    const specs=[[.95,.34],[.72,.28],[.54,.24]];let x=1.15;
-    specs.forEach(([r,t])=>{
-      const p=new THREE.Mesh(new THREE.CylinderGeometry(r,r,t,52),plate);p.rotation.z=Math.PI/2;p.position.x=dir*x;g.add(p);
-      const ring=new THREE.Mesh(new THREE.TorusGeometry(r*.99,.022,10,64),accent);ring.position.x=dir*x;g.add(ring);
-      x+=t+.03;
-    });
-    const cap=new THREE.Mesh(new THREE.CylinderGeometry(.16,.16,.28,32),chrome);cap.rotation.z=Math.PI/2;cap.position.x=dir*x;g.add(cap);
-  });
-  return g;
-}
-function fxStudentScene(THREE){
-  const g=new THREE.Group();
-  // núcleo icosaédrico neon (wireframe)
-  const core=new THREE.Mesh(new THREE.IcosahedronGeometry(1.15,1),new THREE.MeshBasicMaterial({color:0x8b5cf6,wireframe:true,transparent:true,opacity:.55}));
-  g.add(core);g.userData.core=core;
-  const glow=new THREE.Mesh(new THREE.IcosahedronGeometry(.82,2),new THREE.MeshStandardMaterial({color:0x4ade80,emissive:0x22c55e,emissiveIntensity:.9,metalness:.3,roughness:.4}));
-  g.add(glow);g.userData.glow=glow;
-  // campo de partículas em esfera
-  const N=900,pos=new Float32Array(N*3),col=new Float32Array(N*3);
-  const cA=new THREE.Color(0x8b5cf6),cB=new THREE.Color(0x4ade80);
-  for(let i=0;i<N;i++){const r=2.1+Math.random()*1.9,th=Math.acos(2*Math.random()-1),ph=Math.random()*Math.PI*2;
-    pos[i*3]=r*Math.sin(th)*Math.cos(ph);pos[i*3+1]=r*Math.sin(th)*Math.sin(ph);pos[i*3+2]=r*Math.cos(th);
-    const c=Math.random()<.5?cA:cB;col[i*3]=c.r;col[i*3+1]=c.g;col[i*3+2]=c.b;}
-  const pg=new THREE.BufferGeometry();pg.setAttribute('position',new THREE.BufferAttribute(pos,3));pg.setAttribute('color',new THREE.BufferAttribute(col,3));
-  const pts=new THREE.Points(pg,new THREE.PointsMaterial({size:.055,vertexColors:true,transparent:true,opacity:.9,blending:THREE.AdditiveBlending,depthWrite:false}));
-  g.add(pts);g.userData.pts=pts;
-  return g;
-}
-function initAuthFx(variant){
-  const aluno=variant==='aluno';
-  let disposed=false,renderer=null,raf=0,ro=null;const stops=[];
-  const RM=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const libs=['./lib/three.min.js','./lib/gsap.min.js','./lib/anime.min.js','./lib/motion.js'];
-  // allSettled: se uma lib falhar, as outras ainda rodam (cada efeito é guardado pelo seu global)
-  Promise.allSettled(libs.map(fxLoadScript)).then(()=>{if(!disposed){try{start();}catch(e){}}});
-  function start(){
-    const THREE=window.THREE,gsap=window.gsap,anime=window.anime,Motion=window.Motion;
-    const host=document.getElementById('auth3d');
-    if(THREE&&host){
-      const w=host.clientWidth||innerWidth,h=host.clientHeight||innerHeight;
-      renderer=new THREE.WebGLRenderer({antialias:true,alpha:true,powerPreference:'high-performance'});
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));renderer.setSize(w,h);
-      try{renderer.outputEncoding=THREE.sRGBEncoding;}catch(e){}
-      try{renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.08;}catch(e){}
-      host.appendChild(renderer.domElement);
-      const scene=new THREE.Scene();
-      const cam=new THREE.PerspectiveCamera(34,w/h,.1,100);cam.position.set(0,0,9);
-      scene.add(new THREE.AmbientLight(0xffffff,aluno?.5:.28));
-      const clock=new THREE.Clock();
-      if(aluno){
-        const l1=new THREE.PointLight(0x8b5cf6,70,50);l1.position.set(-5,3,5);scene.add(l1);
-        const l2=new THREE.PointLight(0x4ade80,60,50);l2.position.set(5,-3,4);scene.add(l2);
-        const orb=fxStudentScene(THREE);scene.add(orb);
-        const frame=()=>{if(disposed)return;const t=clock.getElapsedTime();
-          orb.rotation.y=t*.28;orb.rotation.x=Math.sin(t*.35)*.25;
-          if(orb.userData.pts)orb.userData.pts.rotation.y=-t*.12;
-          if(orb.userData.glow){const s=1+Math.sin(t*1.6)*.08;orb.userData.glow.scale.setScalar(s);orb.userData.glow.material.emissiveIntensity=.7+Math.sin(t*1.6)*.35;}
-          renderer.render(scene,cam);raf=requestAnimationFrame(frame);};
-        if(RM)renderer.render(scene,cam);else frame();
-      }else{
-        try{scene.environment=fxEnvTexture(THREE,renderer);}catch(e){}
-        const key=new THREE.DirectionalLight(0xffffff,1.5);key.position.set(4,6,6);scene.add(key);
-        const l1=new THREE.PointLight(0x8b5cf6,60,44);l1.position.set(-6,2,4);scene.add(l1);
-        const l2=new THREE.PointLight(0xffd479,42,44);l2.position.set(6,-3,3);scene.add(l2);
-        const bell=fxDumbbell(THREE);bell.rotation.set(.34,.5,.08);scene.add(bell);
-        const frame=()=>{if(disposed)return;const t=clock.getElapsedTime();bell.rotation.y=.5+t*.32;bell.rotation.x=.3+Math.sin(t*.5)*.09;renderer.render(scene,cam);raf=requestAnimationFrame(frame);};
-        if(RM)renderer.render(scene,cam);else frame();
-      }
-      if(window.ResizeObserver){ro=new ResizeObserver(()=>{if(disposed||!renderer)return;const W=host.clientWidth,H=host.clientHeight;renderer.setSize(W,H);cam.aspect=W/H;cam.updateProjectionMatrix();});ro.observe(host);}
-    }
-    const accent=aluno?'74,222,128':'124,58,237';
-    if(gsap&&!RM){
-      gsap.set('.auth-card.fx-card > *',{opacity:0,y:aluno?28:22});
-      gsap.to('.auth-card.fx-card > *',{opacity:1,y:0,duration:aluno?.75:.7,stagger:aluno?.09:.07,ease:aluno?'back.out(1.5)':'power3.out',delay:.15});
-      gsap.from('.auth-card.fx-card',{scale:aluno?.9:.96,duration:aluno?1:.9,ease:aluno?'elastic.out(1,.6)':'power2.out'});
-      gsap.from('.fx-tag',{opacity:0,y:10,duration:.8,delay:.5,ease:'power2.out'});
-    }
-    const brand=document.querySelector('.fx-brand');
-    if(brand&&!brand.dataset.split){const txt=brand.textContent;brand.textContent='';Array.from(txt).forEach(ch=>{const s=document.createElement('span');s.textContent=ch===' '?' ':ch;brand.appendChild(s);});brand.dataset.split='1';}
-    if(anime&&!RM)anime({targets:'.fx-brand span',translateY:aluno?[26,0]:[18,0],scale:aluno?[.6,1]:[1,1],opacity:[0,1],easing:aluno?'easeOutElastic(1,.6)':'easeOutExpo',duration:aluno?1200:900,delay:anime.stagger(aluno?60:45,{start:180})});
-    const cta=document.querySelector('.auth-card.fx-card .btn-primary.btn-block');
-    if(cta&&Motion&&!RM){try{const a=Motion.animate(cta,{boxShadow:['0 10px 26px rgba('+accent+',.28)','0 14px 46px rgba('+accent+',.6)']},{duration:aluno?1.2:1.7,repeat:Infinity,direction:'alternate',easing:'ease-in-out'});stops.push(a);}catch(e){}}
-  }
-  return ()=>{disposed=true;if(raf)cancelAnimationFrame(raf);if(ro&&ro.disconnect)ro.disconnect();stops.forEach(a=>{try{a.stop&&a.stop();}catch(e){}});if(renderer){try{renderer.dispose();}catch(e){}const el=renderer.domElement;if(el&&el.parentNode)el.parentNode.removeChild(el);}};
-}
 function AuthScreen(){
   const [mode,setMode]=useState('login');
   const [acct,setAcct]=useState('coach');
   const [name,setName]=useState('');const [email,setEmail]=useState('');const [pass,setPass]=useState('');const [acode,setAcode]=useState('');
   const [busy,setBusy]=useState(false);const [msg,setMsg]=useState(null);
   const isAluno=acct==='aluno';
-  useEffect(()=>{const cleanup=initAuthFx(acct);return ()=>{try{cleanup&&cleanup();}catch(e){}};},[acct]);
   async function submit(e){
     e.preventDefault();setMsg(null);
     if(!email||!pass){setMsg({type:'error',text:'Preencha e-mail e senha.'});return;}
@@ -4003,14 +3963,11 @@ function AuthScreen(){
     setBusy(false);
   }
   return(
-    <div className={"center-screen auth-fx"+(isAluno?" v-aluno":"")}>
-      <div id="auth3d"/>
-      <div className="fx-vignette"/>
+    <div className="center-screen auth-clean">
       <div className="auth-wrap">
-        <div className="fx-brand">MF PERFORMANCE</div>
-        <div className="fx-tag">Saúde, avaliação, treino e nutrição num app só</div>
-        <div className="auth-card fx-card">
-          <div style={{display:'flex',justifyContent:'center',marginBottom:8}}><LogoLifter size={88}/></div>
+        <div className="auth-card">
+          <div style={{display:'flex',justifyContent:'center',marginBottom:6}}><LogoLifter size={96}/></div>
+          <p className="auth-tag">Saúde, avaliação, treino e nutrição num app só</p>
           {/* versao visivel ANTES do login: e o jeito de conferir se a atualizacao chegou
               no aparelho sem precisar entrar e abrir o menu lateral */}
           <div style={{textAlign:'center',marginBottom:20,display:'flex',gap:10,justifyContent:'center',alignItems:'center',flexWrap:'wrap'}}>
@@ -4018,7 +3975,7 @@ function AuthScreen(){
             <button className="link" style={{fontSize:11,background:'none',border:'none',padding:0,cursor:'pointer'}}
               onClick={()=>window.MFP_forcarAtualizacao&&window.MFP_forcarAtualizacao()}>atualizar app</button>
           </div>
-          <div className="seg fx-role">
+          <div className="seg">
             <button type="button" className={acct==='coach'?'on':''} onClick={()=>{setAcct('coach');setMsg(null);}}>Sou treinador</button>
             <button type="button" className={acct==='aluno'?'on':''} onClick={()=>{setAcct('aluno');setMsg(null);}}>Sou aluno</button>
           </div>
@@ -4104,7 +4061,7 @@ function AdminScreen({onBack}){
       </div>
 
       <div className="card">
-        <div className="sec-title" style={{marginBottom:14}}> Gerar código de acesso (venda)</div>
+        <div className="sec-title" style={{marginBottom:14}}>Gerar código de acesso (venda)</div>
         {msg&&<div className={`alert alert-${msg.t==='error'?'error':'success'}`}>{msg.x}</div>}
         <div className="fgrid">
           <div className="fg"><label className="flbl">Código</label>
@@ -4125,7 +4082,7 @@ function AdminScreen({onBack}){
       </div>
 
       <div className="card">
-        <div className="sec-title" style={{marginBottom:14}}> Códigos</div>
+        <div className="sec-title" style={{marginBottom:14}}>Códigos</div>
         {invites.length===0?<div className="muted" style={{fontSize:13}}>Nenhum código ainda.</div>:
           <div style={{display:'flex',flexDirection:'column',gap:8}}>
             {invites.map(iv=>(
@@ -4138,7 +4095,7 @@ function AdminScreen({onBack}){
       </div>
 
       <div className="card">
-        <div className="sec-title" style={{marginBottom:14}}> Treinadores ({coaches?coaches.length:'…'})</div>
+        <div className="sec-title" style={{marginBottom:14}}>Treinadores ({coaches?coaches.length:'…'})</div>
         {coaches===null?<div className="spinner"/>:coaches.length===0?<div className="muted" style={{fontSize:13}}>Nenhum treinador ainda.</div>:
           <div style={{display:'flex',flexDirection:'column',gap:10}}>
             {coaches.map(c=>(
@@ -5344,7 +5301,7 @@ function ExerciseLibrary({coach,onBack}){
         <button className="btn btn-primary" onClick={add}>Adicionar</button>
       </div>
     </div>
-    <div className="search-wrap" style={{marginBottom:14}}><span className="search-icon"></span>
+    <div className="search-wrap" style={{marginBottom:14}}><span className="search-icon"><IconBusca/></span>
       <input className="fi" placeholder="Buscar exercício..." value={q} onChange={e=>setQ(e.target.value)}/></div>
     {lib===null?<div className="center-screen"><div className="spinner"/></div>:
      groups.map(([g,items])=>(<div key={g} style={{marginBottom:14}}>
@@ -5426,7 +5383,7 @@ function TrainScreen({coach,students,preStudent,onBack}){
         <div className="ph-title">Treino</div><div className="ph-sub">Escolha o aluno para montar a ficha</div></div>
         <button className="btn btn-secondary" onClick={()=>setShowLib(true)}>Biblioteca de exercícios</button></div>
       {demo&&<div className="alert alert-warn">Modo demonstração: as fichas não são salvas.</div>}
-      <div className="search-wrap" style={{marginBottom:16}}><span className="search-icon"></span>
+      <div className="search-wrap" style={{marginBottom:16}}><span className="search-icon"><IconBusca/></span>
         <input className="fi" placeholder="Buscar aluno..." value={q} onChange={e=>setQ(e.target.value)}/></div>
       <div className="student-grid">{list.map(s=>(
         <div key={s.id} className="student-card" onClick={()=>setStu(s)}>
@@ -5618,7 +5575,7 @@ function NutriFoodPicker({foods,onPick,onClose,coachId,onAdded}){
           </div>))}
           {list.length===0&&<div className="muted" style={{padding:20,textAlign:'center'}}>Nada encontrado.</div>}
         </div>
-        <button className="btn btn-ghost btn-sm" style={{width:'100%',marginTop:10}} onClick={()=>setAdding(true)}>＋ Cadastrar alimento próprio</button>
+        <button className="btn btn-ghost btn-sm" style={{width:'100%',marginTop:10}} onClick={()=>setAdding(true)}>+ Cadastrar alimento próprio</button>
       </>):(<>
         <span className="link" style={{fontSize:13,cursor:'pointer'}} onClick={()=>setSel(null)}>← voltar à lista</span>
         <div style={{margin:'12px 0 4px',fontFamily:'var(--serif)',fontSize:20}}>{sel.name}</div>
@@ -5696,10 +5653,10 @@ function NutriMealsEditor({meals,setMeals,foods,coachId,onFoodsChange}){
           </div>))}
         <div className="bgroup" style={{marginTop:11}}>
           <button className="btn btn-secondary btn-sm" onClick={()=>setPickFor(m.id)}>Da base de alimentos</button>
-          <button className="btn btn-ghost btn-sm" onClick={()=>addItem(m.id)}>＋ Manual</button>
+          <button className="btn btn-ghost btn-sm" onClick={()=>addItem(m.id)}>+ Manual</button>
         </div>
       </div>);})}
-    <button className="btn btn-secondary" style={{width:'100%',marginTop:14}} onClick={addMeal}>＋ Adicionar refeição</button>
+    <button className="btn btn-secondary" style={{width:'100%',marginTop:14}} onClick={addMeal}>+ Adicionar refeição</button>
     {pickFor&&<NutriFoodPicker foods={foods} onPick={onPickFood} onClose={()=>setPickFor(null)} coachId={coachId} onAdded={onFoodsChange}/>}
   </>);
 }
@@ -5788,10 +5745,9 @@ function NutriPlanEditor({coach,studentUid,studentName,demo}){
 
   if(plan===undefined)return <div className="center-screen" style={{minHeight:200}}><div className="spinner"/></div>;
   if(plan===null)return(
-    <div className="empty"><div className="empty-icon"></div>
-      <div className="empty-title">Nenhum plano ainda</div>
+    <div className="empty">      <div className="empty-title">Nenhum plano ainda</div>
       <p className="s-meta" style={{marginBottom:16}}>Crie o plano alimentar de {studentName||'este aluno'}.</p>
-      <button className="btn btn-primary" onClick={createPlan}>＋ Criar plano</button></div>);
+      <button className="btn btn-primary" onClick={createPlan}>+ Criar plano</button></div>);
 
   const total=sumMeals(meals);
   return(<div>
@@ -6015,14 +5971,14 @@ function NutriScreen({coach,students,preStudent,onBack}){
           <button className="btn btn-secondary btn-sm" disabled={imp===p.id} onClick={()=>importar(p)}>{imp===p.id?'…':'Importar'}</button>
         </div>))}
       </div>}
-      <div className="search-wrap" style={{marginBottom:16}}><span className="search-icon"></span>
+      <div className="search-wrap" style={{marginBottom:16}}><span className="search-icon"><IconBusca/></span>
         <input className="fi" placeholder="Buscar aluno..." value={q} onChange={e=>setQ(e.target.value)}/></div>
       <div className="student-grid">{list.map(s=>(
         <div key={s.id} className="student-card" onClick={()=>setStu(s)}>
           <div style={{fontWeight:600,fontFamily:'var(--serif)',fontSize:16}}>{s.name}</div>
           <div style={{fontSize:12,color:'var(--text2)',marginTop:2}}>Montar plano alimentar</div>
         </div>))}</div>
-      {list.length===0&&<div className="empty"><div className="empty-icon"></div><div className="empty-title">Nenhum aluno encontrado</div></div>}
+      {list.length===0&&<div className="empty"><div className="empty-title">Nenhum aluno encontrado</div></div>}
     </div>);
   }
 
@@ -6034,8 +5990,7 @@ function NutriScreen({coach,students,preStudent,onBack}){
         <button key={k} className={`btn btn-sm ${aba===k?'btn-primary':'btn-ghost'}`} onClick={()=>setAba(k)}>{l}</button>))}
     </div>}
     {uid_===undefined?<div className="center-screen" style={{minHeight:180}}><div className="spinner"/></div>:
-     uid_===null?(<div className="empty"><div className="empty-icon"></div>
-       <div className="empty-title">Aluno ainda não ativou a conta</div>
+     uid_===null?(<div className="empty">       <div className="empty-title">Aluno ainda não ativou a conta</div>
        <p className="s-meta" style={{maxWidth:420,margin:'0 auto'}}>
          O plano alimentar é entregue no app do aluno, então {stu.name.split(' ')[0]} precisa primeiro criar a conta
          e digitar o código de acesso. Gere o código na ficha do aluno (aba Treino) e mande por WhatsApp.</p></div>):
@@ -6127,7 +6082,7 @@ function PeriodizacaoScreen({coach,students,preStudent,onBack}){
       <div className="abar"><div><div className="breadcrumb" onClick={onBack}>← Painel</div>
         <div className="ph-title">Periodização</div>
         <div className="ph-sub">Escolha o aluno para planejar macro, meso e microciclos</div></div></div>
-      <div className="search-wrap" style={{marginBottom:16}}><span className="search-icon"></span>
+      <div className="search-wrap" style={{marginBottom:16}}><span className="search-icon"><IconBusca/></span>
         <input className="fi" placeholder="Buscar aluno..." value={q} onChange={e=>setQ(e.target.value)}/></div>
       <div className="student-grid">{list.map(x=>(
         <div key={x.id} className="student-card" onClick={()=>setStu(x)}>
@@ -6401,6 +6356,10 @@ function App({profile,setProfile}){
   if(students===null)return(
     <div className="app"><div style={{flex:1}}><div className="center-screen"><div style={{textAlign:'center'}}><LogoLifter size={120}/><div className="spinner"/></div></div></div></div>);
 
+  // "Visão do aluno": o app do aluno ocupa a tela inteira, exatamente como ele vê
+  if(view==='aluno-view'&&selStudent)
+    return <StudentApp profile={profile} verComoAluno={selStudent} onSairDaVisao={()=>go('detail')}/>;
+
   return(
     <div className="app">
       <div className={`overlay ${menu?'show':''}`} onClick={()=>setMenu(false)}/>
@@ -6478,7 +6437,8 @@ function App({profile,setProfile}){
             onReassess={()=>{setEditEv(null);setReassess(true);go('ev-form');}}
             onEditEval={ev=>{setEditEv(ev);setReassess(false);go('ev-form');}}
             onDeleteEval={delEv} onReport={ev=>{setSelEval(ev);go('report');}}
-            onBack={()=>go('dashboard')} onEdit={()=>{setEditStu(selStudent);go('stu-form');}} onTech={()=>go('tech')} onTrain={()=>go('train')} onNutri={()=>go('nutri')}/>}
+            onBack={()=>go('dashboard')} onEdit={()=>{setEditStu(selStudent);go('stu-form');}} onTech={()=>go('tech')} onTrain={()=>go('train')} onNutri={()=>go('nutri')}
+            onPreview={()=>go('aluno-view')}/>}
           {view==='ev-form'&&selStudent&&<EvalForm student={selStudent} evalData={editEv}
             carryHeight={reassess?lastHeight:''} isReassess={reassess&&!editEv}
             onSave={saveEv} onCancel={()=>go('detail')}/>}
@@ -6543,7 +6503,7 @@ function FeedbackTreino({divisao,demo,onPronto}){
       <div className="lv-setchips" style={{margin:0}}>
         {rotulos.map((r,i)=>(
           <button key={i} className={'lv-setchip'+(v[k]===i+1?' on':'')}
-            style={v[k]===i+1?{borderColor:'var(--lvrx)',color:'#fff',background:'rgba(139,92,246,.22)'}:null}
+            style={v[k]===i+1?{borderColor:'var(--accent)',color:'var(--accent)',background:'var(--accent-dim)'}:null}
             onClick={()=>setV(x=>({...x,[k]:i+1}))}>{r}</button>))}
       </div>
     </div>);
@@ -6583,7 +6543,7 @@ function FeedbackTreino({divisao,demo,onPronto}){
   </div>);
 }
 
-function TrainExec({student,divisao,demo,best,onBack,onSaved,onFinish}){
+function TrainExec({student,divisao,demo,somenteLeitura,best,onBack,onSaved,onFinish}){
   const [series,setSeries]=useState(demo?(_DEMO_ALUNO_SERIES[divisao.id]||[]):null);
   const [vals,setVals]=useState({});const [done,setDone]=useState({});const [active,setActive]=useState({});
   const [openEx,setOpenEx]=useState(0);const [rest,setRest]=useState(0);const [restName,setRestName]=useState('');
@@ -6600,7 +6560,7 @@ function TrainExec({student,divisao,demo,best,onBack,onSaved,onFinish}){
   const activeIdx=s=>active[s.id]!=null?active[s.id]:firstUndone(s);
   const tierDoneCount=s=>{let c=0;for(let i=0;i<s.qtd_series;i++)if(done[s.id+'_'+i])c++;return c;};
   const fmtT=x=>String(Math.floor(x/60)).padStart(2,'0')+':'+String(x%60).padStart(2,'0');
-  const celebrate=carga=>{setCel({carga,parts:Array.from({length:28},()=>({l:Math.random()*100,c:['#fbbf24','#8b5cf6','#4ade80','#ec4899','#f59e0b','#38bdf8'][Math.floor(Math.random()*6)],d:Math.random()*.35,t:1.1+Math.random()*.9}))});try{navigator.vibrate&&navigator.vibrate([35,45,90]);}catch(e){}setTimeout(()=>setCel(null),2200);};
+  const celebrate=carga=>{setCel({carga});try{navigator.vibrate&&navigator.vibrate([35,45,90]);}catch(e){}setTimeout(()=>setCel(null),2200);};
   const concluir=async(s,i)=>{
     const k=s.id+'_'+i;const v=vals[k]||{};const carga=num(v.carga),reps=num(v.reps);if(carga==null)return;
     const isPr=s.tipo_serie==='Valida'&&carga>(best[s.exercicio_id]||0);
@@ -6609,15 +6569,16 @@ function TrainExec({student,divisao,demo,best,onBack,onSaved,onFinish}){
     setRest(s.intervalo_seg_min||60);setRestName(s.exercicio_nome);setPaused(false);
     if(onSaved)onSaved(s.exercicio_id,carga);
     if(isPr)celebrate(carga);
-    if(!demo){try{await sb.from('train_historico').insert({coach_id:student.coach_id,student_id:student.id,divisao_id:divisao.id,exercicio_id:s.exercicio_id,exercicio_nome:s.exercicio_nome,data_treino:todayStr(),indice_serie:i+1,tipo_serie:s.tipo_serie,carga,reps,is_pr:isPr});}catch(e){}}
+    if(!demo&&!somenteLeitura){try{await sb.from('train_historico').insert({coach_id:student.coach_id,student_id:student.id,divisao_id:divisao.id,exercicio_id:s.exercicio_id,exercicio_nome:s.exercicio_nome,data_treino:todayStr(),indice_serie:i+1,tipo_serie:s.tipo_serie,carga,reps,is_pr:isPr});}catch(e){}}
   };
   const totalSets=exs.reduce((a,e)=>a+e.tiers.reduce((b,t)=>b+t.qtd_series,0),0);
   const doneSets=Object.keys(done).length;
   const tlabel=t=>t==='Aquecimento'?'Aquec':t==='Preparatoria'?'Prep':'Válidas';
 
   return(<div className="lv-wrap">
-    {cel&&<><div className="lv-cel"><div className="lv-trophy"></div><h2>NOVO RECORDE!</h2><div style={{fontSize:20,fontWeight:800}}>{cel.carga} kg</div><div className="lv-sub" style={{marginTop:6}}>Você superou seu melhor. Bora!</div></div>
-      {cel.parts.map((p,i)=><div key={i} className="lv-confetti" style={{left:p.l+'vw',background:p.c,animationDuration:p.t+'s',animationDelay:p.d+'s'}}/>)}</>}
+    {cel&&<><div className="lv-cel"><div className="lv-selo">PR</div><h2>Novo recorde</h2>
+      <div style={{fontSize:24,fontWeight:900,color:'var(--lvclaro)'}}><Conta valor={cel.carga} dec={String(cel.carga).includes('.')?1:0}/> kg</div>
+      <div className="lv-sub" style={{marginTop:6}}>Você superou sua melhor carga neste exercício.</div></div><Confete n={22}/></>}
 
     <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
       <button className="lv-ghost" onClick={onBack}>‹ Voltar</button>
@@ -6670,18 +6631,17 @@ function TrainExec({student,divisao,demo,best,onBack,onSaved,onFinish}){
       <FeedbackTreino divisao={divisao} demo={demo}
         onPronto={()=>{setFbAberto(false);if(onFinish)onFinish();onBack();}}/>
     </div>}
-    {finished&&!fbAberto&&<div className="lv-cel" style={{padding:'24px 20px'}}>
-      <div className="lv-trophy"></div>
-      <h2 style={{background:'linear-gradient(90deg,#4ade80,#8b5cf6)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>TREINO CONCLUÍDO!</h2>
+    {finished&&!fbAberto&&<><Confete n={20}/><div className="lv-cel" style={{padding:'24px 20px'}}>
+      <div className="rule"/><h2>Treino concluído</h2>
       <div style={{display:'flex',gap:22,marginTop:16}}>
-        <div style={{textAlign:'center'}}><div style={{fontSize:26,fontWeight:800}}>{finished.sets}</div><div className="lv-sub">séries</div></div>
-        <div style={{textAlign:'center'}}><div style={{fontSize:26,fontWeight:800}}>{(finished.ton/1000).toFixed(1).replace('.',',')}t</div><div className="lv-sub">volume</div></div>
+        <div style={{textAlign:'center'}}><div style={{fontSize:26,fontWeight:800}}><Conta valor={finished.sets}/></div><div className="lv-sub">séries</div></div>
+        <div style={{textAlign:'center'}}><div style={{fontSize:26,fontWeight:800}}><Conta valor={finished.ton/1000} dec={1}/>t</div><div className="lv-sub">volume</div></div>
         <div style={{textAlign:'center'}}><div style={{fontSize:26,fontWeight:800}}>{fmtT(finished.tempo)}</div><div className="lv-sub">tempo</div></div>
       </div>
-      {finished.prs>0&&<div className="lv-pill" style={{background:'rgba(251,191,36,.16)',color:'#fbbf24',marginTop:16,fontSize:14}}>{finished.prs} novo{finished.prs>1?'s':''} recorde{finished.prs>1?'s':''}!</div>}
+      {finished.prs>0&&<div className="lv-pill" style={{background:'var(--lvbrilho)',color:'var(--lvsel2)',marginTop:16,fontSize:14}}>{finished.prs} novo{finished.prs>1?'s':''} recorde{finished.prs>1?'s':''}!</div>}
       <button className="lv-btn" style={{marginTop:22,maxWidth:280}} onClick={()=>setFbAberto(true)}>Contar como foi</button>
       <button className="lv-ghost" style={{marginTop:10,padding:'10px 22px'}} onClick={()=>{if(onFinish)onFinish();onBack();}}>Voltar ao início</button>
-    </div>}
+    </div></>}
 
     {rest>0&&!finished&&<div className="lv-rest">
       <div><div className="lv-kick">Descanso{restName?' — '+restName:''}</div><div className="lv-restnum">{fmtT(rest)}</div></div>
@@ -6710,10 +6670,10 @@ function EvolChart({sessions}){
   const y=c=>H-base-((c-cmin)/cr)*(H-pad-base);
   const line=sessions.map((s,i)=>(i?'L':'M')+x(i).toFixed(1)+' '+y(s.carga).toFixed(1)).join(' ');
   return(<svg viewBox={`0 0 ${W} ${H}`} style={{width:'100%',display:'block'}}>
-    {sessions.map((s,i)=>{const bh=(s.vol/vmax)*(H-pad-base)*.6;return <rect key={'b'+i} x={x(i)-9} y={H-base-bh} width="18" height={bh} rx="3" fill="rgba(139,92,246,.16)"/>;})}
-    <path d={line} fill="none" stroke="#8b5cf6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-    {sessions.map((s,i)=>s.pr?<g key={'p'+i}><circle cx={x(i)} cy={y(s.carga)} r="6" fill="#fbbf24"/><text x={x(i)} y={y(s.carga)+3.5} textAnchor="middle" fontSize="8">★</text></g>:<circle key={'d'+i} cx={x(i)} cy={y(s.carga)} r="3.5" fill="#c4b5fd"/>)}
-    {sessions.map((s,i)=>i%Math.ceil(n/4||1)===0||i===n-1?<text key={'x'+i} x={x(i)} y={H-8} textAnchor="middle" fontSize="8.5" fill="#6c6c7c">{s.date.slice(8,10)+'/'+s.date.slice(5,7)}</text>:null)}
+    {sessions.map((s,i)=>{const bh=(s.vol/vmax)*(H-pad-base)*.6;return <rect key={'b'+i} x={x(i)-9} y={H-base-bh} width="18" height={bh} rx="3" fill="var(--accent-dim)"/>;})}
+    <path d={line} fill="none" stroke="var(--accent)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+    {sessions.map((s,i)=>s.pr?<g key={'p'+i}><circle cx={x(i)} cy={y(s.carga)} r="6" fill="var(--gold)"/><text x={x(i)} y={y(s.carga)+3.5} textAnchor="middle" fontSize="8">★</text></g>:<circle key={'d'+i} cx={x(i)} cy={y(s.carga)} r="3.5" fill="var(--accent)"/>)}
+    {sessions.map((s,i)=>i%Math.ceil(n/4||1)===0||i===n-1?<text key={'x'+i} x={x(i)} y={H-8} textAnchor="middle" fontSize="8.5" fill="var(--text3)">{s.date.slice(8,10)+'/'+s.date.slice(5,7)}</text>:null)}
   </svg>);
 }
 
@@ -6736,14 +6696,14 @@ function EvolScreen({student,demo,onBack}){
       <div className="lv-setchips" style={{marginBottom:14}}>{exs.map(e=><div key={e.key} className={'lv-setchip '+(cur&&cur.key===e.key?'active':'')} style={{flex:'unset',minWidth:'auto',padding:'8px 12px'}} onClick={()=>setSel(e.key)}>{e.nome}</div>)}</div>
       {cur&&(()=>{const ss=cur.sessions;const first=ss[0].carga,last=ss[ss.length-1].carga;const pct=first?Math.round((last-first)/first*100):0;const prs=ss.filter(s=>s.pr).length;
         const rising=ss.length>=2&&last>ss[ss.length-2].carga;const flat=ss.length>=2&&last===ss[ss.length-2].carga;
-        const suggest=rising?last+2.5:last;const conf=rising?{l:'Alta',p:85,c:'#4ade80'}:flat?{l:'Média',p:62,c:'#f59e0b'}:{l:'Cautela',p:45,c:'#e11d48'};
+        const suggest=rising?last+2.5:last;const conf=rising?{l:'Alta',p:85,c:'var(--green)'}:flat?{l:'Média',p:62,c:'var(--gold)'}:{l:'Cautela',p:45,c:'var(--red)'};
         return(<>
           <div className="lv-card">
             <div className="lv-kick" style={{marginBottom:6}}>Carga máxima & volume</div>
             <EvolChart sessions={ss}/>
             <div style={{marginTop:10,display:'flex',alignItems:'baseline',gap:10,flexWrap:'wrap'}}>
               <div style={{fontFamily:'Playfair Display,serif',fontSize:34,fontWeight:700}}>{fmt(last)} kg</div>
-              <span className="lv-pill" style={{background:pct>=0?'rgba(74,222,128,.16)':'rgba(225,29,72,.16)',color:pct>=0?'#86efac':'#fda4af'}}>{pct>=0?'▲ +':'▼ '}{pct}% desde o início</span>
+              <span className="lv-pill" style={{background:pct>=0?'rgba(74,222,128,.16)':'rgba(225,29,72,.16)',color:pct>=0?'var(--green)':'var(--red)'}}>{pct>=0?'▲ +':'▼ '}{pct}% desde o início</span>
             </div>
             <div className="lv-sub" style={{marginTop:2}}>Última carga máxima · {fmtDate(ss[ss.length-1].date)}{prs>0&&` · ${prs} recorde${prs>1?'s':''}`}</div>
           </div>
@@ -6751,7 +6711,7 @@ function EvolScreen({student,demo,onBack}){
             <div className="lv-kick" style={{marginBottom:8}}>Estimativa da próxima sessão</div>
             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
               <div><div style={{fontWeight:800,fontSize:18}}>{fmt(suggest)} kg</div><div className="lv-sub">meta sugerida para as válidas</div></div>
-              <span className="lv-pill" style={{background:'rgba(139,92,246,.16)',color:conf.c,border:'1px solid '+conf.c}}>{conf.l} · {conf.p}%</span>
+              <span className="lv-pill" style={{background:'var(--accent-dim)',color:conf.c,border:'1px solid '+conf.c}}>{conf.l} · {conf.p}%</span>
             </div>
           </div>
         </>);})()}
@@ -6786,8 +6746,8 @@ function HydraScreen({student,demo,onBack}){
   const fillY=118-pct*(118-8);
   const weekMax=Math.max(meta,...((week||[]).map(w=>w[1])),1);
   return(<div className="lv-wrap">
-    {cel&&<><div className="lv-cel"><div className="lv-trophy" style={{position:'relative',filter:'drop-shadow(0 0 24px rgba(74,222,128,.8))'}}><span className="lv-halo"/></div><h2 style={{background:'linear-gradient(90deg,#4ade80,#22d3ee)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>META BATIDA!</h2><div className="lv-sub" style={{marginTop:6}}>Hidratação em dia. Performance e recuperação garantidas.</div></div>
-      {Array.from({length:22}).map((_,i)=><div key={i} className="lv-confetti" style={{left:Math.random()*100+'vw',background:['#4ade80','#22d3ee','#38bdf8'][i%3],animationDuration:(1.1+Math.random()*.9)+'s',animationDelay:(Math.random()*.3)+'s'}}/>)}</>}
+    {cel&&<><div className="lv-cel"><div className="rule"/><h2>Meta de água batida</h2>
+      <div className="lv-sub" style={{marginTop:6}}>Hidratação do dia completa.</div></div><Confete n={14}/></>}
     <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14}}>
       <button className="lv-ghost" onClick={onBack}>‹ Voltar</button>
       <div className="lv-title" style={{flex:1}}>Hidratação</div>
@@ -6797,20 +6757,20 @@ function HydraScreen({student,demo,onBack}){
         <defs><clipPath id="btlc"><path d={BTL}/></clipPath></defs>
         <g clipPath="url(#btlc)"><rect x="0" y="0" width="90" height="132" fill="#12121a"/>
           <g style={{transform:`translateY(${fillY}px)`,transition:'transform .8s cubic-bezier(.22,.9,.3,1)'}}>
-            <rect x="0" y="6" width="90" height="132" fill={full?'#4ade80':'#38bdf8'} opacity="0.9"/>
+            <rect x="0" y="6" width="90" height="132" fill={full?'var(--green)':'var(--blue)'} opacity="0.9"/>
             <path className="lv-wave" d="M0 8 q 11 -6 22 0 t 22 0 t 22 0 t 22 0 t 22 0 t 22 0 v 12 H0 z"
-              fill={full?'#4ade80':'#38bdf8'} opacity="0.9"/>
+              fill={full?'var(--green)':'var(--blue)'} opacity="0.9"/>
             <path className="lv-wave" style={{animationDuration:'3.7s',animationDirection:'reverse'}}
               d="M0 10 q 11 -5 22 0 t 22 0 t 22 0 t 22 0 t 22 0 t 22 0 v 12 H0 z"
               fill="#fff" opacity="0.14"/>
           </g></g>
-        <path d={BTL} fill="none" stroke={full?'#4ade80':'#5b6b8a'} strokeWidth="2.5"/>
+        <path d={BTL} fill="none" stroke={full?'var(--green)':'var(--text3)'} strokeWidth="2.5"/>
       </svg>
       {splash>0&&<span className="lv-splash" style={{left:34,top:52,width:26,height:26}}/>}
       <div style={{flex:1}}>
         <div style={{fontSize:26,fontWeight:800}}>{(today/1000).toFixed(2).replace('.',',')}<span style={{color:'var(--lvt2)',fontSize:15,fontWeight:600}}> / {(meta/1000).toFixed(2).replace('.',',')} L</span></div>
         <div className="lv-sub">{full?'meta do dia batida!':`faltam ${((meta-today)/1000).toFixed(2).replace('.',',')} L`}</div>
-        <div className="lv-freq" style={{marginTop:10}}><i style={{width:(pct*100)+'%',background:full?'linear-gradient(90deg,#22d3ee,#4ade80)':'linear-gradient(90deg,#38bdf8,#818cf8)'}}/></div>
+        <div className="lv-freq" style={{marginTop:10}}><i style={{width:(pct*100)+'%',background:full?'linear-gradient(90deg,var(--blue),var(--green))':'linear-gradient(90deg,var(--blue),#818cf8)'}}/></div>
       </div>
     </div>
     <div style={{display:'flex',gap:10,marginBottom:16}}>
@@ -6821,10 +6781,10 @@ function HydraScreen({student,demo,onBack}){
     <div className="lv-card"><div className="lv-kick" style={{marginBottom:10}}>Semana</div>
       {week===null?<div className="center-screen" style={{minHeight:80}}><div className="spinner"/></div>:
       <svg viewBox="0 0 300 120" style={{width:'100%',display:'block'}}>
-        <line x1="0" y1={100-(meta/weekMax)*90} x2="300" y2={100-(meta/weekMax)*90} stroke="#4ade80" strokeWidth="1" strokeDasharray="4 3" opacity=".6"/>
+        <line x1="0" y1={100-(meta/weekMax)*90} x2="300" y2={100-(meta/weekMax)*90} stroke="var(--green)" strokeWidth="1" strokeDasharray="4 3" opacity=".6"/>
         {week.map(([l,ml],i)=>{const h=(ml/weekMax)*90;const x=14+i*42;const hit=ml>=meta;return(<g key={i}>
-          <rect x={x} y={100-h} width="24" height={h} rx="4" fill={hit?'#4ade80':'#38bdf8'} opacity=".9"/>
-          <text x={x+12} y={114} textAnchor="middle" fontSize="9" fill="#6c6c7c">{l}</text></g>);})}
+          <rect x={x} y={100-h} width="24" height={h} rx="4" fill={hit?'var(--green)':'var(--blue)'} opacity=".9"/>
+          <text x={x+12} y={114} textAnchor="middle" fontSize="9" fill="var(--text3)">{l}</text></g>);})}
       </svg>}
     </div>
   </div>);
@@ -6836,7 +6796,7 @@ function CheckinScreen({student,demo,onBack}){
   const [v,setV]=useState({sono:2,fadiga:2,estresse:2,dor:2,humor:2});
   const [res,setRes]=useState(null);const [busy,setBusy]=useState(false);
   const total=Object.values(v).reduce((a,b)=>a+b,0);
-  const sinal=total<=9?{l:'Verde',c:'#4ade80',t:'Prontidão ótima — pode ir com tudo hoje.'}:total<=14?{l:'Amarelo',c:'#f59e0b',t:'Prontidão média — mantenha, sem forçar demais.'}:{l:'Vermelho',c:'#e11d48',t:'Prontidão baixa — pegue leve e priorize recuperação.'};
+  const sinal=total<=9?{l:'Verde',c:'var(--green)',t:'Prontidão ótima — pode ir com tudo hoje.'}:total<=14?{l:'Amarelo',c:'var(--gold)',t:'Prontidão média — mantenha, sem forçar demais.'}:{l:'Vermelho',c:'var(--red)',t:'Prontidão baixa — pegue leve e priorize recuperação.'};
   const salvar=async()=>{setBusy(true);if(!demo){try{const {data}=await sb.rpc('checkin_salvar',{p_sono:v.sono,p_fadiga:v.fadiga,p_estresse:v.estresse,p_dor:v.dor,p_humor:v.humor});}catch(e){}}setBusy(false);setRes({total,sinal});};
   if(res)return(<div className="lv-wrap"><div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14}}><button className="lv-ghost" onClick={onBack}>‹ Voltar</button><div className="lv-title" style={{flex:1}}>Check-in de hoje</div></div>
     <div className="lv-card" style={{textAlign:'center'}}>
@@ -6863,7 +6823,7 @@ function CheckinScreen({student,demo,onBack}){
 }
 
 /* ── Módulo do ciclo (educativo) ── */
-const CICLO_COR={Menstrual:'#e11d48',Folicular:'#ec4899',Ovulatória:'#a855f7',Lútea:'#6d28d9'};
+const CICLO_COR={Menstrual:'var(--red)',Folicular:'var(--accent3)',Ovulatória:'var(--accent3)',Lútea:'var(--accent)'};
 const CICLO_INFO={
   Menstrual:[['','Descanso ativo','Energia costuma estar mais baixa. Movimento leve e sono ajudam mais que forçar.'],['','Hidratação','Reforce a água — ajuda com cólica e retenção.'],['','Escute o corpo','Se a disposição vier, treine; se não, tudo bem pegar leve.']],
   Folicular:[['⚡','Fase de força','Estrogênio subindo — costuma render mais em carga e volume. Aproveite.'],['⚖','Balança','A balança tende a estabilizar/cair por menos retenção — normal, não é "progresso extra".'],['','Recuperação','Boa fase pra recuperação entre estímulos — mantenha o sono.']],
@@ -6905,7 +6865,7 @@ function CicloScreen({student,demo,onBack}){
       <svg viewBox="0 0 140 140" width="200" style={{maxWidth:'70%'}}>
         {segs.map(([nm,a,b])=><circle key={nm} cx="70" cy="70" r={R} fill="none" stroke={CICLO_COR[nm]} strokeWidth="12" strokeDasharray={`${((b-a)/dur)*C} ${C}`} strokeDashoffset={`${-(a/dur)*C}`} transform="rotate(-90 70 70)" strokeLinecap="butt"/>)}
         <circle cx={mx} cy={my} r="7" fill="#fff" stroke={CICLO_COR[fase]} strokeWidth="3"/>
-        <text x="70" y="62" textAnchor="middle" fontSize="10" fill="#a2a2b0">DIA DO CICLO</text>
+        <text x="70" y="62" textAnchor="middle" fontSize="10" fill="var(--text2)">DIA DO CICLO</text>
         <text x="70" y="86" textAnchor="middle" fontSize="30" fontWeight="800" fill="#fff">{dia}</text>
       </svg>
       <div className="lv-pill" style={{background:CICLO_COR[fase]+'30',color:'#fff',border:'1px solid '+CICLO_COR[fase],marginTop:4}}><i style={{width:8,height:8,borderRadius:'50%',background:CICLO_COR[fase]}}/>{fase}</div>
@@ -6916,7 +6876,7 @@ function CicloScreen({student,demo,onBack}){
     {(CICLO_INFO[fase]||[]).map(([ic,t,d],i)=><div key={i} className="lv-card" style={{display:'flex',gap:12,alignItems:'flex-start'}}>
       <div style={{fontSize:22}}>{ic}</div><div><div style={{fontWeight:700}}>{t}</div><div className="lv-sub" style={{marginTop:2}}>{d}</div></div>
     </div>)}
-    <div className="alert alert-info" style={{background:'rgba(139,92,246,.1)',border:'1px solid rgba(139,92,246,.3)',color:'#c4b5fd'}}>Este acompanhamento é <b>educativo</b> e não altera seu treino automaticamente.</div>
+    <div className="alert alert-info" style={{background:'var(--accent-dim)',border:'1px solid var(--accent)',color:'var(--accent)'}}>Este acompanhamento é <b>educativo</b> e não altera seu treino automaticamente.</div>
   </div>);
 }
 
@@ -6933,21 +6893,21 @@ function AvalScreen({student,demo,onBack}){
   const asc=[...evals].sort((a,b)=>a.date<b.date?-1:1);const latest=asc[asc.length-1];const prev=asc[asc.length-2]||null;
   const d=derive(student,latest);let ex={};try{ex=buildExecutive(student,latest,d,prev)||{};}catch(e){ex={};}
   if(showRep)return <Report student={student} evalData={latest} coach={{brand_name:'MF Performance'}} allEvals={evals} onBack={()=>setShowRep(false)}/>;
-  const sc=ex.overall,scC=sc==null?'#8b5cf6':sc>=75?'#4ade80':sc>=55?'#f59e0b':'#e11d48';
+  const sc=ex.overall,scC=sc==null?'var(--text3)':sc>=75?'var(--green)':sc>=55?'var(--gold)':'var(--red)';
   const R=44,C=2*Math.PI*R;
   const dw=prev?num(latest.weight)-num(prev.weight):null;
   const df=(d.fatPct!=null&&prev)?d.fatPct-derive(student,prev).fatPct:null;
   const stat=(l,v,u,delta,down)=>v==null?null:<div className="lv-card" style={{flex:1,minWidth:120,margin:0,textAlign:'center'}}>
     <div className="lv-kick">{l}</div><div style={{fontSize:22,fontWeight:800,marginTop:3}}>{v}<span style={{fontSize:12,color:'var(--lvt2)'}}> {u}</span></div>
-    {delta!=null&&delta!==0&&<div style={{fontSize:11.5,fontWeight:700,color:(down?delta<0:delta>0)?'#4ade80':'#fda4af'}}>{delta>0?'▲ +':'▼ '}{Math.abs(+delta.toFixed(1))} {u}</div>}</div>;
+    {delta!=null&&delta!==0&&<div style={{fontSize:11.5,fontWeight:700,color:(down?delta<0:delta>0)?'var(--green)':'var(--red)'}}>{delta>0?'▲ +':'▼ '}{Math.abs(+delta.toFixed(1))} {u}</div>}</div>;
   return(<div className="lv-wrap">
     <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14}}><button className="lv-ghost" onClick={onBack}>‹ Voltar</button><div className="lv-title" style={{flex:1}}>Minha avaliação</div></div>
     <div className="lv-card" style={{display:'flex',gap:16,alignItems:'center'}}>
       <svg viewBox="0 0 110 110" width="104">
-        <circle cx="55" cy="55" r={R} fill="none" stroke="#2e2e3a" strokeWidth="9"/>
+        <circle cx="55" cy="55" r={R} fill="none" stroke="var(--bg4)" strokeWidth="9"/>
         {sc!=null&&<circle cx="55" cy="55" r={R} fill="none" stroke={scC} strokeWidth="9" strokeLinecap="round" strokeDasharray={C} strokeDashoffset={C*(1-sc/100)} transform="rotate(-90 55 55)"/>}
         <text x="55" y="52" textAnchor="middle" fontSize="30" fontWeight="800" fill="#fff">{sc??'—'}</text>
-        <text x="55" y="70" textAnchor="middle" fontSize="9" fill="#a2a2b0">SCORE / 100</text>
+        <text x="55" y="70" textAnchor="middle" fontSize="9" fill="var(--text2)">SCORE / 100</text>
       </svg>
       <div style={{flex:1}}>
         <div className="lv-kick">Última avaliação</div>
@@ -6965,13 +6925,58 @@ function AvalScreen({student,demo,onBack}){
   </div>);
 }
 
+/* ═══ Pecinhas de movimento do app do aluno ═══
+   Servem a um propósito: mostrar progresso acontecendo. Todas respeitam
+   quem pediu menos animação no sistema. */
+const SEM_MOTION=(()=>{try{return matchMedia('(prefers-reduced-motion: reduce)').matches;}catch(e){return false;}})();
+const vibrar=p=>{try{navigator.vibrate&&navigator.vibrate(p);}catch(e){}};
+
+/* Número que sobe contando até o valor — o progresso "acontece" na frente do aluno */
+function Conta({valor,dur=900,dec=0}){
+  const alvo=Number(valor)||0;
+  const [v,setV]=useState(SEM_MOTION?alvo:0);
+  useEffect(()=>{
+    if(SEM_MOTION||alvo===0){setV(alvo);return;}
+    let raf,ini=null;
+    const passo=t=>{
+      if(ini==null)ini=t;
+      const p=Math.min(1,(t-ini)/dur);
+      setV(alvo*(1-Math.pow(1-p,3)));
+      if(p<1)raf=requestAnimationFrame(passo);
+    };
+    raf=requestAnimationFrame(passo);
+    return()=>{if(raf)cancelAnimationFrame(raf);};
+  },[alvo,dur]);
+  return <span className="lv-num">{dec?v.toFixed(dec):Math.round(v)}</span>;
+}
+
+/* Chama da sequência de dias (desenhada, não emoji) */
+function Chama({size=13}){
+  return(<svg className="lv-chama" width={size} height={size*1.25} viewBox="0 0 16 20" aria-hidden="true">
+    <path d="M8 0c.6 3.2-1.3 4.3-2.6 5.8C3.7 7.7 2 9.6 2 12.4 2 16.6 5 20 8 20s6-3.4 6-7.6c0-2.4-1.2-4-2.3-5.4-.5.9-1.2 1.5-2 1.8.6-3.1-.4-6.2-1.7-8.8Z" fill="currentColor" opacity=".85"/>
+    <path d="M8 20c-1.8 0-3.2-1.7-3.2-3.8 0-2.2 1.9-3.2 2.5-5 .9 1.1 3.9 2.4 3.9 5 0 2.1-1.4 3.8-3.2 3.8Z" fill="var(--lvsel2)"/>
+  </svg>);
+}
+
+/* Confete nas cores da casa. Some sozinho; não atrapalha o toque. */
+function Confete({n=18}){
+  const pecas=React.useMemo(()=>Array.from({length:n},()=>({
+    l:Math.random()*100,
+    c:['var(--lvrx)','var(--lvsel)','var(--lvsel2)','var(--lvneon)','var(--lvclaro)'][Math.floor(Math.random()*5)],
+    d:Math.random()*.45, t:1.3+Math.random()*1,
+  })),[n]);
+  if(SEM_MOTION)return null;
+  return pecas.map((p,i)=><div key={i} className="lv-confetti"
+    style={{left:p.l+'vw',background:p.c,animationDuration:p.t+'s',animationDelay:p.d+'s'}}/>);
+}
+
 function LvToggle({on,busy,onClick}){return(
   <button onClick={onClick} disabled={busy} style={{flexShrink:0,width:46,height:27,borderRadius:16,border:'none',cursor:busy?'wait':'pointer',background:on?'var(--lvneon)':'var(--lvc2)',position:'relative',transition:'background .15s',opacity:busy?.6:1}}>
     <span style={{position:'absolute',top:3,left:on?22:3,width:21,height:21,borderRadius:'50%',background:'#fff',transition:'left .15s',boxShadow:'0 1px 3px rgba(0,0,0,.4)'}}/></button>);}
 
 /* ── Diário de saúde (aluno) ── */
 const GLIC_MOMENTOS=[['jejum','Jejum'],['pre_refeicao','Pré-refeição'],['pos_refeicao','Pós-refeição'],['antes_treino','Antes do treino'],['pos_treino','Após treino'],['dormir','Ao dormir']];
-const glicFaixa=v=>v<70?{l:'Baixa',c:'#e11d48'}:v<=180?{l:'Na faixa',c:'#4ade80'}:{l:'Alta',c:'#f59e0b'};
+const glicFaixa=v=>v<70?{l:'Baixa',c:'var(--red)'}:v<=180?{l:'Na faixa',c:'var(--green)'}:{l:'Alta',c:'var(--gold)'};
 function DiarioScreen({student,demo,onBack}){
   const [diab,setDiab]=useState(demo?true:false);
   const [d,setD]=useState({peso:'',sono:'',passos:'',fome:3,obs:''});
@@ -7008,21 +7013,19 @@ function DiarioScreen({student,demo,onBack}){
     {slider('fome','Fome ao longo do dia','Sem fome','Muita fome')}
     {chk!==undefined&&(chk?
       <div className="lv-card" style={{display:'flex',alignItems:'center',gap:12}}>
-        <span className="lv-dot" style={{width:14,height:14,background:chk.sinal==='Verde'?'#4ade80':chk.sinal==='Amarelo'?'#f59e0b':'#e11d48'}}/>
+        <span className="lv-dot" style={{width:14,height:14,background:chk.sinal==='Verde'?'var(--green)':chk.sinal==='Amarelo'?'var(--gold)':'var(--red)'}}/>
         <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700}}>Prontidão de hoje: {chk.sinal}</div>
           <div className="lv-sub">Sono, fadiga, estresse, dor e humor você já respondeu no Check-in.</div></div>
       </div>:
       <div className="lv-card" style={{display:'flex',alignItems:'center',gap:12,borderColor:'rgba(245,158,11,.45)'}}>
-        <span style={{fontSize:20}}></span>
         <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700}}>Falta o check-in de hoje</div>
           <div className="lv-sub">É lá que entram sono, fadiga, estresse, dor e humor.</div></div>
       </div>)}
     <div className="lv-card"><span className="lv-inlbl">Observações</span><textarea className="lv-in" rows={2} value={d.obs} onChange={e=>setD(p=>({...p,obs:e.target.value}))} placeholder="Como foi seu dia? Algo importante?"/></div>
-    {okMsg&&<div className="lv-pill" style={{background:'rgba(74,222,128,.15)',color:'#86efac',marginBottom:10}}>✓ {okMsg}</div>}
+    {okMsg&&<div className="lv-pill" style={{background:'rgba(74,222,128,.15)',color:'var(--green)',marginBottom:10}}>✓ {okMsg}</div>}
     <button className="lv-btn" disabled={busy} onClick={salvar}>{busy?'Salvando…':'Salvar diário de hoje'}</button>
 
     <div className="lv-card" style={{marginTop:18,display:'flex',alignItems:'center',gap:12}}>
-      <div style={{fontSize:22}}></div>
       <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700}}>Sou diabético(a)</div><div className="lv-sub">Ativa o controle de glicemia e insulina</div></div>
       <LvToggle on={diab} onClick={()=>toggleDiab(!diab)}/>
     </div>
@@ -7080,9 +7083,9 @@ function MetasScreen({student,demo,onBack,freq}){
       <div key={m.id} className={'lv-card'+(done?' ':'')}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
           <div style={{fontWeight:800}}>{done?'':''}{m.titulo}</div>
-          {p!=null&&<span style={{fontWeight:800,color:done?'#4ade80':'var(--lvrx)'}}>{p}%</span>}
+          {p!=null&&<span style={{fontWeight:800,color:done?'var(--green)':'var(--lvrx)'}}>{p}%</span>}
         </div>
-        <div className="lv-freq" style={{marginTop:10}}><i style={{width:(p||0)+'%',background:done?'linear-gradient(90deg,#22c55e,#4ade80)':undefined}}/></div>
+        <div className="lv-freq" style={{marginTop:10}}><i style={{width:(p||0)+'%',background:done?'linear-gradient(90deg,var(--green),var(--green))':undefined}}/></div>
         {m.valor_atual!=null&&<div className="lv-sub" style={{marginTop:8}}>Atual: <b>{m.valor_atual}{m.unidade}</b> · Meta: <b>{m.valor_alvo}{m.unidade}</b>{m.valor_inicial!=null?` · Início: ${m.valor_inicial}${m.unidade}`:''}</div>}
       </div>);})}
   </div>);
@@ -7118,7 +7121,7 @@ function MacroBar({lbl,val,goal,color}){
       <span style={{color:'var(--lvt3)',fontWeight:700,textTransform:'uppercase',letterSpacing:.5}}>{lbl}</span>
       <span style={{color:'var(--lvt2)',fontWeight:700}}>{Math.round(val)}<span style={{color:'var(--lvt3)'}}>/{Math.round(goal)}g</span></span>
     </div>
-    <div style={{height:6,background:'#2e2e3a',borderRadius:4,overflow:'hidden'}}>
+    <div style={{height:6,background:'var(--bg4)',borderRadius:4,overflow:'hidden'}}>
       <i style={{display:'block',height:'100%',width:pct+'%',background:color,borderRadius:4,transition:'width .3s'}}/>
     </div>
   </div>);
@@ -7203,7 +7206,6 @@ function DietaScreen({profile,demo,onBack,onHidra}){
   if(plan===undefined)return<div className="lv-wrap">{head}<div className="center-screen" style={{minHeight:200}}><div className="spinner"/></div></div>;
   if(plan===null)return(<div className="lv-wrap">{head}
     <div className="lv-card" style={{textAlign:'center',padding:'34px 18px'}}>
-      <div style={{fontSize:42,marginBottom:10}}></div>
       <div style={{fontSize:17,fontWeight:800,marginBottom:6}}>Plano a caminho</div>
       <div className="lv-sub" style={{lineHeight:1.6}}>Seu treinador ainda não montou seu plano alimentar. Assim que ele publicar, aparece aqui.</div>
     </div></div>);
@@ -7216,28 +7218,27 @@ function DietaScreen({profile,demo,onBack,onHidra}){
   const pct=total.kcal>0?Math.min(consumed.kcal/total.kcal,1):0;
 
   return(<div className="lv-wrap">
-    {cel&&<><div className="lv-cel"><div className="lv-trophy" style={{filter:'drop-shadow(0 0 24px rgba(74,222,128,.8))'}}></div>
-      <h2 style={{background:'linear-gradient(90deg,#4ade80,#22d3ee)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>DIETA EM DIA!</h2>
-      <div className="lv-sub" style={{marginTop:6}}>Todas as refeições do dia concluídas. É assim que resultado se constrói.</div></div>
-      {Array.from({length:20}).map((_,i)=><div key={i} className="lv-confetti" style={{left:Math.random()*100+'vw',background:['#4ade80','#22d3ee','#f59e0b'][i%3],animationDuration:(1.1+Math.random()*.9)+'s',animationDelay:(Math.random()*.3)+'s'}}/>)}</>}
+    {cel&&<><div className="lv-cel">
+      <div className="rule"/><h2>Dieta em dia</h2>
+      <div className="lv-sub" style={{marginTop:6}}>Todas as refeições do dia concluídas. É assim que resultado se constrói.</div></div><Confete n={16}/></>}
     {head}
 
     <div className="lv-card">
       <div style={{display:'flex',alignItems:'center',gap:16}}>
         <svg viewBox="0 0 100 100" width="98" style={{flexShrink:0}} className={allDone?'lv-glow':''}>
-          <circle cx="50" cy="50" r={R} fill="none" stroke="#2e2e3a" strokeWidth="9"/>
-          <circle cx="50" cy="50" r={R} fill="none" stroke={allDone?'#4ade80':'var(--lvrx)'} strokeWidth="9" strokeLinecap="round"
+          <circle cx="50" cy="50" r={R} fill="none" stroke="var(--bg4)" strokeWidth="9"/>
+          <circle cx="50" cy="50" r={R} fill="none" stroke={allDone?'var(--green)':'var(--lvrx)'} strokeWidth="9" strokeLinecap="round"
             strokeDasharray={C} strokeDashoffset={C*(1-pct)} transform="rotate(-90 50 50)" style={{transition:'stroke-dashoffset .4s'}}/>
-          <text x="50" y="46" textAnchor="middle" fontSize="19" fontWeight="800" fill="#f4f4f7">{Math.round(consumed.kcal)}</text>
-          <text x="50" y="62" textAnchor="middle" fontSize="9.5" fill="#6c6c7c">de {Math.round(total.kcal)} kcal</text>
+          <text x="50" y="46" textAnchor="middle" fontSize="19" fontWeight="800" fill="var(--text)">{Math.round(consumed.kcal)}</text>
+          <text x="50" y="62" textAnchor="middle" fontSize="9.5" fill="var(--text3)">de {Math.round(total.kcal)} kcal</text>
         </svg>
         <div style={{flex:1,minWidth:0}}>
           <div className="lv-kick">{plan.title||'Plano alimentar'}</div>
           <div style={{fontSize:15,fontWeight:800,margin:'4px 0 10px'}}>{doneMeals.length} de {meals.length} refeições</div>
           <div style={{display:'flex',flexDirection:'column',gap:8}}>
-            <MacroBar lbl="Proteína" val={consumed.protein} goal={total.protein} color="linear-gradient(90deg,#8b5cf6,#a78bfa)"/>
-            <MacroBar lbl="Carbo" val={consumed.carb} goal={total.carb} color="linear-gradient(90deg,#38bdf8,#22d3ee)"/>
-            <MacroBar lbl="Gordura" val={consumed.fat} goal={total.fat} color="linear-gradient(90deg,#f59e0b,#fbbf24)"/>
+            <MacroBar lbl="Proteína" val={consumed.protein} goal={total.protein} color="var(--accent)"/>
+            <MacroBar lbl="Carbo" val={consumed.carb} goal={total.carb} color="linear-gradient(90deg,var(--blue),var(--blue))"/>
+            <MacroBar lbl="Gordura" val={consumed.fat} goal={total.fat} color="linear-gradient(90deg,var(--gold),var(--gold))"/>
           </div>
         </div>
       </div>
@@ -7258,12 +7259,12 @@ function DietaScreen({profile,demo,onBack,onHidra}){
         <div style={{display:'flex',alignItems:'center',gap:12,padding:14,cursor:'pointer'}} onClick={()=>setOpen(o=>({...o,[m.id]:!isOpen}))}>
           <button onClick={e=>{e.stopPropagation();toggle(m.id);}}
             style={{width:34,height:34,borderRadius:'50%',flexShrink:0,cursor:'pointer',fontSize:15,fontWeight:800,
-              border:done?'none':'2px solid var(--lvbd)',background:done?'linear-gradient(135deg,#22c55e,#4ade80)':'transparent',
+              border:done?'none':'2px solid var(--lvbd)',background:done?'linear-gradient(135deg,var(--green),var(--green))':'transparent',
               color:done?'#08130c':'var(--lvt3)'}}>{done?'✓':''}</button>
           <div style={{flex:1,minWidth:0}}>
             <div style={{display:'flex',alignItems:'baseline',gap:8}}>
               <span style={{fontWeight:800,fontSize:15,textDecoration:done?'line-through':'none',opacity:done?.65:1}}>{m.name||'Refeição'}</span>
-              {m.time&&<span className="lv-sub" style={{fontSize:12}}>{m.time}</span>}
+              {m.time&&<span className="lv-sub" style={{fontSize:12}}>{String(m.time).slice(0,5)}</span>}
             </div>
             <div className="lv-sub" style={{fontSize:12}}>{Math.round(s.kcal)} kcal · P {Math.round(s.protein)}g · C {Math.round(s.carb)}g · G {Math.round(s.fat)}g</div>
           </div>
@@ -7298,7 +7299,7 @@ function DietaScreen({profile,demo,onBack,onHidra}){
         <div key={sp.id} className="lv-treino" style={{marginBottom:10,borderColor:done?'rgba(74,222,128,.45)':'var(--lvbd)'}} onClick={()=>toggleSupp(sp.id)}>
           <button onClick={e=>{e.stopPropagation();toggleSupp(sp.id);}}
             style={{width:32,height:32,borderRadius:'50%',flexShrink:0,cursor:'pointer',fontSize:14,fontWeight:800,
-              border:done?'none':'2px solid var(--lvbd)',background:done?'linear-gradient(135deg,#22c55e,#4ade80)':'transparent',
+              border:done?'none':'2px solid var(--lvbd)',background:done?'linear-gradient(135deg,var(--green),var(--green))':'transparent',
               color:done?'#08130c':'var(--lvt3)'}}>{done?'✓':''}</button>
           <div style={{flex:1,minWidth:0}}>
             <div style={{fontWeight:700,opacity:done?.65:1}}>{sp.name}</div>
@@ -7317,12 +7318,12 @@ function Anel({pct,cor,ic,lbl,val,onClick}){
   const done=p>=1;
   return(<div onClick={onClick} style={{flex:1,textAlign:'center',cursor:onClick?'pointer':'default'}}>
     <svg viewBox="0 0 64 64" width="100%" className="lv-anel" style={{maxWidth:66,display:'block',margin:'0 auto'}}>
-      <circle cx="32" cy="32" r={R} fill="none" stroke="#2e2e3a" strokeWidth="6"/>
+      <circle cx="32" cy="32" r={R} fill="none" stroke="var(--bg4)" strokeWidth="6"/>
       <circle className="val" cx="32" cy="32" r={R} fill="none" stroke={cor} strokeWidth="6" strokeLinecap="round"
         strokeDasharray={C} strokeDashoffset={C*(1-p)} transform="rotate(-90 32 32)"
         style={{'--c':C,transition:'stroke-dashoffset .7s cubic-bezier(.22,.9,.3,1)'}}/>
       <text x="32" y="33" textAnchor="middle" dominantBaseline="central" fontSize={done?18:12.5}
-        fontWeight="800" fill={done?cor:'#a2a2b0'}>{done?'✓':ic}</text>
+        fontWeight="800" fill={done?cor:'var(--text2)'}>{done?'✓':ic}</text>
     </svg>
     <div style={{fontSize:11,fontWeight:800,marginTop:5,color:done?cor:'var(--lvtx)'}}>{lbl}</div>
     <div style={{fontSize:10,color:'var(--lvt3)'}}>{val}</div>
@@ -7357,15 +7358,15 @@ function AneisDoDia({stu,profile,demo,onTreino,onDieta,onAgua,onCheckin}){
   return(<div className="lv-card">
     <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
       <div className="lv-kick">Seu dia</div>
-      <span style={{fontSize:12,fontWeight:800,color:feitos>=total?'#4ade80':'var(--lvt2)'}}>
+      <span style={{fontSize:12,fontWeight:800,color:feitos>=total?'var(--green)':'var(--lvt2)'}}>
         {feitos===total?'tudo fechado':`${feitos} de ${total}`}</span>
     </div>
     <div style={{display:'flex',gap:6}}>
-      <Anel pct={h.treinou?1:0} cor="#8b5cf6" ic="" lbl="Treino" val={h.treinou?'feito':'pendente'} onClick={onTreino}/>
-      {h.refTot>0&&<Anel pct={h.refTot?h.ref/h.refTot:0} cor="#4ade80" ic={h.ref+'/'+h.refTot} lbl="Dieta" val={h.ref+' de '+h.refTot} onClick={onDieta}/>}
-      <Anel pct={h.aguaMeta?h.agua/h.aguaMeta:0} cor="#38bdf8" ic={Math.round((h.agua/(h.aguaMeta||1))*100)+'%'} lbl="Água"
+      <Anel pct={h.treinou?1:0} cor="var(--accent)" ic="" lbl="Treino" val={h.treinou?'feito':'pendente'} onClick={onTreino}/>
+      {h.refTot>0&&<Anel pct={h.refTot?h.ref/h.refTot:0} cor="var(--green)" ic={h.ref+'/'+h.refTot} lbl="Dieta" val={h.ref+' de '+h.refTot} onClick={onDieta}/>}
+      <Anel pct={h.aguaMeta?h.agua/h.aguaMeta:0} cor="var(--blue)" ic={Math.round((h.agua/(h.aguaMeta||1))*100)+'%'} lbl="Água"
         val={(h.agua/1000).toFixed(1).replace('.',',')+' L'} onClick={onAgua}/>
-      <Anel pct={h.checkin?1:0} cor={h.checkin==='Vermelho'?'#e11d48':h.checkin==='Amarelo'?'#f59e0b':'#4ade80'}
+      <Anel pct={h.checkin?1:0} cor={h.checkin==='Vermelho'?'var(--red)':h.checkin==='Amarelo'?'var(--gold)':'var(--green)'}
         ic="" lbl="Check-in" val={h.checkin||'pendente'} onClick={onCheckin}/>
     </div>
   </div>);
@@ -7394,7 +7395,7 @@ function EvolucaoAluno({stu,demo,onVer}){
   const linha=(lbl,de,para,delta,un,melhorSeCai)=>{
     if(de==null||para==null)return null;
     const bom=melhorSeCai?delta<0:delta>0;
-    const cor=delta===0?'var(--lvt2)':bom?'#4ade80':'#fb7185';
+    const cor=delta===0?'var(--lvt2)':bom?'var(--green)':'#fb7185';
     return(<div style={{display:'flex',alignItems:'center',gap:10,padding:'9px 0',borderTop:'1px solid var(--lvbd)'}}>
       <div style={{flex:1,minWidth:0}}>
         <div style={{fontWeight:700,fontSize:13.5}}>{lbl}</div>
@@ -7423,8 +7424,8 @@ function EvolucaoAluno({stu,demo,onVer}){
 /* ── Peso: o aluno está no ritmo da meta? ──
    Peso de hoje sozinho nao diz nada. O que importa e comparar o quanto
    ja andou com o quanto deveria ter andado a esta altura do prazo. */
-const PESO_COR={'Meta batida':'#4ade80','Em dia':'#4ade80','Na meta':'#4ade80',
-  'Em andamento':'#38bdf8','Um pouco atrás':'#f59e0b','Atrasado':'#fb7185','Indo ao contrário':'#e11d48'};
+const PESO_COR={'Meta batida':'var(--green)','Em dia':'var(--green)','Na meta':'var(--green)',
+  'Em andamento':'var(--blue)','Um pouco atrás':'var(--gold)','Atrasado':'#fb7185','Indo ao contrário':'var(--red)'};
 
 function PesoStatus({demo,compacto,studentId}){
   const [p,setP]=useState(demo?{ok:true,meta:true,inicial:84,alvo:75,atual:78,
@@ -7441,7 +7442,7 @@ function PesoStatus({demo,compacto,studentId}){
     <div className="lv-sub" style={{marginTop:4}}>Registre seu peso no Diário para acompanhar o ritmo.</div>
   </div>);
 
-  const cor=PESO_COR[p.situacao]||'#a2a2b0';
+  const cor=PESO_COR[p.situacao]||'var(--text2)';
   const pr=Math.max(0,Math.min(1,p.progresso||0));
   const esp=p.esperado==null?null:Math.max(0,Math.min(1,p.esperado));
   const falta=Math.abs(p.falta);
@@ -7514,9 +7515,13 @@ function PesoMetaCoach({student,demo}){
   </div>);
 }
 
-function StudentApp({profile}){
+/* Quando o treinador abre "Visão do aluno", este mesmo app roda com o cadastro
+   do aluno escolhido e em modo só leitura: nada é gravado no lugar dele. */
+function StudentApp({profile,verComoAluno,onSairDaVisao}){
   const demo=!!profile._demo;
-  const [stu,setStu]=useState(demo?{id:'ds1',name:'Laryssa Araujo',gender:'F',coach_id:'demo'}:undefined);
+  const espiando=!!verComoAluno;
+  const contaAluno=espiando?(verComoAluno.user_id||null):profile.id;
+  const [stu,setStu]=useState(espiando?verComoAluno:demo?{id:'ds1',name:'Laryssa Araujo',gender:'F',coach_id:'demo'}:undefined);
   const [divs,setDivs]=useState(demo?_DEMO_ALUNO_DIVS:null);
   const [best,setBest]=useState({});const [exec,setExec]=useState(null);const [evol,setEvol]=useState(false);const [hydra,setHydra]=useState(false);const [chk,setChk]=useState(false);const [ciclo,setCiclo]=useState(false);const [aval,setAval]=useState(false);const [freq,setFreq]=useState({done:0,meta:4});
   const [diario,setDiario]=useState(false);const [metas,setMetas]=useState(false);
@@ -7552,9 +7557,13 @@ function StudentApp({profile}){
     const days=new Set((hi||[]).filter(h=>h.data_treino>=mk).map(h=>h.data_treino));setFreq(f=>({...f,done:days.size}));
     setStats(computeStats(hi));loadAvisos(stu.id);};
   useEffect(()=>{if(demo){setFreq({done:3,meta:4});setStats({total:24,prs:7,streak:3,mes:9});return;}(async()=>{
-    try{const c=localStorage.getItem('mfp_aluno_code');const {data:lk}=await sb.rpc('aluno_link',{p_code:c||null});if(lk&&lk.linked){try{localStorage.removeItem('mfp_aluno_code');}catch(e){}}}catch(e){}
-    const {data:sr}=await sb.from('assess_students').select('*').eq('user_id',profile.id).limit(1);
-    const s=(sr&&sr[0])?rowToStu(sr[0]):null;setStu(s);
+    let s=verComoAluno||null;
+    if(!espiando){
+      try{const c=localStorage.getItem('mfp_aluno_code');const {data:lk}=await sb.rpc('aluno_link',{p_code:c||null});if(lk&&lk.linked){try{localStorage.removeItem('mfp_aluno_code');}catch(e){}}}catch(e){}
+      const {data:sr}=await sb.from('assess_students').select('*').eq('user_id',profile.id).limit(1);
+      s=(sr&&sr[0])?rowToStu(sr[0]):null;
+    }
+    setStu(s);
     if(s){
       const {data:dv}=await sb.from('train_divisao').select('*').eq('student_id',s.id).order('ordem');setDivs(dv||[]);
       const {data:hi}=await sb.from('train_historico').select('exercicio_id,carga,data_treino,tipo_serie,is_pr').eq('student_id',s.id);
@@ -7565,23 +7574,28 @@ function StudentApp({profile}){
     }
   })();},[]);
   useEffect(()=>{if(demo){setTemDieta(true);return;}
-    (async()=>{try{const p=await getActivePlan(profile.id);setTemDieta(!!p);}catch(e){}})();},[]);
-  useEffect(()=>{if(tab==='avisos'&&naoLidos>0){setAvisos(a=>a.map(x=>({...x,lido:true})));if(!demo)sb.rpc('avisos_marcar_lidos').catch(()=>{});}},[tab]);
-  useEffect(()=>{if(demo||!stu)return;(async()=>{
+    if(!contaAluno){setTemDieta(false);return;}
+    (async()=>{try{const p=await getActivePlan(contaAluno);setTemDieta(!!p);}catch(e){}})();},[contaAluno]);
+  useEffect(()=>{if(tab==='avisos'&&naoLidos>0&&!espiando){setAvisos(a=>a.map(x=>({...x,lido:true})));if(!demo)sb.rpc('avisos_marcar_lidos').catch(()=>{});}},[tab]);
+  useEffect(()=>{if(demo||espiando||!stu)return;(async()=>{
     try{if(pushSuportado()&&Notification.permission==='granted'){const reg=await navigator.serviceWorker.ready;const s=await reg.pushManager.getSubscription();setPushOn(!!s);}}catch(e){}
     try{const {data}=await sb.from('train_lembrete').select('agua_ativo').eq('student_id',stu.id).maybeSingle();if(data)setAgua(!!data.agua_ativo);}catch(e){}
   })();},[stu]);
-  const togglePush=async()=>{if(demo){setPushOn(p=>!p);return;}setPushBusy(true);setPushMsg(null);
+  const togglePush=async()=>{if(espiando)return;if(demo){setPushOn(p=>!p);return;}setPushBusy(true);setPushMsg(null);
     if(pushOn){await desativarPush();setPushOn(false);}else{const r=await ativarPush();if(r.ok)setPushOn(true);else setPushMsg(r.msg);}setPushBusy(false);};
-  const toggleAgua=async(v)=>{setAgua(v);if(!demo)sb.rpc('lembrete_agua',{p_ativo:v}).catch(()=>{});};
+  const toggleAgua=async(v)=>{if(espiando)return;setAgua(v);if(!demo)sb.rpc('lembrete_agua',{p_ativo:v}).catch(()=>{});};
   const hr=new Date().getHours();const saud=hr<12?'Bom dia':hr<18?'Boa tarde':'Boa noite';
 
-  const goTab=t=>{setExec(null);setEvol(false);setHydra(false);setChk(false);setCiclo(false);setAval(false);setDiario(false);setMetas(false);setTab(t);window.scrollTo(0,0);};
+  const goTab=t=>{if(t!==tab)vibrar(8);setExec(null);setEvol(false);setHydra(false);setChk(false);setCiclo(false);setAval(false);setDiario(false);setMetas(false);setTab(t);window.scrollTo(0,0);};
   const navItem=(t,ic,lb,badge)=>(<button className={'lv-navb'+(tab===t?' on':'')} onClick={()=>goTab(t)}>
     <span className="lv-navmark"/>{lb}{badge>0&&<span className="lv-navbadge">{badge>9?'9+':badge}</span>}</button>);
   const shell=(inner,nav)=>(<div className="lv">
-    <div className="lv-top"><LogoMark size={28}/><span style={{fontWeight:800,fontSize:15}}>MF Performance</span><span className="sp"/>
-      {!demo&&<button className="lv-x" onClick={()=>sb.auth.signOut()}>Sair</button>}</div>
+    <div className="lv-top">
+      {espiando?<><button className="lv-ghost" onClick={onSairDaVisao}>‹ Sair da visão</button>
+        <span style={{fontWeight:600,fontSize:14,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>Visão do aluno · {(stu&&stu.name||'').split(' ')[0]}</span>
+        <span className="sp"/><span className="lv-somenteleitura">Só leitura</span></>
+      :<><LogoMark size={28}/><span style={{fontWeight:600,fontSize:15}}>MF Performance</span><span className="sp"/>
+        {!demo&&<button className="lv-x" onClick={()=>sb.auth.signOut()}>Sair</button>}</>}</div>
     <div style={nav?{paddingBottom:78}:null}>{inner}</div>
     {nav&&<div className="lv-nav">
       {navItem('home','','Início',0)}
@@ -7594,14 +7608,13 @@ function StudentApp({profile}){
 
   if(stu===undefined)return shell(<div className="center-screen" style={{minHeight:'70vh'}}><div className="spinner"/></div>);
   if(stu===null)return shell(<div className="lv-wrap"><div className="lv-card" style={{marginTop:26}}>
-    <div style={{fontSize:36,textAlign:'center',marginBottom:6}}></div>
     <div style={{fontSize:19,fontWeight:800,textAlign:'center',marginBottom:6}}>Ativar minha conta</div>
     <p className="lv-sub" style={{textAlign:'center'}}>Digite o código de acesso que seu treinador te passou.</p>
     {linkErr&&<div className="alert alert-danger" style={{marginTop:10}}>{linkErr}</div>}
     <input className="lv-in" style={{textAlign:'center',letterSpacing:4,textTransform:'uppercase',marginTop:14,fontSize:22,fontWeight:800}} placeholder="CÓDIGO" value={code} onChange={e=>setCode(e.target.value.toUpperCase())} maxLength={8}/>
     <button className="lv-btn" style={{marginTop:12}} disabled={linking} onClick={doLink}>{linking?'Ativando…':'Ativar treinos'}</button>
   </div></div>);
-  if(exec)return shell(<TrainExec student={stu} divisao={exec} demo={demo} best={best} onBack={()=>setExec(null)} onSaved={(exId,carga)=>setBest(b=>({...b,[exId]:Math.max(b[exId]||0,carga)}))} onFinish={refresh}/>);
+  if(exec)return shell(<TrainExec student={stu} divisao={exec} demo={demo} somenteLeitura={espiando} best={best} onBack={()=>setExec(null)} onSaved={(exId,carga)=>setBest(b=>({...b,[exId]:Math.max(b[exId]||0,carga)}))} onFinish={refresh}/>);
   if(evol)return shell(<EvolScreen student={stu} demo={demo} onBack={()=>setEvol(false)}/>);
   if(hydra)return shell(<HydraScreen student={stu} demo={demo} onBack={()=>setHydra(false)}/>);
   if(chk)return shell(<CheckinScreen student={stu} demo={demo} onBack={()=>setChk(false)}/>);
@@ -7624,7 +7637,7 @@ function StudentApp({profile}){
   const header=(<div style={{display:'flex',alignItems:'center',gap:12,marginBottom:16}}>
     <div className="lv-avatar">{initials(stu.name)}</div>
     <div style={{flex:1,minWidth:0}}><div className="lv-kick">{saud}</div><div className="lv-title">{nm}</div></div>
-    {stats.streak>0&&<span className="lv-streak"><span className="lv-flame"></span>{stats.streak} {stats.streak===1?'dia':'dias'}</span>}
+    {stats.streak>0&&<span className="lv-streak"><Chama/> {stats.streak} {stats.streak===1?'dia':'dias'}</span>}
   </div>);
 
   const homeTab=(<div className="lv-wrap">
@@ -7635,11 +7648,11 @@ function StudentApp({profile}){
     <PeriodizacaoAluno demo={demo}/>
     <EvolucaoAluno stu={stu} demo={demo} onVer={()=>setEvol(true)}/>
     <PesoStatus demo={demo}/>
-    <div className="lv-motiv"><span className="q"></span><div style={{fontSize:13.5,fontWeight:600,fontStyle:'italic',color:'var(--lvt)'}}>{frase}</div></div>
+    <div className="lv-motiv"><div style={{fontSize:13.5,fontWeight:600,fontStyle:'italic',color:'var(--lvt)'}}>{frase}</div></div>
     <div className="lv-stats">
-      <div className="lv-stat"><b>{stats.total}</b><span>Treinos</span></div>
-      <div className="lv-stat"><b>{stats.prs}</b><span>Recordes</span></div>
-      <div className="lv-stat"><b>{stats.mes}</b><span>Este mês</span></div>
+      <div className="lv-stat"><b><Conta valor={stats.total}/></b><span>Treinos</span></div>
+      <div className="lv-stat"><b><Conta valor={stats.prs}/></b><span>Recordes</span></div>
+      <div className="lv-stat"><b><Conta valor={stats.mes}/></b><span>Este mês</span></div>
     </div>
     {list.length===0?<div className="lv-card" style={{textAlign:'center',color:'var(--lvt2)'}}>Seu treinador ainda não montou sua ficha de treino.</div>:<>
       <div className="lv-card lv-hero">
@@ -7653,17 +7666,17 @@ function StudentApp({profile}){
         <div style={{flex:1}}><div style={{fontWeight:700}}>{dv.nome||'Divisão'}</div><div className="lv-sub">Toque para executar</div></div>
       </div>)}
     </>}
-    <div className="lv-card" onClick={()=>setMetas(true)} style={{cursor:'pointer',background:'linear-gradient(135deg,rgba(139,92,246,.16),rgba(74,222,128,.08))',border:'1px solid var(--lvbd)'}}>
+    <div className="lv-card" onClick={()=>setMetas(true)} style={{cursor:'pointer',background:'var(--bg3)',border:'1px solid var(--lvbd)'}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}><div className="lv-kick">Minhas metas & desafios</div><span style={{color:'var(--lvt3)'}}>›</span></div>
-      <div style={{fontWeight:800,fontSize:15,marginTop:6}}>Desafio da semana: {freq.done}/{freq.meta} treinos</div>
-      <div className="lv-freq" style={{marginTop:8}}><i style={{width:pct+'%'}}/></div>
+      <div style={{fontWeight:700,fontSize:15,marginTop:6}}>Desafio da semana: {freq.done}/{freq.meta} treinos</div>
+      <div className={'lv-freq'+(pct>=100?' cheia':'')} style={{marginTop:8}}><i style={{width:pct+'%'}}/></div>
     </div>
     <div className="lv-card">
       <div className="lv-kick" style={{marginBottom:10}}>Resumo da semana</div>
       <div style={{display:'flex',gap:10,textAlign:'center'}}>
-        <div style={{flex:1}}><div style={{fontSize:20,fontWeight:900,color:'var(--lvrx)'}}>{freq.done}</div><div className="lv-sub" style={{fontSize:11}}>treinos</div></div>
-        <div style={{flex:1}}><div style={{fontSize:20,fontWeight:900,color:'var(--lvrx)'}}>{stats.prs}</div><div className="lv-sub" style={{fontSize:11}}>recordes</div></div>
-        <div style={{flex:1}}><div style={{fontSize:20,fontWeight:900,color:'var(--lvrx)'}}>{stats.streak}</div><div className="lv-sub" style={{fontSize:11}}>seq. dias</div></div>
+        <div style={{flex:1}}><div style={{fontSize:22,fontWeight:900,color:'var(--lvrx)'}}><Conta valor={freq.done}/></div><div className="lv-sub" style={{fontSize:11}}>treinos</div></div>
+        <div style={{flex:1}}><div style={{fontSize:22,fontWeight:900,color:'var(--lvrx)'}}><Conta valor={stats.prs}/></div><div className="lv-sub" style={{fontSize:11}}>recordes</div></div>
+        <div style={{flex:1}}><div style={{fontSize:22,fontWeight:900,color:'var(--lvrx)'}}><Conta valor={stats.streak}/></div><div className="lv-sub" style={{fontSize:11}}>seq. dias</div></div>
       </div>
       <div className="lv-sub" style={{marginTop:10,lineHeight:1.5}}>{freq.done>=freq.meta?'Semana fechada com chave de ouro! Orgulho do seu compromisso.':`Faltam ${Math.max(0,freq.meta-freq.done)} treino(s) pra bater sua meta da semana. Bora!`}</div>
     </div>
@@ -7729,7 +7742,7 @@ function StudentApp({profile}){
   const avisosTab=(<div className="lv-wrap">
     <div className="lv-title" style={{marginBottom:14}}>Avisos</div>
     {avisos.length===0?<div className="lv-card" style={{textAlign:'center',color:'var(--lvt2)'}}>
-      <div style={{fontSize:32,marginBottom:6}}></div>Nenhum aviso por aqui ainda.<div className="lv-sub" style={{marginTop:4}}>Seus lembretes e mensagens do treinador aparecem aqui.</div>
+Nenhum aviso por aqui ainda.<div className="lv-sub" style={{marginTop:4}}>Seus lembretes e mensagens do treinador aparecem aqui.</div>
     </div>:avisos.map(a=><div key={a.id} className={'lv-aviso'+(a.lido?'':' unread')}>
       <div className="ic">{AVISO_ICON[a.tipo]||''}</div>
       <div style={{flex:1,minWidth:0}}>
@@ -7760,14 +7773,12 @@ function StudentApp({profile}){
     <div className="lv-kick" style={{margin:'6px 0 10px'}}>Notificações</div>
     <div className="lv-card">
       <div style={{display:'flex',alignItems:'center',gap:12}}>
-        <div style={{fontSize:22}}></div>
-        <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700}}>Avisos no celular</div><div className="lv-sub">Recebe os avisos do treinador na barra do sistema</div></div>
+          <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700}}>Avisos no celular</div><div className="lv-sub">Recebe os avisos do treinador na barra do sistema</div></div>
         <LvToggle on={pushOn} busy={pushBusy} onClick={togglePush}/>
       </div>
       <div style={{height:1,background:'var(--lvbd)',margin:'14px 0'}}/>
       <div style={{display:'flex',alignItems:'center',gap:12}}>
-        <div style={{fontSize:22}}></div>
-        <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700}}>Lembrete de beber água</div><div className="lv-sub">Toques ao longo do dia pra manter a hidratação</div></div>
+          <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700}}>Lembrete de beber água</div><div className="lv-sub">Toques ao longo do dia pra manter a hidratação</div></div>
         <LvToggle on={agua} onClick={()=>toggleAgua(!agua)}/>
       </div>
       {pushMsg&&<div className="lv-sub" style={{color:'#fca5a5',marginTop:12}}>{pushMsg}</div>}
@@ -7776,9 +7787,9 @@ function StudentApp({profile}){
     {!demo&&<button className="lv-btn" style={{background:'var(--lvc2)',color:'var(--lvt)',marginTop:6}} onClick={()=>sb.auth.signOut()}>Sair da conta</button>}
   </div>);
 
-  const dietaTab=<DietaScreen profile={profile} demo={demo} onBack={()=>goTab('home')} onHidra={()=>setHydra(true)}/>;
+  const dietaTab=<DietaScreen profile={espiando?{...profile,id:contaAluno}:profile} demo={demo} onBack={()=>goTab('home')} onHidra={()=>setHydra(true)}/>;
   const content=tab==='dieta'?dietaTab:tab==='prog'?progTab:tab==='avisos'?avisosTab:tab==='conta'?contaTab:homeTab;
-  return shell(content,true);
+  return shell(<div className="lv-tabfx" key={tab}>{content}</div>,true);
 }
 
 /* ── Root: sessão + perfil + portão de assinatura ── */
@@ -7871,7 +7882,27 @@ ReactDOM.createRoot(document.getElementById('root')).render(<Root/>);
 
 /* Escotilha de emergencia: apaga tudo que esta guardado e recarrega do zero.
    Chamada pelo botao "Forcar atualizacao" dentro do app. */
+// Qual versão está PUBLICADA no servidor, ignorando qualquer cache.
+// Sem isso não dava para saber se o app estava velho ou se o site é que
+// ainda não tinha recebido a atualização.
+window.MFP_versaoPublicada=async function(){
+  try{
+    var r=await fetch('./index.html?_=' + Date.now(),{cache:'no-store'});
+    var t=await r.text();
+    var m=t.match(/APP_VERSION\s*=\s*'([^']+)'/);
+    return m?m[1]:null;
+  }catch(e){return null;}
+};
+
 window.MFP_forcarAtualizacao=async function(){
+  var publicada=await window.MFP_versaoPublicada();
+  var atual=(typeof APP_VERSION!=='undefined')?APP_VERSION:null;
+  if(publicada&&atual&&publicada===atual){
+    alert('Você já está na versão mais nova que existe no ar ('+atual+').\n\n'
+      +'Se o app ainda parece antigo, é o site publicado que ainda não recebeu '
+      +'a atualização — não é o cache do seu aparelho.');
+    return;
+  }
   try{
     if('serviceWorker' in navigator){
       var regs=await navigator.serviceWorker.getRegistrations();

@@ -1,21 +1,23 @@
-# MF Performance — Avaliação Física
+# MF Performance
 
-App web para registrar avaliações físicas e gerar relatórios comparativos para alunos.
+App web do treinador e do aluno: anamnese, avaliação física, avaliação técnica,
+ficha de treino, nutrição, periodização, agenda e financeiro — **um app só**,
+no `index.html` da raiz.
 
-## Recursos
-- Cadastro de alunos com anamnese completa (saúde, medicamentos, lesões, nível de atividade)
-- Avaliações: peso/altura/IMC, pressão arterial, dinamometria de preensão manual, bioimpedância, dobras cutâneas (cálculo automático de % de gordura — Jackson-Pollock 7) e circunferências
-- Reavaliação com **relatório comparativo** (evolução entre avaliações)
-- Relatório imprimível / PDF com logo
-- Funciona **offline** (PWA — dá para adicionar à tela de início do iPad/celular)
-- **Tranca por senha** definida no aparelho
-- Todos os dados ficam salvos **localmente no dispositivo** (localStorage) — nada é enviado para a internet
+## Como abrir
+Abra `index.html` num navegador moderno (Safari, Chrome) ou publique a pasta.
+Os dados ficam no Supabase (ver `config.js`); o app funciona offline como PWA.
 
-## Como usar
-Abra `index.html` em um navegador moderno (Safari, Chrome). Na primeira vez, defina uma senha.
+### No celular / iPad
+Acesse a URL no navegador → Compartilhar → **Adicionar à Tela de Início**.
 
-### No iPad
-Acesse a URL no Safari → botão Compartilhar → **Adicionar à Tela de Início**. O app abre em tela cheia e funciona offline.
+## Perfis
+- **Treinador** — painel, alunos, avaliações, ficha de treino, nutrição,
+  periodização, protocolos e a **Visão do aluno** (o app do aluno em só leitura,
+  para conferir o que ele está vendo).
+- **Aluno** — entra com o código de acesso que o treinador gera no perfil dele
+  e vê treinos, dieta, evolução, avisos e check-ins.
 
-## Observação de segurança
-A senha é uma tranca local (guardada como hash apenas neste aparelho). Os dados sensíveis dos alunos nunca saem do dispositivo.
+## Banco de dados
+Os arquivos `.sql` da raiz são as migrações, na ordem em que foram aplicadas no
+Supabase. `correcoes.sql` traz as últimas correções.
