@@ -731,7 +731,7 @@ const CFG = window.MFP_CONFIG || {};
 const CONFIGURED = !!(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY);
 let sb = null;
 if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY);
-const APP_VERSION='2026.08.31';   // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION='2026.08.31b';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
 
@@ -933,7 +933,7 @@ const genId = () => (crypto.randomUUID ? crypto.randomUUID() : uid());
 const r0 = v => Math.round(n0(v));
 
 /* ── Web Push (notificações na barra do celular) ── */
-const VAPID_PUBLIC='BC_YqtYUqpgqbKzuUwiyj6v4ymbNO6RYhJ5XYm7fhYnKob0eW2yLU-kNbf0gzrjfbJRRqysClA2gBLxJJpHSd1s';
+const VAPID_PUBLIC='BP1GyX7qbDDD1o643pIru_CHS6jenWACj4u8h8aOEPKMJ3LsGnavo70yYbeB1ymSMvWoqgtq7i7qf7c0Fszu6vw';
 const _u8=b64=>{const pad='='.repeat((4-b64.length%4)%4);const s=(b64+pad).replace(/-/g,'+').replace(/_/g,'/');const r=atob(s);const a=new Uint8Array(r.length);for(let i=0;i<r.length;i++)a[i]=r.charCodeAt(i);return a;};
 const pushSuportado=()=>('serviceWorker'in navigator)&&('PushManager'in window)&&('Notification'in window);
 async function ativarPush(){
