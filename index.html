@@ -731,7 +731,7 @@ const CFG = window.MFP_CONFIG || {};
 const CONFIGURED = !!(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY);
 let sb = null;
 if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY);
-const APP_VERSION='2026.08.31b';   // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION='2026.09.01';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
 
@@ -4350,6 +4350,115 @@ function ProtocolsScreen({onBack}){
 }
 
 /* ── Meu perfil / marca (white-label) ── */
+/* ── Juntar cadastros repetidos do mesmo aluno ──────────────────────
+   Quando o aluno já estava na sua ficha e depois criou conta pelo app,
+   ficam dois cadastros: um com o histórico, outro com o login. Aqui você
+   escolhe qual fica e o resto é movido para ele. */
+function DuplicadosScreen({coach,onBack,onMudou}){
+  const demo=!!coach._demo;
+  const [linhas,setLinhas]=useState(undefined);
+  const [principal,setPrincipal]=useState({});
+  const [busy,setBusy]=useState(null);
+  const [msg,setMsg]=useState(null);
+
+  const carregar=async()=>{
+    if(demo){setLinhas([]);return;}
+    const {data,error}=await sb.rpc('alunos_duplicados');
+    if(error){setMsg({t:'err',m:'Erro ao buscar: '+error.message});setLinhas([]);return;}
+    const rows=data||[];
+    setLinhas(rows);
+    // já sugere quem tem mais histórico como o cadastro que fica
+    const escolha={};
+    rows.forEach(r=>{
+      const peso=r.avaliacoes*10+r.treinos*3+r.divisoes*2+r.avisos;
+      const atual=escolha[r.chave];
+      if(!atual||peso>atual.peso)escolha[r.chave]={id:r.student_id,peso};
+    });
+    setPrincipal(Object.fromEntries(Object.entries(escolha).map(([k,v])=>[k,v.id])));
+  };
+  useEffect(()=>{carregar();},[]);
+
+  const juntar=async(chave,grupo)=>{
+    const alvo=principal[chave];
+    const outros=grupo.filter(r=>r.student_id!==alvo);
+    if(!alvo||!outros.length)return;
+    const nomeAlvo=(grupo.find(r=>r.student_id===alvo)||{}).nome;
+    if(!confirm('Juntar '+outros.length+' cadastro(s) em "'+nomeAlvo+'"?\n\n'
+      +'Avaliações, treinos, histórico e avisos vão para ele. Os outros cadastros somem.\n'
+      +'Isso não tem desfazer.'))return;
+    setBusy(chave);setMsg(null);
+    try{
+      for(const o of outros){
+        const {data,error}=await sb.rpc('aluno_fundir',{p_principal:alvo,p_secundario:o.student_id});
+        if(error)throw error;
+        if(data&&data.ok===false)throw new Error(data.erro||'não deu');
+      }
+      setMsg({t:'ok',m:'Pronto — "'+nomeAlvo+'" ficou com tudo.'});
+      await carregar();
+      if(onMudou)onMudou();
+    }catch(e){setMsg({t:'err',m:'Não consegui juntar: '+(e.message||e)});}
+    setBusy(null);
+  };
+
+  const grupos=(()=>{const g={};(linhas||[]).forEach(r=>{(g[r.chave]=g[r.chave]||[]).push(r);});return Object.entries(g);})();
+
+  return(<div>
+    <div className="abar"><div>
+      <div className="breadcrumb" onClick={onBack}>← Dashboard</div>
+      <div className="ph-title">Cadastros repetidos</div>
+      <div className="ph-sub">Junta o mesmo aluno que ficou em dois cadastros</div></div>
+    </div>
+    {msg&&<div className={`alert ${msg.t==='err'?'alert-danger':'alert-success'}`}>{msg.m}</div>}
+    {linhas===undefined?<div className="center-screen"><div className="spinner"/></div>:
+     grupos.length===0?<div className="empty">
+       <div className="empty-title">Nenhum cadastro repetido</div>
+       <p className="s-meta">Está tudo limpo por aqui.</p></div>:
+     <>
+      <div className="alert alert-info">
+        Marque qual cadastro <b>fica</b> — em geral o que tem as avaliações. Os outros são
+        juntados nele: histórico, treinos, avisos e a conta do aluno vão junto.
+        Confira antes: nomes iguais nem sempre são a mesma pessoa.
+      </div>
+      {grupos.map(([chave,grupo])=>(
+        <div className="card" key={chave} style={{marginBottom:14}}>
+          <div style={{fontFamily:'var(--serif)',fontSize:18,fontWeight:600,marginBottom:10}}>
+            <span style={{textTransform:'capitalize'}}>{chave}</span>
+            <span className="s-meta" style={{fontWeight:400}}> · {grupo.length} cadastros</span>
+          </div>
+          {grupo.map(r=>{
+            const marcado=principal[chave]===r.student_id;
+            const vazio=!r.avaliacoes&&!r.treinos&&!r.divisoes&&!r.avisos;
+            return(
+              <label key={r.student_id} style={{display:'flex',gap:11,alignItems:'flex-start',padding:'10px 0',
+                borderBottom:'1px solid var(--border)',cursor:'pointer'}}>
+                <input type="radio" name={'g'+chave} checked={marcado} style={{marginTop:4}}
+                  onChange={()=>setPrincipal(p=>({...p,[chave]:r.student_id}))}/>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontWeight:600}}>{r.nome}
+                    {marcado&&<span className="badge" style={{marginLeft:8,background:'var(--accent-dim)',color:'var(--accent)'}}>fica este</span>}
+                    {r.vinculado&&<span className="badge" style={{marginLeft:6,background:'var(--green-dim)',color:'var(--green)'}}>tem conta</span>}
+                  </div>
+                  <div className="s-meta">
+                    {vazio?'sem histórico':[
+                      r.avaliacoes?r.avaliacoes+(r.avaliacoes>1?' avaliações':' avaliação'):null,
+                      r.divisoes?r.divisoes+' treino'+(r.divisoes>1?'s':'')+' na ficha':null,
+                      r.treinos?r.treinos+' série'+(r.treinos>1?'s':'')+' no histórico':null,
+                      r.avisos?r.avisos+' aviso'+(r.avisos>1?'s':''):null,
+                    ].filter(Boolean).join(' · ')}
+                    {' · criado em '+new Date(r.criado+'T00:00:00').toLocaleDateString('pt-BR')}
+                  </div>
+                </div>
+              </label>);
+          })}
+          <button className="btn btn-primary btn-sm" style={{marginTop:12}}
+            disabled={busy===chave} onClick={()=>juntar(chave,grupo)}>
+            {busy===chave?'Juntando…':'Juntar em um só'}
+          </button>
+        </div>))}
+     </>}
+  </div>);
+}
+
 function BrandScreen({profile,setProfile,onBack}){
   const stored=(()=>{try{return JSON.parse(localStorage.getItem('mfp_brand_'+profile.id)||'{}');}catch{return{};}})();
   const [f,setF]=useState({brand_name:profile.brand_name||stored.brand_name||'',name:profile.name||stored.name||'',cref:profile.cref||stored.cref||'',phone:profile.phone||stored.phone||'',instagram:profile.instagram||stored.instagram||'',logo_url:profile.logo_url||stored.logo_url||''});
@@ -5945,7 +6054,41 @@ function NutriMealsEditor({meals,setMeals,foods,coachId,onFoodsChange}){
   const addItem=(mid,item)=>setMeals(m=>m.map(x=>x.id===mid?{...x,items:[...x.items,item||{id:genId(),food:'',qty:'',kcal:'',protein:'',carb:'',fat:'',prep:'',subs:[]}]}:x));
   const updItem=(mid,iid,k,v)=>setMeals(m=>m.map(x=>x.id!==mid?x:{...x,items:x.items.map(i=>i.id===iid?{...i,[k]:v}:i)}));
   const delItem=(mid,iid)=>setMeals(m=>m.map(x=>x.id!==mid?x:{...x,items:x.items.filter(i=>i.id!==iid)}));
-  const addSub=(mid,iid)=>setMeals(m=>m.map(x=>x.id!==mid?x:{...x,items:x.items.map(i=>i.id!==iid?i:{...i,subs:[...(i.subs||[]),{id:genId(),food:'',qty:'',kcal:'',protein:'',carb:'',fat:''}]})}));
+  const addSub=(mid,iid)=>setMeals(m=>m.map(x=>x.id!==mid?x:{...x,items:x.items.map(i=>i.id!==iid?i:{...i,subs:[...(i.subs||[]),{id:genId(),food:'',qty:'',kcal:'',protein:'',carb:'',fat:''}]})}))
+
+  /* Trocas equivalentes: procura na base alimentos da MESMA categoria e
+     ajusta a quantidade para casar as calorias do item original. É assim
+     que se monta substituição em consultório — mesmo papel no prato,
+     mesma energia. */
+  const sugerirSubs=(mid,it)=>{
+    const alvoKcal=n0(it.kcal);
+    if(!alvoKcal){alert('Preencha as calorias do item para eu calcular as trocas.');return;}
+    const base=(foods||[]).find(f=>f.name.toLowerCase()===(it.food||'').trim().toLowerCase());
+    const cat=base?base.category:null;
+    const candidatos=(foods||[])
+      .filter(f=>f.kcal>0)
+      .filter(f=>cat?f.category===cat:true)
+      .filter(f=>f.name.toLowerCase()!==(it.food||'').trim().toLowerCase())
+      .map(f=>{
+        // quanto desse alimento dá as mesmas calorias
+        const g=Math.round((alvoKcal/f.kcal)*100);
+        const prot=+(f.protein*g/100).toFixed(1);
+        // quanto mais perto da proteína do item, melhor a troca
+        const dist=Math.abs(prot-n0(it.protein));
+        return {f,g,prot,dist,carb:+(f.carb*g/100).toFixed(1),fat:+(f.fat*g/100).toFixed(1)};
+      })
+      .filter(c=>c.g>=10&&c.g<=600)
+      .sort((a,b)=>a.dist-b.dist)
+      .slice(0,3);
+    if(!candidatos.length){
+      alert(cat?'Não achei troca equivalente em "'+cat+'".':'Escolha o alimento pela base para eu sugerir trocas.');
+      return;
+    }
+    const novos=candidatos.map(c=>({id:genId(),food:c.f.name,qty:c.g+' g',
+      kcal:Math.round(alvoKcal),protein:c.prot,carb:c.carb,fat:c.fat}));
+    setMeals(m=>m.map(x=>x.id!==mid?x:{...x,items:x.items.map(i=>i.id!==it.id?i:
+      {...i,subs:[...(i.subs||[]),...novos]})}));
+  };;
   const updSub=(mid,iid,sid,k,v)=>setMeals(m=>m.map(x=>x.id!==mid?x:{...x,items:x.items.map(i=>i.id!==iid?i:{...i,subs:i.subs.map(s=>s.id===sid?{...s,[k]:v}:s)})}));
   const delSub=(mid,iid,sid)=>setMeals(m=>m.map(x=>x.id!==mid?x:{...x,items:x.items.map(i=>i.id!==iid?i:{...i,subs:i.subs.filter(s=>s.id!==sid)})}));
   const onPickFood=(food,grams)=>{
@@ -5983,7 +6126,10 @@ function NutriMealsEditor({meals,setMeals,foods,coachId,onFoodsChange}){
                 <FI value={s.qty} onChange={e=>updSub(m.id,it.id,s.id,'qty',e.target.value)} placeholder="Qtd"/>
                 <div style={{display:'flex',alignItems:'center'}}><button className="btn-icon" onClick={()=>delSub(m.id,it.id,s.id)}>✕</button></div>
               </div>))}
-            <button className="btn btn-ghost btn-sm" style={{marginTop:8}} onClick={()=>addSub(m.id,it.id)}>Adicionar substituição</button>
+            <div className="bgroup" style={{marginTop:8}}>
+              <button className="btn btn-secondary btn-sm" onClick={()=>sugerirSubs(m.id,it)}>Sugerir trocas</button>
+              <button className="btn btn-ghost btn-sm" onClick={()=>addSub(m.id,it.id)}>Adicionar substituição</button>
+            </div>
           </div>))}
         <div className="bgroup" style={{marginTop:11}}>
           <button className="btn btn-secondary btn-sm" onClick={()=>setPickFor(m.id)}>Da base de alimentos</button>
@@ -5995,6 +6141,120 @@ function NutriMealsEditor({meals,setMeals,foods,coachId,onFoodsChange}){
   </>);
 }
 
+/* Lista de compras: junta os itens do cardápio, multiplica pelos dias e
+   agrupa por categoria, na ordem em que se anda no mercado. */
+const ORDEM_COMPRAS=['Proteínas','Laticínios','Carboidratos','Leguminosas','Legumes e verduras',
+  'Frutas','Gorduras e oleaginosas','Bebidas','Suplementos','Doces e ultraprocessados','Outros'];
+
+function ListaCompras({meals,foods,studentName,onClose}){
+  const [dias,setDias]=useState(7);
+  const [copiado,setCopiado]=useState(false);
+
+  // "150 g" → {n:150, u:'g'} · "3 unidades" → {n:3, u:'unidades'}
+  const parseQtd=(q)=>{
+    const t=String(q||'').trim().replace(',','.');
+    const m=t.match(/^([\d.]+)\s*(.*)$/);
+    if(!m)return{n:null,u:t};
+    return{n:parseFloat(m[1]),u:(m[2]||'un').trim().toLowerCase()};
+  };
+  const catDe=(nome)=>{
+    const alvo=String(nome||'').trim().toLowerCase();
+    if(!alvo)return'Outros';
+    const lista=foods||[];
+    let f=lista.find(x=>x.name.toLowerCase()===alvo);
+    if(!f)f=lista.find(x=>{const n=x.name.toLowerCase();return n.includes(alvo)||alvo.includes(n);});
+    if(!f){
+      // compara pelas palavras: "frango grelhado" acha "Peito de frango grelhado"
+      const palavras=alvo.split(/\s+/).filter(w=>w.length>3);
+      if(palavras.length)f=lista.find(x=>{const n=x.name.toLowerCase();return palavras.every(w=>n.includes(w));})
+        ||lista.find(x=>{const n=x.name.toLowerCase();return palavras.some(w=>n.includes(w));});
+    }
+    return f?f.category:'Outros';
+  };
+
+  const grupos=React.useMemo(()=>{
+    const acc={};
+    (meals||[]).forEach(m=>(m.items||[]).forEach(it=>{
+      const nome=String(it.food||'').trim();
+      if(!nome)return;
+      const {n,u}=parseQtd(it.qty);
+      const chave=nome.toLowerCase()+'|'+u;
+      if(!acc[chave])acc[chave]={nome,unidade:u,total:0,vezes:0,cat:catDe(nome),semQtd:n==null};
+      acc[chave].vezes+=1;
+      if(n!=null)acc[chave].total+=n;
+    }));
+    const porCat={};
+    Object.values(acc).forEach(x=>{(porCat[x.cat]=porCat[x.cat]||[]).push(x);});
+    return ORDEM_COMPRAS.filter(c=>porCat[c]).map(c=>[c,porCat[c].sort((a,b)=>a.nome.localeCompare(b.nome))])
+      .concat(Object.keys(porCat).filter(c=>!ORDEM_COMPRAS.includes(c)).map(c=>[c,porCat[c]]));
+  },[meals,foods]);
+
+  const fmtQtd=(x)=>{
+    if(x.semQtd)return x.vezes*dias+'× no período';
+    const t=x.total*dias;
+    if(x.unidade==='g'&&t>=1000)return (t/1000).toFixed(t%1000?1:0).replace('.',',')+' kg';
+    if(x.unidade==='ml'&&t>=1000)return (t/1000).toFixed(t%1000?1:0).replace('.',',')+' L';
+    return (Math.round(t*10)/10).toString().replace('.',',')+' '+x.unidade;
+  };
+
+  const texto=()=>{
+    const l=['Lista de compras — '+(studentName||'aluno')+' ('+dias+' dias)',''];
+    grupos.forEach(([cat,itens])=>{
+      l.push(cat.toUpperCase());
+      itens.forEach(x=>l.push('- '+x.nome+': '+fmtQtd(x)));
+      l.push('');
+    });
+    return l.join('\n');
+  };
+  const copiar=async()=>{
+    try{await navigator.clipboard.writeText(texto());setCopiado(true);setTimeout(()=>setCopiado(false),1800);}
+    catch(e){alert('Não consegui copiar. Selecione o texto na tela.');}
+  };
+  const zap=()=>window.open('https://wa.me/?text='+encodeURIComponent(texto()),'_blank');
+
+  const total=grupos.reduce((a,[,itens])=>a+itens.length,0);
+  return(<div style={{position:'fixed',inset:0,zIndex:120,background:'rgba(10,8,10,.8)',display:'flex',
+      alignItems:'center',justifyContent:'center',padding:16,overflow:'auto'}} onClick={onClose}>
+    <div className="card" style={{maxWidth:560,width:'100%',maxHeight:'90vh',overflow:'auto'}} onClick={e=>e.stopPropagation()}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
+        <div style={{fontFamily:'var(--serif)',fontSize:19,fontWeight:600}}>Lista de compras</div>
+        <button className="btn-icon btn-sm" onClick={onClose}>×</button>
+      </div>
+      <p className="s-meta">{studentName?studentName+' · ':''}{total} {total===1?'item':'itens'} do cardápio</p>
+
+      <div className="bgroup" style={{margin:'12px 0'}}>
+        {[3,5,7,15,30].map(d=>(
+          <button key={d} className={'btn btn-sm '+(dias===d?'btn-primary':'btn-ghost')} onClick={()=>setDias(d)}>
+            {d} dias</button>))}
+      </div>
+
+      {total===0?<div className="empty"><div className="empty-title">Cardápio vazio</div>
+        <p className="s-meta">Monte as refeições primeiro.</p></div>:
+       grupos.map(([cat,itens])=>(
+        <div key={cat} style={{marginBottom:14}}>
+          <div style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:1,
+            color:'var(--text3)',marginBottom:6}}>{cat}</div>
+          {itens.map(x=>(
+            <div key={x.nome+x.unidade} style={{display:'flex',justifyContent:'space-between',gap:10,
+              padding:'7px 0',borderBottom:'1px solid var(--border)'}}>
+              <span>{x.nome}</span>
+              <b style={{whiteSpace:'nowrap'}}>{fmtQtd(x)}</b>
+            </div>))}
+        </div>))}
+
+      {total>0&&<div className="bgroup" style={{marginTop:8}}>
+        <button className="btn btn-primary btn-sm" onClick={copiar}>{copiado?'Copiado':'Copiar lista'}</button>
+        <button className="btn btn-secondary btn-sm" onClick={zap}>Enviar no WhatsApp</button>
+        <button className="btn btn-ghost btn-sm" onClick={()=>window.print()}>Imprimir</button>
+      </div>}
+      <p className="s-meta" style={{marginTop:10,fontSize:11.5}}>
+        Some as quantidades do cardápio de um dia e multiplica pelos dias escolhidos.
+        Itens sem quantidade numérica aparecem pela contagem de vezes.
+      </p>
+    </div>
+  </div>);
+}
+
 function NutriPlanEditor({coach,studentUid,studentName,demo}){
   const [plan,setPlan]=useState(undefined);
   const [meals,setMeals]=useState([]);
@@ -6003,6 +6263,7 @@ function NutriPlanEditor({coach,studentUid,studentName,demo}){
   const [saved,setSaved]=useState(false);
   const [foods,setFoods]=useState([]);
   const [showTpl,setShowTpl]=useState(false);
+  const [showCompras,setShowCompras]=useState(false);
   useEffect(()=>{if(demo){setFoods(NATIVE_FOODS);return;}getFoods().then(setFoods);},[]);
 
   const load=useCallback(async()=>{
@@ -6091,6 +6352,7 @@ function NutriPlanEditor({coach,studentUid,studentName,demo}){
       <div className="bgroup" style={{marginBottom:14}}>
         <button className="btn btn-secondary btn-sm" onClick={()=>setShowTpl(true)}>Usar cronograma salvo</button>
         {meals.length>0&&<button className="btn btn-ghost btn-sm" onClick={saveAsTemplate}>Salvar como cronograma</button>}
+        {meals.length>0&&<button className="btn btn-ghost btn-sm" onClick={()=>setShowCompras(true)}>Lista de compras</button>}
       </div>
       <div className="fgrid">
         <FI label="Título do plano" value={plan.title||''} onChange={e=>setPlan({...plan,title:e.target.value})}/>
@@ -6100,6 +6362,7 @@ function NutriPlanEditor({coach,studentUid,studentName,demo}){
       <NutriTotais s={total} meta={plan} peso={plan.calc&&plan.calc.peso} label="Totais diários do plano"/>
     </div>
     <NutriMeta plan={plan} setPlan={setPlan} studentUid={studentUid} demo={demo} total={total}/>
+    {showCompras&&<ListaCompras meals={meals} foods={foods} studentName={studentName} onClose={()=>setShowCompras(false)}/>}
     <NutriMealsEditor meals={meals} setMeals={setMeals} foods={foods} coachId={coach.id} onFoodsChange={()=>getFoods().then(setFoods)}/>
     <div style={{position:'sticky',bottom:0,padding:'14px 0',marginTop:8}}>
       <button className="btn btn-primary" style={{width:'100%'}} disabled={busy} onClick={save}>{busy?'Salvando…':saved?'✓ Plano salvo':'Salvar plano'}</button>
@@ -6775,6 +7038,7 @@ function App({profile,setProfile}){
           <div><div className="logo-name">MF Performance</div><div className="logo-sub">Saúde & Performance</div></div></div>
         <button className={`nav-btn ${view==='dashboard'?'active':''}`} onClick={()=>go('dashboard')}>Dashboard</button>
         <button className="nav-btn" onClick={()=>{setEditStu(null);go('stu-form');}}>Novo aluno</button>
+        <button className={`nav-btn ${view==='duplicados'?'active':''}`} onClick={()=>{setSelStudent(null);go('duplicados');}}>Cadastros repetidos</button>
         <button className={`nav-btn ${view==='agenda'?'active':''}`} onClick={()=>{setSelStudent(null);go('agenda');}}>Agenda</button>
         <button className={`nav-btn ${view==='intakes'?'active':''}`} onClick={()=>{setSelStudent(null);go('intakes');}}>Fichas online{intakeCount>0&&<span style={{marginLeft:6,background:'var(--gold)',color:'#1c0f16',borderRadius:10,padding:'0 7px',fontSize:11,fontWeight:700}}>{intakeCount}</span>}</button>
         <button className={`nav-btn ${view==='train'?'active':''}`} onClick={()=>{setSelStudent(null);go('train');}}>Treino</button>
@@ -6827,6 +7091,7 @@ function App({profile,setProfile}){
           {saving&&<div style={{position:'fixed',top:14,right:16,zIndex:80,background:'var(--accent)',color:'var(--cream)',padding:'7px 14px',borderRadius:10,fontSize:12,fontWeight:600,boxShadow:'var(--shadow-lg)'}}>Salvando…</div>}
           {view==='admin'&&profile.is_admin&&<AdminScreen onBack={()=>go('dashboard')}/>}
           {view==='protocols'&&<ProtocolsScreen onBack={()=>go('dashboard')}/>}
+          {view==='duplicados'&&<DuplicadosScreen coach={profile} onBack={()=>go('dashboard')} onMudou={()=>reloadFromServer().catch(()=>{})}/>}
           {view==='brand'&&<BrandScreen profile={profile} setProfile={setProfile} onBack={()=>go('dashboard')}/>}
           {view==='dashboard'&&<Dashboard students={students} evals={evals}
             onSelect={s=>{setSelStudent(s);go('detail');}} onNew={()=>{setEditStu(null);go('stu-form');}} onDelete={delStu}
