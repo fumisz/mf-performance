@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' blob: data: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; worker-src 'self'; manifest-src 'self'; frame-src https://www.youtube-nocookie.com https://www.youtube.com; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' blob: data: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.pwnedpasswords.com; worker-src 'self'; manifest-src 'self'; frame-src https://www.youtube-nocookie.com https://www.youtube.com; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <script>if(self!==top){try{top.location=self.location;}catch(e){document.documentElement.style.display='none';}}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0">
@@ -741,7 +741,7 @@ if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABAS
    .catch. Chamar .catch direto estoura TypeError, e dentro de um useEffect isso
    derruba a tela inteira do aluno. */
 const semEsperar=q=>{try{q.then(()=>{},()=>{});}catch(e){}};
-const APP_VERSION='2026.09.07';   // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION='2026.09.08';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
 
@@ -4062,6 +4062,24 @@ function ConviteInstalar({lv,fechavel,chave,titulo,texto}){
   </div>);
 }
 
+/* ── Proteção de senha vazada ────────────────────────────────
+   Mesma checagem que o Supabase faz internamente, feita aqui no app: só os 5
+   primeiros caracteres do SHA-1 saem do aparelho (k-anonymity), então a senha
+   em si nunca viaja nem fica registrada em lugar nenhum. Se não houver rede ou
+   o serviço não responder, deixa passar — criar conta precisa de internet de
+   qualquer jeito, e travar o cadastro por causa disso seria pior. */
+async function senhaVazada(senha){
+  try{
+    if(!(window.crypto&&crypto.subtle))return false;
+    const bytes=await crypto.subtle.digest('SHA-1',new TextEncoder().encode(senha));
+    const hash=[...new Uint8Array(bytes)].map(b=>b.toString(16).padStart(2,'0')).join('').toUpperCase();
+    const r=await comPrazo(fetch('https://api.pwnedpasswords.com/range/'+hash.slice(0,5)),6000);
+    if(!r||!r.ok)return false;
+    const lista=await r.text(), fim=hash.slice(5);
+    return lista.split('\n').some(l=>l.split(':')[0].trim()===fim);
+  }catch(e){return false;}
+}
+
 /* ── Abrir o app sem internet ────────────────────────────────
    Sem isto o app trava no spinner (ou pior: cai em "saia e entre
    novamente", e aí o treinador perde o acesso justamente quando está
@@ -4104,6 +4122,13 @@ function AuthScreen(){
     if(mode==='signup'&&!name.trim()){setMsg({type:'error',text:'Informe seu nome.'});return;}
     if(mode==='signup'&&!acode.trim()){setMsg({type:'error',text:isAluno?'Informe o código do seu treinador.':'Informe o código de acesso de treinador.'});return;}
     setBusy(true);
+    if(mode==='signup'){
+      if(pass.length<8){setMsg({type:'error',text:'Use pelo menos 8 caracteres na senha.'});setBusy(false);return;}
+      if(await senhaVazada(pass)){
+        setMsg({type:'error',text:'Essa senha já apareceu em vazamentos públicos na internet, então é das primeiras que alguém tentaria. Escolha outra.'});
+        setBusy(false);return;
+      }
+    }
     try{
       if(mode==='login'){
         const {error}=await sb.auth.signInWithPassword({email:email.trim(),password:pass});
@@ -4165,6 +4190,8 @@ function AuthScreen(){
             </>}
             <FI label="E-mail" type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="email@exemplo.com" autoComplete="email"/>
             <FI label="Senha" type="password" value={pass} onChange={e=>setPass(e.target.value)} placeholder="••••••" autoComplete={mode==='login'?'current-password':'new-password'}/>
+            {mode==='signup'&&<div style={{fontSize:11.5,color:'var(--text3)',marginTop:-6,lineHeight:1.45}}>
+              Pelo menos 8 caracteres. O app confere se ela já apareceu em vazamentos conhecidos — sua senha não sai do aparelho nessa conferência.</div>}
             <button className="btn btn-primary btn-block" disabled={busy}>{busy?'Aguarde…':(mode==='login'?'Entrar':'Criar conta')}</button>
           </form>
           <p style={{textAlign:'center',fontSize:12,color:'var(--text3)',marginTop:16}}>
