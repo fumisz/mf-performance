@@ -1,4 +1,4 @@
-const CACHE='mfp-v74';
+const CACHE='mfp-v75';
 // Tudo que o app precisa para ABRIR sem rede. A biblioteca do Supabase entrou
 // aqui: antes vinha da jsdelivr, e como o worker so guardava o proprio dominio,
 // no modo aviao ela nao carregava e o app morria na tela de configuracao.
@@ -20,8 +20,31 @@ self.addEventListener('install',e=>{
 });
 
 // a pagina pede para o worker novo assumir na hora, sem esperar fechar as abas
+// e tambem agenda o aviso do fim do descanso (o celular fica no bolso, a aba
+// congela, e so o worker consegue tocar a notificacao)
+let descanso=null;
 self.addEventListener('message',e=>{
-  if(e.data&&e.data.tipo==='ASSUMIR') self.skipWaiting();
+  const d=e.data||{};
+  if(d.tipo==='ASSUMIR') self.skipWaiting();
+  if(d.tipo==='DESCANSO-CANCELAR'){
+    descanso=null;
+    self.registration.getNotifications({tag:'mfp-descanso'}).then(ns=>ns.forEach(n=>n.close())).catch(()=>{});
+  }
+  if(d.tipo==='DESCANSO'){
+    const id=Date.now();descanso=id;
+    const falta=Math.max(0,(d.em||0)-Date.now());
+    // waitUntil segura o worker de pe ate a hora — e o que faz o aviso sair
+    // mesmo com o app fechado no bolso
+    e.waitUntil(new Promise(pronto=>setTimeout(pronto,falta)).then(()=>{
+      if(descanso!==id)return;            // ele pulou ou concluiu antes
+      descanso=null;
+      return self.registration.showNotification('Descanso terminado',{
+        body:d.nome?'Hora da próxima série — '+d.nome:'Hora da próxima série.',
+        icon:'./icons/icon-192.png',badge:'./icons/icon-192.png',
+        tag:'mfp-descanso',renotify:true,requireInteraction:false,
+        data:{url:'./'},vibrate:[120,60,120,60,200]});
+    }));
+  }
 });
 self.addEventListener('activate',e=>{
   e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));

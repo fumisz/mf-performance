@@ -722,6 +722,8 @@ const { useState, useEffect, useRef, useCallback } = React;
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,6);
 const fmt = (n,d=1)=>(n!=null&&n!==''&&!isNaN(parseFloat(n)))?parseFloat(n).toFixed(d):'—';
 const fmtDate = d=>d?new Date(d+'T00:00:00').toLocaleDateString('pt-BR'):'—';
+// data de um timestamp (created_at). fmtDate só serve para 'AAAA-MM-DD'.
+const fmtTime = t=>{if(!t)return'—';const d=new Date(t);return isNaN(d)?'—':d.toLocaleDateString('pt-BR');};
 const tempoRel = iso=>{if(!iso)return'';const s=Math.floor((Date.now()-new Date(iso).getTime())/1000);
   if(s<60)return'agora';if(s<3600)return'há '+Math.floor(s/60)+' min';if(s<86400)return'há '+Math.floor(s/3600)+'h';
   const d=Math.floor(s/86400);if(d<7)return'há '+d+(d===1?' dia':' dias');return new Date(iso).toLocaleDateString('pt-BR');};
@@ -741,7 +743,7 @@ if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABAS
    .catch. Chamar .catch direto estoura TypeError, e dentro de um useEffect isso
    derruba a tela inteira do aluno. */
 const semEsperar=q=>{try{q.then(()=>{},()=>{});}catch(e){}};
-const APP_VERSION='2026.09.09';   // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION='2026.09.10';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
 
@@ -797,7 +799,9 @@ function resizeImage(file, max=1000, quality=0.82){
     r.onerror=rej;r.readAsDataURL(file);
   });
 }
-async function uploadMealPhoto(userId, blob){
+// Foto do aluno (refeição ou progresso). Vai sempre para a pasta dele —
+// é o que a política do bucket usa para ninguém ver a foto de ninguém.
+async function uploadFotoAluno(userId, blob){
   const path=`${userId}/${uid()}.jpg`;
   const {error}=await sb.storage.from('photos').upload(path,blob,{contentType:'image/jpeg'});
   if(error) throw error;
@@ -988,6 +992,33 @@ async function avisarTreinoConcluido(divisaoNome){
       body:JSON.stringify({mode:'treino-concluido',divisao:divisaoNome||''}),
     });
   }catch(e){/* sem internet: o treino já está salvo, só o aviso não sai */}
+}
+
+/* ── Aviso do fim do descanso com o celular bloqueado ──
+   O apito só toca com a aba viva. Com o telefone no bolso quem avisa é o
+   service worker: a página manda a hora do fim e ele solta a notificação. */
+async function pedirAvisoDescanso(){
+  try{
+    if(!('Notification'in window))return false;
+    if(Notification.permission==='granted')return true;
+    if(Notification.permission==='denied')return false;
+    return (await Notification.requestPermission())==='granted';
+  }catch(e){return false;}
+}
+async function agendarAvisoDescanso(em,nome){
+  try{
+    if(!('serviceWorker'in navigator))return;
+    if(!('Notification'in window)||Notification.permission!=='granted')return;
+    const reg=await navigator.serviceWorker.ready;
+    if(reg.active)reg.active.postMessage({tipo:'DESCANSO',em,nome:nome||''});
+  }catch(e){}
+}
+async function cancelarAvisoDescanso(){
+  try{
+    if(!('serviceWorker'in navigator))return;
+    const reg=await navigator.serviceWorker.ready;
+    if(reg.active)reg.active.postMessage({tipo:'DESCANSO-CANCELAR'});
+  }catch(e){}
 }
 
 async function desativarPush(){try{const reg=await navigator.serviceWorker.ready;const sub=await reg.pushManager.getSubscription();if(sub){await sb.rpc('push_remover',{p_endpoint:sub.toJSON().endpoint}).catch(()=>{});await sub.unsubscribe();}}catch(e){}}
@@ -2764,6 +2795,28 @@ function PhotoCompare({student,evals,onClose}){
 
 
 /* Feedbacks de treino que o aluno mandou */
+// As fotos que o aluno manda pelo app dele. Só aparece se ele já mandou alguma.
+function FotosProgressoCoach({student,demo}){
+  const [fotos,setFotos]=useState([]);
+  useEffect(()=>{if(demo||!student.user_id)return;
+    sb.from('photos').select('id,url,created_at').eq('student_id',student.user_id).eq('kind','progress')
+      .order('created_at',{ascending:false}).limit(24)
+      .then(({data})=>setFotos(data||[]),()=>{});},[student.user_id]);
+  if(!fotos.length)return null;
+  const dias=Math.round((new Date(fotos[0].created_at)-new Date(fotos[fotos.length-1].created_at))/86400000);
+  return(<div className="card" style={{marginBottom:14}}>
+    <div className="sec-title">Fotos de progresso</div>
+    <p className="s-meta" style={{marginBottom:10}}>
+      {fotos.length} foto{fotos.length>1?'s':''} enviada{fotos.length>1?'s':''} pelo aluno
+      {fotos.length>1&&dias>0?` · ${dias} dias entre a primeira e a última`:''}.</p>
+    <div className="photo-grid">{fotos.map(f=>(
+      <a key={f.id} className="photo-thumb" href={f.url} target="_blank" rel="noopener">
+        <img src={f.url} alt="Progresso"/>
+        <div className="photo-cap">{fmtTime(f.created_at)}</div>
+      </a>))}</div>
+  </div>);
+}
+
 function FeedbacksAluno({student,demo}){
   const [l,setL]=useState(demo?[{id:'f1',data:todayStr(),divisao_nome:'A — Membros inferiores',
     rpe:9,dificuldade:5,dor:3,nota:'A última série do agachamento foi longe demais, senti o joelho.'}]:null);
@@ -2889,6 +2942,7 @@ function StudentDetail({student,evals,onNewEval,onReassess,onEditEval,onDeleteEv
         </div>)}
 
       <FeedbacksAluno student={student} demo={!!student._demo}/>
+      {sb&&<FotosProgressoCoach student={student} demo={!!student._demo}/>}
       {sb&&<PesoMetaCoach student={student} demo={!!student._demo}/>}
       {sb&&!student._demo&&<FinanceiroCard student={student}/>}
 
@@ -7862,6 +7916,54 @@ function CardTreino({stu,divisao,finished,marca,fmtT}){
   </div>);
 }
 
+// Trocar exercício na hora: o aparelho está ocupado, dói o ombro naquele
+// ângulo, a academia não tem a máquina. Em vez de pular, ele escolhe outro do
+// mesmo grupo — e é o trocado que vai para o histórico do treinador.
+function TrocarExercicio({ex,biblio,vid,onEscolher,onDesfazer,onFechar}){
+  const [busca,setBusca]=useState('');
+  const [tudo,setTudo]=useState(false);
+  const grupo=((vid||{})[ex.exercicio_id]||{}).grupo||null;
+  const lista=React.useMemo(()=>{
+    const q=(busca||'').trim().toLowerCase();
+    const norm=s=>(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+    return (biblio||[])
+      .filter(b=>b.nome&&b.nome!==ex.nome&&b.nome!==ex.original)
+      .filter(b=>tudo||!grupo||b.grupo_muscular===grupo)
+      .filter(b=>!q||norm(b.nome).includes(norm(q))||norm(b.grupo_muscular).includes(norm(q)))
+      .slice(0,60);
+  },[biblio,busca,tudo,grupo,ex]);
+  return(<div className="lv-cel" style={{padding:'18px 14px',overflowY:'auto',alignItems:'stretch',justifyContent:'flex-start',background:'var(--lvbg)'}}>
+    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,marginBottom:4}}>
+      <button className="lv-ghost" onClick={onFechar}>‹ Voltar</button>
+      {ex.trocado&&<button className="lv-ghost" onClick={onDesfazer}>Voltar ao original</button>}
+    </div>
+    <div className="lv-kick" style={{marginTop:10}}>No lugar de</div>
+    <div style={{fontSize:19,fontWeight:800,marginBottom:2}}>{ex.original}</div>
+    <div className="lv-sub" style={{lineHeight:1.45,marginBottom:14}}>
+      Escolha outro exercício {grupo&&!tudo?'de '+grupo.toLowerCase():'da biblioteca'}. As séries, repetições e
+      o descanso da ficha continuam os mesmos — muda só o movimento.</div>
+    <input className="lv-in" placeholder="Buscar exercício" value={busca} onChange={e=>setBusca(e.target.value)}/>
+    {grupo&&<div style={{marginTop:10}}>
+      <button className="lv-ghost" onClick={()=>setTudo(t=>!t)}>{tudo?'Só '+grupo.toLowerCase():'Ver todos os grupos'}</button>
+    </div>}
+    <div style={{marginTop:14}}>
+      {biblio&&biblio.length===0?<div className="lv-sub" style={{textAlign:'center',padding:'20px 0'}}>
+        A biblioteca ainda não foi guardada neste aparelho. Abra o app uma vez com internet.</div>:
+       lista.length===0?<div className="lv-sub" style={{textAlign:'center',padding:'20px 0'}}>
+        Nenhum exercício com esse nome.</div>:
+       lista.map(b=><div key={b.id} className="lv-card" style={{padding:'12px 14px',marginBottom:8,
+         display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}>
+         <div style={{minWidth:0}}>
+           <div style={{fontWeight:700,fontSize:14.5}}>{b.nome}</div>
+           <div className="lv-sub" style={{fontSize:11.5}}>{b.grupo_muscular||'Sem grupo'}{(b.video_url||b.video_path)?' · com demonstração':''}</div>
+         </div>
+         <button className="lv-ghost" style={{flexShrink:0}} onClick={()=>onEscolher(b)}>Usar este</button>
+       </div>)}
+    </div>
+    <div style={{height:24}}/>
+  </div>);
+}
+
 function TrainExec({student,divisao,demo,somenteLeitura,best,onBack,onSaved,onFinish}){
   const [series,setSeries]=useState(demo?(_DEMO_ALUNO_SERIES[divisao.id]||[]):null);
   const [vals,setVals]=useState({});const [done,setDone]=useState({});const [active,setActive]=useState({});
@@ -7869,7 +7971,14 @@ function TrainExec({student,divisao,demo,somenteLeitura,best,onBack,onSaved,onFi
   const [paused,setPaused]=useState(false);const [tot,setTot]=useState(0);
   const [restTotal,setRestTotal]=useState(60);
   const audioRef=useRef(null);const [cel,setCel]=useState(null);const [vid,setVid]=useState({});const [demoOn,setDemoOn]=useState({});const [finished,setFinished]=useState(null);const [fbAberto,setFbAberto]=useState(false);
+  const [ultima,setUltima]=useState({});        // o que ele fez da última vez, por exercício
+  const [biblio,setBiblio]=useState([]);        // biblioteca, para trocar exercício
+  const [trocas,setTrocas]=useState({});        // exercício trocado na hora
+  const [trocando,setTrocando]=useState(null);  // qual exercício está escolhendo a troca
   const [marca,setMarca]=useState(null);        // marca do treinador, para o card
+  // aviso do descanso com o celular no bolso
+  const [avisoDesc,setAvisoDesc]=useState(()=>{try{return('Notification'in window)?Notification.permission:'unsupported';}catch(e){return'unsupported';}});
+  useEffect(()=>()=>{cancelarAvisoDescanso();},[]);
   useEffect(()=>{if(demo||!student.coach_id)return;
     lerCopia('marca-'+student.coach_id,
       sb.from('profiles').select('brand_name,name,instagram,logo_url').eq('id',student.coach_id).maybeSingle())
@@ -7885,10 +7994,31 @@ function TrainExec({student,divisao,demo,somenteLeitura,best,onBack,onSaved,onFi
     setSeries(data||[]);
     const ids=[...new Set((data||[]).map(s=>s.exercicio_id).filter(Boolean))];
     if(ids.length){const {data:ex}=await lerCopia('exs-'+divisao.id,
-      sb.from('train_exercicios').select('id,video_url,video_path,dicas').in('id',ids));
+      sb.from('train_exercicios').select('id,video_url,video_path,dicas,grupo_muscular').in('id',ids));
       // guarda também as dicas: as técnicas avançadas não têm desenho, o que
       // vale ali é a instrução escrita
-      const m={};(ex||[]).forEach(e=>{if(e.video_url||e.video_path||e.dicas)m[e.id]={url:e.video_url,path:e.video_path,dicas:e.dicas};});setVid(m);}})();},[]);
+      const m={};(ex||[]).forEach(e=>{if(e.video_url||e.video_path||e.dicas)m[e.id]={url:e.video_url,path:e.video_path,dicas:e.dicas,grupo:e.grupo_muscular};});setVid(m);}
+    // ── o que ele fez da última vez: é isso que diz se hoje é para subir a carga ──
+    const {data:hi}=await lerCopia('ultimas-'+divisao.id,
+      sb.from('train_historico')
+        .select('exercicio_id,exercicio_nome,data_treino,carga,reps,indice_serie,tipo_serie')
+        .eq('student_id',student.id).order('data_treino',{ascending:false}).limit(400));
+    const hoje=todayStr(), porEx={};
+    (hi||[]).forEach(h=>{
+      if(h.data_treino>=hoje)return;                    // hoje não é "última vez"
+      const k=h.exercicio_id||h.exercicio_nome;if(!k)return;
+      if(!porEx[k])porEx[k]={data:h.data_treino,series:[]};
+      if(porEx[k].data!==h.data_treino)return;          // só a sessão mais recente
+      porEx[k].series.push({carga:h.carga,reps:h.reps,i:h.indice_serie});
+    });
+    Object.values(porEx).forEach(v=>v.series.sort((a,b)=>(a.i||0)-(b.i||0)));
+    setUltima(porEx);
+  })();},[]);
+
+  // biblioteca para a troca de exercício (guardada, funciona sem internet)
+  useEffect(()=>{if(demo)return;
+    lerCopia('lib-completa',sb.from('train_exercicios').select('*').order('grupo_muscular').order('nome'))
+      .then(({data})=>setBiblio(data||[])).catch(()=>{});},[]);
   useEffect(()=>{const t=setInterval(()=>setTot(x=>x+1),1000);return()=>clearInterval(t);},[]);
 
   // A tela fica acesa durante o treino — ninguém quer destravar o celular
@@ -7921,15 +8051,32 @@ function TrainExec({student,divisao,demo,somenteLeitura,best,onBack,onSaved,onFi
     }catch(e){}
   };
 
+  // O descanso conta pelo relógio, não pelo intervalo: quando o aluno guarda o
+  // celular no bolso o navegador congela a aba e um contador de 1 em 1 segundo
+  // atrasa. Com a hora do fim guardada, ele volta e o número está certo.
+  const fimRef=useRef(0);const tocouRef=useRef(false);
   useEffect(()=>{
     if(rest<=0||paused)return;
-    const t=setInterval(()=>setRest(r=>{
-      if(r<=1){bipar();vibrar([90,60,90]);return 0;}
-      return r-1;
-    }),1000);
-    return()=>clearInterval(t);
+    const conta=()=>{
+      const falta=Math.max(0,Math.ceil((fimRef.current-Date.now())/1000));
+      setRest(falta);
+      if(falta<=0&&!tocouRef.current){tocouRef.current=true;bipar();vibrar([120,60,120,60,200]);}
+    };
+    const t=setInterval(conta,300);
+    document.addEventListener('visibilitychange',conta);
+    return()=>{clearInterval(t);document.removeEventListener('visibilitychange',conta);};
   },[rest>0,paused]);
-  const exs=React.useMemo(()=>{const m=new Map();(series||[]).forEach(s=>{const k=s.exercicio_id||s.exercicio_nome;if(!m.has(k))m.set(k,{key:k,nome:s.exercicio_nome,exercicio_id:s.exercicio_id,tiers:[]});m.get(k).tiers.push(s);});const ord={Aquecimento:0,Preparatoria:1,Valida:2};const a=[...m.values()];a.forEach(e=>e.tiers.sort((x,y)=>(ord[x.tipo_serie]??9)-(ord[y.tipo_serie]??9)));return a;},[series]);
+  // mexeu no descanso (−15s, +30s, pausa, pular): a hora do fim e o aviso
+  // agendado no worker têm que acompanhar, senão a notificação sai na hora errada
+  const ajustarFim=(novoRest,nome)=>{
+    if(novoRest<=0){fimRef.current=0;cancelarAvisoDescanso();return;}
+    fimRef.current=Date.now()+novoRest*1000;tocouRef.current=false;
+    agendarAvisoDescanso(fimRef.current,nome||restName);
+  };
+  const exs=React.useMemo(()=>{const m=new Map();(series||[]).forEach(s=>{const k=s.exercicio_id||s.exercicio_nome;
+    const tr=trocas[k];
+    if(!m.has(k))m.set(k,{key:k,nome:tr?tr.nome:s.exercicio_nome,original:s.exercicio_nome,trocado:!!tr,
+      exercicio_id:tr?tr.id:s.exercicio_id,tiers:[]});m.get(k).tiers.push(s);});const ord={Aquecimento:0,Preparatoria:1,Valida:2};const a=[...m.values()];a.forEach(e=>e.tiers.sort((x,y)=>(ord[x.tipo_serie]??9)-(ord[y.tipo_serie]??9)));return a;},[series,trocas]);
   const setV=(k,f,v)=>setVals(p=>({...p,[k]:{...(p[k]||{}),[f]:v}}));
   const firstUndone=s=>{for(let i=0;i<s.qtd_series;i++)if(!done[s.id+'_'+i])return i;return s.qtd_series;};
   const activeIdx=s=>active[s.id]!=null?active[s.id]:firstUndone(s);
@@ -7947,12 +8094,18 @@ function TrainExec({student,divisao,demo,somenteLeitura,best,onBack,onSaved,onFi
       if(audioRef.current&&audioRef.current.state==='suspended')audioRef.current.resume();
     }catch(e){}
     const desc=s.intervalo_seg_min||60;
-    setRestTotal(desc);setRest(desc);setRestName(s.exercicio_nome);setPaused(false);
+    const nomeEx=(trocas[s.exercicio_id||s.exercicio_nome]||{}).nome||s.exercicio_nome;
+    setRestTotal(desc);setRest(desc);setRestName(nomeEx);setPaused(false);
+    ajustarFim(desc,nomeEx);
     if(onSaved)onSaved(s.exercicio_id,carga);
     if(isPr)celebrate(carga);
     if(!demo&&!somenteLeitura){
+      // se o aluno trocou o exercício, é o trocado que vai para o histórico —
+      // assim o treinador vê o que foi feito de verdade
+      const tr=trocas[s.exercicio_id||s.exercicio_nome];
       const linha={coach_id:student.coach_id,student_id:student.id,divisao_id:divisao.id,
-        exercicio_id:s.exercicio_id,exercicio_nome:s.exercicio_nome,data_treino:todayStr(),
+        exercicio_id:tr?tr.id:s.exercicio_id,exercicio_nome:tr?tr.nome:s.exercicio_nome,
+        data_treino:todayStr(),
         indice_serie:i+1,tipo_serie:s.tipo_serie,carga,reps,is_pr:isPr};
       let subiu=false;
       if(navigator.onLine){
@@ -7977,6 +8130,15 @@ function TrainExec({student,divisao,demo,somenteLeitura,best,onBack,onSaved,onFi
     </div>
     <div className="lv-title" style={{textAlign:'center'}}>{divisao.nome||'Treino'}</div>
     <div className="lv-sub" style={{textAlign:'center',marginBottom:14}}>{doneSets}/{totalSets} séries concluídas</div>
+    {!demo&&!somenteLeitura&&avisoDesc==='default'&&
+      <div style={{textAlign:'center',marginBottom:12}}>
+        <button className="lv-ghost" onClick={async()=>{
+          const ok=await pedirAvisoDescanso();
+          setAvisoDesc(ok?'granted':'denied');
+          if(ok&&rest>0&&!paused)agendarAvisoDescanso(fimRef.current,restName);
+        }}>Avisar quando o descanso acabar</button>
+        <div className="lv-sub" style={{fontSize:11.5,marginTop:5}}>Toca mesmo com o celular no bolso.</div>
+      </div>}
     {pendentes>0&&<div className="lv-card" style={{borderColor:'var(--lvsel)',padding:'10px 14px',marginBottom:12}}>
       <div style={{fontWeight:700,fontSize:13.5}}>Treinando sem internet</div>
       <div className="lv-sub" style={{marginTop:3,lineHeight:1.45}}>
@@ -7989,12 +8151,29 @@ function TrainExec({student,divisao,demo,somenteLeitura,best,onBack,onSaved,onFi
       return(<div key={e.key} className="lv-card">
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,cursor:'pointer'}} onClick={()=>setOpenEx(open?-1:ei)}>
           <div><div style={{fontSize:16.5,fontWeight:800}}>{e.nome} {allDone&&<span style={{color:'var(--lvneon)'}}>✓</span>}</div>
+            {e.trocado&&<div className="lv-sub" style={{fontSize:11.5}}>no lugar de {e.original}</div>}
             <div style={{display:'flex',gap:12,marginTop:6,flexWrap:'wrap'}}>{e.tiers.map(t=><span key={t.id} style={{fontSize:11.5,color:'var(--lvt2)',display:'inline-flex',alignItems:'center',gap:5}}><i className="lv-dot" style={{background:tierColor(t.tipo_serie)}}/>{tlabel(t.tipo_serie)} {tierDoneCount(t)}/{t.qtd_series}</span>)}</div>
           </div>
           <span style={{color:'var(--lvt3)'}}>{open?'▾':'▸'}</span>
         </div>
         {open&&<div style={{marginTop:14}}>
-          <button className="lv-ghost" style={{marginBottom:demoOn[e.key]?8:12}} onClick={()=>setDemoOn(p=>({...p,[e.key]:!p[e.key]}))}>▶ {demoOn[e.key]?'Ocultar':'Ver'} demonstração</button>
+          {(()=>{
+            // o que ele fez da última vez neste exercício: é o número que diz
+            // se hoje é para manter ou subir a carga
+            const u=ultima[e.exercicio_id]||ultima[e.nome];
+            if(!u||!u.series.length)return null;
+            const dias=Math.max(0,Math.round((new Date(todayStr()+'T00:00:00')-new Date(u.data+'T00:00:00'))/86400000));
+            return(<div className="lv-card" style={{padding:'10px 13px',marginBottom:12,background:'var(--lvc2)'}}>
+              <div className="lv-kick" style={{fontSize:10.5}}>Da última vez · {dias===0?'hoje':dias===1?'ontem':'há '+dias+' dias'}</div>
+              <div style={{fontWeight:700,fontSize:14.5,marginTop:3}}>
+                {u.series.slice(0,6).map((x,i)=>(x.carga!=null?String(x.carga).replace('.',','):'—')+(x.reps?'×'+x.reps:'')).join('  ·  ')}
+                <span className="lv-sub" style={{fontWeight:400}}> kg</span></div>
+            </div>);
+          })()}
+          <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:demoOn[e.key]?8:12}}>
+            <button className="lv-ghost" onClick={()=>setDemoOn(p=>({...p,[e.key]:!p[e.key]}))}>▶ {demoOn[e.key]?'Ocultar':'Ver'} demonstração</button>
+            {!somenteLeitura&&<button className="lv-ghost" onClick={()=>setTrocando(e)}>⇄ Trocar exercício</button>}
+          </div>
           {demoOn[e.key]&&<div style={{marginBottom:14}}><ExDemo url={(vid[e.exercicio_id]||{}).url} path={(vid[e.exercicio_id]||{}).path} name={e.nome} dicas={(vid[e.exercicio_id]||{}).dicas}/></div>}
           {e.tiers.map(t=>{const ai=activeIdx(t);const complete=tierDoneCount(t)>=t.qtd_series;const iv=t.intervalo_seg_min||60;
             return(<div key={t.id} style={{marginBottom:16}}>
@@ -8049,6 +8228,16 @@ function TrainExec({student,divisao,demo,somenteLeitura,best,onBack,onSaved,onFi
       <button className="lv-ghost" style={{marginTop:10,padding:'10px 22px'}} onClick={()=>{if(onFinish)onFinish();onBack();}}>Voltar ao início</button>
     </div></>}
 
+    {trocando&&<TrocarExercicio ex={trocando} biblio={biblio} vid={vid}
+      onEscolher={novo=>{
+        setTrocas(p=>({...p,[trocando.key]:{id:novo.id,nome:novo.nome}}));
+        // leva junto a demonstração do exercício novo, senão o "Ver demonstração"
+        // fica vazio depois da troca
+        setVid(p=>({...p,[novo.id]:{url:novo.video_url,path:novo.video_path,dicas:novo.dicas,grupo:novo.grupo_muscular}}));
+        setTrocando(null);}}
+      onDesfazer={()=>{setTrocas(p=>{const c={...p};delete c[trocando.key];return c;});setTrocando(null);}}
+      onFechar={()=>setTrocando(null)}/>}
+
     {rest>0&&!finished&&<div className="lv-rest">
       <div className="lv-restbar"><i style={{width:Math.max(0,Math.min(100,(rest/(restTotal||1))*100))+'%'}}/></div>
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}>
@@ -8058,10 +8247,10 @@ function TrainExec({student,divisao,demo,somenteLeitura,best,onBack,onSaved,onFi
           <div className="lv-restnum">{fmtT(rest)}</div>
         </div>
         <div style={{display:'flex',gap:7,alignItems:'center'}}>
-          <button className="lv-ghost" onClick={()=>{vibrar(8);setRest(r=>Math.max(1,r-15));}}>−15s</button>
-          <button className="lv-ghost" onClick={()=>{vibrar(8);setRest(r=>r+30);setRestTotal(t=>t+30);}}>+30s</button>
-          <button className="lv-round" onClick={()=>setPaused(p=>!p)}>{paused?'▶':'❚❚'}</button>
-          <button className="lv-ghost" onClick={()=>{vibrar(8);setRest(0);}}>Pular</button>
+          <button className="lv-ghost" onClick={()=>{vibrar(8);const n=Math.max(1,rest-15);setRest(n);if(!paused)ajustarFim(n);}}>−15s</button>
+          <button className="lv-ghost" onClick={()=>{vibrar(8);const n=rest+30;setRest(n);setRestTotal(t=>t+30);if(!paused)ajustarFim(n);}}>+30s</button>
+          <button className="lv-round" onClick={()=>{const p=!paused;setPaused(p);if(p)cancelarAvisoDescanso();else ajustarFim(rest);}}>{paused?'▶':'❚❚'}</button>
+          <button className="lv-ghost" onClick={()=>{vibrar(8);setRest(0);ajustarFim(0);}}>Pular</button>
         </div>
       </div>
     </div>}
@@ -8605,7 +8794,7 @@ function DietaScreen({profile,demo,onBack,onHidra}){
     setUploading(true);
     try{
       const blob=await resizeImage(file);
-      const url=await uploadMealPhoto(profile.id,blob);
+      const url=await uploadFotoAluno(profile.id,blob);
       await sb.from('photos').insert({student_id:profile.id,coach_id:profile.coach_id,url,kind:'meal',caption:'Refeição'});
       alert('Foto enviada ao seu treinador!');
     }catch(e){alert('Erro ao enviar: '+(e.message||e));}
@@ -8931,6 +9120,150 @@ function PesoMetaCoach({student,demo}){
 
 /* Quando o treinador abre "Visão do aluno", este mesmo app roda com o cadastro
    do aluno escolhido e em modo só leitura: nada é gravado no lugar dele. */
+/* Foto de progresso do aluno. A balança mente numa recomposição; a foto não.
+   Guarda no mesmo bucket das fotos de refeição, com kind='progress', e mostra
+   a primeira ao lado da última — que é o que faz ele continuar. */
+function FotosProgresso({stu,conta,demo,somenteLeitura}){
+  const [fotos,setFotos]=useState(demo?[]:null);
+  const [enviando,setEnviando]=useState(false);
+  const [erro,setErro]=useState(null);
+  const [aberta,setAberta]=useState(null);
+  const arqRef=useRef(null);
+  const carregar=async()=>{
+    if(demo)return;
+    if(!conta){setFotos([]);return;}
+    const {data}=await lerCopia('fotos-prog-'+conta,
+      sb.from('photos').select('id,url,created_at,kind').eq('student_id',conta).eq('kind','progress').order('created_at',{ascending:false}).limit(60));
+    setFotos(data||[]);
+  };
+  useEffect(()=>{carregar();},[conta]);
+  const enviar=async(file)=>{
+    if(!file)return;
+    if(demo||somenteLeitura||!conta)return;
+    setErro(null);
+    if(!navigator.onLine){setErro('Sem internet agora. A foto precisa de sinal para subir — tente de novo quando voltar.');return;}
+    setEnviando(true);
+    try{
+      const blob=await resizeImage(file,1400,.86);
+      const url=await uploadFotoAluno(conta,blob);
+      const {error}=await comPrazo(sb.from('photos').insert({student_id:conta,coach_id:stu.coach_id,url,kind:'progress',caption:'Progresso'}),20000);
+      if(error)throw error;
+      await carregar();
+    }catch(e){setErro('Não consegui enviar: '+(e.message||e));}
+    setEnviando(false);
+  };
+  const lista=fotos||[];
+  const primeira=lista.length>1?lista[lista.length-1]:null;
+  const ultima=lista.length>1?lista[0]:null;
+  const dias=(a,b)=>Math.max(0,Math.round((new Date(b)-new Date(a))/86400000));
+  return(<div>
+    <div className="lv-kick" style={{margin:'18px 0 10px'}}>Fotos de progresso</div>
+    {primeira&&ultima&&<div className="lv-card" style={{marginBottom:12}}>
+      <div className="lv-kick" style={{fontSize:10.5}}>Da primeira até hoje · {dias(primeira.created_at,ultima.created_at)} dias</div>
+      <div style={{display:'flex',gap:8,marginTop:10}}>
+        {[[primeira,'Antes'],[ultima,'Agora']].map(([f,lb])=>(
+          <div key={lb} style={{flex:1,minWidth:0}}>
+            <img src={f.url} alt={lb} onClick={()=>setAberta(f)}
+              style={{width:'100%',aspectRatio:'3/4',objectFit:'cover',borderRadius:12,display:'block',cursor:'pointer'}}/>
+            <div className="lv-sub" style={{fontSize:11.5,marginTop:5,textAlign:'center'}}>{lb} · {fmtTime(f.created_at)}</div>
+          </div>))}
+      </div>
+    </div>}
+    <div className="lv-card" style={{marginBottom:12}}>
+      <div className="lv-sub" style={{lineHeight:1.5}}>
+        Tire de frente, de lado e de costas, sempre no mesmo lugar, com a mesma luz e a mesma
+        roupa. É essa constância que faz a comparação valer. Só você e seu treinador enxergam.</div>
+      <input ref={arqRef} type="file" accept="image/*" style={{display:'none'}}
+        onChange={e=>{const f=e.target.files&&e.target.files[0];e.target.value='';enviar(f);}}/>
+      <button className="lv-btn" style={{marginTop:12}} disabled={enviando||somenteLeitura||demo}
+        onClick={()=>arqRef.current&&arqRef.current.click()}>
+        {enviando?'Enviando…':'Enviar foto de hoje'}</button>
+      {erro&&<div className="lv-sub" style={{marginTop:8,color:'var(--lvrx)',lineHeight:1.45}}>{erro}</div>}
+    </div>
+    {fotos===null?<div className="center-screen" style={{minHeight:110}}><div className="spinner"/></div>:
+     lista.length===0?<div className="lv-card" style={{textAlign:'center',color:'var(--lvt2)'}}>
+       Nenhuma foto ainda. A de hoje vira a sua foto “antes”.</div>:
+     <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8}}>
+       {lista.map(f=><div key={f.id}>
+         <img src={f.url} alt="Progresso" onClick={()=>setAberta(f)}
+           style={{width:'100%',aspectRatio:'3/4',objectFit:'cover',borderRadius:10,display:'block',cursor:'pointer'}}/>
+         <div className="lv-sub" style={{fontSize:10.5,marginTop:4,textAlign:'center'}}>{fmtTime(f.created_at)}</div>
+       </div>)}
+     </div>}
+    {aberta&&<div className="lv-cel" style={{padding:16}} onClick={()=>setAberta(null)}>
+      <img src={aberta.url} alt="Progresso" style={{maxWidth:'100%',maxHeight:'78vh',borderRadius:14,objectFit:'contain'}}/>
+      <div className="lv-sub" style={{marginTop:10}}>{fmtTime(aberta.created_at)}</div>
+      <button className="lv-ghost" style={{marginTop:12}} onClick={()=>setAberta(null)}>Fechar</button>
+    </div>}
+  </div>);
+}
+
+// Nem todo treino acontece dentro do app: corrida no domingo, futebol, a aula
+// de luta, a musculação num dia que ele esqueceu o celular. Sem isso o dia fica
+// em branco, a sequência quebra e o treinador vê um aluno que "não treinou".
+const FORA_TIPOS=['Corrida','Caminhada','Bike','Natação','Funcional','Luta','Futebol','Musculação em outro lugar','Outro'];
+function TreineiFora({stu,demo,somenteLeitura,onPronto}){
+  const [aberto,setAberto]=useState(false);
+  const [tipo,setTipo]=useState(FORA_TIPOS[0]);
+  const [min,setMin]=useState('');
+  const [dia,setDia]=useState(todayStr());
+  const [salvando,setSalvando]=useState(false);
+  const [feito,setFeito]=useState(false);
+  const ontem=(()=>{const d=new Date();d.setDate(d.getDate()-1);return dayKey(d);})();
+  const salvar=async()=>{
+    setSalvando(true);
+    const linha={coach_id:stu.coach_id,student_id:stu.id,divisao_id:null,exercicio_id:null,
+      exercicio_nome:tipo,data_treino:dia,indice_serie:1,tipo_serie:'Externo',
+      carga:null,reps:null,observacao:num(min)?num(min)+' min':null,is_pr:false};
+    if(!demo&&!somenteLeitura){
+      let subiu=false;
+      if(navigator.onLine){try{const {error}=await comPrazo(sb.from('train_historico').insert(linha));if(!error)subiu=true;}catch(e){}}
+      if(!subiu)await enfileirarAluno({tabela:'train_historico',linha});
+    }
+    setSalvando(false);setFeito(true);setAberto(false);
+    try{navigator.vibrate&&navigator.vibrate([40,50,90]);}catch(e){}
+    if(onPronto)onPronto();
+  };
+  if(feito&&!aberto)return(<div className="lv-card" style={{marginBottom:14,borderColor:'var(--lvsel)'}}>
+    <div style={{fontWeight:700}}>{tipo} registrado</div>
+    <div className="lv-sub" style={{marginTop:3,lineHeight:1.45}}>
+      O dia entrou na sua frequência e seu treinador vê o registro.</div>
+    <button className="lv-ghost" style={{marginTop:10}} onClick={()=>{setFeito(false);setAberto(true);setMin('');}}>Registrar outro</button>
+  </div>);
+  if(!aberto)return(<div className="lv-treino" style={{marginBottom:14}} onClick={()=>setAberto(true)}>
+    <span style={{width:3,height:30,borderRadius:2,background:'var(--lvrx)',flexShrink:0}}/>
+    <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700}}>Treinei fora do app</div>
+      <div className="lv-sub">Corrida, futebol, outra academia…</div></div>
+    <span style={{color:'var(--lvt3)'}}>›</span>
+  </div>);
+  return(<div className="lv-card" style={{marginBottom:14}}>
+    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+      <div className="lv-kick">Treinei fora do app</div>
+      <button className="lv-ghost" onClick={()=>setAberto(false)}>Fechar</button>
+    </div>
+    <div className="lv-sub" style={{margin:'6px 0 12px',lineHeight:1.45}}>
+      Sem carga nem série — só para o dia contar na sua frequência.</div>
+    <span className="lv-inlbl">O que você fez</span>
+    <div style={{display:'flex',flexWrap:'wrap',gap:7,margin:'6px 0 12px'}}>
+      {FORA_TIPOS.map(t=><button key={t} className={'lv-pill'+(tipo===t?' on':'')}
+        style={{cursor:'pointer',border:'1px solid '+(tipo===t?'var(--lvsel)':'var(--lvbd)'),
+          background:tipo===t?'var(--lvbrilho)':'transparent',color:tipo===t?'var(--lvsel2)':'var(--lvt2)'}}
+        onClick={()=>setTipo(t)}>{t}</button>)}
+    </div>
+    <div style={{display:'flex',gap:10}}>
+      <div style={{flex:1}}><span className="lv-inlbl">Duração (min)</span>
+        <input className="lv-in" type="number" inputMode="numeric" placeholder="opcional" value={min} onChange={e=>setMin(e.target.value)}/></div>
+      <div style={{flex:1}}><span className="lv-inlbl">Quando</span>
+        <select className="lv-in" value={dia} onChange={e=>setDia(e.target.value)}>
+          <option value={todayStr()}>Hoje</option>
+          <option value={ontem}>Ontem</option>
+        </select></div>
+    </div>
+    <button className="lv-btn" style={{marginTop:12}} disabled={salvando||somenteLeitura} onClick={salvar}>
+      {salvando?'Registrando…':'Registrar treino'}</button>
+  </div>);
+}
+
 function StudentApp({profile,verComoAluno,onSairDaVisao}){
   const demo=!!profile._demo;
   const espiando=!!verComoAluno;
@@ -9085,6 +9418,7 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
         <div style={{flex:1}}><div style={{fontWeight:700}}>{dv.nome||'Divisão'}</div><div className="lv-sub">Toque para executar</div></div>
       </div>)}
     </>}
+    <TreineiFora stu={stu} demo={demo} somenteLeitura={espiando} onPronto={refresh}/>
     <div className="lv-card" onClick={()=>setMetas(true)} style={{cursor:'pointer',background:'var(--bg3)',border:'1px solid var(--lvbd)'}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}><div className="lv-kick">Minhas metas & desafios</div><span style={{color:'var(--lvt3)'}}>›</span></div>
       <div style={{fontWeight:700,fontSize:15,marginTop:6}}>Desafio da semana: {freq.done}/{freq.meta} treinos</div>
@@ -9152,7 +9486,8 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
       <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700}}>Minha avaliação física</div><div className="lv-sub">Última avaliação, relatório e evolução</div></div>
       <span style={{color:'var(--lvt3)'}}>›</span>
     </div>
-    <div className="lv-kick" style={{margin:'8px 0 10px'}}>Conquistas</div>
+    <FotosProgresso stu={stu} conta={contaAluno} demo={demo} somenteLeitura={espiando}/>
+    <div className="lv-kick" style={{margin:'18px 0 10px'}}>Conquistas</div>
     <div className="lv-badges">
       {badges.map((b,i)=><div key={i} className={'lv-badge'+(b.got?' got':'')}><span className="em">{b.em}</span><small>{b.lb}</small></div>)}
     </div>

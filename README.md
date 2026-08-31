@@ -30,6 +30,22 @@ início do aluno aparece um cartão com o passo a passo do aparelho — e no
 Android/Chrome ele instala com um toque só, usando o `beforeinstallprompt`
 capturado ainda no `<head>`.
 
+## Na hora do treino
+- **Da última vez** — ao abrir um exercício, o app mostra a carga e as reps da
+  sessão anterior daquele movimento e há quantos dias foi. É o número que diz se
+  hoje é para manter ou subir.
+- **Trocar exercício** — aparelho ocupado ou dor no ângulo: o aluno escolhe
+  outro do mesmo grupo muscular (ou de qualquer grupo, se pedir). Séries, reps e
+  descanso da ficha continuam iguais, e é o exercício trocado que vai para o
+  histórico do treinador.
+- **Aviso do descanso** — o cronômetro conta pelo relógio, então volta certo
+  mesmo com a tela apagada, e o service worker solta uma notificação quando o
+  descanso acaba, com o celular no bolso.
+- **Treinei fora do app** — corrida, futebol, outra academia. Registra o dia sem
+  carga nem série, para não quebrar a sequência nem sumir do painel do treinador.
+- **Fotos de progresso** — na aba Progresso o aluno envia a foto do dia e vê a
+  primeira ao lado da última. O treinador enxerga as fotos na ficha dele.
+
 ## Convite do aluno
 Em **Acesso do aluno**, o app gera o código e monta o convite pronto para
 WhatsApp com o link `?codigo=XXXXXX`. O aluno toca no link e cai no cadastro já
