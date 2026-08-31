@@ -741,7 +741,7 @@ if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABAS
    .catch. Chamar .catch direto estoura TypeError, e dentro de um useEffect isso
    derruba a tela inteira do aluno. */
 const semEsperar=q=>{try{q.then(()=>{},()=>{});}catch(e){}};
-const APP_VERSION='2026.09.08';   // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION='2026.09.09';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
 
@@ -7693,6 +7693,175 @@ function FeedbackTreino({divisao,demo,onPronto}){
   </div>);
 }
 
+/* ── Card do treino para os stories ──────────────────────────
+   Desenha 1080x1920 num canvas e entrega pronto para o compartilhamento do
+   celular. A imagem sai com a marca e o @ do treinador, então quando o aluno
+   posta, ele é marcado junto — é a divulgação acontecendo sozinha. */
+function desenharCard(ctx,{nome,divisao,sets,ton,tempo,prs,marca,logo,arroba,data,exercicios}){
+  const W=1080,H=1920;
+  const roxo='#8b5cf6', roxo2='#c084fc', ouro='#f59e0b';
+
+  const fundo=ctx.createLinearGradient(0,0,W*0.4,H);
+  fundo.addColorStop(0,'#14121c'); fundo.addColorStop(0.55,'#0e0e13'); fundo.addColorStop(1,'#17131f');
+  ctx.fillStyle=fundo; ctx.fillRect(0,0,W,H);
+  const halo=ctx.createRadialGradient(W*0.5,H*0.32,0,W*0.5,H*0.32,W*0.9);
+  halo.addColorStop(0,'rgba(139,92,246,.28)'); halo.addColorStop(1,'rgba(139,92,246,0)');
+  ctx.fillStyle=halo; ctx.fillRect(0,0,W,H);
+
+  const serif='"Playfair Display",Georgia,serif';
+  const sans='Inter,-apple-system,"Segoe UI",Roboto,sans-serif';
+  // o canvas não faz espaçamento entre letras: faço letra a letra
+  const espacado=(t,x,y,esp)=>{
+    const ls=[...t], larg=ls.reduce((a,c)=>a+ctx.measureText(c).width+esp,0)-esp;
+    let px=x-larg/2;
+    ls.forEach(c=>{ctx.fillText(c,px+ctx.measureText(c).width/2,y);px+=ctx.measureText(c).width+esp;});
+  };
+  const centro=(t,y,font,cor,esp)=>{
+    ctx.font=font; ctx.fillStyle=cor; ctx.textAlign='center';
+    if(esp)espacado(t,W/2,y,esp); else ctx.fillText(t,W/2,y);
+  };
+  const caber=(t,font,max)=>{ctx.font=font;let r=t;
+    while(ctx.measureText(r).width>max&&r.length>4)r=r.slice(0,-2);
+    return r===t?t:r.trim()+'…';};
+  // para o titulo: encolhe a fonte ate caber, so corta em ultimo caso
+  const fonteQueCabe=(t,tam,min,fam,max)=>{
+    while(tam>min){ctx.font='700 '+tam+'px '+fam;if(ctx.measureText(t).width<=max)break;tam-=4;}
+    return '700 '+tam+'px '+fam;};
+
+  // O conteúdo varia de tamanho conforme a quantidade de exercícios, então
+  // meço tudo antes e centralizo o bloco — assim não sobra buraco no treino
+  // curto nem estoura no treino longo.
+  const lista=(exercicios||[]).slice(0,6);
+  const sobra=(exercicios||[]).length-lista.length;
+  const altura=(logo?144:0)+48+105+105+66+190+230
+    +(prs>0?140:0)
+    +(lista.length?((prs>0?120:150)+lista.length*62+(sobra>0?36:0)):0);
+  const topo=175, base=H-360;
+  let y=topo+Math.max(0,(base-topo-altura)/2);
+
+  // ── topo: a marca do treinador ──
+  if(logo){
+    const alt=104, larg=Math.min(340,logo.width*(alt/logo.height));
+    ctx.drawImage(logo,W/2-larg/2,y-alt,larg,alt); y+=40;
+  }
+  centro(caber((marca||'MF PERFORMANCE').toUpperCase(),'600 40px '+sans,W-160),y,'600 40px '+sans,'#f4f4f7',7);
+  y+=48; ctx.strokeStyle=roxo; ctx.lineWidth=3;
+  ctx.beginPath(); ctx.moveTo(W/2-70,y); ctx.lineTo(W/2+70,y); ctx.stroke();
+
+  // ── o feito ──
+  y+=105; centro('TREINO CONCLUÍDO',y,'600 33px '+sans,roxo2,9);
+  y+=105;
+  const tituloTxt=(divisao||'Treino').toUpperCase();
+  const tituloFonte=fonteQueCabe(tituloTxt,88,52,serif,W-130);
+  centro(caber(tituloTxt,tituloFonte,W-130),y,tituloFonte,'#ffffff');
+  y+=66;  centro(caber(nome||'','400 38px '+sans,W-200),y,'400 38px '+sans,'#a2a2b0');
+
+  // ── os números ──
+  const cx=[W*0.28,W*0.72];
+  const bloco=(x,yy,valor,rot,cor)=>{
+    ctx.textAlign='center';
+    ctx.font='800 122px '+sans; ctx.fillStyle=cor||'#ffffff'; ctx.fillText(valor,x,yy);
+    ctx.font='600 28px '+sans; ctx.fillStyle='#6c6c7c'; espacado(rot,x,yy+46,6);
+  };
+  y+=190; bloco(cx[0],y,String(sets),'SÉRIES');
+          bloco(cx[1],y,(ton/1000).toFixed(1).replace('.',',')+'t','VOLUME',roxo2);
+  y+=230; bloco(cx[0],y,tempo,'TEMPO');
+          bloco(cx[1],y,String(prs),'RECORDES',prs>0?ouro:'#ffffff');
+
+  // ── selo de recorde ──
+  if(prs>0){
+    y+=140;
+    const txt=prs>1?prs+' NOVOS RECORDES':'NOVO RECORDE';
+    ctx.font='700 33px '+sans;
+    const w=ctx.measureText(txt).width+90;
+    ctx.fillStyle='rgba(245,158,11,.15)';
+    ctx.beginPath();
+    if(ctx.roundRect)ctx.roundRect(W/2-w/2,y-50,w,72,36);else ctx.rect(W/2-w/2,y-50,w,72);
+    ctx.fill();
+    centro(txt,y,'700 33px '+sans,ouro,3);
+  }
+
+  // ── os exercícios, que é o que dá vontade de mostrar ──
+  if(lista.length){
+    y+=(prs>0?120:150);
+    ctx.strokeStyle='rgba(255,255,255,.10)'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(90,y-52); ctx.lineTo(W-90,y-52); ctx.stroke();
+    lista.forEach(e=>{
+      ctx.textAlign='left';  ctx.font='500 36px '+sans; ctx.fillStyle='#d8d8e0';
+      ctx.fillText(caber(e.nome,'500 36px '+sans,W-430),100,y);
+      ctx.textAlign='right'; ctx.font='700 36px '+sans; ctx.fillStyle='#ffffff';
+      const carga=e.carga!=null?(String(e.carga).replace('.',',')+' kg'):'—';
+      ctx.fillText(e.reps?carga+' × '+e.reps:carga,W-100,y);
+      y+=62;
+    });
+    if(sobra>0)centro('+'+sobra+' exercício'+(sobra>1?'s':''),y+6,'400 30px '+sans,'#6c6c7c',2);
+  }
+
+  // ── rodapé: o @ para marcar, e a data ──
+  if(arroba)centro(arroba.startsWith('@')?arroba:'@'+arroba,H-285,'600 40px '+sans,roxo2,3);
+  centro(data,H-222,'400 29px '+sans,'#6c6c7c',2);
+}
+
+function CardTreino({stu,divisao,finished,marca,fmtT}){
+  const [arquivo,setArquivo]=useState(null);
+  const [url,setUrl]=useState(null);
+  const [erro,setErro]=useState(null);
+  const [salvo,setSalvo]=useState(false);
+
+  useEffect(()=>{let vivo=true;(async()=>{
+    try{
+      try{if(document.fonts&&document.fonts.ready)await document.fonts.ready;}catch(e){}
+      let logo=null;
+      if(marca&&marca.logo_url){
+        logo=await new Promise(res=>{const i=new Image();i.crossOrigin='anonymous';
+          i.onload=()=>res(i);i.onerror=()=>res(null);i.src=marca.logo_url;});
+      }
+      const c=document.createElement('canvas');c.width=1080;c.height=1920;
+      desenharCard(c.getContext('2d'),{
+        nome:(stu&&stu.name)||'', divisao:divisao&&divisao.nome,
+        sets:finished.sets, ton:finished.ton, tempo:fmtT(finished.tempo), prs:finished.prs,
+        exercicios:finished.exercicios,
+        marca:(marca&&(marca.brand_name||marca.name))||'MF Performance',
+        logo, arroba:marca&&marca.instagram,
+        data:new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'}),
+      });
+      const blob=await new Promise(r=>c.toBlob(r,'image/png'));
+      if(!vivo||!blob)return;
+      setUrl(URL.createObjectURL(blob));
+      setArquivo(new File([blob],'meu-treino.png',{type:'image/png'}));
+    }catch(e){if(vivo)setErro('Não deu para montar a imagem neste aparelho.');}
+  })();return()=>{vivo=false;};},[]);
+
+  const baixar=()=>{
+    if(!url)return;
+    const a=document.createElement('a');a.href=url;a.download='meu-treino.png';
+    document.body.appendChild(a);a.click();a.remove();
+    setSalvo(true);
+  };
+  const compartilhar=async()=>{
+    // precisa sair no mesmo toque do botão, por isso a imagem já vem pronta
+    try{
+      if(arquivo&&navigator.canShare&&navigator.canShare({files:[arquivo]})){
+        await navigator.share({files:[arquivo],title:'Meu treino'});
+        return;
+      }
+    }catch(e){ if(e&&e.name==='AbortError')return; }
+    baixar();
+  };
+
+  if(erro)return <div className="lv-sub" style={{marginTop:14}}>{erro}</div>;
+  return(<div style={{marginTop:18,width:'100%',maxWidth:300}}>
+    {url
+      ? <img src={url} alt="Resumo do treino" style={{width:'100%',borderRadius:16,display:'block',
+          border:'1px solid var(--lvbd)',boxShadow:'0 10px 40px rgba(139,92,246,.25)'}}/>
+      : <div className="lv-card" style={{textAlign:'center',padding:'34px 0'}}><div className="spinner"/></div>}
+    <button className="lv-btn neon" style={{marginTop:12}} disabled={!url} onClick={compartilhar}>
+      Compartilhar nos stories</button>
+    {salvo&&<div className="lv-sub" style={{marginTop:8,textAlign:'center',lineHeight:1.45}}>
+      Imagem salva. Abra o Instagram, crie um story e escolha ela da galeria.</div>}
+  </div>);
+}
+
 function TrainExec({student,divisao,demo,somenteLeitura,best,onBack,onSaved,onFinish}){
   const [series,setSeries]=useState(demo?(_DEMO_ALUNO_SERIES[divisao.id]||[]):null);
   const [vals,setVals]=useState({});const [done,setDone]=useState({});const [active,setActive]=useState({});
@@ -7700,6 +7869,11 @@ function TrainExec({student,divisao,demo,somenteLeitura,best,onBack,onSaved,onFi
   const [paused,setPaused]=useState(false);const [tot,setTot]=useState(0);
   const [restTotal,setRestTotal]=useState(60);
   const audioRef=useRef(null);const [cel,setCel]=useState(null);const [vid,setVid]=useState({});const [demoOn,setDemoOn]=useState({});const [finished,setFinished]=useState(null);const [fbAberto,setFbAberto]=useState(false);
+  const [marca,setMarca]=useState(null);        // marca do treinador, para o card
+  useEffect(()=>{if(demo||!student.coach_id)return;
+    lerCopia('marca-'+student.coach_id,
+      sb.from('profiles').select('brand_name,name,instagram,logo_url').eq('id',student.coach_id).maybeSingle())
+      .then(({data})=>setMarca(data||null)).catch(()=>{});},[]);
   const [pendentes,setPendentes]=useState(0);   // séries guardadas no aparelho
   useEffect(()=>{filaAluno().then(q=>setPendentes(q.length));
     const f=e=>setPendentes(e.detail||0);
@@ -7843,7 +8017,15 @@ function TrainExec({student,divisao,demo,somenteLeitura,best,onBack,onSaved,onFi
     {series!==null&&exs.length>0&&<button className="lv-btn neon" style={{marginTop:8}} onClick={()=>{
       const ton=Object.values(done).reduce((a,d)=>a+(num(d.carga)||0)*(num(d.reps)||0),0);
       const prs=Object.values(done).filter(d=>d.isPr).length;
-      setFinished({sets:Object.keys(done).length,ton:Math.round(ton),prs,tempo:tot});
+      // resumo por exercício: a melhor série de cada um, que é o que dá orgulho
+      const porEx=exs.map(e=>{
+        let melhor=null,qtd=0;
+        e.tiers.forEach(t=>{for(let i=0;i<t.qtd_series;i++){const d=done[t.id+'_'+i];
+          if(!d)continue;qtd++;
+          if(!melhor||(num(d.carga)||0)>(num(melhor.carga)||0))melhor=d;}});
+        return qtd?{nome:e.nome,carga:num(melhor.carga),reps:num(melhor.reps),series:qtd}:null;
+      }).filter(Boolean);
+      setFinished({sets:Object.keys(done).length,ton:Math.round(ton),prs,tempo:tot,exercicios:porEx});
       try{navigator.vibrate&&navigator.vibrate([50,50,50,50,120]);}catch(e){}
       // o treinador recebe na tela do celular que este aluno acabou de treinar
       if(!demo&&!somenteLeitura)avisarTreinoConcluido(divisao&&divisao.nome);
@@ -7862,7 +8044,8 @@ function TrainExec({student,divisao,demo,somenteLeitura,best,onBack,onSaved,onFi
         <div style={{textAlign:'center'}}><div style={{fontSize:26,fontWeight:800}}>{fmtT(finished.tempo)}</div><div className="lv-sub">tempo</div></div>
       </div>
       {finished.prs>0&&<div className="lv-pill" style={{background:'var(--lvbrilho)',color:'var(--lvsel2)',marginTop:16,fontSize:14}}>{finished.prs} novo{finished.prs>1?'s':''} recorde{finished.prs>1?'s':''}!</div>}
-      <button className="lv-btn" style={{marginTop:22,maxWidth:280}} onClick={()=>setFbAberto(true)}>Contar como foi</button>
+      <CardTreino stu={student} divisao={divisao} finished={finished} marca={marca} fmtT={fmtT}/>
+      <button className="lv-btn" style={{marginTop:16,maxWidth:280}} onClick={()=>setFbAberto(true)}>Contar como foi</button>
       <button className="lv-ghost" style={{marginTop:10,padding:'10px 22px'}} onClick={()=>{if(onFinish)onFinish();onBack();}}>Voltar ao início</button>
     </div></>}
 
