@@ -743,7 +743,7 @@ if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABAS
    .catch. Chamar .catch direto estoura TypeError, e dentro de um useEffect isso
    derruba a tela inteira do aluno. */
 const semEsperar=q=>{try{q.then(()=>{},()=>{});}catch(e){}};
-const APP_VERSION='2026.09.12';   // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION='2026.09.13';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
 
@@ -1075,6 +1075,21 @@ async function cancelarAvisoDescanso(){
     const reg=await navigator.serviceWorker.ready;
     if(reg.active)reg.active.postMessage({tipo:'DESCANSO-CANCELAR'});
   }catch(e){}
+}
+
+// Dor alta no fim do treino: o treinador recebe na hora, em vez de descobrir
+// dias depois. Quem monta o texto é o servidor, lendo o feedback já gravado.
+async function avisarDorAoTreinador(id){
+  try{
+    const {data:sess}=await sb.auth.getSession();
+    const token=sess&&sess.session&&sess.session.access_token;
+    if(!token)return;
+    await comPrazo(fetch(CFG.SUPABASE_URL+'/functions/v1/push',{
+      method:'POST',
+      headers:{'content-type':'application/json',apikey:CFG.SUPABASE_ANON_KEY,authorization:'Bearer '+token},
+      body:JSON.stringify({mode:'dor',id:id||null}),
+    }),12000);
+  }catch(e){/* sem internet: o feedback já está gravado, só o aviso não sai */}
 }
 
 async function desativarPush(){try{const reg=await navigator.serviceWorker.ready;const sub=await reg.pushManager.getSubscription();if(sub){await sb.rpc('push_remover',{p_endpoint:sub.toJSON().endpoint}).catch(()=>{});await sub.unsubscribe();}}catch(e){}}
@@ -1725,6 +1740,46 @@ const _DEMO_PAINEL=[
 ];
 /* -- Painel "Hoje": o que precisa da decisão do treinador agora ──
    Uma RPC só (painel_hoje) em vez de 6 queries por aluno. */
+/* Ligar o aviso no celular estava enterrado em "Meu perfil / marca", e sem ele
+   o treinador só descobre que o aluno treinou quando abre o app. Este cartão
+   fica no painel enquanto o aparelho não estiver inscrito e some depois. */
+function LigarAvisoCard({demo}){
+  const [estado,setEstado]=useState('vendo');  // vendo | precisa | ok | erro
+  const [msg,setMsg]=useState(null);
+  const [busy,setBusy]=useState(false);
+  useEffect(()=>{if(demo){setEstado('ok');return;}(async()=>{
+    try{
+      if(!pushSuportado()||!sb){setEstado('precisa');return;}
+      if(Notification.permission!=='granted'){setEstado('precisa');return;}
+      const reg=await navigator.serviceWorker.ready;
+      const sub=await reg.pushManager.getSubscription();
+      if(!sub){setEstado('precisa');return;}
+      const {data}=await sb.from('train_push').select('endpoint')
+        .eq('endpoint',sub.toJSON().endpoint).eq('papel','treinador').maybeSingle();
+      setEstado(data?'ok':'precisa');
+    }catch(e){setEstado('precisa');}
+  })();},[demo]);
+  if(estado==='vendo'||estado==='ok')return null;
+  return(<div className="card" style={{marginBottom:18,borderColor:'rgba(234,179,8,.35)'}}>
+    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:14,flexWrap:'wrap'}}>
+      <div style={{minWidth:220,flex:1}}>
+        <div style={{fontFamily:'var(--serif)',fontSize:17,fontWeight:600,marginBottom:3}}>Receber aviso quando o aluno treinar</div>
+        <p className="s-meta" style={{marginBottom:0,lineHeight:1.55}}>
+          Este aparelho ainda não está inscrito, então nada chega na sua tela — nem o treino
+          concluído. É uma vez por aparelho. No iPhone, adicione o app à Tela de Início e
+          abra por lá antes de ligar.</p>
+      </div>
+      <button className="btn btn-primary" disabled={busy} onClick={async()=>{
+        setBusy(true);setMsg(null);
+        const r=await ativarPushTreinador();
+        if(r.ok)setEstado('ok'); else setMsg(r.msg);
+        setBusy(false);
+      }}>{busy?'Ligando…':'Ligar avisos neste aparelho'}</button>
+    </div>
+    {msg&&<div className="alert alert-danger" style={{marginTop:12,marginBottom:0}}>{msg}</div>}
+  </div>);
+}
+
 function PainelHoje({onSelect,students,demo}){
   const [rows,setRows]=useState(undefined);
   const [aberto,setAberto]=useState(true);
@@ -2003,6 +2058,7 @@ function Dashboard({students,evals,onSelect,onNew,onDelete,onReassess,onSchedule
         titulo="Instale o app no seu celular"
         texto="Aberto pelo ícone, você recebe na hora o aviso de quando um aluno termina o treino."/>
 
+      <LigarAvisoCard demo={demo}/>
       <PainelHoje students={students} onSelect={onSelect} demo={demo}/>
       <PainelEvolucao rows={rows} onSelect={onSelect}/>
 
@@ -6369,7 +6425,13 @@ async function escoarFilaAluno(){
       const it=q[0];
       try{
         if(it.tabela)  {const {error}=await comPrazo(sb.from(it.tabela).insert(it.linha));if(error)throw error;}
-        else if(it.rpc){const {error}=await comPrazo(sb.rpc(it.rpc,it.args||{}));if(error)throw error;}
+        else if(it.rpc){
+          const {data,error}=await comPrazo(sb.rpc(it.rpc,it.args||{}));if(error)throw error;
+          // feedback que estava na fila: se tinha dor alta, o treinador
+          // precisa saber agora que o sinal voltou
+          if(it.rpc==='treino_feedback'&&(it.args||{}).p_dor>=4)
+            semEsperar(avisarDorAoTreinador(data&&data.id));
+        }
       }catch(e){
         if(isNetErr(e))break;         // sem rede: fica na fila, tenta depois
         /* erro definitivo: sai da fila para não travar o resto */
@@ -7895,19 +7957,30 @@ function FeedbackTreino({divisao,demo,onPronto}){
   const enviar=async()=>{
     setBusy(true);setErro(null);
     if(!demo){
-      try{
-        const {error}=await sb.rpc('treino_feedback',{
-          p_divisao:(divisao&&divisao.id)||null, p_divisao_nome:(divisao&&divisao.nome)||null,
-          p_rpe:v.rpe, p_dificuldade:v.dificuldade, p_dor:v.dor, p_nota:nota||null});
-        if(error)throw error;
-      }catch(e){
-        const m=e.message||String(e);
-        setBusy(false);
-        setErro(/train_feedback|does not exist|PGRST202|PGRST205|42P01/.test(m)
-          ?'Seu treinador precisa rodar a última atualização do banco. Seu treino já foi salvo normalmente.'
-          :'Não consegui enviar: '+m);
-        return;
+      const args={p_divisao:(divisao&&divisao.id)||null, p_divisao_nome:(divisao&&divisao.nome)||null,
+        p_rpe:v.rpe, p_dificuldade:v.dificuldade, p_dor:v.dor, p_nota:nota||null};
+      let subiu=false;
+      if(navigator.onLine){
+        try{
+          const {data:fb,error}=await comPrazo(sb.rpc('treino_feedback',args));
+          if(error)throw error;
+          subiu=true;
+          // dor alta não pode esperar o treinador abrir a ficha do aluno.
+          // manda o id do feedback: dois envios no mesmo minuto não se confundem
+          if(v.dor>=4)semEsperar(avisarDorAoTreinador(fb&&fb.id));
+        }catch(e){
+          const m=e.message||String(e);
+          // banco desatualizado é erro definitivo: guardar na fila só adiaria
+          if(/train_feedback|does not exist|PGRST202|PGRST205|42P01/.test(m)){
+            setBusy(false);
+            setErro('Seu treinador precisa rodar a última atualização do banco. Seu treino já foi salvo normalmente.');
+            return;
+          }
+          if(!isNetErr(e)){setBusy(false);setErro('Não consegui enviar: '+m);return;}
+        }
       }
+      // sem sinal o feedback ia embora junto com o treino: agora espera na fila
+      if(!subiu)await enfileirarAluno({rpc:'treino_feedback',args});
     }
     setBusy(false);onPronto();
   };

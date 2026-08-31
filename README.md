@@ -51,6 +51,11 @@ capturado ainda no `<head>`.
   "Hoje é B — Superiores". Quem decide o alvo é o banco
   (`lembrete_treino_alvos`); quem envia é a Edge Function `push`, chamada por
   três cron jobs.
+- **Dor avisa na hora** — no feedback de fim de treino, dor 4 ou 5 dispara uma
+  notificação para o treinador com a divisão e o que o aluno escreveu. O texto
+  é montado pelo servidor a partir do que está gravado, nunca pelo aparelho do
+  aluno. O feedback também entra na fila quando não há sinal — antes ele se
+  perdia.
 - **Meus treinos** — o diário de tudo que ele fez, sessão por sessão: dia,
   divisão, exercícios, séries, volume e recordes; toca para abrir e ver a carga
   de cada série. O treinador vê a mesma coisa na ficha do aluno, com a média de
