@@ -30,12 +30,20 @@ ele já tiver conta e escolher Entrar.
   e vê treinos, dieta, evolução, avisos e check-ins.
 
 ## Fichas e ciclos prontos
-O app já vem com seis fichas montadas (iniciante AB, ABC de hipertrofia, ABCD
-avançado, upper/lower de força, ABC de emagrecimento em circuito e um de glúteo
-e pernas) e quatro modelos de periodização. Na tela de Treino, **Usar ficha
-pronta** cria as divisões com séries, repetições e descanso já preenchidos, e
-**Salvar como modelo** guarda a ficha do aluno para reaproveitar em outro. Na
-Periodização, **Salvar este ciclo como modelo** faz o mesmo com o macrociclo.
+O app vem com **32 fichas montadas** e quatro modelos de periodização. As fichas
+cobrem programas da literatura (Starting Strength, StrongLifts 5x5, Golden Six,
+Heavy Duty, GVT 10x10, 5/3/1, PHUL, PHAT, PPL, HST, FST-7), reabilitação de
+joelho, coluna, quadril e ombro, treino de idoso com elástico, treino em casa,
+mobilidade e uma linha de glúteo. Filtra por objetivo e busca por nome de
+exercício.
+
+Na tela de Treino, **Usar ficha pronta** cria as divisões com séries, repetições
+e descanso já preenchidos, e **Salvar como modelo** guarda a ficha do aluno para
+reaproveitar em outro. Na Periodização, **Salvar este ciclo como modelo** faz o
+mesmo com o macrociclo.
+
+A biblioteca tem **214 exercícios**, todos com demonstração: 202 com o desenho
+animado do free-exercise-db e as 12 técnicas avançadas com a instrução escrita.
 
 Os modelos que vêm no app ficam com `coach_id` nulo (todo mundo enxerga, ninguém
 edita); os que o treinador salva ficam com o `coach_id` dele.

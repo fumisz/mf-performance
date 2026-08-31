@@ -749,7 +749,7 @@ if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABAS
    .catch. Chamar .catch direto estoura TypeError, e dentro de um useEffect isso
    derruba a tela inteira do aluno. */
 const semEsperar=q=>{try{q.then(()=>{},()=>{});}catch(e){}};
-const APP_VERSION='2026.09.04';   // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION='2026.09.05';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
 
@@ -4094,6 +4094,24 @@ function ConviteInstalar({lv,fechavel,chave,titulo,texto}){
   </div>);
 }
 
+/* ── Abrir o app sem internet ────────────────────────────────
+   Sem isto o app trava no spinner (ou pior: cai em "saia e entre
+   novamente", e aí o treinador perde o acesso justamente quando está
+   sem rede, no meio de uma avaliação). Guardamos o perfil no aparelho e
+   sabemos ler a sessão que o Supabase já deixou no localStorage. */
+const REF_SUPA=(()=>{try{const m=(CFG.SUPABASE_URL||'').match(/^https?:\/\/([^.]+)\./);return m?m[1]:null;}catch(e){return null;}})();
+const sessaoGuardada=()=>{try{
+  if(!REF_SUPA)return null;
+  let bruto=localStorage.getItem('sb-'+REF_SUPA+'-auth-token');
+  if(!bruto)return null;
+  if(bruto.startsWith('base64-'))bruto=atob(bruto.slice(7));
+  const s=JSON.parse(bruto);
+  const ses=(s&&s.currentSession)||s;
+  return (ses&&ses.user)?ses:null;
+}catch(e){return null;}};
+const perfilGuardadoLer=id=>{try{return JSON.parse(localStorage.getItem('mfp_perfil_'+id)||'null');}catch(e){return null;}};
+const perfilGuardadoGravar=p=>{try{if(p&&p.id)localStorage.setItem('mfp_perfil_'+p.id,JSON.stringify(p));}catch(e){}};
+
 /* ── Tela de autenticação (treinadores) ── */
 function AuthScreen(){
   // convite do treinador: mfperformance.app/?codigo=AB12CD já abre no
@@ -5587,11 +5605,17 @@ function GifDoisQuadros({base,name}){
   </div>);
 }
 
-function ExDemo({url,path,name}){
+function ExDemo({url,path,name,dicas}){
   const u=(exMediaUrl(path)||url||'').trim();
-  if(/free-exercise-db/.test(u)&&/\/0\.jpg$/i.test(u))return <GifDoisQuadros base={u} name={name}/>;
-  if(!u)return <div style={{padding:14,textAlign:'center',color:'var(--lvt3,#6c6c7c)',background:'var(--lvc2,#23232d)',borderRadius:12,fontSize:12.5}}>Sem demonstração ainda.
-    <div style={{marginTop:8}}><button className="lv-ghost" onClick={()=>openVideo(null,name)}>Buscar no YouTube ↗</button></div></div>;
+  if(/free-exercise-db/.test(u)&&/\/0\.jpg$/i.test(u))return(<div>
+    <GifDoisQuadros base={u} name={name}/>
+    {dicas&&<div style={{marginTop:8,fontSize:12.5,lineHeight:1.5,color:'var(--lvt2,#a2a2b0)'}}>{dicas}</div>}
+  </div>);
+  if(!u)return <div style={{padding:14,color:'var(--lvt3,#6c6c7c)',background:'var(--lvc2,#23232d)',borderRadius:12,fontSize:12.5,lineHeight:1.55}}>
+    {dicas
+      ? <span style={{color:'var(--lvt2,#a2a2b0)'}}>{dicas}</span>
+      : <span>Sem demonstração ainda.</span>}
+    <div style={{marginTop:8,textAlign:'center'}}><button className="lv-ghost" onClick={()=>openVideo(null,name)}>Ver no YouTube ↗</button></div></div>;
   if(/\.(gif|png|jpe?g|webp|avif)(\?|$)/i.test(u))return <img src={u} alt={name} loading="lazy" style={{width:'100%',borderRadius:12,display:'block'}}/>;
   if(/\.(mp4|webm|mov)(\?|$)/i.test(u))return <video src={u} autoPlay loop muted playsInline controls style={{width:'100%',borderRadius:12,display:'block',background:'#000'}}/>;
   const yt=ytEmbed(u);
@@ -5693,12 +5717,12 @@ function ExerciseLibrary({coach,onBack}){
     {lib===null?<div className="center-screen"><div className="spinner"/></div>:
      groups.map(([g,items])=>(<div key={g} style={{marginBottom:14}}>
        <div style={{fontSize:12,fontWeight:700,textTransform:'uppercase',letterSpacing:1,color:'var(--text3)',marginBottom:8}}>{g}</div>
-       {items.map(e=>{const temDemo=!!(e.video_path||e.video_url);const meu=e.coach_id===coach.id;return(
+       {items.map(e=>{const temDemo=!!(e.video_path||e.video_url||e.dicas);const meu=e.coach_id===coach.id;return(
          <div key={e.id} style={{border:'1px solid var(--border)',borderRadius:10,marginBottom:6,background:'var(--bg2)',overflow:'hidden'}}>
            <div style={{display:'flex',alignItems:'center',gap:10,padding:'9px 12px',flexWrap:'wrap'}}>
              <span style={{flex:1,minWidth:130,fontWeight:600}}>{e.nome}
                <span style={{marginLeft:7,fontSize:11,fontWeight:700,color:temDemo?'#2f8f4e':'var(--text3)'}}>
-                 {temDemo?(e.video_path?'vídeo próprio':'link'):'sem demo'}</span></span>
+                 {e.video_path?'vídeo próprio':e.video_url?'demonstração':e.dicas?'como fazer':'sem demo'}</span></span>
              {temDemo&&<button className="btn btn-ghost btn-sm" onClick={()=>setVerDemo(v=>v===e.id?null:e.id)}>
                {verDemo===e.id?'Fechar':'Ver'}</button>}
              <button className="btn btn-primary btn-sm" disabled={subindo===e.id} onClick={()=>escolherArquivo(e)}>
@@ -5708,7 +5732,7 @@ function ExerciseLibrary({coach,onBack}){
              {meu&&<button className="btn-icon btn-sm" title="Excluir exercício" onClick={()=>del(e)}>×</button>}
            </div>
            {verDemo===e.id&&<div style={{padding:'0 12px 12px',maxWidth:420}}>
-             <ExDemo url={e.video_url} path={e.video_path} name={e.nome}/></div>}
+             <ExDemo url={e.video_url} path={e.video_path} name={e.nome} dicas={e.dicas}/></div>}
          </div>);})}
      </div>))}
   </div>);
@@ -5721,12 +5745,21 @@ function FichaModeloPicker({onUsar,onClose,busy}){
   const [mods,setMods]=useState(null);
   const [aberto,setAberto]=useState(null);
   const [obj,setObj]=useState('Todos');
+  const [busca,setBusca]=useState('');
   useEffect(()=>{sb.from('train_ficha_modelo').select('*')
     .then(({data})=>setMods(data||[])).catch(()=>setMods([]));},[]);
   const lista=(mods||[]).slice().sort((a,b)=>
     (a.coach_id?0:1)-(b.coach_id?0:1) || (a.dias||0)-(b.dias||0) || a.nome.localeCompare(b.nome));
   const objetivos=['Todos',...[...new Set(lista.map(m=>m.objetivo).filter(Boolean))]];
-  const vis=lista.filter(m=>obj==='Todos'||m.objetivo===obj);
+  // a busca também acha pelo nome do exercício: "elástico", "hip thrust", "cadeira"
+  const casa=(m,q)=>{
+    if(!q)return true;
+    const alvo=[m.nome,m.objetivo,m.nivel,m.resumo,
+      ...(m.divisoes||[]).map(d=>d.nome),
+      ...(m.divisoes||[]).flatMap(d=>(d.exercicios||[]).map(e=>e.nome))].join(' ').toLowerCase();
+    return q.toLowerCase().split(/\s+/).filter(Boolean).every(t=>alvo.includes(t));
+  };
+  const vis=lista.filter(m=>(obj==='Todos'||m.objetivo===obj)&&casa(m,busca));
   const apagar=async(ev,m)=>{ev.stopPropagation();
     if(!confirm('Apagar o modelo "'+m.nome+'"? As fichas já montadas não mudam.'))return;
     setMods(p=>p.filter(x=>x.id!==m.id));
@@ -5735,12 +5768,14 @@ function FichaModeloPicker({onUsar,onClose,busy}){
   return(<div style={{position:'fixed',inset:0,zIndex:120,background:'rgba(10,8,10,.8)',display:'flex',alignItems:'flex-start',justifyContent:'center',padding:16,overflow:'auto'}} onClick={onClose}>
     <div className="card" style={{maxWidth:660,width:'100%',margin:'auto'}} onClick={e=>e.stopPropagation()}>
       <div style={{fontFamily:'var(--serif)',fontSize:19,fontWeight:600}}>Fichas prontas</div>
-      <p className="s-meta" style={{margin:'4px 0 12px'}}>Cria as divisões com séries, repetições e descanso já preenchidos. Depois é só ajustar o que quiser.</p>
-      {objetivos.length>2&&<div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:12}}>
+      <p className="s-meta" style={{margin:'4px 0 12px'}}>{(mods||[]).length} fichas montadas — cria as divisões com séries, repetições e descanso já preenchidos. Depois é só ajustar o que quiser.</p>
+      {objetivos.length>2&&<div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:10}}>
         {objetivos.map(o=>(<button key={o} type="button" className={'btn btn-sm '+(obj===o?'btn-primary':'btn-ghost')} onClick={()=>setObj(o)}>{o}</button>))}
       </div>}
+      <div className="search-wrap" style={{marginBottom:12}}><span className="search-icon"><IconBusca/></span>
+        <input className="fi" placeholder="Buscar por nome, objetivo ou exercício..." value={busca} onChange={e=>setBusca(e.target.value)}/></div>
       {mods===null?<div className="center-screen" style={{minHeight:90}}><div className="spinner"/></div>:
-       vis.length===0?<p className="s-meta">Nenhum modelo neste objetivo.</p>:
+       vis.length===0?<p className="s-meta">Nenhuma ficha com esse filtro.</p>:
        vis.map(m=>{const open=aberto===m.id;
         return(<div key={m.id} className="dash-panel" style={{marginBottom:10}}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:10}}>
@@ -5796,7 +5831,7 @@ function TrainScreen({coach,students,preStudent,onBack}){
 
   useEffect(()=>{(async()=>{
     if(demo){setLib([{id:'x1',nome:'Agachamento Livre'},{id:'x2',nome:'Leg Press'},{id:'x3',nome:'Cadeira Extensora'},{id:'x4',nome:'Stiff'}]);return;}
-    const {data}=await sb.from('train_exercicios').select('id,nome,grupo_muscular').order('nome');setLib(data||[]);
+    const {data}=await sb.from('train_exercicios').select('id,nome,grupo_muscular,video_url,video_path,dicas').order('nome');setLib(data||[]);
   })();},[]);
   const loadDivs=async s=>{if(demo){setDivs([]);return;}const {data,error}=await sb.from('train_divisao').select('*').eq('student_id',s.id).order('ordem');if(error){setMsg({t:'err',m:'Erro: '+error.message});setDivs([]);return;}setDivs(data||[]);};
   useEffect(()=>{if(stu)loadDivs(stu);else setDivs(null);},[stu&&stu.id]);
@@ -5966,7 +6001,7 @@ function TrainScreen({coach,students,preStudent,onBack}){
                   ? <button className="link" style={{marginLeft:8,fontSize:11,background:'none',border:'none',padding:0,cursor:'pointer'}}
                       onClick={()=>setVerEx(v=>v===s.id?null:s.id)}>{verEx===s.id?'fechar':'ver'}</button>
                   : <span style={{marginLeft:8,fontSize:11,color:'var(--text3)'}}>sem demo</span>}
-                {verEx===s.id&&dem&&<div style={{marginTop:8,maxWidth:280}}><ExDemo url={dem.video_url} path={dem.video_path} name={dem.nome}/></div>}
+                {verEx===s.id&&dem&&<div style={{marginTop:8,maxWidth:280}}><ExDemo url={dem.video_url} path={dem.video_path} name={dem.nome} dicas={dem.dicas}/></div>}
               </td>
               <td><span className="badge" style={{background:'transparent',color:tierColor(s.tipo_serie),border:'1px solid '+tierColor(s.tipo_serie)}}>{s.tipo_serie}</span></td>
               <td style={{whiteSpace:'nowrap'}}>
@@ -6012,7 +6047,7 @@ function TrainScreen({coach,students,preStudent,onBack}){
             </div>
             {exSelecionado&&(exSelecionado.video_url||exSelecionado.video_path)&&
               <div style={{flexBasis:'100%',maxWidth:300}}>
-                <ExDemo url={exSelecionado.video_url} path={exSelecionado.video_path} name={exSelecionado.nome}/></div>}
+                <ExDemo url={exSelecionado.video_url} path={exSelecionado.video_path} name={exSelecionado.nome} dicas={exSelecionado.dicas}/></div>}
           </div>
         </div>}
       </div>);})}
@@ -6033,7 +6068,16 @@ const offSnapLoad=c=>IDB.get('snap-'+c);
 const offSnapSave=(c,students,evals)=>IDB.set('snap-'+c,{students,evals,ts:Date.now()});
 const offQueueLoad=async c=>(await IDB.get('queue-'+c))||[];
 const offQueueSave=(c,q)=>IDB.set('queue-'+c,q);
-const isNetErr=e=>!navigator.onLine||(e&&/network|fetch|Failed to fetch|timeout/i.test(e.message||''));
+/* Toda chamada de rede leva prazo. Sem isso, no wifi da academia que conecta
+   mas não navega, o navigator.onLine continua "true", o fetch fica pendurado
+   para sempre e a avaliação nem chega a entrar na fila do aparelho — que é
+   exatamente o caso de "salvei e sumiu". */
+const PRAZO_MS=12000;
+const comPrazo=(p,ms=PRAZO_MS)=>new Promise((ok,falha)=>{
+  const t=setTimeout(()=>{const e=new Error('A internet não respondeu a tempo.');e.semRede=true;falha(e);},ms);
+  Promise.resolve(p).then(v=>{clearTimeout(t);ok(v);},e=>{clearTimeout(t);falha(e);});
+});
+const isNetErr=e=>!navigator.onLine||(e&&e.semRede)||(e&&/network|fetch|Failed to fetch|timeout|aborted|Load failed/i.test(e.message||''));
 
 /* ── App ── */
 /* ════════════════════════════════════════════════════════════
@@ -7199,6 +7243,10 @@ function App({profile,setProfile}){
   const [online,setOnline]=useState(typeof navigator!=='undefined'?navigator.onLine:true);
   const [pending,setPending]=useState(0);
   const [loadedOffline,setLoadedOffline]=useState(false);
+  const [redeRuim,setRedeRuim]=useState(false); // conectado, mas o servidor não responde
+  const [falhas,setFalhas]=useState([]);       // o que a sincronia não conseguiu subir
+  const [recado,setRecado]=useState(null);     // confirmação curta de "salvei aqui"
+  const avisarGuardado=t=>{setRecado(t);setTimeout(()=>setRecado(r=>r===t?null:r),4000);};
   const queueRef=useRef([]);
   const flushingRef=useRef(false);
   const [theme,setTheme]=useState(()=>{try{return localStorage.getItem('mfp_theme')||'light';}catch{return 'light';}});
@@ -7228,28 +7276,38 @@ function App({profile,setProfile}){
     if(flushingRef.current||profile._demo||!navigator.onLine||!queueRef.current.length)return;
     flushingRef.current=true;
     try{
-      let q=[...queueRef.current];const idMap={};
+      let q=[...queueRef.current];const idMap={};const ruins=[];
       while(q.length){
-        const it=q[0];let drop=true;
+        const it=q[0];
         try{
-          if(it.op==='stu-insert'){const {data,error}=await sb.from('assess_students').insert(it.row).select().single();if(error)throw error;idMap[it.id]=data.id;}
-          else if(it.op==='stu-update'){const rid=idMap[it.id]||it.id;const {error}=await sb.from('assess_students').update(it.row).eq('id',rid);if(error)throw error;}
-          else if(it.op==='stu-delete'){const rid=idMap[it.id]||it.id;if(!isLocalId(rid)){const {error}=await sb.from('assess_students').delete().eq('id',rid);if(error)throw error;}}
-          else if(it.op==='ev-insert'){const row={...it.row};if(isLocalId(row.student_id))row.student_id=idMap[row.student_id]||row.student_id;const {data,error}=await sb.from('assessments').insert(row).select().single();if(error)throw error;idMap[it.id]=data.id;}
-          else if(it.op==='ev-update'){const rid=idMap[it.id]||it.id;const row={...it.row};if(isLocalId(row.student_id))row.student_id=idMap[row.student_id]||row.student_id;const {error}=await sb.from('assessments').update(row).eq('id',rid);if(error)throw error;}
-          else if(it.op==='ev-delete'){const rid=idMap[it.id]||it.id;if(!isLocalId(rid)){const {error}=await sb.from('assessments').delete().eq('id',rid);if(error)throw error;}}
-        }catch(e){if(isNetErr(e)){break;}drop=true;/* erro definitivo: descarta pra não travar a fila */}
-        if(!drop)break;
+          if(it.op==='stu-insert'){const {data,error}=await comPrazo(sb.from('assess_students').insert(it.row).select().single());if(error)throw error;idMap[it.id]=data.id;}
+          else if(it.op==='stu-update'){const rid=idMap[it.id]||it.id;const {error}=await comPrazo(sb.from('assess_students').update(it.row).eq('id',rid));if(error)throw error;}
+          else if(it.op==='stu-delete'){const rid=idMap[it.id]||it.id;if(!isLocalId(rid)){const {error}=await comPrazo(sb.from('assess_students').delete().eq('id',rid));if(error)throw error;}}
+          else if(it.op==='ev-insert'){const row={...it.row};if(isLocalId(row.student_id))row.student_id=idMap[row.student_id]||row.student_id;const {data,error}=await comPrazo(sb.from('assessments').insert(row).select().single());if(error)throw error;idMap[it.id]=data.id;}
+          else if(it.op==='ev-update'){const rid=idMap[it.id]||it.id;const row={...it.row};if(isLocalId(row.student_id))row.student_id=idMap[row.student_id]||row.student_id;const {error}=await comPrazo(sb.from('assessments').update(row).eq('id',rid));if(error)throw error;}
+          else if(it.op==='ev-delete'){const rid=idMap[it.id]||it.id;if(!isLocalId(rid)){const {error}=await comPrazo(sb.from('assessments').delete().eq('id',rid));if(error)throw error;}}
+        }catch(e){
+          // sem rede: para a fila e tenta de novo depois, sem perder nada
+          if(isNetErr(e))break;
+          // erro definitivo: sai da fila, mas NUNCA em silêncio — antes isso
+          // apagava a avaliação do treinador sem ele ficar sabendo
+          ruins.push({op:it.op,quando:new Date().toISOString(),
+            nome:(it.row&&(it.row.name||it.row.date))||it.id,
+            motivo:(e&&e.message)||'erro desconhecido', item:it});
+        }
         q.shift();queueRef.current=q;await offQueueSave(coachId,q);setPending(q.length);
       }
-      if(!q.length){try{await reloadFromServer();}catch(e){}}
+      if(ruins.length){setFalhas(f=>[...f,...ruins]);await IDB.set('falhas-'+coachId,[...(await IDB.get('falhas-'+coachId)||[]),...ruins]);}
+      if(!q.length){setRedeRuim(false);try{await comPrazo(reloadFromServer(),15000);}catch(e){}}
     }finally{flushingRef.current=false;}
   };
   useEffect(()=>{let alive=true;(async()=>{
     if(profile._demo){setStudents(DEMO_STUDENTS);setEvals(DEMO_EVALS);return;}
     queueRef.current=await offQueueLoad(coachId);setPending(queueRef.current.length);
+    setFalhas((await IDB.get('falhas-'+coachId))||[]);
     if(navigator.onLine){
-      try{await reloadFromServer();if(!alive)return;flushQueue();return;}catch(e){}
+      // prazo maior na abertura: é uma consulta, não uma gravação
+      try{await comPrazo(reloadFromServer(),15000);if(!alive)return;flushQueue();return;}catch(e){}
     }
     const snap=await offSnapLoad(coachId);if(!alive)return;
     if(snap){setStudents(snap.students||[]);setEvals(snap.evals||[]);}else setStudents([]);
@@ -7274,45 +7332,51 @@ function App({profile,setProfile}){
   const go=v=>{setView(v);setMenu(false);};
 
   const setPtype=(id,pt)=>{try{if(pt)localStorage.setItem('mfp_ptype_'+id,pt);else localStorage.removeItem('mfp_ptype_'+id);}catch(e){}};
-  const applyStuOffline=(s,exists)=>{
-    if(exists){setPtype(s.id,s.profile_type);setStudents(p=>p.map(x=>x.id===s.id?s:x));enqueue({op:'stu-update',id:s.id,row:stuToRow(s,coachId)});setSelStudent(s);return;}
-    const id='local-'+uid();const stu={...s,id};setPtype(id,s.profile_type);setStudents(p=>[...p,stu]);enqueue({op:'stu-insert',id,row:stuToRow(stu,coachId)});setSelStudent(stu);
+  // await no enqueue: a gravação no aparelho precisa terminar antes de a tela
+  // seguir, senão fechar o iPad no meio perde a fila
+  const applyStuOffline=async(s,exists)=>{
+    if(exists){setPtype(s.id,s.profile_type);setStudents(p=>p.map(x=>x.id===s.id?s:x));await enqueue({op:'stu-update',id:s.id,row:stuToRow(s,coachId)});setSelStudent(s);}
+    else{const id='local-'+uid();const stu={...s,id};setPtype(id,s.profile_type);setStudents(p=>[...p,stu]);await enqueue({op:'stu-insert',id,row:stuToRow(stu,coachId)});setSelStudent(stu);}
+    if(navigator.onLine)setRedeRuim(true);
+    avisarGuardado('Aluno salvo no aparelho.');
   };
   const saveStu=async s=>{
     const exists=(students||[]).some(x=>x.id===s.id);
-    if(!navigator.onLine){applyStuOffline(s,exists);go('detail');return;}
+    if(!navigator.onLine){await applyStuOffline(s,exists);go('detail');return;}
     setSaving(true);
     try{
-      if(exists){const {error}=await sb.from('assess_students').update(stuToRow(s,coachId)).eq('id',s.id);if(error)throw error;setPtype(s.id,s.profile_type);setStudents(p=>p.map(x=>x.id===s.id?s:x));setSelStudent(s);}
-      else{const {data,error}=await sb.from('assess_students').insert(stuToRow(s,coachId)).select().single();if(error)throw error;setPtype(data.id,s.profile_type);const ns=rowToStu(data);setStudents(p=>[...p,ns]);setSelStudent(ns);}
+      if(exists){const {error}=await comPrazo(sb.from('assess_students').update(stuToRow(s,coachId)).eq('id',s.id));if(error)throw error;setPtype(s.id,s.profile_type);setStudents(p=>p.map(x=>x.id===s.id?s:x));setSelStudent(s);}
+      else{const {data,error}=await comPrazo(sb.from('assess_students').insert(stuToRow(s,coachId)).select().single());if(error)throw error;setPtype(data.id,s.profile_type);const ns=rowToStu(data);setStudents(p=>[...p,ns]);setSelStudent(ns);}
       setSaving(false);go('detail');
-    }catch(e){setSaving(false);if(isNetErr(e)){applyStuOffline(s,exists);go('detail');}else alert('Erro ao salvar: '+e.message);}
+    }catch(e){setSaving(false);if(isNetErr(e)){await applyStuOffline(s,exists);go('detail');}else alert('Erro ao salvar: '+e.message);}
   };
   const delStu=async id=>{
-    if(!navigator.onLine||isLocalId(id)){setStudents(p=>p.filter(s=>s.id!==id));setEvals(p=>p.filter(e=>e.studentId!==id));enqueue({op:'stu-delete',id});setSelStudent(null);go('dashboard');return;}
-    try{const {error}=await sb.from('assess_students').delete().eq('id',id);if(error)throw error;
+    if(!navigator.onLine||isLocalId(id)){setStudents(p=>p.filter(s=>s.id!==id));setEvals(p=>p.filter(e=>e.studentId!==id));await enqueue({op:'stu-delete',id});setSelStudent(null);go('dashboard');return;}
+    try{const {error}=await comPrazo(sb.from('assess_students').delete().eq('id',id));if(error)throw error;
       setStudents(p=>p.filter(s=>s.id!==id));setEvals(p=>p.filter(e=>e.studentId!==id));setSelStudent(null);go('dashboard');
-    }catch(e){if(isNetErr(e)){setStudents(p=>p.filter(s=>s.id!==id));setEvals(p=>p.filter(x=>x.studentId!==id));enqueue({op:'stu-delete',id});setSelStudent(null);go('dashboard');}else alert('Erro ao excluir: '+e.message);}
+    }catch(e){if(isNetErr(e)){setStudents(p=>p.filter(s=>s.id!==id));setEvals(p=>p.filter(x=>x.studentId!==id));await enqueue({op:'stu-delete',id});setSelStudent(null);go('dashboard');}else alert('Erro ao excluir: '+e.message);}
   };
-  const applyEvOffline=(ev,exists)=>{
-    if(exists){setEvals(p=>p.map(x=>x.id===ev.id?ev:x));enqueue({op:'ev-update',id:ev.id,row:evalToRow(ev,coachId)});return;}
-    const id='local-'+uid();const nev={...ev,id};setEvals(p=>[...p,nev]);enqueue({op:'ev-insert',id,row:evalToRow(nev,coachId)});
+  const applyEvOffline=async(ev,exists)=>{
+    if(exists){setEvals(p=>p.map(x=>x.id===ev.id?ev:x));await enqueue({op:'ev-update',id:ev.id,row:evalToRow(ev,coachId)});}
+    else{const id='local-'+uid();const nev={...ev,id};setEvals(p=>[...p,nev]);await enqueue({op:'ev-insert',id,row:evalToRow(nev,coachId)});}
+    if(navigator.onLine)setRedeRuim(true);
+    avisarGuardado('Avaliação salva no aparelho. Sobe sozinha quando a internet voltar.');
   };
   const saveEv=async e=>{
     const ev={...e,studentId:selStudent.id};
     const exists=evals.some(x=>x.id===ev.id);
-    if(!navigator.onLine){applyEvOffline(ev,exists);go('detail');return;}
+    if(!navigator.onLine){await applyEvOffline(ev,exists);go('detail');return;}
     setSaving(true);
     try{
-      if(exists){const {error}=await sb.from('assessments').update(evalToRow(ev,coachId)).eq('id',ev.id);if(error)throw error;setEvals(p=>p.map(x=>x.id===ev.id?ev:x));}
-      else{const {data,error}=await sb.from('assessments').insert(evalToRow(ev,coachId)).select().single();if(error)throw error;setEvals(p=>[...p,rowToEval(data)]);}
+      if(exists){const {error}=await comPrazo(sb.from('assessments').update(evalToRow(ev,coachId)).eq('id',ev.id));if(error)throw error;setEvals(p=>p.map(x=>x.id===ev.id?ev:x));}
+      else{const {data,error}=await comPrazo(sb.from('assessments').insert(evalToRow(ev,coachId)).select().single());if(error)throw error;setEvals(p=>[...p,rowToEval(data)]);}
       setSaving(false);go('detail');
-    }catch(err){setSaving(false);if(isNetErr(err)){applyEvOffline(ev,exists);go('detail');}else alert('Erro ao salvar: '+err.message);}
+    }catch(err){setSaving(false);if(isNetErr(err)){await applyEvOffline(ev,exists);go('detail');}else alert('Erro ao salvar: '+err.message);}
   };
   const delEv=async id=>{
-    if(!navigator.onLine||isLocalId(id)){setEvals(p=>p.filter(e=>e.id!==id));enqueue({op:'ev-delete',id});return;}
-    try{const {error}=await sb.from('assessments').delete().eq('id',id);if(error)throw error;setEvals(p=>p.filter(e=>e.id!==id));}
-    catch(e){if(isNetErr(e)){setEvals(p=>p.filter(x=>x.id!==id));enqueue({op:'ev-delete',id});}else alert('Erro ao excluir: '+e.message);}
+    if(!navigator.onLine||isLocalId(id)){setEvals(p=>p.filter(e=>e.id!==id));await enqueue({op:'ev-delete',id});return;}
+    try{const {error}=await comPrazo(sb.from('assessments').delete().eq('id',id));if(error)throw error;setEvals(p=>p.filter(e=>e.id!==id));}
+    catch(e){if(isNetErr(e)){setEvals(p=>p.filter(x=>x.id!==id));await enqueue({op:'ev-delete',id});}else alert('Erro ao excluir: '+e.message);}
   };
   const importIntake=async(it)=>{
     const d=it.data||{},ps=d.student||{},ed=d.eval||{},ph=d.photos||{};
@@ -7404,13 +7468,31 @@ function App({profile,setProfile}){
           <div style={{fontFamily:'var(--serif)',fontWeight:600,fontSize:16,flex:1}}>MF Performance</div>
           <button className="hamb" onClick={toggleTheme} title="Alternar tema" style={{fontSize:17,fontWeight:600}}>◐</button>
         </div>
-        {(!online||pending>0||loadedOffline)&&<div className="no-print" style={{padding:'8px 14px',fontSize:12.5,fontWeight:600,display:'flex',alignItems:'center',gap:10,flexWrap:'wrap',background:!online?'rgba(220,38,38,.12)':'rgba(176,137,79,.14)',color:!online?'#dc2626':'var(--gold)',borderBottom:'1px solid var(--border)'}}>
-          <span>{!online?'● Offline — trabalhando no aparelho':loadedOffline?'● Dados em cache (sem conexão ao carregar)':'● Online'}</span>
-          {pending>0&&<span style={{color:'var(--text2)'}}>{pending} alteraç{pending>1?'ões':'ão'} pendente{pending>1?'s':''} de sincronizar</span>}
+        {(!online||pending>0||loadedOffline)&&<div className="no-print" style={{padding:'8px 14px',fontSize:12.5,fontWeight:600,display:'flex',alignItems:'center',gap:10,flexWrap:'wrap',background:(!online||redeRuim)?'rgba(220,38,38,.12)':'rgba(176,137,79,.14)',color:(!online||redeRuim)?'#dc2626':'var(--gold)',borderBottom:'1px solid var(--border)'}}>
+          <span>{!online?'● Sem internet — pode avaliar, fica salvo no aparelho'
+            :redeRuim?'● Wi-Fi conectado, mas sem resposta do servidor — salvando no aparelho'
+            :loadedOffline?'● Dados em cache (sem conexão ao carregar)':'● Online'}</span>
+          {pending>0&&<span style={{color:'var(--text2)'}}>{pending} alteraç{pending>1?'ões':'ão'} esperando para subir</span>}
           {online&&pending>0&&<button className="btn btn-secondary btn-sm" onClick={flushQueue}>Sincronizar agora</button>}
+        </div>}
+        {/* o que a sincronia recusou fica na tela até o treinador resolver:
+            antes isso era descartado calado e a avaliação simplesmente sumia */}
+        {falhas.length>0&&<div className="no-print" style={{padding:'10px 14px',fontSize:12.5,background:'rgba(220,38,38,.12)',color:'#dc2626',borderBottom:'1px solid var(--border)'}}>
+          <div style={{fontWeight:700,marginBottom:4}}>{falhas.length} {falhas.length>1?'registros não subiram':'registro não subiu'} para a nuvem</div>
+          {falhas.slice(0,4).map((f,i)=>(<div key={i} style={{color:'var(--text2)',fontWeight:400}}>
+            {f.op.startsWith('ev')?'Avaliação':'Aluno'} {f.nome} — {f.motivo}</div>))}
+          <div style={{display:'flex',gap:8,marginTop:8,flexWrap:'wrap'}}>
+            <button className="btn btn-secondary btn-sm" onClick={async()=>{
+              const q=[...queueRef.current,...falhas.map(f=>f.item)];
+              queueRef.current=q;await offQueueSave(coachId,q);setPending(q.length);
+              setFalhas([]);await IDB.set('falhas-'+coachId,[]);flushQueue();
+            }}>Tentar de novo</button>
+            <button className="btn btn-ghost btn-sm" onClick={async()=>{setFalhas([]);await IDB.set('falhas-'+coachId,[]);}}>Já resolvi, esconder</button>
+          </div>
         </div>}
         <div className="main">
           {saving&&<div style={{position:'fixed',top:14,right:16,zIndex:80,background:'var(--accent)',color:'var(--cream)',padding:'7px 14px',borderRadius:10,fontSize:12,fontWeight:600,boxShadow:'var(--shadow-lg)'}}>Salvando…</div>}
+          {recado&&<div style={{position:'fixed',top:14,right:16,zIndex:80,maxWidth:300,background:'var(--gold)',color:'#1a1208',padding:'9px 14px',borderRadius:10,fontSize:12.5,fontWeight:600,boxShadow:'var(--shadow-lg)',lineHeight:1.4}}>{recado}</div>}
           {view==='admin'&&profile.is_admin&&<AdminScreen onBack={()=>go('dashboard')}/>}
           {view==='protocols'&&<ProtocolsScreen onBack={()=>go('dashboard')}/>}
           {view==='duplicados'&&<DuplicadosScreen coach={profile} onBack={()=>go('dashboard')} onMudou={()=>reloadFromServer().catch(()=>{})}/>}
@@ -7547,8 +7629,10 @@ function TrainExec({student,divisao,demo,somenteLeitura,best,onBack,onSaved,onFi
   const audioRef=useRef(null);const [cel,setCel]=useState(null);const [vid,setVid]=useState({});const [demoOn,setDemoOn]=useState({});const [finished,setFinished]=useState(null);const [fbAberto,setFbAberto]=useState(false);
   useEffect(()=>{if(demo)return;(async()=>{const {data}=await sb.from('train_serie_prescrita').select('*').eq('divisao_id',divisao.id).order('ordem');setSeries(data||[]);
     const ids=[...new Set((data||[]).map(s=>s.exercicio_id).filter(Boolean))];
-    if(ids.length){const {data:ex}=await sb.from('train_exercicios').select('id,video_url,video_path').in('id',ids);
-      const m={};(ex||[]).forEach(e=>{if(e.video_url||e.video_path)m[e.id]={url:e.video_url,path:e.video_path};});setVid(m);}})();},[]);
+    if(ids.length){const {data:ex}=await sb.from('train_exercicios').select('id,video_url,video_path,dicas').in('id',ids);
+      // guarda também as dicas: as técnicas avançadas não têm desenho, o que
+      // vale ali é a instrução escrita
+      const m={};(ex||[]).forEach(e=>{if(e.video_url||e.video_path||e.dicas)m[e.id]={url:e.video_url,path:e.video_path,dicas:e.dicas};});setVid(m);}})();},[]);
   useEffect(()=>{const t=setInterval(()=>setTot(x=>x+1),1000);return()=>clearInterval(t);},[]);
 
   // A tela fica acesa durante o treino — ninguém quer destravar o celular
@@ -7641,7 +7725,7 @@ function TrainExec({student,divisao,demo,somenteLeitura,best,onBack,onSaved,onFi
         </div>
         {open&&<div style={{marginTop:14}}>
           <button className="lv-ghost" style={{marginBottom:demoOn[e.key]?8:12}} onClick={()=>setDemoOn(p=>({...p,[e.key]:!p[e.key]}))}>▶ {demoOn[e.key]?'Ocultar':'Ver'} demonstração</button>
-          {demoOn[e.key]&&<div style={{marginBottom:14}}><ExDemo url={(vid[e.exercicio_id]||{}).url} path={(vid[e.exercicio_id]||{}).path} name={e.nome}/></div>}
+          {demoOn[e.key]&&<div style={{marginBottom:14}}><ExDemo url={(vid[e.exercicio_id]||{}).url} path={(vid[e.exercicio_id]||{}).path} name={e.nome} dicas={(vid[e.exercicio_id]||{}).dicas}/></div>}
           {e.tiers.map(t=>{const ai=activeIdx(t);const complete=tierDoneCount(t)>=t.qtd_series;const iv=t.intervalo_seg_min||60;
             return(<div key={t.id} style={{marginBottom:16}}>
               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
@@ -8862,17 +8946,29 @@ function Root(){
   if(demo)return <App profile={{id:'demo',name:'Ana Trainer',role:'coach',perf_until:'2999-12-31',brand_name:'Studio Performance',cref:'012345-G/SP',phone:'(11) 99999-0000',instagram:'@studio.performance',logo_url:'',is_admin:false,_demo:true}} setProfile={()=>{}}/>;
   useEffect(()=>{
     if(!sb)return;
-    sb.auth.getSession().then(({data})=>setSession(data.session||null));
-    const {data:sub}=sb.auth.onAuthStateChange((_e,s)=>{setSession(s||null);if(!s)setProfile(undefined);});
-    return()=>sub.subscription.unsubscribe();
+    let vivo=true;
+    // sem rede o getSession pode pendurar tentando renovar o token:
+    // depois do prazo seguimos com a sessão que já está no aparelho
+    comPrazo(sb.auth.getSession(),8000)
+      .then(({data})=>{if(vivo)setSession(data.session||sessaoGuardada()||null);})
+      .catch(()=>{if(vivo)setSession(sessaoGuardada());});
+    const {data:sub}=sb.auth.onAuthStateChange((_e,s)=>{if(!vivo)return;setSession(s||sessaoGuardada()||null);if(!s&&!sessaoGuardada())setProfile(undefined);});
+    return()=>{vivo=false;sub.subscription.unsubscribe();};
   },[]);
   useEffect(()=>{
     if(!session)return;let alive=true;
     (async()=>{
-      let {data}=await sb.from('profiles').select('*').eq('id',session.user.id).maybeSingle();
-      if(!data){await new Promise(r=>setTimeout(r,900));const r2=await sb.from('profiles').select('*').eq('id',session.user.id).maybeSingle();data=r2.data;}
-      if(data){try{const b=JSON.parse(localStorage.getItem('mfp_brand_'+data.id)||'{}');data={...b,...data};for(const k of ['brand_name','cref','instagram','logo_url'])if(data[k]==null&&b[k]!=null)data[k]=b[k];}catch(e){}}
-      if(alive)setProfile(data||null);
+      const copia=perfilGuardadoLer(session.user.id);
+      try{
+        let {data}=await comPrazo(sb.from('profiles').select('*').eq('id',session.user.id).maybeSingle(),10000);
+        if(!data){await new Promise(r=>setTimeout(r,900));const r2=await comPrazo(sb.from('profiles').select('*').eq('id',session.user.id).maybeSingle(),10000);data=r2.data;}
+        if(data){try{const b=JSON.parse(localStorage.getItem('mfp_brand_'+data.id)||'{}');data={...b,...data};for(const k of ['brand_name','cref','instagram','logo_url'])if(data[k]==null&&b[k]!=null)data[k]=b[k];}catch(e){}
+          perfilGuardadoGravar(data);}
+        if(alive)setProfile(data||copia||null);
+      }catch(e){
+        // sem internet: segue com a cópia local em vez de travar na abertura
+        if(alive)setProfile(copia||null);
+      }
     })();return()=>{alive=false;};
   },[session]);
 
@@ -8880,7 +8976,11 @@ function Root(){
   if(session===undefined)return <div className="center-screen"><div className="spinner"/></div>;
   if(!session)return <AuthScreen/>;
   if(profile===undefined)return <div className="center-screen"><div className="spinner"/></div>;
-  if(profile===null)return <BlockScreen title="Não foi possível carregar seu perfil">Saia e entre novamente.</BlockScreen>;
+  if(profile===null)return <BlockScreen title="Não foi possível carregar seu perfil">
+    {navigator.onLine
+      ?'Saia e entre novamente.'
+      :'Você está sem internet e este aparelho ainda não tem uma cópia do seu perfil. Conecte uma vez para liberar o uso offline — não saia da conta, senão perde o acesso até voltar o sinal.'}
+  </BlockScreen>;
   if(profile.role==='student')return <StudentApp profile={profile}/>;
   if(profile.role!=='coach')return <BlockScreen title="Perfil não reconhecido">Saia e entre novamente, ou fale com o suporte.</BlockScreen>;
   const sub=profile.perf_until;
