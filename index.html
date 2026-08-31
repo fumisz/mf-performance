@@ -709,6 +709,13 @@ textarea.fi{resize:vertical;min-height:70px;line-height:1.5}
 <div id="root"></div>
 <script>
 try{var _t=localStorage.getItem('mfp_theme')||'light';document.documentElement.setAttribute('data-theme',_t);}catch(e){}
+/* O Chrome/Android dispara beforeinstallprompt uma vez e cedo — antes do Babel
+   terminar de compilar o app. Guardamos o evento aqui para conseguir instalar
+   com um toque depois. O iPhone não tem esse evento: lá é o passo a passo do Safari. */
+window.MFP_INSTALL=null;window.MFP_INSTALL_OUVINTES=[];
+function _mfpAvisa(){try{window.MFP_INSTALL_OUVINTES.forEach(function(f){f();});}catch(e){}}
+window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.MFP_INSTALL=e;_mfpAvisa();});
+window.addEventListener('appinstalled',function(){window.MFP_INSTALL=null;_mfpAvisa();});
 </script>
 <script type="text/babel">
 const { useState, useEffect, useRef, useCallback } = React;
@@ -731,7 +738,7 @@ const CFG = window.MFP_CONFIG || {};
 const CONFIGURED = !!(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY);
 let sb = null;
 if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY);
-const APP_VERSION='2026.09.02';   // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION='2026.09.03';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
 
@@ -1912,6 +1919,10 @@ function Dashboard({students,evals,onSelect,onNew,onDelete,onReassess,onSchedule
           </button>))}
       </div>
 
+      <ConviteInstalar fechavel chave="coach"
+        titulo="Instale o app no seu celular"
+        texto="Aberto pelo ícone, você recebe na hora o aviso de quando um aluno termina o treino."/>
+
       <PainelHoje students={students} onSelect={onSelect} demo={demo}/>
       <PainelEvolucao rows={rows} onSelect={onSelect}/>
 
@@ -2831,6 +2842,8 @@ function FeedbacksAluno({student,demo}){
   </div>);
 }
 
+const TXT_PASSO_INSTALAR='3. Depois de entrar, adicione o app à tela de início do celular: no iPhone é Compartilhar → “Adicionar à Tela de Início”; no Android é o menu dos três pontinhos → “Instalar aplicativo”. É assim que os avisos chegam.';
+
 function StudentDetail({student,evals,onNewEval,onReassess,onEditEval,onDeleteEval,onReport,onBack,onEdit,onTech,onTrain,onNutri,onPreview}){
   const [cmp,setCmp]=useState(false);
   const [diarioOpen,setDiarioOpen]=useState(false);
@@ -2838,7 +2851,21 @@ function StudentDetail({student,evals,onNewEval,onReassess,onEditEval,onDeleteEv
   const [acc,setAcc]=useState(null);const [accBusy,setAccBusy]=useState(false);
   const photoEvals=evals.filter(e=>e.post_photo_front||e.post_photo_side||e.post_photo_back).length;
   const genCode=async()=>{setAccBusy(true);const {data,error}=await sb.rpc('aluno_gerar_codigo',{p_student:student.id});setAccBusy(false);if(error){alert('Erro: '+error.message);return;}setAcc(data||'—');};
-  const accWa=()=>{const phone=(student.phone||'').replace(/\D/g,'');const txt=encodeURIComponent(`Olá ${student.name.split(' ')[0]}! Crie sua conta no app MF Performance como *Aluno* e use este código de acesso: *${acc}*`);window.open(phone?`https://wa.me/55${phone}?text=${txt}`:`https://wa.me/?text=${txt}`,'_blank');};
+  // o link leva o código junto: o aluno abre e já cai no cadastro preenchido
+  const accLink=()=>location.origin+location.pathname+'?codigo='+encodeURIComponent(acc||'');
+  const accTexto=()=>[
+    `Olá ${student.name.split(' ')[0]}! Seu acesso ao app MF Performance está pronto.`,
+    ``,
+    `1. Abra este link: ${accLink()}`,
+    `2. Crie sua conta com seu e-mail e uma senha — o código *${acc}* já vem preenchido.`,
+    TXT_PASSO_INSTALAR,
+    ``,
+    `Seus treinos, sua dieta e sua evolução ficam todos aí. Qualquer dúvida é só me chamar.`,
+  ].join('\n');
+  const [accCopiado,setAccCopiado]=useState(false);
+  const accCopiar=()=>{try{navigator.clipboard&&navigator.clipboard.writeText(accTexto());setAccCopiado(true);setTimeout(()=>setAccCopiado(false),2000);}catch(e){}};
+  const accWa=()=>{const phone=(student.phone||'').replace(/\D/g,'');const txt=encodeURIComponent(accTexto());
+    window.open(phone?`https://wa.me/55${phone}?text=${txt}`:`https://wa.me/?text=${txt}`,'_blank');};
   const a=age(student.dob);
   const sorted=[...evals].sort((x,y)=>new Date(y.date)-new Date(x.date));
   const last=sorted[0];
@@ -2851,13 +2878,16 @@ function StudentDetail({student,evals,onNewEval,onReassess,onEditEval,onDeleteEv
       {acc!==null&&<div style={{position:'fixed',inset:0,zIndex:120,background:'rgba(10,8,10,.8)',display:'flex',alignItems:'center',justifyContent:'center',padding:16}} onClick={()=>setAcc(null)}>
         <div className="card" style={{maxWidth:380,width:'100%'}} onClick={e=>e.stopPropagation()}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}><div style={{fontFamily:'var(--serif)',fontSize:18,fontWeight:600}}>Acesso do aluno</div><button className="btn-icon btn-sm" onClick={()=>setAcc(null)}>×</button></div>
-          <p className="s-meta" style={{marginBottom:12}}>Gere um código e envie ao aluno. Ele cria a conta como <b>Aluno</b> e digita esse código para ver os treinos — não precisa do e-mail igual.</p>
+          <p className="s-meta" style={{marginBottom:12}}>Gere o código e mande o convite. O link já abre o cadastro preenchido — o aluno só escolhe e-mail e senha, e os treinos aparecem sozinhos.</p>
           {acc?<>
             <div style={{textAlign:'center',fontFamily:'var(--serif)',fontSize:34,fontWeight:700,letterSpacing:5,background:'var(--bg3)',padding:'14px',borderRadius:12,marginBottom:12}}>{acc}</div>
             <div style={{display:'flex',gap:8}}>
-              <button className="btn btn-secondary" style={{flex:1}} onClick={()=>{if(navigator.clipboard)navigator.clipboard.writeText(acc);}}>Copiar</button>
+              <button className="btn btn-secondary" style={{flex:1}} onClick={accCopiar}>{accCopiado?'Copiado ✓':'Copiar convite'}</button>
               <button className="btn btn-primary" style={{flex:1}} onClick={accWa}>WhatsApp</button>
             </div>
+            <p className="s-meta" style={{marginTop:10,lineHeight:1.5}}>
+              O convite vai com o link <b>?codigo={acc}</b>: o aluno toca, o cadastro abre já
+              marcado como Aluno e com o código preenchido. Ele só escolhe e-mail e senha.</p>
             <button className="btn btn-ghost btn-sm" style={{width:'100%',marginTop:8}} onClick={genCode} disabled={accBusy}>Gerar outro</button>
           </>:<button className="btn btn-primary" style={{width:'100%'}} onClick={genCode} disabled={accBusy}>{accBusy?'Gerando…':'Gerar código de acesso'}</button>}
         </div>
@@ -3978,11 +4008,92 @@ const EVAL_META=['id','studentId','date','obs'];
 function evalToRow(e,coachId){const data={};Object.keys(e).forEach(k=>{if(!EVAL_META.includes(k))data[k]=e[k];});return{student_id:e.studentId,coach_id:coachId,date:e.date,obs:e.obs||null,data};}
 function rowToEval(r){return{id:r.id,studentId:r.student_id,date:r.date,obs:r.obs||'',...(r.data||{})};}
 
+/* ── Convite para instalar na tela de início ─────────────────
+   Sem instalar, o iPhone não entrega notificação nenhuma e o app abre
+   com a barra do navegador por cima. Este convite explica o caminho,
+   e no Android instala com um toque só. */
+const APP_INSTALADO=()=>{try{return window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;}catch(e){return false;}};
+const EH_IOS=(()=>{try{return /iphone|ipad|ipod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);}catch(e){return false;}})();
+const PASSOS_INSTALAR=EH_IOS
+  ?['Toque em Compartilhar — o quadrado com a seta para cima, na barra do Safari.',
+    'Role a lista e toque em “Adicionar à Tela de Início”.',
+    'Confirme em “Adicionar”. O ícone fica junto dos seus outros apps.',
+    'Abra o app pelo ícone. É só por ele que as notificações funcionam.']
+  :['Toque no menu do navegador — os três pontinhos, no canto.',
+    'Escolha “Instalar aplicativo” ou “Adicionar à tela inicial”.',
+    'Confirme. O ícone fica junto dos seus outros apps.'];
+
+function ConviteInstalar({lv,fechavel,chave,titulo,texto}){
+  const [pronto,setPronto]=useState(()=>!!window.MFP_INSTALL);
+  const [jaTem,setJaTem]=useState(APP_INSTALADO);
+  const [aberto,setAberto]=useState(false);
+  const [fechado,setFechado]=useState(()=>{try{return localStorage.getItem('mfp_instalar_'+(chave||'geral'))==='1';}catch(e){return false;}});
+  useEffect(()=>{
+    const f=()=>{setPronto(!!window.MFP_INSTALL);setJaTem(APP_INSTALADO());};
+    window.MFP_INSTALL_OUVINTES.push(f);
+    let mq=null;
+    try{mq=window.matchMedia('(display-mode: standalone)');if(mq.addEventListener)mq.addEventListener('change',f);}catch(e){}
+    return()=>{const i=window.MFP_INSTALL_OUVINTES.indexOf(f);if(i>=0)window.MFP_INSTALL_OUVINTES.splice(i,1);
+      try{if(mq&&mq.removeEventListener)mq.removeEventListener('change',f);}catch(e){}};
+  },[]);
+  if(jaTem||fechado)return null;
+  const fechar=()=>{setFechado(true);try{localStorage.setItem('mfp_instalar_'+(chave||'geral'),'1');}catch(e){}};
+  const instalar=async()=>{
+    const p=window.MFP_INSTALL;
+    if(!p){setAberto(true);return;}
+    try{p.prompt();const r=await p.userChoice;
+      if(r&&r.outcome==='accepted'){window.MFP_INSTALL=null;setPronto(false);setJaTem(true);}
+    }catch(e){setAberto(true);}
+  };
+  const tit=titulo||'Deixe o app na tela de início';
+  const txt=texto||(EH_IOS
+    ?'Abre direto, sem a barra do Safari — e é assim que os avisos chegam no seu celular.'
+    :'Abre direto, sem a barra do navegador, e funciona até sem internet.');
+  const passos=<ol style={{margin:'12px 0 0',paddingLeft:18,lineHeight:1.7,fontSize:13}}>
+    {PASSOS_INSTALAR.map((x,i)=><li key={i}>{x}</li>)}</ol>;
+
+  if(lv)return(<div className="lv-card" style={{borderColor:'var(--lvsel)'}}>
+    <div style={{display:'flex',gap:12,alignItems:'flex-start'}}>
+      <div style={{flex:1,minWidth:0}}>
+        <div style={{fontWeight:800,fontSize:15}}>{tit}</div>
+        <div className="lv-sub" style={{marginTop:4,lineHeight:1.5}}>{txt}</div>
+      </div>
+      {fechavel&&<button type="button" onClick={fechar} title="Agora não" aria-label="Agora não"
+        style={{cursor:'pointer',color:'var(--lvt3)',fontSize:20,lineHeight:1,padding:'0 2px',background:'none',border:0}}>×</button>}
+    </div>
+    <button className="lv-btn" style={{marginTop:12}} onClick={pronto?instalar:()=>setAberto(v=>!v)}>
+      {pronto?'Instalar agora':aberto?'Fechar o passo a passo':'Ver como instalar'}</button>
+    {aberto&&<div className="lv-sub" style={{color:'var(--lvt2)'}}>{passos}</div>}
+  </div>);
+
+  return(<div className="card" style={{marginBottom:16,borderColor:'var(--accent)'}}>
+    <div style={{display:'flex',gap:12,alignItems:'flex-start'}}>
+      <div style={{flex:1,minWidth:0}}>
+        <div style={{fontFamily:'var(--serif)',fontSize:17,fontWeight:600}}>{tit}</div>
+        <p className="s-meta" style={{marginTop:4,lineHeight:1.5}}>{txt}</p>
+      </div>
+      {fechavel&&<button className="btn-icon btn-sm" title="Agora não" aria-label="Agora não" onClick={fechar}>×</button>}
+    </div>
+    <div className="bgroup" style={{marginTop:12}}>
+      <button className="btn btn-primary btn-sm" onClick={pronto?instalar:()=>setAberto(v=>!v)}>
+        {pronto?'Instalar agora':aberto?'Fechar o passo a passo':'Ver como instalar'}</button>
+      {pronto&&<button className="btn btn-ghost btn-sm" onClick={()=>setAberto(v=>!v)}>{aberto?'Fechar':'Passo a passo'}</button>}
+    </div>
+    {aberto&&<div style={{color:'var(--text2)'}}>{passos}</div>}
+  </div>);
+}
+
 /* ── Tela de autenticação (treinadores) ── */
 function AuthScreen(){
-  const [mode,setMode]=useState('login');
-  const [acct,setAcct]=useState('coach');
-  const [name,setName]=useState('');const [email,setEmail]=useState('');const [pass,setPass]=useState('');const [acode,setAcode]=useState('');
+  // convite do treinador: mfperformance.app/?codigo=AB12CD já abre no
+  // cadastro de aluno com o código digitado
+  const convite=(()=>{try{return (new URLSearchParams(location.search).get('codigo')||'').trim().toUpperCase();}catch(e){return '';}})();
+  const [mode,setMode]=useState(convite?'signup':'login');
+  const [acct,setAcct]=useState(convite?'aluno':'coach');
+  const [name,setName]=useState('');const [email,setEmail]=useState('');const [pass,setPass]=useState('');const [acode,setAcode]=useState(convite);
+  // guarda o código mesmo se o aluno já tiver conta e escolher Entrar:
+  // o vínculo é feito na primeira abertura do app do aluno
+  useEffect(()=>{if(convite){try{localStorage.setItem('mfp_aluno_code',convite);}catch(e){}}},[]);
   const [busy,setBusy]=useState(false);const [msg,setMsg]=useState(null);
   const isAluno=acct==='aluno';
   async function submit(e){
@@ -4040,12 +4151,15 @@ function AuthScreen(){
             <button className={mode==='login'?'on':''} onClick={()=>{setMode('login');setMsg(null);}}>Entrar</button>
             <button className={mode==='signup'?'on':''} onClick={()=>{setMode('signup');setMsg(null);}}>Criar conta</button>
           </div>
+          {convite&&!msg&&<div className="alert alert-success">
+            Convite recebido. Seu código já está preenchido — crie a conta com seu e-mail e senha
+            que os treinos aparecem sozinhos.</div>}
           {msg&&<div className={`alert alert-${msg.type==='error'?'error':msg.type==='success'?'success':'info'}`}>{msg.text}</div>}
           <form onSubmit={submit} style={{display:'flex',flexDirection:'column',gap:13}}>
             {mode==='signup'&&<>
               <FI label="Nome" value={name} onChange={e=>setName(e.target.value)} placeholder="Seu nome"/>
               <FI label={isAluno?'Código de acesso':'Código de acesso (treinador)'} value={acode} onChange={e=>setAcode(e.target.value.toUpperCase())} placeholder={isAluno?'Código que seu treinador gerou':'Fornecido pelo administrador'} style={{textTransform:'uppercase',letterSpacing:1}}/>
-              {isAluno&&<div className="alert alert-info" style={{marginTop:-4}}>Peça ao seu treinador o seu <b>código de acesso</b> (ele gera no app dele).</div>}
+              {isAluno&&!convite&&<div className="alert alert-info" style={{marginTop:-4}}>Peça ao seu treinador o seu <b>código de acesso</b> (ele gera no app dele).</div>}
             </>}
             <FI label="E-mail" type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="email@exemplo.com" autoComplete="email"/>
             <FI label="Senha" type="password" value={pass} onChange={e=>setPass(e.target.value)} placeholder="••••••" autoComplete={mode==='login'?'current-password':'new-password'}/>
@@ -4055,6 +4169,11 @@ function AuthScreen(){
             {mode==='login'?<>É treinador e ainda não tem conta? <span className="link" onClick={()=>{setMode('signup');setMsg(null);}}>Criar agora</span></>
             :<>Já tem conta? <span className="link" onClick={()=>{setMode('login');setMsg(null);}}>Entrar</span></>}
           </p>
+        </div>
+        <div style={{marginTop:16}}>
+          <ConviteInstalar fechavel chave="login"
+            titulo="Guarde o app na tela do celular"
+            texto="Depois de instalado você abre pelo ícone, sem digitar endereço, e recebe os avisos do treino."/>
         </div>
       </div>
     </div>);
@@ -8544,6 +8663,7 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
 
   const homeTab=(<div className="lv-wrap">
     {header}
+    {!espiando&&<ConviteInstalar lv fechavel chave="aluno"/>}
     <AneisDoDia stu={stu} profile={profile} demo={demo}
       onTreino={()=>list.length&&setExec(list[0])} onDieta={()=>goTab('dieta')}
       onAgua={()=>setHydra(true)} onCheckin={()=>setChk(true)}/>
@@ -8672,6 +8792,8 @@ Nenhum aviso por aqui ainda.<div className="lv-sub" style={{marginTop:4}}>Seus l
       <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700}}>Minha avaliação física</div><div className="lv-sub">Relatório e evolução</div></div>
       <span style={{color:'var(--lvt3)'}}>›</span>
     </div>
+    <div className="lv-kick" style={{margin:'6px 0 10px'}}>O app no seu celular</div>
+    <ConviteInstalar lv/>
     <div className="lv-kick" style={{margin:'6px 0 10px'}}>Notificações</div>
     <div className="lv-card">
       <div style={{display:'flex',alignItems:'center',gap:12}}>

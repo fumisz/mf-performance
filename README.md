@@ -10,6 +10,17 @@ Os dados ficam no Supabase (ver `config.js`); o app funciona offline como PWA.
 
 ### No celular / iPad
 Acesse a URL no navegador → Compartilhar → **Adicionar à Tela de Início**.
+O próprio app convida a instalar: na tela de login, no painel do treinador e no
+início do aluno aparece um cartão com o passo a passo do aparelho — e no
+Android/Chrome ele instala com um toque só, usando o `beforeinstallprompt`
+capturado ainda no `<head>`.
+
+## Convite do aluno
+Em **Acesso do aluno**, o app gera o código e monta o convite pronto para
+WhatsApp com o link `?codigo=XXXXXX`. O aluno toca no link e cai no cadastro já
+marcado como Aluno, com o código preenchido — só escolhe e-mail e senha. O
+código também fica guardado no navegador dele, então o vínculo acontece mesmo se
+ele já tiver conta e escolher Entrar.
 
 ## Perfis
 - **Treinador** — painel, alunos, avaliações, ficha de treino, nutrição,
