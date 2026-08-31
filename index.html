@@ -731,7 +731,7 @@ const CFG = window.MFP_CONFIG || {};
 const CONFIGURED = !!(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY);
 let sb = null;
 if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY);
-const APP_VERSION='2026.09.01';   // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION='2026.09.02';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
 
@@ -5567,6 +5567,66 @@ function ExerciseLibrary({coach,onBack}){
   </div>);
 }
 
+/* ── Modelos de ficha ───────────────────────────────────────
+   Os que já vêm no app (coach_id null) e os que o treinador salvou.
+   Aplicar um modelo cria as divisões e a prescrição inteira de uma vez. */
+function FichaModeloPicker({onUsar,onClose,busy}){
+  const [mods,setMods]=useState(null);
+  const [aberto,setAberto]=useState(null);
+  const [obj,setObj]=useState('Todos');
+  useEffect(()=>{sb.from('train_ficha_modelo').select('*')
+    .then(({data})=>setMods(data||[])).catch(()=>setMods([]));},[]);
+  const lista=(mods||[]).slice().sort((a,b)=>
+    (a.coach_id?0:1)-(b.coach_id?0:1) || (a.dias||0)-(b.dias||0) || a.nome.localeCompare(b.nome));
+  const objetivos=['Todos',...[...new Set(lista.map(m=>m.objetivo).filter(Boolean))]];
+  const vis=lista.filter(m=>obj==='Todos'||m.objetivo===obj);
+  const apagar=async(ev,m)=>{ev.stopPropagation();
+    if(!confirm('Apagar o modelo "'+m.nome+'"? As fichas já montadas não mudam.'))return;
+    setMods(p=>p.filter(x=>x.id!==m.id));
+    await sb.from('train_ficha_modelo').delete().eq('id',m.id);};
+  const contaEx=m=>(m.divisoes||[]).reduce((a,d)=>a+((d.exercicios||[]).length),0);
+  return(<div style={{position:'fixed',inset:0,zIndex:120,background:'rgba(10,8,10,.8)',display:'flex',alignItems:'flex-start',justifyContent:'center',padding:16,overflow:'auto'}} onClick={onClose}>
+    <div className="card" style={{maxWidth:660,width:'100%',margin:'auto'}} onClick={e=>e.stopPropagation()}>
+      <div style={{fontFamily:'var(--serif)',fontSize:19,fontWeight:600}}>Fichas prontas</div>
+      <p className="s-meta" style={{margin:'4px 0 12px'}}>Cria as divisões com séries, repetições e descanso já preenchidos. Depois é só ajustar o que quiser.</p>
+      {objetivos.length>2&&<div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:12}}>
+        {objetivos.map(o=>(<button key={o} type="button" className={'btn btn-sm '+(obj===o?'btn-primary':'btn-ghost')} onClick={()=>setObj(o)}>{o}</button>))}
+      </div>}
+      {mods===null?<div className="center-screen" style={{minHeight:90}}><div className="spinner"/></div>:
+       vis.length===0?<p className="s-meta">Nenhum modelo neste objetivo.</p>:
+       vis.map(m=>{const open=aberto===m.id;
+        return(<div key={m.id} className="dash-panel" style={{marginBottom:10}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:10}}>
+            <div style={{flex:1,minWidth:0}}>
+              <div className="s-name">{m.nome}</div>
+              <div className="s-meta" style={{marginTop:4,lineHeight:1.5}}>{m.resumo}</div>
+              <div style={{marginTop:8,fontSize:11.5,color:'var(--text3)'}}>
+                {(m.divisoes||[]).length} {(m.divisoes||[]).length===1?'divisão':'divisões'} · {contaEx(m)} {contaEx(m)===1?'exercício':'exercícios'}
+                {m.nivel?' · '+m.nivel:''}{m.coach_id?' · modelo seu':''}</div>
+            </div>
+            {m.coach_id&&<button className="btn-icon btn-sm" title="Apagar modelo" onClick={ev=>apagar(ev,m)}>×</button>}
+          </div>
+          <div className="bgroup" style={{marginTop:10}}>
+            <button className="btn btn-primary btn-sm" disabled={busy} onClick={()=>onUsar(m)}>{busy?'Aplicando…':'Usar esta ficha'}</button>
+            <button className="btn btn-ghost btn-sm" onClick={()=>setAberto(open?null:m.id)}>{open?'Fechar':'Ver exercícios'}</button>
+          </div>
+          {open&&<div style={{marginTop:10}}>
+            {(m.divisoes||[]).map((d,i)=>(<div key={i} style={{marginTop:8}}>
+              <div style={{fontWeight:600,fontSize:13}}>{d.nome}</div>
+              <table className="rpt-tbl" style={{width:'100%'}}><tbody>
+                {(d.exercicios||[]).map((e,j)=>(<tr key={j}>
+                  <td>{e.nome}</td>
+                  <td style={{whiteSpace:'nowrap'}}>{e.qtd_series}×{e.faixa_reps}</td>
+                  <td style={{whiteSpace:'nowrap',color:'var(--text3)'}}>{e.intervalo_seg_min?e.intervalo_seg_min+'s':'—'}</td>
+                </tr>))}
+              </tbody></table>
+            </div>))}
+          </div>}
+        </div>);})}
+      <button className="btn btn-ghost" style={{width:'100%',marginTop:8}} onClick={onClose}>Fechar</button>
+    </div></div>);
+}
+
 function TrainScreen({coach,students,preStudent,onBack}){
   const demo=!!coach._demo;
   const [stu,setStu]=useState(preStudent||null);
@@ -5581,6 +5641,8 @@ function TrainScreen({coach,students,preStudent,onBack}){
   const blankEx={nome:'',grupo:'Todos',tipo_serie:'Valida',qtd_series:3,faixa_reps:'8-12',intervalo_seg_min:60};
   const [verEx,setVerEx]=useState(null);
   const [ex,setEx]=useState(blankEx);
+  const [showMod,setShowMod]=useState(false);
+  const [busyMod,setBusyMod]=useState(false);
   const libGrupos=['Todos',...[...new Set((lib||[]).map(x=>x.grupo_muscular).filter(Boolean))].sort()];
   const libFiltered=(lib||[]).filter(x=>ex.grupo==='Todos'||x.grupo_muscular===ex.grupo);
   const exSelecionado=(lib||[]).find(x=>x.nome.toLowerCase()===(ex.nome||'').trim().toLowerCase())||null;
@@ -5631,6 +5693,69 @@ function TrainScreen({coach,students,preStudent,onBack}){
     if(!demo)await Promise.all(lista.map((s,k)=>sb.from('train_serie_prescrita').update({ordem:k}).eq('id',s.id)));
   };
 
+  // ── Modelos de ficha ──────────────────────────────────────
+  const acharEx=nome=>{const n=(nome||'').trim().toLowerCase();
+    const f=(lib||[]).find(x=>(x.nome||'').toLowerCase()===n);return f?f.id:null;};
+
+  // Aplica o modelo criando as divisões DEPOIS das que já existem,
+  // para nunca sobrescrever a ficha que o aluno já usa.
+  const aplicarModelo=async(m)=>{
+    if(demo){setShowMod(false);setMsg({t:'err',m:'Modo demonstração: a ficha não é salva.'});return;}
+    setBusyMod(true);setMsg(null);
+    try{
+      const base=(divs||[]).length;
+      const criadas=[];
+      const lista=(m.divisoes||[]).slice().sort((a,b)=>(a.ordem||0)-(b.ordem||0));
+      for(let i=0;i<lista.length;i++){
+        const d=lista[i];
+        const {data:dv,error}=await sb.from('train_divisao')
+          .insert({coach_id:coach.id,student_id:stu.id,nome:d.nome,ordem:base+i}).select().single();
+        if(error)throw error;
+        const exs=(d.exercicios||[]).slice().sort((a,b)=>(a.ordem||0)-(b.ordem||0));
+        const linhas=exs.map((e,j)=>({coach_id:coach.id,divisao_id:dv.id,
+          exercicio_id:acharEx(e.nome),exercicio_nome:e.nome,
+          tipo_serie:e.tipo_serie||'Valida',qtd_series:e.qtd_series||3,
+          faixa_reps:e.faixa_reps||'8-12',
+          intervalo_seg_min:e.intervalo_seg_min==null?60:e.intervalo_seg_min,ordem:j}));
+        if(linhas.length){const {data:sp,error:e2}=await sb.from('train_serie_prescrita').insert(linhas).select();
+          if(e2)throw e2;
+          setSeries(p=>({...p,[dv.id]:sp||[]}));}
+        else setSeries(p=>({...p,[dv.id]:[]}));
+        criadas.push(dv);
+      }
+      setDivs(p=>[...(p||[]),...criadas]);
+      setShowMod(false);
+      setMsg({t:'ok',m:'Ficha “'+m.nome+'” aplicada. Abra cada divisão para ajustar carga, séries e descanso.'});
+    }catch(e){setMsg({t:'err',m:'Não deu para aplicar: '+(e.message||e)});}
+    setBusyMod(false);
+  };
+
+  const salvarComoModelo=async()=>{
+    if(!divs||!divs.length){setMsg({t:'err',m:'Monte pelo menos uma divisão antes de salvar o modelo.'});return;}
+    const nome=prompt('Nome do modelo:','Ficha de '+stu.name.split(' ')[0]);
+    if(!nome)return;
+    if(demo){setMsg({t:'err',m:'Modo demonstração: o modelo não é salvo.'});return;}
+    setBusyMod(true);setMsg(null);
+    try{
+      const pacote=[];
+      for(let i=0;i<divs.length;i++){
+        const d=divs[i];
+        let ss=series[d.id];
+        if(!ss){const {data}=await sb.from('train_serie_prescrita').select('*').eq('divisao_id',d.id).order('ordem');ss=data||[];}
+        pacote.push({nome:d.nome,ordem:i,exercicios:ss.map((x,j)=>({nome:x.exercicio_nome,
+          tipo_serie:x.tipo_serie,qtd_series:x.qtd_series,faixa_reps:x.faixa_reps,
+          intervalo_seg_min:x.intervalo_seg_min,ordem:j}))});
+      }
+      const {error}=await sb.from('train_ficha_modelo').insert({coach_id:coach.id,nome,
+        nivel:null,dias:divs.length,
+        resumo:'Modelo salvo a partir da ficha de '+stu.name.split(' ')[0]+'.',
+        divisoes:pacote});
+      if(error)throw error;
+      setMsg({t:'ok',m:'Modelo “'+nome+'” salvo. Ele já aparece em “Usar ficha pronta”.'});
+    }catch(e){setMsg({t:'err',m:'Não deu para salvar: '+(e.message||e)});}
+    setBusyMod(false);
+  };
+
   if(showLib)return <ExerciseLibrary coach={coach} onBack={()=>setShowLib(false)}/>;
   // seleção de aluno
   if(!stu){
@@ -5660,6 +5785,11 @@ function TrainScreen({coach,students,preStudent,onBack}){
 
     <datalist id="trainlib">{lib.map(x=><option key={x.id} value={x.nome}/>)}</datalist>
 
+    <div className="bgroup" style={{marginBottom:12}}>
+      <button className="btn btn-secondary btn-sm" disabled={busyMod} onClick={()=>setShowMod(true)}>Usar ficha pronta</button>
+      {(divs||[]).length>0&&<button className="btn btn-ghost btn-sm" disabled={busyMod} onClick={salvarComoModelo}>Salvar como modelo</button>}
+    </div>
+
     <div className="dash-panel" style={{marginBottom:16}}>
       <h4>Nova divisão</h4>
       <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>
@@ -5669,13 +5799,13 @@ function TrainScreen({coach,students,preStudent,onBack}){
     </div>
 
     {divs===null?<div className="center-screen"><div className="spinner"/></div>:
-     divs.length===0?<div className="empty"><div className="empty-title">Nenhuma divisão ainda</div><p className="s-meta">Crie a divisão A acima e comece a adicionar exercícios.</p></div>:
+     divs.length===0?<div className="empty"><div className="empty-title">Nenhuma divisão ainda</div><p className="s-meta">Use uma ficha pronta acima — ou crie a divisão A do zero.</p></div>:
      divs.map(dv=>{const ss=series[dv.id]||[];const open=openId===dv.id;
       return(<div key={dv.id} className="dash-panel" style={{marginBottom:12}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,cursor:'pointer'}} onClick={()=>toggleDiv(dv.id)}>
           <h4 style={{margin:0}}>{dv.nome||'Divisão'}</h4>
           <div style={{display:'flex',alignItems:'center',gap:10}}>
-            <span className="s-meta">{ss.length} exercício{ss.length!==1?'s':''}</span>
+            <span className="s-meta">{series[dv.id]?ss.length+' exercício'+(ss.length!==1?'s':''):'abrir'}</span>
             <button className="btn-icon btn-sm" onClick={e=>{e.stopPropagation();delDiv(dv.id);}}>×</button>
             <span style={{color:'var(--text3)'}}>{open?'▾':'▸'}</span>
           </div>
@@ -5739,6 +5869,7 @@ function TrainScreen({coach,students,preStudent,onBack}){
           </div>
         </div>}
       </div>);})}
+    {showMod&&<FichaModeloPicker busy={busyMod} onUsar={aplicarModelo} onClose={()=>setShowMod(false)}/>}
   </div>);
 }
 
@@ -6610,22 +6741,22 @@ const MODELOS_PERIO=[
   {id:'hipertrofia12', nome:'Hipertrofia — 12 semanas',
    resumo:'3 fases: adaptação, acúmulo e intensificação, com uma semana leve no fim de cada.',
    fases:[
-     {nome:'Adaptação',      modelo:'Linear',      micros:[{nome:'Semanas 1–3',semanas:3,volume:85,intensidade:65},{nome:'Descarga',semanas:1,volume:55,intensidade:60}]},
-     {nome:'Acúmulo',        modelo:'Linear',      micros:[{nome:'Semanas 5–7',semanas:3,volume:110,intensidade:75},{nome:'Descarga',semanas:1,volume:60,intensidade:65}]},
-     {nome:'Intensificação', modelo:'Ondulatório', micros:[{nome:'Semanas 9–11',semanas:3,volume:95,intensidade:88},{nome:'Descarga',semanas:1,volume:50,intensidade:60}]},
+     {nome:'Adaptação',      modelo:'Linear',      micros:[{nome:'Semanas 1–3',semanas:3,volume:85,intensidade:65},{nome:'Descarga',semanas:1,volume:55,intensidade:60,deload:true}]},
+     {nome:'Acúmulo',        modelo:'Linear',      micros:[{nome:'Semanas 5–7',semanas:3,volume:110,intensidade:75},{nome:'Descarga',semanas:1,volume:60,intensidade:65,deload:true}]},
+     {nome:'Intensificação', modelo:'Ondulatória semanal', micros:[{nome:'Semanas 9–11',semanas:3,volume:95,intensidade:88},{nome:'Descarga',semanas:1,volume:50,intensidade:60,deload:true}]},
    ]},
   {id:'forca12', nome:'Força — 12 semanas',
    resumo:'Volume cai e carga sobe a cada fase, fechando com pico e semana de recuperação.',
    fases:[
      {nome:'Base',   modelo:'Linear', micros:[{nome:'Semanas 1–4',semanas:4,volume:100,intensidade:70}]},
      {nome:'Força',  modelo:'Linear', micros:[{nome:'Semanas 5–8',semanas:4,volume:80,intensidade:85}]},
-     {nome:'Pico',   modelo:'Linear', micros:[{nome:'Semanas 9–11',semanas:3,volume:60,intensidade:95},{nome:'Recuperação',semanas:1,volume:40,intensidade:55}]},
+     {nome:'Pico',   modelo:'Linear', micros:[{nome:'Semanas 9–11',semanas:3,volume:60,intensidade:95},{nome:'Recuperação',semanas:1,volume:40,intensidade:55,deload:true}]},
    ]},
   {id:'emagrecimento8', nome:'Emagrecimento — 8 semanas',
    resumo:'Volume alto e descanso curto, com metabólico no fim de cada bloco.',
    fases:[
-     {nome:'Bloco 1', modelo:'Circuito', micros:[{nome:'Semanas 1–3',semanas:3,volume:115,intensidade:65},{nome:'Descarga',semanas:1,volume:60,intensidade:55}]},
-     {nome:'Bloco 2', modelo:'Circuito', micros:[{nome:'Semanas 5–7',semanas:3,volume:125,intensidade:70},{nome:'Descarga',semanas:1,volume:60,intensidade:55}]},
+     {nome:'Bloco 1', modelo:'Em blocos', micros:[{nome:'Semanas 1–3',semanas:3,volume:115,intensidade:65},{nome:'Descarga',semanas:1,volume:60,intensidade:55,deload:true}]},
+     {nome:'Bloco 2', modelo:'Em blocos', micros:[{nome:'Semanas 5–7',semanas:3,volume:125,intensidade:70},{nome:'Descarga',semanas:1,volume:60,intensidade:55,deload:true}]},
    ]},
   {id:'iniciante8', nome:'Iniciante — 8 semanas',
    resumo:'Aprender o movimento primeiro; a carga entra só na segunda fase.',
@@ -6645,6 +6776,13 @@ function PeriodizacaoScreen({coach,students,preStudent,onBack}){
   const [divs,setDivs]=useState([]);
   const [msg,setMsg]=useState(null);
   const [busy,setBusy]=useState(false);
+  const [meus,setMeus]=useState([]);
+
+  // ciclos que o treinador salvou como modelo
+  const carregarMeus=()=>{if(demo)return;
+    sb.from('train_perio_modelo').select('*').order('created_at',{ascending:false})
+      .then(({data})=>setMeus((data||[]).map(x=>({...x,_meu:true})))).catch(()=>{});};
+  useEffect(()=>{carregarMeus();},[]);
 
   const load=async(sid)=>{
     if(demo){setMacro(null);return;}
@@ -6688,16 +6826,16 @@ function PeriodizacaoScreen({coach,students,preStudent,onBack}){
       if(e1)throw e1;
       for(const [i,fase] of mod.fases.entries()){
         const {data:me,error:e2}=await sb.from('train_meso').insert({macro_id:ma.id,
-          nome:fase.nome,modelo:fase.modelo,ordem:i}).select().single();
+          nome:fase.nome,modelo:fase.modelo||'Linear',foco:fase.foco||null,ordem:i}).select().single();
         if(e2)throw e2;
-        for(const [j,mi] of fase.micros.entries()){
+        for(const [j,mi] of (fase.micros||[]).entries()){
           const {error:e3}=await sb.from('train_micro').insert({meso_id:me.id,nome:mi.nome,ordem:j,
-            semanas:mi.semanas,volume:mi.volume,intensidade:mi.intensidade});
+            semanas:mi.semanas,volume:mi.volume,intensidade:mi.intensidade,deload:!!mi.deload});
           if(e3)throw e3;
         }
       }
       await load(stu.id);
-      setMsg({t:'ok',m:'Ciclo "'+mod.nome+'" criado. Ajuste o que quiser abaixo.'});
+      setMsg({t:'ok',m:'Ciclo “'+mod.nome+'” criado. Ajuste o que quiser abaixo.'});
     }catch(e){erro(e);}
     setBusy(false);
   };
@@ -6726,6 +6864,31 @@ function PeriodizacaoScreen({coach,students,preStudent,onBack}){
   const delMicro=async(mesoId,id)=>{
     setMicros(m=>({...m,[mesoId]:(m[mesoId]||[]).filter(x=>x.id!==id)}));
     await sb.from('train_micro').delete().eq('id',id);};
+
+  // Guarda o ciclo montado para reaproveitar em outros alunos.
+  // A ficha ligada a cada microciclo não vai junto: ela é de um aluno só.
+  const salvarCicloComoModelo=async()=>{
+    if(!mesos.length){setMsg({t:'err',m:'Monte pelo menos uma fase antes de salvar o modelo.'});return;}
+    const nome=prompt('Nome do modelo:',macro.nome||'Meu ciclo');
+    if(!nome)return;
+    setBusy(true);setMsg(null);
+    try{
+      const fases=mesos.map(me=>({nome:me.nome,modelo:me.modelo||'Linear',foco:me.foco||null,
+        micros:(micros[me.id]||[]).map(x=>({nome:x.nome,semanas:x.semanas,
+          volume:x.volume,intensidade:x.intensidade,deload:!!x.deload}))}));
+      const semanas=fases.reduce((a,f)=>a+f.micros.reduce((b,x)=>b+(x.semanas||0),0),0);
+      const {data,error}=await sb.from('train_perio_modelo').insert({coach_id:coach.id,nome,
+        resumo:macro.objetivo||(fases.length+' fases · '+semanas+' semanas'),fases}).select().single();
+      if(error)throw error;
+      setMeus(l=>[{...data,_meu:true},...l]);
+      setMsg({t:'ok',m:'Modelo “'+nome+'” salvo. Ele aparece na lista quando você montar o ciclo de outro aluno.'});
+    }catch(e){erro(e);}
+    setBusy(false);
+  };
+  const apagarModelo=async(ev,m)=>{ev.stopPropagation();
+    if(!confirm('Apagar o modelo "'+m.nome+'"? Os ciclos já montados não mudam.'))return;
+    setMeus(l=>l.filter(x=>x.id!==m.id));
+    await sb.from('train_perio_modelo').delete().eq('id',m.id);};
 
   const totalSemanas=mesos.reduce((a,me)=>a+(micros[me.id]||[]).reduce((b,mi)=>b+(mi.semanas||0),0),0);
   const fim=(()=>{if(!macro||!macro.data_inicio||!totalSemanas)return null;
@@ -6762,16 +6925,22 @@ function PeriodizacaoScreen({coach,students,preStudent,onBack}){
            Comece por um modelo pronto e ajuste as fases depois — ou monte do zero.</p>
        </div>
        <div className="student-grid" style={{marginTop:16}}>
-         {MODELOS_PERIO.map(m=>(
+         {[...meus,...MODELOS_PERIO].map(m=>{
+           const fases=m.fases||[];
+           const semanas=fases.reduce((a,f)=>a+(f.micros||[]).reduce((b,x)=>b+(x.semanas||0),0),0);
+           return(
            <div key={m.id} className="student-card" style={{cursor:busy?'default':'pointer',textAlign:'left'}}
              onClick={()=>{if(!busy)usarModelo(m);}}>
-             <div className="s-name">{m.nome}</div>
+             <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8}}>
+               <div className="s-name">{m.nome}</div>
+               {m._meu&&<button className="btn-icon btn-sm" title="Apagar modelo" onClick={ev=>apagarModelo(ev,m)}>×</button>}
+             </div>
              <div className="s-meta" style={{marginTop:6,lineHeight:1.5}}>{m.resumo}</div>
              <div style={{marginTop:10,fontSize:11.5,color:'var(--text3)'}}>
-               {m.fases.length} fases · {m.fases.reduce((a,f)=>a+f.micros.reduce((b,x)=>b+x.semanas,0),0)} semanas</div>
+               {fases.length} fases · {semanas} semanas{m._meu?' · modelo seu':''}</div>
              <button className="btn btn-primary btn-sm" style={{marginTop:12}} disabled={busy}
                onClick={ev=>{ev.stopPropagation();usarModelo(m);}}>{busy?'Criando…':'Usar este'}</button>
-           </div>))}
+           </div>);})}
        </div>
        <div style={{textAlign:'center',marginTop:18}}>
          <button className="btn btn-secondary" disabled={busy} onClick={criarMacro}>Montar do zero</button></div>
@@ -6784,6 +6953,10 @@ function PeriodizacaoScreen({coach,students,preStudent,onBack}){
         </div>
         <FI label="Objetivo" value={macro.objetivo||''} onChange={e=>salvarMacro({objetivo:e.target.value})}
           placeholder="Ex.: ganho de massa magra com manutenção de percentual de gordura"/>
+        <div className="bgroup" style={{marginTop:12}}>
+          <button className="btn btn-secondary btn-sm" disabled={busy} onClick={salvarCicloComoModelo}>
+            {busy?'Salvando…':'Salvar este ciclo como modelo'}</button>
+        </div>
       </div>
 
       {mesos.map((me,mi_)=>{
