@@ -1,9 +1,16 @@
-const CACHE='mfp-v70';
+const CACHE='mfp-v71';
+// Tudo que o app precisa para ABRIR sem rede. A biblioteca do Supabase entrou
+// aqui: antes vinha da jsdelivr, e como o worker so guardava o proprio dominio,
+// no modo aviao ela nao carregava e o app morria na tela de configuracao.
 const ASSETS=[
   './','./index.html','./config.js','./manifest.json',
-  './lib/react.js','./lib/react-dom.js','./lib/babel.js',
+  './lib/react.js','./lib/react-dom.js','./lib/babel.js','./lib/supabase.js',
   './icons/icon-192.png','./icons/icon-512.png','./icons/icon-180.png'
 ];
+// De fora do dominio: guarda depois de carregar uma vez. Fonte e desenho de
+// exercicio nao mudam, entao servir do cache e sempre certo — e e o que faz o
+// app ficar igual offline em vez de perder a tipografia e as demonstracoes.
+const DE_FORA=/^https:\/\/(fonts\.googleapis\.com|fonts\.gstatic\.com|cdn\.jsdelivr\.net)\//;
 self.addEventListener('install',e=>{
   self.skipWaiting();
   // cache:'reload' obriga a buscar na rede: sem isso o navegador podia
@@ -47,7 +54,17 @@ self.addEventListener('fetch',e=>{
   if(req.method!=='GET')return;
   const url=new URL(req.url);
   // Nunca cachear chamadas de API (Supabase) — sempre rede
-  if(url.origin!==location.origin || url.hostname.endsWith('supabase.co')) return;
+  if(url.hostname.endsWith('supabase.co')) return;
+  // Fontes e desenhos: cache-first, e guarda o que vier novo
+  if(url.origin!==location.origin){
+    if(!DE_FORA.test(req.url)) return;
+    e.respondWith(caches.match(req).then(hit=>hit||fetch(req).then(res=>{
+      // resposta opaca (no-cors) tambem serve: o navegador consegue exibir
+      if(res&&(res.ok||res.type==='opaque')){const c=res.clone();caches.open(CACHE).then(ca=>ca.put(req,c)).catch(()=>{});}
+      return res;
+    }).catch(()=>caches.match(req))));
+    return;
+  }
   // HTML e config: network-first (pega atualizações na hora)
   const isDoc=req.mode==='navigate'||url.pathname.endsWith('/index.html')||url.pathname.endsWith('/config.js')||url.pathname==='/'||url.pathname.endsWith('/');
   if(isDoc){

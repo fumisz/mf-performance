@@ -6,7 +6,22 @@ no `index.html` da raiz.
 
 ## Como abrir
 Abra `index.html` num navegador moderno (Safari, Chrome) ou publique a pasta.
-Os dados ficam no Supabase (ver `config.js`); o app funciona offline como PWA.
+Os dados ficam no Supabase (ver `config.js`).
+
+## Sem internet
+O app abre e funciona no modo avião. Para isso **nada é carregado de fora**: o
+React, o Babel e o `supabase-js` moram em `lib/` e são pré-guardados pelo
+service worker. Fontes e desenhos de exercício ficam em cache depois da
+primeira vez que carregam.
+
+As leituras que precisam aparecer offline passam por `lerCopia()`: tenta a rede
+com prazo, guarda o resultado no IndexedDB e, sem rede, devolve a última cópia.
+As gravações não se perdem: a avaliação do treinador entra numa fila e a série
+do aluno em outra (`fila-aluno`), e ambas sobem sozinhas quando o sinal volta.
+
+O rodapé da barra lateral mostra **Pronto para usar sem internet** quando o
+aparelho já guardou tudo. Depois de uma atualização é preciso abrir o app uma
+vez com internet para ele guardar os arquivos novos.
 
 ### No celular / iPad
 Acesse a URL no navegador → Compartilhar → **Adicionar à Tela de Início**.

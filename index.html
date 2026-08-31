@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' blob: data: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; worker-src 'self'; manifest-src 'self'; frame-src https://www.youtube-nocookie.com https://www.youtube.com; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' blob: data: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; worker-src 'self'; manifest-src 'self'; frame-src https://www.youtube-nocookie.com https://www.youtube.com; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <script>if(self!==top){try{top.location=self.location;}catch(e){document.documentElement.style.display='none';}}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0">
@@ -21,7 +21,7 @@
 <script src="./lib/react.js"></script>
 <script src="./lib/react-dom.js"></script>
 <script src="./lib/babel.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./lib/supabase.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{
@@ -749,7 +749,7 @@ if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABAS
    .catch. Chamar .catch direto estoura TypeError, e dentro de um useEffect isso
    derruba a tela inteira do aluno. */
 const semEsperar=q=>{try{q.then(()=>{},()=>{});}catch(e){}};
-const APP_VERSION='2026.09.05';   // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION='2026.09.06';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
 
@@ -768,20 +768,24 @@ function sumMeals(meals){
   }, {kcal:0,protein:0,carb:0,fat:0});
 }
 async function getActivePlan(studentId){
-  const { data } = await sb.from('meal_plans').select('*').eq('student_id',studentId).eq('active',true)
-    .order('created_at',{ascending:false}).limit(1).maybeSingle();
+  const { data } = await lerCopia('plano-'+studentId,
+    sb.from('meal_plans').select('*').eq('student_id',studentId).eq('active',true)
+      .order('created_at',{ascending:false}).limit(1).maybeSingle());
   return data||null;
 }
 async function loadPlanTree(planId){
-  const { data:meals } = await sb.from('meals').select('*').eq('plan_id',planId).order('order_index');
+  const { data:meals } = await lerCopia('refeicoes-'+planId,
+    sb.from('meals').select('*').eq('plan_id',planId).order('order_index'));
   const mealIds=(meals||[]).map(m=>m.id);
   let items=[],subs=[];
   if(mealIds.length){
-    const ri=await sb.from('meal_items').select('*').in('meal_id',mealIds).order('order_index');
+    const ri=await lerCopia('itens-'+planId,
+      sb.from('meal_items').select('*').in('meal_id',mealIds).order('order_index'));
     items=ri.data||[];
     const itemIds=items.map(i=>i.id);
     if(itemIds.length){
-      const rs=await sb.from('substitutions').select('*').in('meal_item_id',itemIds);
+      const rs=await lerCopia('trocas-'+planId,
+        sb.from('substitutions').select('*').in('meal_item_id',itemIds));
       subs=rs.data||[];
     }
   }
@@ -1649,7 +1653,8 @@ function PainelHoje({onSelect,students,demo}){
     if(demo){setRows(_DEMO_PAINEL);return;}
     if(!sb){setRows(null);return;}
     // se painel_hoje ainda nao foi criada (unificacao-dados.sql), some sem erro
-    sb.rpc('painel_hoje').then(({data,error})=>setRows(error?null:(data||[])))
+    lerCopia('painel-hoje',sb.rpc('painel_hoje'))
+      .then(({data,error})=>setRows(error?null:(data||[])))
       .catch(()=>setRows(null));},[demo]);
 
   if(rows===undefined)return <div className="card" style={{marginBottom:18}}><div className="center-screen" style={{minHeight:70}}><div className="spinner"/></div></div>;
@@ -4019,6 +4024,30 @@ const EVAL_META=['id','studentId','date','obs'];
 function evalToRow(e,coachId){const data={};Object.keys(e).forEach(k=>{if(!EVAL_META.includes(k))data[k]=e[k];});return{student_id:e.studentId,coach_id:coachId,date:e.date,obs:e.obs||null,data};}
 function rowToEval(r){return{id:r.id,studentId:r.student_id,date:r.date,obs:r.obs||'',...(r.data||{})};}
 
+/* Diz se o app já está preparado para abrir sem internet. Vale conferir antes
+   de sair para um lugar sem sinal — ou depois de uma atualização, que precisa
+   de uma abertura com internet para guardar os arquivos novos. */
+function SeloOffline(){
+  const [pronto,setPronto]=useState(null);
+  useEffect(()=>{let vivo=true;
+    (async()=>{
+      try{
+        if(!('serviceWorker' in navigator)||!('caches' in window)){if(vivo)setPronto(false);return;}
+        await navigator.serviceWorker.ready;
+        const nomes=await caches.keys();
+        for(const n of nomes){
+          const c=await caches.open(n);
+          if(await c.match('./lib/supabase.js')){if(vivo)setPronto(true);return;}
+        }
+        if(vivo)setPronto(false);
+      }catch(e){if(vivo)setPronto(false);}
+    })();
+    return()=>{vivo=false;};},[]);
+  if(pronto===null)return null;
+  return(<div style={{marginTop:5,fontSize:10.5,color:pronto?'var(--green)':'var(--text3)'}}>
+    {pronto?'● Pronto para usar sem internet':'○ Preparando o uso sem internet…'}</div>);
+}
+
 /* ── Convite para instalar na tela de início ─────────────────
    Sem instalar, o iPhone não entrega notificação nenhuma e o app abre
    com a barra do navegador por cima. Este convite explica o caminho,
@@ -5635,7 +5664,10 @@ function ExerciseLibrary({coach,onBack}){
   const [grupoFiltro,setGrupoFiltro]=useState('Todos');
   const fileRef=useRef();
   const alvoRef=useRef(null);
-  const load=async()=>{if(demo)return;const {data}=await sb.from('train_exercicios').select('*').order('grupo_muscular').order('nome');setLib(data||[]);};
+  const load=async()=>{if(demo)return;
+    const {data}=await lerCopia('lib-completa',
+      sb.from('train_exercicios').select('*').order('grupo_muscular').order('nome'));
+    setLib(data||[]);};
   useEffect(()=>{load();},[]);
   const add=async()=>{const nome=(nf.nome||'').trim();if(!nome)return;
     if(demo){setLib(p=>[{id:'d'+Date.now(),nome,grupo_muscular:nf.grupo_muscular,video_url:nf.video_url,coach_id:coach.id},...p]);setNf({nome:'',grupo_muscular:nf.grupo_muscular,video_url:''});return;}
@@ -5831,11 +5863,17 @@ function TrainScreen({coach,students,preStudent,onBack}){
 
   useEffect(()=>{(async()=>{
     if(demo){setLib([{id:'x1',nome:'Agachamento Livre'},{id:'x2',nome:'Leg Press'},{id:'x3',nome:'Cadeira Extensora'},{id:'x4',nome:'Stiff'}]);return;}
-    const {data}=await sb.from('train_exercicios').select('id,nome,grupo_muscular,video_url,video_path,dicas').order('nome');setLib(data||[]);
+    const {data}=await lerCopia('lib-completa',
+      sb.from('train_exercicios').select('*').order('grupo_muscular').order('nome'));
+    setLib([...(data||[])].sort((a,b)=>(a.nome||'').localeCompare(b.nome||'')));
   })();},[]);
-  const loadDivs=async s=>{if(demo){setDivs([]);return;}const {data,error}=await sb.from('train_divisao').select('*').eq('student_id',s.id).order('ordem');if(error){setMsg({t:'err',m:'Erro: '+error.message});setDivs([]);return;}setDivs(data||[]);};
+  const loadDivs=async s=>{if(demo){setDivs([]);return;}
+    const {data,error}=await lerCopia('divs-'+s.id,sb.from('train_divisao').select('*').eq('student_id',s.id).order('ordem'));
+    if(error){setMsg({t:'err',m:'Erro: '+error.message});setDivs([]);return;}setDivs(data||[]);};
   useEffect(()=>{if(stu)loadDivs(stu);else setDivs(null);},[stu&&stu.id]);
-  const loadSeries=async id=>{if(demo)return;const {data}=await sb.from('train_serie_prescrita').select('*').eq('divisao_id',id).order('ordem');setSeries(p=>({...p,[id]:data||[]}));};
+  const loadSeries=async id=>{if(demo)return;
+    const {data}=await lerCopia('series-'+id,sb.from('train_serie_prescrita').select('*').eq('divisao_id',id).order('ordem'));
+    setSeries(p=>({...p,[id]:data||[]}));};
   const toggleDiv=id=>{const n=openId===id?null:id;setOpenId(n);if(n&&!series[n])loadSeries(n);};
 
   const addDiv=async()=>{
@@ -6078,6 +6116,63 @@ const comPrazo=(p,ms=PRAZO_MS)=>new Promise((ok,falha)=>{
   Promise.resolve(p).then(v=>{clearTimeout(t);ok(v);},e=>{clearTimeout(t);falha(e);});
 });
 const isNetErr=e=>!navigator.onLine||(e&&e.semRede)||(e&&/network|fetch|Failed to fetch|timeout|aborted|Load failed/i.test(e.message||''));
+
+/* ── Ler com cópia no aparelho ───────────────────────────────
+   Toda leitura que o app precisa mostrar offline passa por aqui: tenta a rede
+   com prazo e guarda o resultado; sem rede, devolve o que foi lido da última
+   vez. É isto que faz a ficha, a dieta e o histórico aparecerem com o celular
+   no modo avião — antes o app abria, mas vinha tudo em branco. */
+/* ── Fila de gravação do aluno ───────────────────────────────
+   O aluno treina em academia sem sinal. Cada série concluída entra nesta fila
+   e sobe sozinha depois — antes ia direto para o servidor e, sem rede, o
+   treino inteiro se perdia. */
+const FILA_ALUNO='fila-aluno';
+async function filaAluno(){return (await IDB.get(FILA_ALUNO))||[];}
+async function enfileirarAluno(item){
+  const q=await filaAluno();q.push({...item,em:Date.now()});
+  await IDB.set(FILA_ALUNO,q);
+  try{window.dispatchEvent(new CustomEvent('mfp-fila',{detail:q.length}));}catch(e){}
+  return q.length;
+}
+let escoando=false;
+async function escoarFilaAluno(){
+  if(escoando||!sb||!navigator.onLine)return 0;
+  escoando=true;let subiram=0;
+  try{
+    let q=await filaAluno();
+    while(q.length){
+      const it=q[0];
+      try{
+        if(it.tabela)  {const {error}=await comPrazo(sb.from(it.tabela).insert(it.linha));if(error)throw error;}
+        else if(it.rpc){const {error}=await comPrazo(sb.rpc(it.rpc,it.args||{}));if(error)throw error;}
+      }catch(e){
+        if(isNetErr(e))break;         // sem rede: fica na fila, tenta depois
+        /* erro definitivo: sai da fila para não travar o resto */
+      }
+      q.shift();subiram++;await IDB.set(FILA_ALUNO,q);
+    }
+    try{window.dispatchEvent(new CustomEvent('mfp-fila',{detail:q.length}));}catch(e){}
+  }finally{escoando=false;}
+  return subiram;
+}
+if(typeof window!=='undefined'){
+  window.addEventListener('online',()=>{escoarFilaAluno();});
+}
+
+async function lerCopia(chave,consulta,ms){
+  try{
+    const r=await comPrazo(Promise.resolve(consulta),ms);
+    if(r&&r.error)throw r.error;
+    const dado=(r&&'data' in r)?r.data:r;
+    IDB.set('ler-'+chave,{dado,ts:Date.now()});
+    return r;
+  }catch(e){
+    const c=await IDB.get('ler-'+chave);
+    if(c)return {data:c.dado,error:null,daCopia:true,copiaEm:c.ts};
+    if(isNetErr(e))return {data:null,error:null,daCopia:true,semCopia:true};
+    throw e;
+  }
+}
 
 /* ── App ── */
 /* ════════════════════════════════════════════════════════════
@@ -7320,6 +7415,12 @@ function App({profile,setProfile}){
     window.addEventListener('online',on);window.addEventListener('offline',off);
     return()=>{window.removeEventListener('online',on);window.removeEventListener('offline',off);};},[coachId]);
 
+  // deixa a biblioteca de exercícios guardada desde a abertura, para a ficha
+  // e a biblioteca funcionarem mesmo se o sinal cair antes de ele abrir a tela
+  useEffect(()=>{if(profile._demo||!sb)return;
+    lerCopia('lib-completa',sb.from('train_exercicios').select('*').order('grupo_muscular').order('nome'))
+      .catch(()=>{});},[coachId]);
+
   const [intakeCount,setIntakeCount]=useState(0);
   useEffect(()=>{if(profile._demo||!sb)return;let alive=true;(async()=>{
     const {count}=await sb.from('assess_intakes').select('id',{count:'exact',head:true}).eq('coach_id',coachId).eq('status','pending');
@@ -7458,6 +7559,7 @@ function App({profile,setProfile}){
             <button className="link" style={{fontSize:10.5,background:'none',border:'none',padding:0,cursor:'pointer'}}
               onClick={()=>window.MFP_forcarAtualizacao&&window.MFP_forcarAtualizacao()}>forçar atualização</button>
           </div>
+          <SeloOffline/>
         </div>
       </div>
 
@@ -7627,9 +7729,18 @@ function TrainExec({student,divisao,demo,somenteLeitura,best,onBack,onSaved,onFi
   const [paused,setPaused]=useState(false);const [tot,setTot]=useState(0);
   const [restTotal,setRestTotal]=useState(60);
   const audioRef=useRef(null);const [cel,setCel]=useState(null);const [vid,setVid]=useState({});const [demoOn,setDemoOn]=useState({});const [finished,setFinished]=useState(null);const [fbAberto,setFbAberto]=useState(false);
-  useEffect(()=>{if(demo)return;(async()=>{const {data}=await sb.from('train_serie_prescrita').select('*').eq('divisao_id',divisao.id).order('ordem');setSeries(data||[]);
+  const [pendentes,setPendentes]=useState(0);   // séries guardadas no aparelho
+  useEffect(()=>{filaAluno().then(q=>setPendentes(q.length));
+    const f=e=>setPendentes(e.detail||0);
+    window.addEventListener('mfp-fila',f);
+    return()=>window.removeEventListener('mfp-fila',f);},[]);
+  useEffect(()=>{if(demo)return;(async()=>{
+    const {data}=await lerCopia('series-'+divisao.id,
+      sb.from('train_serie_prescrita').select('*').eq('divisao_id',divisao.id).order('ordem'));
+    setSeries(data||[]);
     const ids=[...new Set((data||[]).map(s=>s.exercicio_id).filter(Boolean))];
-    if(ids.length){const {data:ex}=await sb.from('train_exercicios').select('id,video_url,video_path,dicas').in('id',ids);
+    if(ids.length){const {data:ex}=await lerCopia('exs-'+divisao.id,
+      sb.from('train_exercicios').select('id,video_url,video_path,dicas').in('id',ids));
       // guarda também as dicas: as técnicas avançadas não têm desenho, o que
       // vale ali é a instrução escrita
       const m={};(ex||[]).forEach(e=>{if(e.video_url||e.video_path||e.dicas)m[e.id]={url:e.video_url,path:e.video_path,dicas:e.dicas};});setVid(m);}})();},[]);
@@ -7694,7 +7805,16 @@ function TrainExec({student,divisao,demo,somenteLeitura,best,onBack,onSaved,onFi
     setRestTotal(desc);setRest(desc);setRestName(s.exercicio_nome);setPaused(false);
     if(onSaved)onSaved(s.exercicio_id,carga);
     if(isPr)celebrate(carga);
-    if(!demo&&!somenteLeitura){try{await sb.from('train_historico').insert({coach_id:student.coach_id,student_id:student.id,divisao_id:divisao.id,exercicio_id:s.exercicio_id,exercicio_nome:s.exercicio_nome,data_treino:todayStr(),indice_serie:i+1,tipo_serie:s.tipo_serie,carga,reps,is_pr:isPr});}catch(e){}}
+    if(!demo&&!somenteLeitura){
+      const linha={coach_id:student.coach_id,student_id:student.id,divisao_id:divisao.id,
+        exercicio_id:s.exercicio_id,exercicio_nome:s.exercicio_nome,data_treino:todayStr(),
+        indice_serie:i+1,tipo_serie:s.tipo_serie,carga,reps,is_pr:isPr};
+      let subiu=false;
+      if(navigator.onLine){
+        try{const {error}=await comPrazo(sb.from('train_historico').insert(linha));if(!error)subiu=true;}catch(e){}
+      }
+      if(!subiu){await enfileirarAluno({tabela:'train_historico',linha});setPendentes(n=>n+1);}
+    }
   };
   const totalSets=exs.reduce((a,e)=>a+e.tiers.reduce((b,t)=>b+t.qtd_series,0),0);
   const doneSets=Object.keys(done).length;
@@ -7712,6 +7832,11 @@ function TrainExec({student,divisao,demo,somenteLeitura,best,onBack,onSaved,onFi
     </div>
     <div className="lv-title" style={{textAlign:'center'}}>{divisao.nome||'Treino'}</div>
     <div className="lv-sub" style={{textAlign:'center',marginBottom:14}}>{doneSets}/{totalSets} séries concluídas</div>
+    {pendentes>0&&<div className="lv-card" style={{borderColor:'var(--lvsel)',padding:'10px 14px',marginBottom:12}}>
+      <div style={{fontWeight:700,fontSize:13.5}}>Treinando sem internet</div>
+      <div className="lv-sub" style={{marginTop:3,lineHeight:1.45}}>
+        {pendentes} série{pendentes>1?'s':''} guardada{pendentes>1?'s':''} no aparelho. Sobe sozinho quando o sinal voltar — pode treinar tranquilo.</div>
+    </div>}
 
     {series===null?<div className="center-screen"><div className="spinner"/></div>:
      exs.length===0?<div className="lv-card" style={{textAlign:'center',color:'var(--lvt2)'}}>Sem exercícios nesta divisão.</div>:
@@ -8678,7 +8803,8 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
     while(setD.has(iso(cur))){streak++;cur.setDate(cur.getDate()-1);}
     return{total:dias.length,prs,streak,mes};
   };
-  const loadAvisos=async(sid)=>{const {data}=await sb.from('train_avisos').select('*').eq('student_id',sid).order('created_at',{ascending:false}).limit(50);setAvisos(data||[]);};
+  const loadAvisos=async(sid)=>{const {data}=await lerCopia('avisos-'+sid,
+    sb.from('train_avisos').select('*').eq('student_id',sid).order('created_at',{ascending:false}).limit(50));setAvisos(data||[]);};
   const [code,setCode]=useState('');const [linkErr,setLinkErr]=useState(null);const [linking,setLinking]=useState(false);
   const doLink=async()=>{const c=code.trim().toUpperCase();if(!c)return;setLinking(true);setLinkErr(null);
     const {data,error}=await sb.rpc('aluno_link',{p_code:c});setLinking(false);
@@ -8686,7 +8812,8 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
     if(data&&data.linked){try{localStorage.removeItem('mfp_aluno_code');}catch(e){}location.reload();}
     else setLinkErr('Código inválido ou já usado. Confira com seu treinador.');};
   const refresh=async()=>{if(demo||!stu)return;
-    const {data:hi}=await sb.from('train_historico').select('exercicio_id,carga,data_treino,tipo_serie,is_pr').eq('student_id',stu.id);
+    const {data:hi}=await lerCopia('hist-'+stu.id,
+      sb.from('train_historico').select('exercicio_id,carga,data_treino,tipo_serie,is_pr').eq('student_id',stu.id));
     const b={};(hi||[]).forEach(h=>{if(h.tipo_serie==='Valida'&&h.exercicio_id&&(b[h.exercicio_id]==null||h.carga>b[h.exercicio_id]))b[h.exercicio_id]=h.carga;});setBest(b);
     const md=new Date();md.setDate(md.getDate()-((md.getDay()+6)%7));const mk=dayKey(md);
     const days=new Set((hi||[]).filter(h=>h.data_treino>=mk).map(h=>h.data_treino));setFreq(f=>({...f,done:days.size}));
@@ -8695,12 +8822,14 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
     let s=verComoAluno||null;
     if(!espiando){
       try{const c=localStorage.getItem('mfp_aluno_code');const {data:lk}=await sb.rpc('aluno_link',{p_code:c||null});if(lk&&lk.linked){try{localStorage.removeItem('mfp_aluno_code');}catch(e){}}}catch(e){}
-      const {data:sr}=await sb.from('assess_students').select('*').eq('user_id',profile.id).limit(1);
+      const {data:sr}=await lerCopia('aluno-'+profile.id,
+        sb.from('assess_students').select('*').eq('user_id',profile.id).limit(1));
       s=(sr&&sr[0])?rowToStu(sr[0]):null;
     }
     setStu(s);
     if(s){
-      const {data:dv}=await sb.from('train_divisao').select('*').eq('student_id',s.id).order('ordem');setDivs(dv||[]);
+      const {data:dv}=await lerCopia('divs-'+s.id,
+        sb.from('train_divisao').select('*').eq('student_id',s.id).order('ordem'));setDivs(dv||[]);
       const {data:hi}=await sb.from('train_historico').select('exercicio_id,carga,data_treino,tipo_serie,is_pr').eq('student_id',s.id);
       const b={};(hi||[]).forEach(h=>{if(h.tipo_serie==='Valida'&&h.exercicio_id&&(b[h.exercicio_id]==null||h.carga>b[h.exercicio_id]))b[h.exercicio_id]=h.carga;});setBest(b);
       const mondayD=new Date();mondayD.setDate(mondayD.getDate()-((mondayD.getDay()+6)%7));const monday=dayKey(mondayD);
