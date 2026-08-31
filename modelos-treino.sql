@@ -79,3 +79,10 @@ select s.nome,s.objetivo,s.nivel,s.dias,s.resumo,
    ) order by di)
    from jsonb_array_elements(s.d) with ordinality u(dv,di))
 from src s;
+
+-- ============================================================
+-- Pente fino pré-lançamento: a tela de cadastros repetidos agrupa por
+-- primeiro nome, e isso junta homônimos. Aqui o e-mail entra na lista e
+-- a fusão trava quando os dois cadastros têm login próprio.
+-- (Aplicado como migração mfp_duplicados_email_e_trava_dois_logins.)
+-- ============================================================
