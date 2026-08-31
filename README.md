@@ -51,6 +51,12 @@ capturado ainda no `<head>`.
   "Hoje é B — Superiores". Quem decide o alvo é o banco
   (`lembrete_treino_alvos`); quem envia é a Edge Function `push`, chamada por
   três cron jobs.
+- **Semana planejada** — o treinador marca em que dias cada divisão cai
+  (segunda A, quarta B…). No dia marcado o app do aluno abre direto naquele
+  treino, dizendo "marcado para hoje na sua ficha". Sem dia marcado, vale o
+  rodízio livre de sempre.
+- **Ver os exercícios antes** — o aluno espia o que vem no treino (exercícios,
+  séries, reps e descanso) sem ligar o cronômetro, e começa dali se quiser.
 - **Dor avisa na hora** — no feedback de fim de treino, dor 4 ou 5 dispara uma
   notificação para o treinador com a divisão e o que o aluno escreveu. O texto
   é montado pelo servidor a partir do que está gravado, nunca pelo aparelho do
@@ -60,6 +66,15 @@ capturado ainda no `<head>`.
   divisão, exercícios, séries, volume e recordes; toca para abrir e ver a carga
   de cada série. O treinador vê a mesma coisa na ficha do aluno, com a média de
   séries por treino — é isso que diz se ele está cumprindo a ficha ou cortando.
+
+## No papel
+Em **Treino → Imprimir ficha** sai a ficha inteira do aluno em uma folha, com
+colunas em branco para ele anotar a carga de cada semana. Serve para quem não
+tem celular bom ou prefere a prancheta.
+
+Na ficha do aluno, **Comparar números** põe duas avaliações lado a lado com a
+diferença de cada medida — verde é o lado bom daquela medida (cintura que desce
+e massa magra que sobe contam como ganho). O antigo **Comparar fotos** continua.
 
 ## Convite do aluno
 Em **Acesso do aluno**, o app gera o código e monta o convite pronto para

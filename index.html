@@ -743,7 +743,7 @@ if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABAS
    .catch. Chamar .catch direto estoura TypeError, e dentro de um useEffect isso
    derruba a tela inteira do aluno. */
 const semEsperar=q=>{try{q.then(()=>{},()=>{});}catch(e){}};
-const APP_VERSION='2026.09.13';   // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION='2026.09.14';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
 
@@ -792,6 +792,11 @@ function divisaoMaisRecente(hist){
   return melhor?melhor.id:null;
 }
 const fmtCarga = c=>c==null?'—':String(c).replace('.',',');
+// Dias da semana no padrão ISO: 1=segunda ... 7=domingo.
+const DIAS_SEMANA=[[1,'Seg'],[2,'Ter'],[3,'Qua'],[4,'Qui'],[5,'Sex'],[6,'Sáb'],[7,'Dom']];
+const diaHojeISO=()=>{const d=new Date().getDay();return d===0?7:d;};   // Date: 0=domingo
+const listaDias=arr=>(arr||[]).slice().sort((a,b)=>a-b)
+  .map(n=>(DIAS_SEMANA.find(d=>d[0]===n)||[,'?'])[1]).join(', ');
 // "hoje" / "ontem" / "terça, 12 de agosto" — data que se lê sem contar nos dedos
 function diaPorExtenso(d){
   if(!d)return'';
@@ -2861,6 +2866,84 @@ function EvalForm({student,evalData,carryHeight,isReassess,onSave,onCancel}){
 
 /* ── StudentDetail ── */
 /* Comparativo de fotos (antes/depois) com slider de revelação */
+/* Comparar duas avaliações pelos números. Dava para comparar as fotos, mas não
+   os dados — e é o número que sustenta a conversa: "seu abdômen caiu 4 cm". */
+function CompararAvaliacoes({student,evals,onClose}){
+  const ord=[...evals].sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const [bId,setB]=useState(ord[0]&&ord[0].id);
+  const [aId,setA]=useState(ord[1]&&ord[1].id);
+  const A=ord.find(e=>e.id===aId),B=ord.find(e=>e.id===bId);
+  const LINHAS=[
+    ['Peso','weight','kg',1,'menor'],
+    ['% Gordura','_fatPct','%',1,'menor'],
+    ['Massa magra','_leanMass','kg',1,'maior'],
+    ['Massa gorda','_fatMass','kg',1,'menor'],
+    ['IMC','_bmi','kg/m²',1,'menor'],
+    ['Cintura','circ_waist','cm',1,'menor'],
+    ['Abdômen','circ_abdomen','cm',1,'menor'],
+    ['Quadril','circ_hip','cm',1,'menor'],
+    ['Tórax','circ_chest','cm',1,'maior'],
+    ['Braço D','circ_arm_r','cm',1,'maior'],
+    ['Coxa D','circ_thigh_r','cm',1,'maior'],
+    ['Preensão D','dyn_r','kgf',1,'maior'],
+  ];
+  const valor=(ev,campo)=>{
+    if(!ev)return null;
+    if(campo[0]!=='_')return num(ev[campo]);
+    const d=derive(student,ev);
+    return num(d[campo.slice(1)]);
+  };
+  const dias=(A&&B)?Math.abs(Math.round((new Date(B.date)-new Date(A.date))/86400000)):null;
+  return(<div style={{position:'fixed',inset:0,zIndex:120,background:'rgba(10,8,10,.8)',display:'flex',
+      alignItems:'flex-start',justifyContent:'center',padding:16,overflow:'auto'}} onClick={onClose}>
+    <div className="card" style={{maxWidth:620,width:'100%',margin:'auto'}} onClick={e=>e.stopPropagation()}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
+        <div style={{fontFamily:'var(--serif)',fontSize:19,fontWeight:600}}>Comparar avaliações</div>
+        <button className="btn-icon btn-sm" onClick={onClose}>×</button>
+      </div>
+      <div style={{display:'flex',gap:10,marginBottom:14,flexWrap:'wrap'}}>
+        <div style={{flex:1,minWidth:150}}><span className="s-meta">De</span>
+          <select className="fi" value={aId||''} onChange={e=>setA(e.target.value)}>
+            {ord.map(e=><option key={e.id} value={e.id}>{fmtDate(e.date)}</option>)}
+          </select></div>
+        <div style={{flex:1,minWidth:150}}><span className="s-meta">Para</span>
+          <select className="fi" value={bId||''} onChange={e=>setB(e.target.value)}>
+            {ord.map(e=><option key={e.id} value={e.id}>{fmtDate(e.date)}</option>)}
+          </select></div>
+      </div>
+      {!A||!B||A.id===B.id?<p className="s-meta">Escolha duas avaliações diferentes.</p>:<>
+        <p className="s-meta" style={{marginBottom:10}}>{dias} dias entre as duas.</p>
+        <table className="rpt-tbl" style={{width:'100%',fontSize:12.5}}>
+          <thead><tr><th style={{textAlign:'left'}}>Medida</th>
+            <th>{fmtDate(A.date)}</th><th>{fmtDate(B.date)}</th><th>Diferença</th></tr></thead>
+          <tbody>
+            {LINHAS.map(([lbl,campo,un,dec,bom])=>{
+              const va=valor(A,campo),vb=valor(B,campo);
+              if(va==null&&vb==null)return null;
+              const d=(va!=null&&vb!=null)?+(vb-va).toFixed(dec):null;
+              // verde quando andou para o lado bom daquela medida
+              const cor=(d==null||Math.abs(d)<0.05)?'var(--text2)'
+                :((bom==='maior')===(d>0))?'var(--green)':'var(--red)';
+              return(<tr key={campo}>
+                <td style={{fontWeight:600}}>{lbl}</td>
+                <td style={{textAlign:'center'}}>{va!=null?fmt(va,dec)+' '+un:'—'}</td>
+                <td style={{textAlign:'center'}}>{vb!=null?fmt(vb,dec)+' '+un:'—'}</td>
+                <td style={{textAlign:'center',fontWeight:700,color:cor,whiteSpace:'nowrap'}}>
+                  {d==null?'—':(d>0?'+':'')+fmt(d,dec)+' '+un}</td>
+              </tr>);
+            })}
+          </tbody>
+        </table>
+        <p className="s-meta" style={{marginTop:10,fontSize:11.5,lineHeight:1.5}}>
+          Verde é o lado bom daquela medida — cintura que desce e massa magra que sobe contam
+          como ganho. Medida em branco é a que não foi coletada naquele dia.</p>
+        <button className="btn btn-ghost btn-sm no-print" style={{width:'100%',marginTop:10}}
+          onClick={()=>window.print()}>Imprimir / PDF</button>
+      </>}
+    </div>
+  </div>);
+}
+
 function PhotoCompare({student,evals,onClose}){
   const withPhoto=[...evals].filter(e=>e.post_photo_front||e.post_photo_side||e.post_photo_back).sort((a,b)=>new Date(a.date)-new Date(b.date));
   const poses=[['front','Frente'],['side','Lado'],['back','Costas']].filter(([k])=>withPhoto.some(e=>e['post_photo_'+k]));
@@ -3030,6 +3113,7 @@ const TXT_PASSO_INSTALAR='3. Depois de entrar, adicione o app à tela de início
 
 function StudentDetail({student,evals,onNewEval,onReassess,onEditEval,onDeleteEval,onReport,onBack,onEdit,onTech,onTrain,onNutri,onPreview}){
   const [cmp,setCmp]=useState(false);
+  const [cmpNum,setCmpNum]=useState(false);   // comparar os números, não as fotos
   const [diarioOpen,setDiarioOpen]=useState(false);
   const [metasOpen,setMetasOpen]=useState(false);
   const [acc,setAcc]=useState(null);const [accBusy,setAccBusy]=useState(false);
@@ -3057,6 +3141,7 @@ function StudentDetail({student,evals,onNewEval,onReassess,onEditEval,onDeleteEv
   return(
     <div>
       {cmp&&<PhotoCompare student={student} evals={evals} onClose={()=>setCmp(false)}/>}
+      {cmpNum&&<CompararAvaliacoes student={student} evals={evals} onClose={()=>setCmpNum(false)}/>}
       {diarioOpen&&<DiarioCoach student={student} onClose={()=>setDiarioOpen(false)}/>}
       {metasOpen&&<MetasCoach student={student} onClose={()=>setMetasOpen(false)}/>}
       {acc!==null&&<div style={{position:'fixed',inset:0,zIndex:120,background:'rgba(10,8,10,.8)',display:'flex',alignItems:'center',justifyContent:'center',padding:16}} onClick={()=>setAcc(null)}>
@@ -3094,6 +3179,7 @@ function StudentDetail({student,evals,onNewEval,onReassess,onEditEval,onDeleteEv
           <button className="btn btn-ghost btn-sm" onClick={onTech}>Avaliação técnica</button>
           {onPreview&&<button className="btn btn-ghost btn-sm" onClick={onPreview}>Visão do aluno</button>}
           {photoEvals>=2&&<button className="btn btn-ghost btn-sm" onClick={()=>setCmp(true)}>Comparar fotos</button>}
+          {evals.length>=2&&<button className="btn btn-ghost btn-sm" onClick={()=>setCmpNum(true)}>Comparar números</button>}
           {sorted.length>0&&<button className="btn btn-secondary" onClick={onReassess}>Reavaliação</button>}
           <button className="btn btn-primary" onClick={onNewEval}>+ Nova avaliação</button>
         </div>
@@ -6129,10 +6215,83 @@ function SemTreinoScreen({coach,onBack,onFeito}){
   </div>);
 }
 
+/* Ficha em papel. Nem todo aluno tem celular bom, e tem quem simplesmente
+   prefira a folha presa na prancheta. Imprime a ficha inteira com espaço para
+   anotar a carga de cada semana. */
+function FichaImpressa({coach,stu,divs,onFechar}){
+  const [tudo,setTudo]=useState(null);
+  useEffect(()=>{(async()=>{
+    const out=[];
+    for(const d of divs||[]){
+      const {data}=await sb.from('train_serie_prescrita').select('*').eq('divisao_id',d.id).order('ordem');
+      out.push({...d,series:data||[]});
+    }
+    setTudo(out);
+  })().catch(()=>setTudo([]));},[]);
+  const marca=(coach&&(coach.brand_name||coach.name))||'MF Performance';
+  return(<div>
+    <div className="abar no-print"><div>
+      <div className="breadcrumb" onClick={onFechar}>← Ficha</div>
+      <div className="ph-title">Ficha para imprimir</div>
+      <div className="ph-sub">Sai com colunas em branco para anotar a carga de cada semana</div></div>
+      <button className="btn btn-primary" onClick={()=>window.print()}>Imprimir / PDF</button>
+    </div>
+    {tudo===null?<div className="center-screen" style={{minHeight:200}}><div className="spinner"/></div>:
+    <div className="rpt-page">
+      <div className="rpt-body">
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',
+          borderBottom:'2px solid #1c1a17',paddingBottom:8,marginBottom:16}}>
+          <div>
+            <div style={{fontFamily:'var(--serif)',fontSize:22,fontWeight:700}}>{stu.name}</div>
+            <div style={{fontSize:11.5,color:'#6b665e'}}>Ficha de treino{stu.goal?' · '+stu.goal:''}</div>
+          </div>
+          <div style={{textAlign:'right',fontSize:11.5,color:'#6b665e'}}>
+            <div style={{fontWeight:700,color:'#1c1a17'}}>{marca}</div>
+            {coach&&coach.cref&&<div>CREF {coach.cref}</div>}
+            <div>{new Date().toLocaleDateString('pt-BR')}</div>
+          </div>
+        </div>
+        {tudo.length===0?<p className="s-meta">Este aluno ainda não tem divisão montada.</p>:
+         tudo.map(d=>(<div key={d.id} className="rpt-sec" style={{marginBottom:18}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:6}}>
+            <div style={{fontWeight:700,fontSize:14}}>{d.nome||'Divisão'}</div>
+            {(d.dias_semana||[]).length>0&&<div style={{fontSize:11,color:'#6b665e'}}>{listaDias(d.dias_semana)}</div>}
+          </div>
+          <table className="rpt-tbl" style={{width:'100%',fontSize:11}}>
+            <thead><tr>
+              <th style={{textAlign:'left'}}>Exercício</th>
+              <th>Séries × reps</th><th>Descanso</th>
+              <th style={{width:'11%'}}>Sem 1</th><th style={{width:'11%'}}>Sem 2</th>
+              <th style={{width:'11%'}}>Sem 3</th><th style={{width:'11%'}}>Sem 4</th>
+            </tr></thead>
+            <tbody>
+              {d.series.length===0
+                ? <tr><td colSpan={7} style={{color:'#6b665e'}}>Sem exercício nesta divisão.</td></tr>
+                : d.series.map(s=>{const iv=s.intervalo_seg_min||60;
+                  return(<tr key={s.id}>
+                    <td style={{fontWeight:600}}>{s.exercicio_nome}
+                      {s.tipo_serie&&s.tipo_serie!=='Valida'&&
+                        <span style={{fontWeight:400,color:'#6b665e'}}> ({s.tipo_serie==='Preparatoria'?'preparatória':s.tipo_serie.toLowerCase()})</span>}</td>
+                    <td style={{textAlign:'center',whiteSpace:'nowrap'}}>{s.qtd_series}×{s.faixa_reps}</td>
+                    <td style={{textAlign:'center',whiteSpace:'nowrap'}}>{Math.floor(iv/60)}:{String(iv%60).padStart(2,'0')}</td>
+                    <td/><td/><td/><td/>
+                  </tr>);})}
+            </tbody>
+          </table>
+        </div>))}
+        <div style={{marginTop:20,fontSize:10.5,color:'#6b665e',borderTop:'1px solid #ece7de',paddingTop:8}}>
+          Anote a carga usada em cada semana. Dor, formigamento ou falta de ar: pare e avise o treinador.
+        </div>
+      </div>
+    </div>}
+  </div>);
+}
+
 function TrainScreen({coach,students,preStudent,onBack}){
   const demo=!!coach._demo;
   const [stu,setStu]=useState(preStudent||null);
   const [showLib,setShowLib]=useState(false);
+  const [imprimir,setImprimir]=useState(false);   // ficha em papel
   const [q,setQ]=useState('');
   const [lib,setLib]=useState([]);
   const [divs,setDivs]=useState(null);
@@ -6183,6 +6342,13 @@ function TrainScreen({coach,students,preStudent,onBack}){
     const {data,error}=await sb.from('train_serie_prescrita').insert({coach_id:coach.id,divisao_id:divId,exercicio_id:exId,exercicio_nome:nome,tipo_serie:ex.tipo_serie,qtd_series:+ex.qtd_series,faixa_reps:ex.faixa_reps,intervalo_seg_min:+ex.intervalo_seg_min,ordem}).select().single();
     if(error){setMsg({t:'err',m:'Erro: '+error.message});return;}
     setSeries(p=>({...p,[divId]:[...cur,data]}));setEx(blankEx);
+  };
+  // Em que dias a divisão cai. Vazio = sem dia fixo, e o rodízio livre segue
+  // valendo — quem não usar isso não muda nada.
+  const updDias=async(divId,dias)=>{
+    setDivs(p=>(p||[]).map(d=>d.id===divId?{...d,dias_semana:dias}:d));
+    if(!demo){const {error}=await sb.from('train_divisao').update({dias_semana:dias}).eq('id',divId);
+      if(error)setMsg({t:'err',m:'Não salvou os dias: '+error.message});}
   };
   const delEx=async(divId,id)=>{setSeries(p=>({...p,[divId]:(p[divId]||[]).filter(s=>s.id!==id)}));if(!demo)await sb.from('train_serie_prescrita').delete().eq('id',id);};
   // dá para ajustar séries, reps e descanso sem apagar e cadastrar de novo
@@ -6258,6 +6424,7 @@ function TrainScreen({coach,students,preStudent,onBack}){
   };
 
   if(showLib)return <ExerciseLibrary coach={coach} onBack={()=>setShowLib(false)}/>;
+  if(imprimir&&stu)return <FichaImpressa coach={coach} stu={stu} divs={divs||[]} onFechar={()=>setImprimir(false)}/>;
   // seleção de aluno
   if(!stu){
     const list=students.filter(s=>s.name.toLowerCase().includes(q.toLowerCase())).sort((a,b)=>a.name.localeCompare(b.name));
@@ -6288,6 +6455,7 @@ function TrainScreen({coach,students,preStudent,onBack}){
 
     <div className="bgroup" style={{marginBottom:12}}>
       <button className="btn btn-secondary btn-sm" disabled={busyMod} onClick={()=>setShowMod(true)}>Usar ficha pronta</button>
+      <button className="btn btn-ghost btn-sm" onClick={()=>setImprimir(true)}>Imprimir ficha</button>
       {(divs||[]).length>0&&<button className="btn btn-ghost btn-sm" disabled={busyMod} onClick={salvarComoModelo}>Salvar como modelo</button>}
     </div>
 
@@ -6306,12 +6474,21 @@ function TrainScreen({coach,students,preStudent,onBack}){
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,cursor:'pointer'}} onClick={()=>toggleDiv(dv.id)}>
           <h4 style={{margin:0}}>{dv.nome||'Divisão'}</h4>
           <div style={{display:'flex',alignItems:'center',gap:10}}>
+            {(dv.dias_semana||[]).length>0&&<span className="info-pill" style={{margin:0}}>{listaDias(dv.dias_semana)}</span>}
             <span className="s-meta">{series[dv.id]?ss.length+' exercício'+(ss.length!==1?'s':''):'abrir'}</span>
             <button className="btn-icon btn-sm" onClick={e=>{e.stopPropagation();delDiv(dv.id);}}>×</button>
             <span style={{color:'var(--text3)'}}>{open?'▾':'▸'}</span>
           </div>
         </div>
         {open&&<div style={{marginTop:12}}>
+          <div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap',marginBottom:12}}>
+            <span className="s-meta" style={{margin:0}}>Dias da semana:</span>
+            {DIAS_SEMANA.map(([n,lb])=>{const on=(dv.dias_semana||[]).includes(n);
+              return(<button key={n} type="button" className={'btn btn-sm '+(on?'btn-primary':'btn-ghost')}
+                style={{padding:'4px 10px'}}
+                onClick={()=>updDias(dv.id,on?(dv.dias_semana||[]).filter(x=>x!==n):[...(dv.dias_semana||[]),n])}>{lb}</button>);})}
+            {(dv.dias_semana||[]).length===0&&<span className="s-meta" style={{margin:0,fontSize:11.5}}>sem dia fixo — entra no rodízio</span>}
+          </div>
           {ss.length>0&&<table className="rpt-tbl" style={{width:'100%',marginBottom:10}}><tbody>
             {ss.map((s,i)=>{const dem=lib.find(x=>x.id===s.exercicio_id);return(<tr key={s.id}>
               <td style={{fontWeight:600}}>
@@ -8610,6 +8787,46 @@ function EvolScreen({student,demo,onBack}){
 /* Meus treinos: o diário do que ele fez, sessão por sessão.
    O gráfico de evolução responde "estou subindo neste exercício?"; esta tela
    responde "o que eu fiz na terça?" — que é a pergunta que ele faz mais. */
+/* Espiar o treino antes de começar. Quem chega na academia quer saber o que
+   vem pela frente para escolher o aparelho — e hoje a única forma era apertar
+   "Iniciar treino", que já liga o cronômetro. */
+function EspiarDivisao({divisao,demo,onFechar,onIniciar}){
+  const [series,setSeries]=useState(demo?[]:null);
+  useEffect(()=>{if(demo)return;
+    lerCopia('series-'+divisao.id,
+      sb.from('train_serie_prescrita').select('*').eq('divisao_id',divisao.id).order('ordem'))
+      .then(({data})=>setSeries(data||[])).catch(()=>setSeries([]));},[divisao.id]);
+  // uma linha por exercício, juntando os tiers como na tela de execução
+  const exs=React.useMemo(()=>{
+    const m=new Map();
+    (series||[]).forEach(s=>{const k=s.exercicio_id||s.exercicio_nome;
+      if(!m.has(k))m.set(k,{nome:s.exercicio_nome,tiers:[]});
+      m.get(k).tiers.push(s);});
+    return [...m.values()];
+  },[series]);
+  const totalSeries=(series||[]).reduce((a,s)=>a+(s.qtd_series||0),0);
+  return(<div className="lv-cel" style={{padding:'18px 14px',overflowY:'auto',alignItems:'stretch',justifyContent:'flex-start',background:'var(--lvbg)'}}>
+    <button className="lv-ghost" style={{alignSelf:'flex-start'}} onClick={onFechar}>‹ Voltar</button>
+    <div className="lv-kick" style={{marginTop:12}}>O que vem hoje</div>
+    <div style={{fontSize:20,fontWeight:900,marginBottom:2}}>{divisao.nome||'Treino'}</div>
+    {series!==null&&<div className="lv-sub" style={{marginBottom:14}}>
+      {exs.length} exercício{exs.length===1?'':'s'} · {totalSeries} série{totalSeries===1?'':'s'}</div>}
+    {series===null?<div className="center-screen" style={{minHeight:140}}><div className="spinner"/></div>:
+     exs.length===0?<div className="lv-card" style={{textAlign:'center',color:'var(--lvt2)'}}>
+       Esta divisão ainda não tem exercício.</div>:
+     exs.map((e,i)=><div key={i} className="lv-card" style={{padding:'12px 14px',marginBottom:8}}>
+       <div style={{fontWeight:700,fontSize:14.5}}>{e.nome}</div>
+       <div className="lv-sub" style={{fontSize:12.5,marginTop:4,lineHeight:1.5}}>
+         {e.tiers.map((t,j)=>{const iv=t.intervalo_seg_min||60;
+           return(<span key={j}>{j>0&&' · '}{t.qtd_series}×{t.faixa_reps}
+             <span style={{color:'var(--lvt3)'}}> ({Math.floor(iv/60)}:{String(iv%60).padStart(2,'0')} desc.)</span></span>);})}
+       </div>
+     </div>)}
+    {exs.length>0&&<button className="lv-btn" style={{marginTop:6}} onClick={onIniciar}>▶ Começar este treino</button>}
+    <div style={{height:20}}/>
+  </div>);
+}
+
 function TreinosScreen({student,demo,onBack}){
   const [hist,setHist]=useState(demo?_DEMO_HIST:null);
   const [nomes,setNomes]=useState({});
@@ -9633,6 +9850,7 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
   const [best,setBest]=useState({});const [exec,setExec]=useState(null);const [evol,setEvol]=useState(false);const [hydra,setHydra]=useState(false);const [chk,setChk]=useState(false);const [ciclo,setCiclo]=useState(false);const [aval,setAval]=useState(false);const [freq,setFreq]=useState({done:0,meta:4});
   const [diario,setDiario]=useState(false);const [metas,setMetas]=useState(false);
   const [treinos,setTreinos]=useState(false);   // diário de sessões
+  const [espiar,setEspiar]=useState(null);      // divisão que ele quer só olhar
   const [tab,setTab]=useState('home');
   const [temDieta,setTemDieta]=useState(false);
   const [pushOn,setPushOn]=useState(false);const [pushBusy,setPushBusy]=useState(false);const [pushMsg,setPushMsg]=useState(null);const [agua,setAgua]=useState(false);
@@ -9712,7 +9930,7 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
     if(!demo)semEsperar(sb.rpc('lembrete_treino',{p_ativo:ativo,p_periodo:per}));};
   const hr=new Date().getHours();const saud=hr<12?'Bom dia':hr<18?'Boa tarde':'Boa noite';
 
-  const goTab=t=>{if(t!==tab)vibrar(8);setExec(null);setEvol(false);setHydra(false);setChk(false);setCiclo(false);setAval(false);setDiario(false);setMetas(false);setTreinos(false);setTab(t);window.scrollTo(0,0);};
+  const goTab=t=>{if(t!==tab)vibrar(8);setExec(null);setEvol(false);setHydra(false);setChk(false);setCiclo(false);setAval(false);setDiario(false);setMetas(false);setTreinos(false);setEspiar(null);setTab(t);window.scrollTo(0,0);};
   const navItem=(t,ic,lb,badge)=>(<button className={'lv-navb'+(tab===t?' on':'')} onClick={()=>goTab(t)}>
     <span className="lv-navmark"/>{lb}{badge>0&&<span className="lv-navbadge">{badge>9?'9+':badge}</span>}</button>);
   const shell=(inner,nav)=>(<div className="lv">
@@ -9749,6 +9967,8 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
   if(diario)return shell(<DiarioScreen student={stu} demo={demo} onBack={()=>setDiario(false)}/>);
   if(metas)return shell(<MetasScreen student={stu} demo={demo} freq={freq} onBack={()=>setMetas(false)}/>);
   if(treinos)return shell(<TreinosScreen student={stu} demo={demo} onBack={()=>setTreinos(false)}/>);
+  if(espiar)return shell(<EspiarDivisao divisao={espiar} demo={demo}
+    onFechar={()=>setEspiar(null)} onIniciar={()=>{const d=espiar;setEspiar(null);setExec(d);}}/>);
 
   const list=divs||[];const pct=Math.min(100,Math.round((freq.done/(freq.meta||1))*100));
   // Rodízio: quem fechou o A ontem abre o app vendo o B — no cartão e no anel.
@@ -9759,6 +9979,11 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
   const proxDiv=(()=>{
     if(!list.length)return null;
     const vale=d=>!divsCheias||divsCheias.has(d.id);
+    // Dia marcado na ficha manda no rodízio: se o treinador prescreveu
+    // "quarta é B", quarta-feira abre o B, não o que vem depois do último.
+    const hoje=diaHojeISO();
+    const doDia=list.filter(d=>(d.dias_semana||[]).includes(hoje)&&vale(d));
+    if(doDia.length)return doDia[0];
     const cheias=list.filter(vale);
     const base=cheias.length?cheias:list;
     const i=ultimaDiv?base.findIndex(d=>d.id===ultimaDiv):-1;
@@ -9772,6 +9997,7 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
     return base[0];
   })();
   const divFeita=ultimaDiv?list.find(d=>d.id===ultimaDiv)||null:null;
+  const proxEhDoDia=!!(proxDiv&&(proxDiv.dias_semana||[]).includes(diaHojeISO()));
   const nm=stu.name.split(' ')[0];
   const frase=MOTIV_FRASES[new Date().getDate()%MOTIV_FRASES.length];
   const badges=[
@@ -9810,18 +10036,24 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
       const resto=list.filter(d=>d.id!==prox.id);
       return(<>
       <div className="lv-card lv-hero">
-        <div className="lv-kick" style={{color:'#e9d5ff'}}>Próximo treino</div>
+        <div className="lv-kick" style={{color:'#e9d5ff'}}>{proxEhDoDia?'Seu treino de hoje':'Próximo treino'}</div>
         <div style={{fontSize:20,fontWeight:900,margin:'4px 0 4px'}}>{(prox.nome||'Treino').toUpperCase()}</div>
-        {feita&&list.length>1&&<div style={{fontSize:12,color:'#e9d5ff',marginBottom:10,opacity:.85}}>
-          o último foi {feita.nome||'o anterior'}</div>}
-        {!feita&&<div style={{height:8}}/>}
+        {proxEhDoDia
+          ? <div style={{fontSize:12,color:'#e9d5ff',marginBottom:10,opacity:.85}}>marcado para hoje na sua ficha</div>
+          : feita&&list.length>1
+            ? <div style={{fontSize:12,color:'#e9d5ff',marginBottom:10,opacity:.85}}>o último foi {feita.nome||'o anterior'}</div>
+            : <div style={{height:8}}/>}
         <button className="lv-btn light" onClick={()=>setExec(prox)}>▶ Iniciar treino</button>
+        <button className="lv-ghost" style={{marginTop:9,width:'100%',background:'rgba(255,255,255,.12)',color:'#fff',border:'none'}}
+          onClick={()=>setEspiar(prox)}>Ver os exercícios antes</button>
       </div>
       {resto.length>0&&<div className="lv-kick" style={{margin:'8px 0 8px'}}>Outros treinos</div>}
-      {resto.map(dv=><div key={dv.id} className="lv-treino" style={{marginBottom:10}} onClick={()=>setExec(dv)}>
+      {resto.map(dv=><div key={dv.id} className="lv-treino" style={{marginBottom:10}} onClick={()=>setEspiar(dv)}>
         <span style={{width:3,height:30,borderRadius:2,background:'var(--lvrx)',flexShrink:0}}/>
         <div style={{flex:1}}><div style={{fontWeight:700}}>{dv.nome||'Divisão'}</div>
-          <div className="lv-sub">{feita&&dv.id===feita.id?'foi o último que você fez':'Toque para executar'}</div></div>
+          <div className="lv-sub">{(dv.dias_semana||[]).length?listaDias(dv.dias_semana)
+            :feita&&dv.id===feita.id?'foi o último que você fez':'Toque para ver'}</div></div>
+        <span style={{color:'var(--lvt3)'}}>›</span>
       </div>)}
     </>);})()}
     <TreineiFora stu={stu} demo={demo} somenteLeitura={espiando} onPronto={refresh}/>
