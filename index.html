@@ -743,7 +743,7 @@ if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABAS
    .catch. Chamar .catch direto estoura TypeError, e dentro de um useEffect isso
    derruba a tela inteira do aluno. */
 const semEsperar=q=>{try{q.then(()=>{},()=>{});}catch(e){}};
-const APP_VERSION='2026.09.11';   // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION='2026.09.12';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
 
@@ -8860,8 +8860,8 @@ function Confete({n=18}){
     style={{left:p.l+'vw',background:p.c,animationDuration:p.t+'s',animationDelay:p.d+'s'}}/>);
 }
 
-function LvToggle({on,busy,onClick}){return(
-  <button onClick={onClick} disabled={busy} style={{flexShrink:0,width:46,height:27,borderRadius:16,border:'none',cursor:busy?'wait':'pointer',background:on?'var(--lvneon)':'var(--lvc2)',position:'relative',transition:'background .15s',opacity:busy?.6:1}}>
+function LvToggle({on,busy,onClick,rotulo}){return(
+  <button onClick={onClick} disabled={busy} aria-label={rotulo} aria-pressed={!!on} title={rotulo} style={{flexShrink:0,width:46,height:27,borderRadius:16,border:'none',cursor:busy?'wait':'pointer',background:on?'var(--lvneon)':'var(--lvc2)',position:'relative',transition:'background .15s',opacity:busy?.6:1}}>
     <span style={{position:'absolute',top:3,left:on?22:3,width:21,height:21,borderRadius:'50%',background:'#fff',transition:'left .15s',boxShadow:'0 1px 3px rgba(0,0,0,.4)'}}/></button>);}
 
 /* ── Diário de saúde (aluno) ── */
@@ -8917,7 +8917,7 @@ function DiarioScreen({student,demo,onBack}){
 
     <div className="lv-card" style={{marginTop:18,display:'flex',alignItems:'center',gap:12}}>
       <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700}}>Sou diabético(a)</div><div className="lv-sub">Ativa o controle de glicemia e insulina</div></div>
-      <LvToggle on={diab} onClick={()=>toggleDiab(!diab)}/>
+      <LvToggle rotulo="Acompanhar glicemia" on={diab} onClick={()=>toggleDiab(!diab)}/>
     </div>
     {diab&&<>
       <div className="lv-kick" style={{margin:'16px 2px 10px'}}>Glicemia & insulina</div>
@@ -9563,6 +9563,7 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
   const [tab,setTab]=useState('home');
   const [temDieta,setTemDieta]=useState(false);
   const [pushOn,setPushOn]=useState(false);const [pushBusy,setPushBusy]=useState(false);const [pushMsg,setPushMsg]=useState(null);const [agua,setAgua]=useState(false);
+  const [lembTreino,setLembTreino]=useState(false);const [periodo,setPeriodo]=useState('noite');
   const [stats,setStats]=useState({total:0,prs:0,streak:0,mes:0});
   const [ultimaDiv,setUltimaDiv]=useState(null);   // qual divisão ele fez por último
   const [divsCheias,setDivsCheias]=useState(null); // divisões que têm exercício (null = ainda não sei)
@@ -9627,11 +9628,15 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
   useEffect(()=>{if(tab==='avisos'&&naoLidos>0&&!espiando){setAvisos(a=>a.map(x=>({...x,lido:true})));if(!demo)semEsperar(sb.rpc('avisos_marcar_lidos'));}},[tab]);
   useEffect(()=>{if(demo||espiando||!stu)return;(async()=>{
     try{if(pushSuportado()&&Notification.permission==='granted'){const reg=await navigator.serviceWorker.ready;const s=await reg.pushManager.getSubscription();setPushOn(!!s);}}catch(e){}
-    try{const {data}=await sb.from('train_lembrete').select('agua_ativo').eq('student_id',stu.id).maybeSingle();if(data)setAgua(!!data.agua_ativo);}catch(e){}
+    try{const {data}=await sb.from('train_lembrete').select('agua_ativo,treino_ativo,treino_periodo').eq('student_id',stu.id).maybeSingle();
+      if(data){setAgua(!!data.agua_ativo);setLembTreino(!!data.treino_ativo);setPeriodo(data.treino_periodo||'noite');}}catch(e){}
   })();},[stu]);
   const togglePush=async()=>{if(espiando)return;if(demo){setPushOn(p=>!p);return;}setPushBusy(true);setPushMsg(null);
     if(pushOn){await desativarPush();setPushOn(false);}else{const r=await ativarPush();if(r.ok)setPushOn(true);else setPushMsg(r.msg);}setPushBusy(false);};
   const toggleAgua=async(v)=>{if(espiando)return;setAgua(v);if(!demo)semEsperar(sb.rpc('lembrete_agua',{p_ativo:v}));};
+  const salvarLembreteTreino=(ativo,per)=>{if(espiando)return;
+    setLembTreino(ativo);setPeriodo(per);
+    if(!demo)semEsperar(sb.rpc('lembrete_treino',{p_ativo:ativo,p_periodo:per}));};
   const hr=new Date().getHours();const saud=hr<12?'Bom dia':hr<18?'Boa tarde':'Boa noite';
 
   const goTab=t=>{if(t!==tab)vibrar(8);setExec(null);setEvol(false);setHydra(false);setChk(false);setCiclo(false);setAval(false);setDiario(false);setMetas(false);setTreinos(false);setTab(t);window.scrollTo(0,0);};
@@ -9863,12 +9868,28 @@ Nenhum aviso por aqui ainda.<div className="lv-sub" style={{marginTop:4}}>Seus l
     <div className="lv-card">
       <div style={{display:'flex',alignItems:'center',gap:12}}>
           <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700}}>Avisos no celular</div><div className="lv-sub">Recebe os avisos do treinador na barra do sistema</div></div>
-        <LvToggle on={pushOn} busy={pushBusy} onClick={togglePush}/>
+        <LvToggle rotulo="Avisos no celular" on={pushOn} busy={pushBusy} onClick={togglePush}/>
       </div>
       <div style={{height:1,background:'var(--lvbd)',margin:'14px 0'}}/>
       <div style={{display:'flex',alignItems:'center',gap:12}}>
+          <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700}}>Lembrete de treino</div>
+            <div className="lv-sub">Um toque no dia que você ainda não treinou — e ele já diz qual é o treino</div></div>
+        <LvToggle rotulo="Lembrete de treino" on={lembTreino} onClick={()=>salvarLembreteTreino(!lembTreino,periodo)}/>
+      </div>
+      {lembTreino&&<div style={{display:'flex',gap:7,marginTop:11,flexWrap:'wrap'}}>
+        {[['manha','Manhã · 7h'],['tarde','Tarde · 12h'],['noite','Noite · 19h']].map(([v,lb])=>(
+          <button key={v} className="lv-pill" style={{cursor:'pointer',
+            border:'1px solid '+(periodo===v?'var(--lvsel)':'var(--lvbd)'),
+            background:periodo===v?'var(--lvbrilho)':'transparent',
+            color:periodo===v?'var(--lvsel2)':'var(--lvt2)'}}
+            onClick={()=>salvarLembreteTreino(true,v)}>{lb}</button>))}
+      </div>}
+      {lembTreino&&<div className="lv-sub" style={{marginTop:9,fontSize:11.5,lineHeight:1.5}}>
+        Nada chega se você já treinou no dia ou já fechou a meta da semana.</div>}
+      <div style={{height:1,background:'var(--lvbd)',margin:'14px 0'}}/>
+      <div style={{display:'flex',alignItems:'center',gap:12}}>
           <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700}}>Lembrete de beber água</div><div className="lv-sub">Toques ao longo do dia pra manter a hidratação</div></div>
-        <LvToggle on={agua} onClick={()=>toggleAgua(!agua)}/>
+        <LvToggle rotulo="Lembrete de beber água" on={agua} onClick={()=>toggleAgua(!agua)}/>
       </div>
       {pushMsg&&<div className="lv-sub" style={{color:'#fca5a5',marginTop:12}}>{pushMsg}</div>}
       {!pushOn&&<div className="lv-sub" style={{marginTop:12,fontSize:11.5,lineHeight:1.5}}>No iPhone: abra pelo Safari, toque em Compartilhar → “Adicionar à Tela de Início” e abra o app por lá para ativar as notificações.</div>}

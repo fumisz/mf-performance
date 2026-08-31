@@ -45,6 +45,12 @@ capturado ainda no `<head>`.
   carga nem série, para não quebrar a sequência nem sumir do painel do treinador.
 - **Fotos de progresso** — na aba Progresso o aluno envia a foto do dia e vê a
   primeira ao lado da última. O treinador enxerga as fotos na ficha dele.
+- **Lembrete de treino** — em Conta, o aluno liga e escolhe manhã, tarde ou
+  noite. O aviso chega só no dia em que ele ainda não treinou, só se ele não
+  bateu a meta da semana, e já diz qual é o treino de hoje pelo rodízio —
+  "Hoje é B — Superiores". Quem decide o alvo é o banco
+  (`lembrete_treino_alvos`); quem envia é a Edge Function `push`, chamada por
+  três cron jobs.
 - **Meus treinos** — o diário de tudo que ele fez, sessão por sessão: dia,
   divisão, exercícios, séries, volume e recordes; toca para abrir e ver a carga
   de cada série. O treinador vê a mesma coisa na ficha do aluno, com a média de
