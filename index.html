@@ -709,6 +709,12 @@ textarea.fi{resize:vertical;min-height:70px;line-height:1.5}
 <div id="root"></div>
 <script>
 try{var _t=localStorage.getItem('mfp_theme')||'light';document.documentElement.setAttribute('data-theme',_t);}catch(e){}
+/* A barra do sistema acompanha o tema — no claro fica creme, no escuro fica preta */
+window.MFP_corDaBarra=function(t){try{
+  var m=document.querySelector('meta[name="theme-color"]');
+  if(m)m.setAttribute('content',t==='dark'?'#09090a':'#f7f3ef');
+}catch(e){}};
+try{window.MFP_corDaBarra(_t);}catch(e){}
 /* O Chrome/Android dispara beforeinstallprompt uma vez e cedo — antes do Babel
    terminar de compilar o app. Guardamos o evento aqui para conseguir instalar
    com um toque depois. O iPhone não tem esse evento: lá é o passo a passo do Safari. */
@@ -738,7 +744,12 @@ const CFG = window.MFP_CONFIG || {};
 const CONFIGURED = !!(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY);
 let sb = null;
 if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY);
-const APP_VERSION='2026.09.03';   // aparece na tela; serve para conferir se a atualizacao subiu
+/* Dispara a chamada e não espera resposta.
+   Cuidado: o que sb.rpc()/sb.from() devolvem NÃO é Promise — tem .then, não tem
+   .catch. Chamar .catch direto estoura TypeError, e dentro de um useEffect isso
+   derruba a tela inteira do aluno. */
+const semEsperar=q=>{try{q.then(()=>{},()=>{});}catch(e){}};
+const APP_VERSION='2026.09.04';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
 
@@ -4501,15 +4512,28 @@ function DuplicadosScreen({coach,onBack,onMudou}){
     const alvo=principal[chave];
     const outros=grupo.filter(r=>r.student_id!==alvo);
     if(!alvo||!outros.length)return;
-    const nomeAlvo=(grupo.find(r=>r.student_id===alvo)||{}).nome;
+    const rAlvo=grupo.find(r=>r.student_id===alvo)||{};
+    const nomeAlvo=rAlvo.nome;
     if(!confirm('Juntar '+outros.length+' cadastro(s) em "'+nomeAlvo+'"?\n\n'
       +'Avaliações, treinos, histórico e avisos vão para ele. Os outros cadastros somem.\n'
       +'Isso não tem desfazer.'))return;
     setBusy(chave);setMsg(null);
     try{
       for(const o of outros){
-        const {data,error}=await sb.rpc('aluno_fundir',{p_principal:alvo,p_secundario:o.student_id});
+        let {data,error}=await sb.rpc('aluno_fundir',{p_principal:alvo,p_secundario:o.student_id});
         if(error)throw error;
+        // dois logins = quase sempre duas pessoas. Pergunta com os e-mails na frente.
+        if(data&&data.dois_logins){
+          const ok=confirm('Atenção: os dois cadastros têm login próprio.\n\n'
+            +'• '+nomeAlvo+' — '+(data.email_principal||'sem e-mail')+'\n'
+            +'• '+o.nome+' — '+(data.email_secundario||'sem e-mail')+'\n\n'
+            +'Se forem pessoas diferentes, cancele agora. Se juntar, "'+o.nome+'" perde o acesso '
+            +'e a dieta dele some da sua lista.\n\nJuntar mesmo assim?');
+          if(!ok)continue;
+          const r2=await sb.rpc('aluno_fundir',{p_principal:alvo,p_secundario:o.student_id,p_dois_logins_ok:true});
+          if(r2.error)throw r2.error;
+          data=r2.data;
+        }
         if(data&&data.ok===false)throw new Error(data.erro||'não deu');
       }
       setMsg({t:'ok',m:'Pronto — "'+nomeAlvo+'" ficou com tudo.'});
@@ -4534,9 +4558,10 @@ function DuplicadosScreen({coach,onBack,onMudou}){
        <p className="s-meta">Está tudo limpo por aqui.</p></div>:
      <>
       <div className="alert alert-info">
-        Marque qual cadastro <b>fica</b> — em geral o que tem as avaliações. Os outros são
-        juntados nele: histórico, treinos, avisos e a conta do aluno vão junto.
-        Confira antes: nomes iguais nem sempre são a mesma pessoa.
+        Agrupei por primeiro nome, então <b>a lista mostra homônimos também</b>. Confira o e-mail
+        de cada linha antes: duas alunas Bianca com contas diferentes são duas pessoas, não um
+        cadastro repetido. Marque qual <b>fica</b> — em geral o que tem as avaliações — e os
+        outros são juntados nele com histórico, treinos, avisos e a conta.
       </div>
       {grupos.map(([chave,grupo])=>(
         <div className="card" key={chave} style={{marginBottom:14}}>
@@ -4557,11 +4582,14 @@ function DuplicadosScreen({coach,onBack,onMudou}){
                     {marcado&&<span className="badge" style={{marginLeft:8,background:'var(--accent-dim)',color:'var(--accent)'}}>fica este</span>}
                     {r.vinculado&&<span className="badge" style={{marginLeft:6,background:'var(--green-dim)',color:'var(--green)'}}>tem conta</span>}
                   </div>
+                  {/* o e-mail é o que separa duas pessoas de mesmo primeiro nome */}
+                  {r.email&&<div style={{fontSize:12.5,color:'var(--text2)',marginTop:2}}>{r.email}</div>}
                   <div className="s-meta">
-                    {vazio?'sem histórico':[
+                    {vazio&&!r.refeicoes?'sem histórico':[
                       r.avaliacoes?r.avaliacoes+(r.avaliacoes>1?' avaliações':' avaliação'):null,
                       r.divisoes?r.divisoes+' treino'+(r.divisoes>1?'s':'')+' na ficha':null,
                       r.treinos?r.treinos+' série'+(r.treinos>1?'s':'')+' no histórico':null,
+                      r.refeicoes?r.refeicoes+' refeiç'+(r.refeicoes>1?'ões':'ão')+' no cardápio':null,
                       r.avisos?r.avisos+' aviso'+(r.avisos>1?'s':''):null,
                     ].filter(Boolean).join(' · ')}
                     {' · criado em '+new Date(r.criado+'T00:00:00').toLocaleDateString('pt-BR')}
@@ -7174,7 +7202,9 @@ function App({profile,setProfile}){
   const queueRef=useRef([]);
   const flushingRef=useRef(false);
   const [theme,setTheme]=useState(()=>{try{return localStorage.getItem('mfp_theme')||'light';}catch{return 'light';}});
-  const toggleTheme=()=>{const t=theme==='dark'?'light':'dark';setTheme(t);document.documentElement.setAttribute('data-theme',t);try{localStorage.setItem('mfp_theme',t);}catch{}};
+  const toggleTheme=()=>{const t=theme==='dark'?'light':'dark';setTheme(t);document.documentElement.setAttribute('data-theme',t);
+    if(window.MFP_corDaBarra)window.MFP_corDaBarra(t);
+    try{localStorage.setItem('mfp_theme',t);}catch{}};
 
   const enqueue=async item=>{
     let q=[...queueRef.current];
@@ -8011,7 +8041,7 @@ function DiarioScreen({student,demo,onBack}){
     try{const key=student.id+'_'+todayStr();const {data:cc}=await sb.from('train_checkin').select('sinal,total').eq('id',key).maybeSingle();setChk(cc||null);}catch(e){setChk(null);}
     try{const {data:gg}=await sb.from('train_glicemia').select('*').eq('student_id',student.id).order('registrado_em',{ascending:false}).limit(8);setGlic(gg||[]);}catch(e){}
   })();},[]);
-  const toggleDiab=async(v)=>{setDiab(v);if(!demo)sb.rpc('saude_cfg',{p_diabetico:v,p_condicoes:null}).catch(()=>{});};
+  const toggleDiab=async(v)=>{setDiab(v);if(!demo)semEsperar(sb.rpc('saude_cfg',{p_diabetico:v,p_condicoes:null}));};
   const salvar=async()=>{setBusy(true);let erro=null;
     if(!demo){try{const {error}=await sb.rpc('diario_salvar',{p_peso:num(d.peso),p_sono:num(d.sono),p_passos:d.passos?parseInt(d.passos):null,p_fome:d.fome,p_obs:d.obs||null});if(error)erro=error.message;}catch(e){erro=e.message||String(e);}}
     setBusy(false);
@@ -8597,14 +8627,14 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
   useEffect(()=>{if(demo){setTemDieta(true);return;}
     if(!contaAluno){setTemDieta(false);return;}
     (async()=>{try{const p=await getActivePlan(contaAluno);setTemDieta(!!p);}catch(e){}})();},[contaAluno]);
-  useEffect(()=>{if(tab==='avisos'&&naoLidos>0&&!espiando){setAvisos(a=>a.map(x=>({...x,lido:true})));if(!demo)sb.rpc('avisos_marcar_lidos').catch(()=>{});}},[tab]);
+  useEffect(()=>{if(tab==='avisos'&&naoLidos>0&&!espiando){setAvisos(a=>a.map(x=>({...x,lido:true})));if(!demo)semEsperar(sb.rpc('avisos_marcar_lidos'));}},[tab]);
   useEffect(()=>{if(demo||espiando||!stu)return;(async()=>{
     try{if(pushSuportado()&&Notification.permission==='granted'){const reg=await navigator.serviceWorker.ready;const s=await reg.pushManager.getSubscription();setPushOn(!!s);}}catch(e){}
     try{const {data}=await sb.from('train_lembrete').select('agua_ativo').eq('student_id',stu.id).maybeSingle();if(data)setAgua(!!data.agua_ativo);}catch(e){}
   })();},[stu]);
   const togglePush=async()=>{if(espiando)return;if(demo){setPushOn(p=>!p);return;}setPushBusy(true);setPushMsg(null);
     if(pushOn){await desativarPush();setPushOn(false);}else{const r=await ativarPush();if(r.ok)setPushOn(true);else setPushMsg(r.msg);}setPushBusy(false);};
-  const toggleAgua=async(v)=>{if(espiando)return;setAgua(v);if(!demo)sb.rpc('lembrete_agua',{p_ativo:v}).catch(()=>{});};
+  const toggleAgua=async(v)=>{if(espiando)return;setAgua(v);if(!demo)semEsperar(sb.rpc('lembrete_agua',{p_ativo:v}));};
   const hr=new Date().getHours();const saud=hr<12?'Bom dia':hr<18?'Boa tarde':'Boa noite';
 
   const goTab=t=>{if(t!==tab)vibrar(8);setExec(null);setEvol(false);setHydra(false);setChk(false);setCiclo(false);setAval(false);setDiario(false);setMetas(false);setTab(t);window.scrollTo(0,0);};
