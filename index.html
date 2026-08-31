@@ -135,14 +135,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:1
 .s-meta{font-size:12px;color:var(--text2);line-height:1.6}
 /* ── Dashboard KPIs / filtros / distribuições ── */
 /* Atalhos do painel — a faixa de ações do dia */
-.atalhos{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:18px}
-.atalho{display:flex;flex-direction:column;gap:3px;align-items:flex-start;text-align:left;cursor:pointer;
-  background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:13px 14px;min-height:64px;
-  transition:border-color .15s,transform .12s,box-shadow .15s}
-.atalho:hover{border-color:var(--accent);box-shadow:var(--shadow)}
-.atalho:active{transform:scale(.985)}
-.atalho-t{font-weight:600;font-size:14.5px;color:var(--text)}
-.atalho-d{font-size:11.5px;color:var(--text3);line-height:1.35}
 
 .kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px}
 .kpi{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:15px 16px;position:relative;overflow:hidden}
@@ -749,7 +741,7 @@ if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABAS
    .catch. Chamar .catch direto estoura TypeError, e dentro de um useEffect isso
    derruba a tela inteira do aluno. */
 const semEsperar=q=>{try{q.then(()=>{},()=>{});}catch(e){}};
-const APP_VERSION='2026.09.06';   // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION='2026.09.07';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
 
@@ -1855,7 +1847,7 @@ function PainelEvolucao({rows,onSelect}){
   </div>);
 }
 
-function Dashboard({students,evals,onSelect,onNew,onDelete,onReassess,onSchedule,onTrain,onIr,demo}){
+function Dashboard({students,evals,onSelect,onNew,onDelete,onReassess,onSchedule,onTrain,demo}){
   const [q,setQ]=useState('');
   const [filter,setFilter]=useState('todos');
   const [sortBy,setSortBy]=useState('urgencia');
@@ -1898,8 +1890,6 @@ function Dashboard({students,evals,onSelect,onNew,onDelete,onReassess,onSchedule
     return{active,inactive,noEval,overdue,week,month,evalsMonth,avg,avgDelta,total:rows.length};
   },[rows,evals]);
 
-  const goals=React.useMemo(()=>{const m={};rows.forEach(r=>{const g=(r.s.goal||'Sem objetivo').trim()||'Sem objetivo';m[g]=(m[g]||0)+1;});return Object.entries(m).sort((a,b)=>b[1]-a[1]).slice(0,5);},[rows]);
-  const bands=React.useMemo(()=>{const b=[['Excelente (75+)',0,'#2f8f4e'],['Bom (55–74)',0,'#b0894f'],['Regular (40–54)',0,'#c98a3a'],['Baixo (<40)',0,'#b3434f']];rows.forEach(r=>{const v=r.lastScore;if(v==null)return;if(v>=75)b[0][1]++;else if(v>=55)b[1][1]++;else if(v>=40)b[2][1]++;else b[3][1]++;});return b;},[rows]);
 
   const filtered=rows.filter(r=>r.s.name.toLowerCase().includes(q.toLowerCase()))
     .filter(r=>{if(filter==='reavaliar')return r.ri&&r.ri.days<=7;if(filter==='sem')return r.se.length===0;if(filter==='ativos')return r.active;if(filter==='inativos')return !r.active&&r.se.length>0;return true;})
@@ -1916,69 +1906,18 @@ function Dashboard({students,evals,onSelect,onNew,onDelete,onReassess,onSchedule
     <div>
       <div className="abar">
         <div><div className="ph-title">Painel do treinador</div>
-          <div className="ph-sub">{students.length} aluno{students.length!==1?'s':''} · {evals.length} avaliaç{evals.length!==1?'ões':'ão'}</div></div>
+          <div className="ph-sub">{students.length} aluno{students.length!==1?'s':''}
+            {kpi.evalsMonth>0&&` · ${kpi.evalsMonth} avaliaç${kpi.evalsMonth!==1?'ões':'ão'} neste mês`}
+            {kpi.avg!=null&&` · score médio ${kpi.avg}`}
+            {kpi.avgDelta>0&&' ▲'}{kpi.avgDelta<0&&' ▼'}</div></div>
         <button className="btn btn-primary" onClick={onNew}>+ Novo aluno</button>
       </div>
-      {/* atalhos: o que o treinador faz todo dia, a um toque */}
-      <div className="atalhos">
-        {[
-          ['Novo aluno','Cadastrar e montar a ficha',onNew],
-          ['Montar treino','Fichas e divisões',()=>onIr&&onIr('train')],
-          ['Avaliação','Dobras, medidas e relatório',()=>onIr&&onIr('tech')],
-          ['Nutrição','Cardápio e macros',()=>onIr&&onIr('nutri')],
-          ['Agenda','Horários e avaliações',()=>onIr&&onIr('agenda')],
-          ['Periodização','Ciclos e fases',()=>onIr&&onIr('perio')],
-        ].map(([t,d,fn])=>(
-          <button key={t} className="atalho" onClick={fn}>
-            <span className="atalho-t">{t}</span>
-            <span className="atalho-d">{d}</span>
-          </button>))}
-      </div>
-
       <ConviteInstalar fechavel chave="coach"
         titulo="Instale o app no seu celular"
         texto="Aberto pelo ícone, você recebe na hora o aviso de quando um aluno termina o treino."/>
 
       <PainelHoje students={students} onSelect={onSelect} demo={demo}/>
       <PainelEvolucao rows={rows} onSelect={onSelect}/>
-
-      {students.length>0&&<>
-      <div className="kpi-row">
-        <div className={`kpi ${kpi.active?'k-good':''}`}><div className="kpi-lbl">Alunos ativos</div>
-          <div className="kpi-val">{kpi.active}<small> / {kpi.total}</small></div>
-          <div className="kpi-sub">{kpi.total?Math.round(kpi.active/kpi.total*100):0}% da carteira · últimos 90d</div></div>
-        <div className={`kpi ${kpi.inactive?'k-warn':''}`}><div className="kpi-lbl">Inativos</div>
-          <div className="kpi-val">{kpi.inactive}</div>
-          <div className="kpi-sub">{kpi.inactive>0?'sem avaliação há 90+ dias':'nenhum aluno parado'}</div></div>
-        <div className={`kpi ${kpi.overdue?'k-bad':kpi.week?'k-warn':''}`}><div className="kpi-lbl">Reavaliações</div>
-          <div className="kpi-val">{kpi.overdue+kpi.week}</div>
-          <div className="kpi-sub">{kpi.overdue>0&&<span className="down">{kpi.overdue} vencida{kpi.overdue!==1?'s':''}</span>}{kpi.overdue>0&&kpi.week>0&&' · '}{kpi.week>0&&`${kpi.week} esta semana`}{kpi.overdue+kpi.week===0&&'nenhuma pendente'}</div></div>
-        <div className="kpi"><div className="kpi-lbl">Avaliações no mês</div>
-          <div className="kpi-val">{kpi.evalsMonth}</div>
-          <div className="kpi-sub">{kpi.month>0?`${kpi.month} a vencer em 30d`:'produtividade do mês'}</div></div>
-        <div className="kpi"><div className="kpi-lbl">Score médio</div>
-          <div className="kpi-val" style={{color:scoreColor(kpi.avg)}}>{kpi.avg??'—'}</div>
-          <div className="kpi-sub">{kpi.avgDelta!=null?(kpi.avgDelta>0?<span className="up">▲ +{kpi.avgDelta} vs. anterior</span>:kpi.avgDelta<0?<span className="down">▼ {kpi.avgDelta} vs. anterior</span>:'estável vs. anterior'):'da carteira'}</div></div>
-        <div className={`kpi ${kpi.noEval?'k-warn':''}`}><div className="kpi-lbl">Sem avaliação</div>
-          <div className="kpi-val">{kpi.noEval}</div>
-          <div className="kpi-sub">{kpi.noEval>0?'cadastrados e nunca avaliados':'todos avaliados'}</div></div>
-      </div>
-
-      <div className="dash-panels">
-        <div className="dash-panel"><h4>Alunos por objetivo</h4>
-          {goals.length===0?<div className="s-meta">Sem dados</div>:goals.map(([g,n])=>(
-            <div className="distrow" key={g}><span className="dl" title={g}>{g}</span>
-              <span className="dt"><span className="df" style={{width:(n/kpi.total*100)+'%',background:'var(--accent)'}}/></span>
-              <span className="dv">{n}</span></div>))}
-        </div>
-        <div className="dash-panel"><h4>Distribuição de score</h4>
-          {bands.every(b=>b[1]===0)?<div className="s-meta">Sem avaliações pontuadas ainda</div>:bands.map(([l,n,c])=>(
-            <div className="distrow" key={l}><span className="dl">{l}</span>
-              <span className="dt"><span className="df" style={{width:(kpi.total?n/kpi.total*100:0)+'%',background:c}}/></span>
-              <span className="dv">{n}</span></div>))}
-        </div>
-      </div>
-      </>}
 
       <div style={{display:'flex',gap:12,marginBottom:12,flexWrap:'wrap',alignItems:'center'}}>
         <div className="search-wrap" style={{flex:1,minWidth:180}}><span className="search-icon"><IconBusca/></span>
@@ -4151,7 +4090,12 @@ function AuthScreen(){
   const [name,setName]=useState('');const [email,setEmail]=useState('');const [pass,setPass]=useState('');const [acode,setAcode]=useState(convite);
   // guarda o código mesmo se o aluno já tiver conta e escolher Entrar:
   // o vínculo é feito na primeira abertura do app do aluno
-  useEffect(()=>{if(convite){try{localStorage.setItem('mfp_aluno_code',convite);}catch(e){}}},[]);
+  useEffect(()=>{if(!convite)return;
+    try{localStorage.setItem('mfp_aluno_code',convite);}catch(e){}
+    // tira o código da barra de endereço: já está guardado, e assim ele não
+    // fica no histórico do navegador nem em print de tela compartilhado
+    try{history.replaceState(null,'',location.pathname+location.hash);}catch(e){}
+  },[]);
   const [busy,setBusy]=useState(false);const [msg,setMsg]=useState(null);
   const isAluno=acct==='aluno';
   async function submit(e){
@@ -7603,7 +7547,7 @@ function App({profile,setProfile}){
             onSelect={s=>{setSelStudent(s);go('detail');}} onNew={()=>{setEditStu(null);go('stu-form');}} onDelete={delStu}
             onReassess={s=>{setSelStudent(s);setEditEv(null);setReassess(true);go('ev-form');}}
             onSchedule={s=>{setSelStudent(s);go('agenda');}} onTrain={s=>{setSelStudent(s);go('train');}}
-            onIr={v=>{setSelStudent(null);go(v);}} demo={!!profile._demo}/>}
+            demo={!!profile._demo}/>}
           {view==='agenda'&&<AgendaScreen coach={profile} students={students} preStudent={selStudent} onBack={()=>go('dashboard')}/>}
           {view==='intakes'&&<IntakeInbox coach={profile} students={students} onImport={importIntake} onBack={()=>go('dashboard')}/>}
           {view==='tech'&&<TechScreen coach={profile} students={students} preStudent={selStudent} onBack={()=>go('dashboard')}/>}

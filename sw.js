@@ -1,4 +1,4 @@
-const CACHE='mfp-v71';
+const CACHE='mfp-v72';
 // Tudo que o app precisa para ABRIR sem rede. A biblioteca do Supabase entrou
 // aqui: antes vinha da jsdelivr, e como o worker so guardava o proprio dominio,
 // no modo aviao ela nao carregava e o app morria na tela de configuracao.
