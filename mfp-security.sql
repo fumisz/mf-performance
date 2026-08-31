@@ -92,3 +92,22 @@ end $$;
 --  ATENÇÃO: se o app Nutrition precisar que o treinador leia o perfil dos
 --  alunos dele, acrescente ao SELECT:  OR coach_id = auth.uid()
 -- ============================================================
+
+-- ============================================================
+-- Pente fino de seguranca (aplicado como migracoes
+-- mfp_seguranca_storage_e_codigo_de_acesso e
+-- mfp_seguranca_video_feedback_do_treinador)
+--
+-- 1) assess-videos: a politica de INSERT aceitava QUALQUER anonimo, sem teto
+--    de tamanho e sem tipo. Agora exige uma avaliacao tecnica aberta daquele
+--    treinador (ou o proprio treinador na pasta dele), so aceita video/audio
+--    e tem teto de 200 MB. A leitura passou a ser so do treinador dono.
+-- 2) photos: a politica de SELECT valia para qualquer um, inclusive deslogado,
+--    o que permitia LISTAR o bucket inteiro. Agora e so o dono da pasta; as
+--    URLs ja salvas continuam abrindo porque o bucket segue publico.
+--    O envio tambem passou a ser so na propria pasta.
+-- 3) Codigo de acesso do aluno: era de 6 caracteres e nunca vencia. Agora sao
+--    8, valem 14 dias (coluna access_code_em) e o codigo e apagado no uso.
+-- 4) Fichas e periodizacoes modelo deixaram de ser legiveis por quem nao esta
+--    logado.
+-- ============================================================
