@@ -45,6 +45,10 @@ capturado ainda no `<head>`.
   carga nem série, para não quebrar a sequência nem sumir do painel do treinador.
 - **Fotos de progresso** — na aba Progresso o aluno envia a foto do dia e vê a
   primeira ao lado da última. O treinador enxerga as fotos na ficha dele.
+- **Meus treinos** — o diário de tudo que ele fez, sessão por sessão: dia,
+  divisão, exercícios, séries, volume e recordes; toca para abrir e ver a carga
+  de cada série. O treinador vê a mesma coisa na ficha do aluno, com a média de
+  séries por treino — é isso que diz se ele está cumprindo a ficha ou cortando.
 
 ## Convite do aluno
 Em **Acesso do aluno**, o app gera o código e monta o convite pronto para
@@ -72,6 +76,13 @@ Na tela de Treino, **Usar ficha pronta** cria as divisões com séries, repetiç
 e descanso já preenchidos, e **Salvar como modelo** guarda a ficha do aluno para
 reaproveitar em outro. Na Periodização, **Salvar este ciclo como modelo** faz o
 mesmo com o macrociclo.
+
+**Alunos sem treino** (no menu, com o número ao lado) junta todo mundo que ainda
+não tem ficha — aluno com conta e sem treino abre o app numa tela vazia. Marque
+quantos quiser e aplique uma ficha pronta em todos de uma vez. Quem monta é a
+RPC `ficha_aplicar_modelo`, numa transação só: ou a ficha entra inteira, ou não
+entra nada. Ela também casa o nome do exercício com a biblioteca no servidor,
+então a demonstração já aparece para o aluno.
 
 A biblioteca tem **214 exercícios**, todos com demonstração: 202 com o desenho
 animado do free-exercise-db e as 12 técnicas avançadas com a instrução escrita.
