@@ -6882,6 +6882,39 @@ function TreinosCoach({
   }, tudo ? 'Mostrar menos' : `Ver os ${sessoes.length} treinos`)));
 }
 
+// Irma do FotoThumb, para as fotos que abrem em tela cheia em vez de virar
+// link. Mesmo motivo: sem isso o navegador desenha o icone de imagem quebrada.
+function ImgFoto({
+  url,
+  alt,
+  onClick,
+  estilo
+}) {
+  const [falhou, setFalhou] = useState(false);
+  if (falhou) return /*#__PURE__*/React.createElement("div", {
+    onClick: onClick,
+    style: {
+      ...estilo,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      textAlign: 'center',
+      fontSize: 11,
+      lineHeight: 1.4,
+      background: 'rgba(128,128,128,.16)',
+      opacity: .75
+    }
+  }, "foto n\xE3o", /*#__PURE__*/React.createElement("br", null), "carregou");
+  return /*#__PURE__*/React.createElement("img", {
+    src: url,
+    alt: alt || '',
+    loading: "lazy",
+    onClick: onClick,
+    onError: () => setFalhou(true),
+    style: estilo
+  });
+}
+
 // Uma foto que pode nao carregar: link do Storage expirado, arquivo apagado,
 // celular sem rede. Sem tratar, o navegador desenha o icone de imagem quebrada
 // com o texto alternativo em azul sublinhado — parece defeito do app.
@@ -27397,11 +27430,11 @@ function FotosProgresso({
       flex: 1,
       minWidth: 0
     }
-  }, /*#__PURE__*/React.createElement("img", {
-    src: f.url,
-    alt: lb,
+  }, /*#__PURE__*/React.createElement(ImgFoto, {
+    url: f.url,
+    alt: lb + ' — foto de progresso',
     onClick: () => setAberta(f),
-    style: {
+    estilo: {
       width: '100%',
       aspectRatio: '3/4',
       objectFit: 'cover',
@@ -27473,11 +27506,11 @@ function FotosProgresso({
     }
   }, lista.map(f => /*#__PURE__*/React.createElement("div", {
     key: f.id
-  }, /*#__PURE__*/React.createElement("img", {
-    src: f.url,
-    alt: "Progresso",
+  }, /*#__PURE__*/React.createElement(ImgFoto, {
+    url: f.url,
+    alt: "Foto de progresso",
     onClick: () => setAberta(f),
-    style: {
+    estilo: {
       width: '100%',
       aspectRatio: '3/4',
       objectFit: 'cover',
