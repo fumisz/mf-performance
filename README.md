@@ -8,11 +8,43 @@ no `index.html` da raiz.
 Abra `index.html` num navegador moderno (Safari, Chrome) ou publique a pasta.
 Os dados ficam no Supabase (ver `config.js`).
 
+## Onde mexer no código
+O código do app é o **`src/app.jsx`**. O que vai para o celular é o `app.js`,
+gerado dele:
+
+    node build.js
+
+Rode isso sempre que mexer no `src/app.jsx` — o `app.js` não se atualiza
+sozinho. O teste `sincronia.js` acusa se ele ficar velho.
+
+Por que existe essa etapa: antes o JSX morava dentro do `index.html` e o
+navegador compilava tudo na hora, com o Babel de 3 MB junto. Medido, o app
+levava **9s num computador, 46s num celular mediano e 72s num simples** — a
+cada abertura, porque compilar é CPU e o cache não ajuda. Compilando aqui,
+caiu para **0,4s / 1,1s / 1,4s**, o pacote foi de 4,1 MB para 1,3 MB, e o
+`unsafe-eval` saiu do CSP (ele só existia por causa do Babel).
+
 ## Sem internet
-O app abre e funciona no modo avião. Para isso **nada é carregado de fora**: o
-React, o Babel e o `supabase-js` moram em `lib/` e são pré-guardados pelo
-service worker. Fontes e desenhos de exercício ficam em cache depois da
-primeira vez que carregam.
+O app abre e funciona no modo avião. **Nada é carregado de fora**: React,
+`supabase-js` e as **fontes** moram em `lib/` e são pré-guardados pelo service
+worker. Só os desenhos de exercício vêm de fora, e ficam em cache depois da
+primeira vez.
+
+As fontes eram carregadas do Google por um `<link>` bloqueante de renderização.
+Medido, numa rede que não responde isso segurava o app inteiro por **12,5s** —
+React, Supabase, `app.js` e todas as consultas ao banco esperavam na fila. É o
+cenário do wifi de academia com portal de login. Trazendo as fontes para dentro
+(258 KB, só latin), essa etapa caiu para 27ms e a segunda abertura foi de
+**13,3s para 1,1s**.
+
+## Abertura rápida
+Quem já abriu o app antes vê a tela **na hora**: o `lerJa()` entrega a cópia
+local primeiro e atualiza sozinho quando o dado fresco chega. O `lerCopia()`
+antigo continua para o que precisa esperar a rede.
+
+A suíte `rede.js` mede a abertura com latência de celular e lista tudo que o
+app pede antes de ficar utilizável, em quantas ondas sequenciais — foi ela que
+achou o `aluno_link` sendo chamado em toda abertura sem ter código pendente.
 
 As leituras que precisam aparecer offline passam por `lerCopia()`: tenta a rede
 com prazo, guarda o resultado no IndexedDB e, sem rede, devolve a última cópia.
@@ -29,6 +61,65 @@ O próprio app convida a instalar: na tela de login, no painel do treinador e no
 início do aluno aparece um cartão com o passo a passo do aparelho — e no
 Android/Chrome ele instala com um toque só, usando o `beforeinstallprompt`
 capturado ainda no `<head>`.
+
+## Na hora do treino
+- **Da última vez** — ao abrir um exercício, o app mostra a carga e as reps da
+  sessão anterior daquele movimento e há quantos dias foi. É o número que diz se
+  hoje é para manter ou subir.
+- **Trocar exercício** — aparelho ocupado ou dor no ângulo: o aluno escolhe
+  outro do mesmo grupo muscular (ou de qualquer grupo, se pedir). Séries, reps e
+  descanso da ficha continuam iguais, e é o exercício trocado que vai para o
+  histórico do treinador.
+- **Aviso do descanso** — o cronômetro conta pelo relógio, então volta certo
+  mesmo com a tela apagada, e o service worker solta uma notificação quando o
+  descanso acaba, com o celular no bolso.
+- **Treinei fora do app** — corrida, futebol, outra academia. Registra o dia sem
+  carga nem série, para não quebrar a sequência nem sumir do painel do treinador.
+- **Fotos de progresso** — na aba Progresso o aluno envia a foto do dia e vê a
+  primeira ao lado da última. O treinador enxerga as fotos na ficha dele.
+- **Lembrete de treino** — em Conta, o aluno liga e escolhe manhã, tarde ou
+  noite. O aviso chega só no dia em que ele ainda não treinou, só se ele não
+  bateu a meta da semana, e já diz qual é o treino de hoje pelo rodízio —
+  "Hoje é B — Superiores". Quem decide o alvo é o banco
+  (`lembrete_treino_alvos`); quem envia é a Edge Function `push`, chamada por
+  três cron jobs.
+- **Semana planejada** — o treinador marca em que dias cada divisão cai
+  (segunda A, quarta B…). No dia marcado o app do aluno abre direto naquele
+  treino, dizendo "marcado para hoje na sua ficha". Sem dia marcado, vale o
+  rodízio livre de sempre.
+- **Ver os exercícios antes** — o aluno espia o que vem no treino (exercícios,
+  séries, reps e descanso) sem ligar o cronômetro, e começa dali se quiser.
+- **Dor avisa na hora** — no feedback de fim de treino, dor 4 ou 5 dispara uma
+  notificação para o treinador com a divisão e o que o aluno escreveu. O texto
+  é montado pelo servidor a partir do que está gravado, nunca pelo aparelho do
+  aluno. O feedback também entra na fila quando não há sinal — antes ele se
+  perdia.
+- **Meus treinos** — o diário de tudo que ele fez, sessão por sessão: dia,
+  divisão, exercícios, séries, volume e recordes; toca para abrir e ver a carga
+  de cada série. O treinador vê a mesma coisa na ficha do aluno, com a média de
+  séries por treino — é isso que diz se ele está cumprindo a ficha ou cortando.
+
+## Recados
+A aba **Recados** do aluno é uma conversa de verdade: ele escreve, o treinador
+responde, e cada um recebe no celular. Os avisos antigos aparecem na mesma
+linha do tempo, então o aluno não precisa saber que são duas coisas.
+
+No treinador, **Recados** no menu mostra quem está esperando resposta (com o
+número ao lado), e a conversa fica na ficha do aluno. Mensagem sem sinal entra
+na fila e sobe quando o sinal volta.
+
+O texto do aviso no celular é montado pelo servidor a partir do que ficou
+gravado — o aparelho só passa o id da mensagem, então ninguém usa o push do app
+para mandar mensagem arbitrária para outra pessoa.
+
+## No papel
+Em **Treino → Imprimir ficha** sai a ficha inteira do aluno em uma folha, com
+colunas em branco para ele anotar a carga de cada semana. Serve para quem não
+tem celular bom ou prefere a prancheta.
+
+Na ficha do aluno, **Comparar números** põe duas avaliações lado a lado com a
+diferença de cada medida — verde é o lado bom daquela medida (cintura que desce
+e massa magra que sobe contam como ganho). O antigo **Comparar fotos** continua.
 
 ## Convite do aluno
 Em **Acesso do aluno**, o app gera o código e monta o convite pronto para
@@ -57,11 +148,25 @@ e descanso já preenchidos, e **Salvar como modelo** guarda a ficha do aluno par
 reaproveitar em outro. Na Periodização, **Salvar este ciclo como modelo** faz o
 mesmo com o macrociclo.
 
+**Alunos sem treino** (no menu, com o número ao lado) junta todo mundo que ainda
+não tem ficha — aluno com conta e sem treino abre o app numa tela vazia. Marque
+quantos quiser e aplique uma ficha pronta em todos de uma vez. Quem monta é a
+RPC `ficha_aplicar_modelo`, numa transação só: ou a ficha entra inteira, ou não
+entra nada. Ela também casa o nome do exercício com a biblioteca no servidor,
+então a demonstração já aparece para o aluno.
+
 A biblioteca tem **214 exercícios**, todos com demonstração: 202 com o desenho
 animado do free-exercise-db e as 12 técnicas avançadas com a instrução escrita.
 
 Os modelos que vêm no app ficam com `coach_id` nulo (todo mundo enxerga, ninguém
 edita); os que o treinador salva ficam com o `coach_id` dele.
+
+## Números
+Tudo que aparece na tela usa vírgula decimal (24,3 e não 24.3), como se escreve
+em português. Só exibição: nenhum campo de entrada nem exportação passa pelo
+`fmt()`. A suíte `virgula.js` varre as telas do treinador e do aluno procurando
+decimal com ponto no texto visível — se alguém puser um número cru numa tela
+nova, ela acusa.
 
 ## Banco de dados
 Os arquivos `.sql` da raiz são as migrações, na ordem em que foram aplicadas no
