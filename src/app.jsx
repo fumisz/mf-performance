@@ -36,7 +36,7 @@ if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABAS
    .catch. Chamar .catch direto estoura TypeError, e dentro de um useEffect isso
    derruba a tela inteira do aluno. */
 const semEsperar=q=>{try{q.then(()=>{},()=>{});}catch(e){}};
-const APP_VERSION='2026.09.26';   // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION='2026.09.27';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
 
@@ -10090,6 +10090,11 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
   const [retro,setRetro]=useState(false);
   const [ultimaDiv,setUltimaDiv]=useState(null);   // qual divisão ele fez por último
   const [divsCheias,setDivsCheias]=useState(null); // divisões que têm exercício (null = ainda não sei)
+  // "ainda não chegou" e "chegou e está vazio" são coisas diferentes na tela:
+  // dizer que o treinador não montou a ficha quando ela só não carregou é o
+  // tipo de mentira que faz o aluno fechar o app.
+  const [divsFrescas,setDivsFrescas]=useState(!!demo);
+  const [falhouDivs,setFalhouDivs]=useState(false);
   const [avisos,setAvisos]=useState(demo?_DEMO_AVISOS:[]);
   // O mês do aluno sai do histórico que já está na mão — nenhuma ida a mais ao
   // servidor. Volta null quando o mês não tem treino que valha uma imagem.
@@ -10133,10 +10138,16 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
   // com a copia local (instantaneo) e de novo com o dado fresco.
   const carregarDoAluno=React.useCallback(async(s)=>{
     if(!s)return;
+    // A cópia local entra na hora, mas ela pode ser de ANTES de o treinador
+    // montar a ficha. Enquanto a resposta fresca não chega, a tela não pode
+    // afirmar "seu treinador ainda não montou": é o que fazia o aluno abrir o
+    // app depois da ficha pronta e continuar vendo que não tinha treino.
+    setFalhouDivs(false);
     lerJa('divs-'+s.id,
       sb.from('train_divisao').select('*').eq('student_id',s.id).order('ordem'),
-      dv=>{
+      (dv,daCopia)=>{
         setDivs(dv||[]);
+        if(!daCopia)setDivsFrescas(true);
         // divisão sem exercício não pode ser sugerida: o aluno tocaria em
         // "Iniciar treino" e cairia numa tela vazia
         if((dv||[]).length){
@@ -10144,7 +10155,12 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
             sb.from('train_serie_prescrita').select('divisao_id').in('divisao_id',dv.map(d=>d.id)),
             pres=>{if(pres)setDivsCheias(new Set(pres.map(x=>x.divisao_id)));}).catch(()=>{});
         }else setDivsCheias(new Set());
-      }).catch(()=>setDivs([]));
+      })
+      .then(dado=>{
+        // lerJa devolve null quando a rede falhou e ele se virou com a cópia
+        if(dado===null)setFalhouDivs(true); else setDivsFrescas(true);
+      })
+      .catch(()=>{setDivs(d=>d||[]);setFalhouDivs(true);});
     // histórico: alimenta recordes, frequência, sequência e o rodízio. Entra
     // pela cópia primeiro — nenhuma dessas coisas precisa travar a abertura.
     lerJa('hist-'+s.id,
@@ -10309,7 +10325,21 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
   /* O treino é o motivo de o aluno abrir o app. Ficava em quarto lugar, embaixo
      dos anéis do dia e do bloco de avaliação física: para começar a treinar ele
      rolava a tela passando pelo próprio percentual de gordura. Agora vem primeiro. */
-  const blocoTreino=list.length===0?<div className="lv-card" style={{textAlign:'center',color:'var(--lvt2)'}}>Seu treinador ainda não montou sua ficha de treino.</div>:(()=>{
+  const blocoTreino=list.length===0?(
+    falhouDivs
+      ? <div className="lv-card" style={{textAlign:'center'}}>
+          <div style={{fontWeight:700,marginBottom:6}}>Não consegui carregar seu treino</div>
+          <div className="lv-sub" style={{lineHeight:1.5}}>
+            Parece que a internet falhou. Sua ficha continua lá.</div>
+          <button className="lv-btn" style={{marginTop:12}}
+            onClick={()=>{setFalhouDivs(false);carregarDoAluno(stu);}}>Tentar de novo</button>
+        </div>
+      : !divsFrescas
+        // ainda esperando a resposta do servidor: não dá para afirmar que não
+        // existe ficha só porque a cópia guardada no celular está vazia
+        ? <div className="lv-card" style={{textAlign:'center',padding:'34px 0'}}><div className="spinner"/></div>
+        : <div className="lv-card" style={{textAlign:'center',color:'var(--lvt2)'}}>Seu treinador ainda não montou sua ficha de treino.</div>
+  ):(()=>{
     // Sugere a PRÓXIMA do rodízio, não sempre a primeira: quem fechou o A
     // ontem tem que abrir o app vendo o B.
     const prox=proxDiv,feita=divFeita;
