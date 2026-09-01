@@ -118,6 +118,55 @@ dia sem treino. E vem com uma equivalência, porque "47 toneladas" não diz nada
 e "o peso de 4 ônibus" sim. Os pesos de referência são aproximados de
 propósito (carro popular 1,2 t, ônibus 12 t) e o texto diz "mais ou menos".
 
+A conta sai de `carga × reps` linha a linha do histórico. Isso significa que a
+consulta do histórico **precisa pedir a coluna `reps`** — ela já foi esquecida
+uma vez, e o número foi para produção zerado e invisível, sem barulho nenhum.
+Por isso as colunas moram numa constante só, a `COLUNAS_HIST`, e o servidor de
+mentira dos testes hoje obedece ao `select` (devolve só as colunas pedidas,
+como o PostgREST de verdade), senão a próxima coluna esquecida passa verde.
+
+## Retrospectiva do mês
+Uma vez por mês o aluno tem motivo de abrir o app sem ser para treinar. Na tela
+de Progresso aparece o mês fechado — treinos, tonelagem, recordes — e um botão
+que monta a imagem 1080x1920 para os stories, com a marca e o @ do treinador
+dentro.
+
+Detalhes que decidem se ela presta:
+
+- **Qual mês.** Nos sete primeiros dias a retrospectiva ainda é a do mês que
+  fechou; depois disso é a do mês corrente, e aí o card diz "até aqui" para não
+  mentir que o mês acabou.
+- **Só quando tem o que contar.** Abaixo de três treinos no mês o cartão nem
+  aparece: retrospectiva de dois treinos constrange em vez de motivar.
+- **O salto de carga** compara o melhor do mês com o melhor de *antes* do mês.
+  Quem começou agora não tem com o que comparar, e nesse caso entra a carga
+  mais pesada do mês.
+- **A quarta casa** mostra a maior sequência de dias seguidos; quando a
+  sequência é 1 — que não é sequência nenhuma — mostra as séries do mês.
+- Tudo sai do histórico que a tela já carregou: nenhuma ida a mais ao servidor.
+
+## O que cada tela põe em primeiro lugar
+Duas telas foram reordenadas pelo que a pessoa vai fazer nelas, não pelo que é
+bonito mostrar.
+
+**Início do aluno.** O treino ficava em quarto lugar, embaixo do banner de
+instalação, dos anéis do dia e do bloco de avaliação física: para começar a
+treinar ele rolava a tela passando pelo próprio percentual de gordura. Agora o
+cartão do treino vem primeiro e o botão de começar cabe na primeira tela do
+celular, sem rolagem — e existe teste que mede isso em pixel.
+
+**Ficha do aluno, no celular do treinador.** Três coisas mudaram:
+
+- o número de exercícios de cada divisão aparece **sem precisar abrir** (vem
+  numa consulta só, junto com as divisões), e divisão vazia é dita com todas as
+  letras — é a que o aluno abre e não acha nada;
+- o formulário de nova divisão saiu do topo e virou botão: criar divisão é
+  eventual, ver as que existem é o tempo todo;
+- o `×` de apagar saiu de perto do nome, onde era maior que o "abrir" e o dedo
+  errava. Agora mora dentro da divisão aberta, e o aviso diz o nome da divisão,
+  o aluno, quantos exercícios vão junto e que não tem desfazer. Uma ficha já se
+  perdeu com um "tem certeza?" genérico.
+
 ## Copiar a ficha de um aluno para outro
 Dar ao aluno novo a mesma ficha de outro custava três passos: salvar como
 modelo, abrir fichas prontas, aplicar. Agora é um botão na tela de treino, ao

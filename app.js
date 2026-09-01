@@ -71,9 +71,15 @@ const semEsperar = q => {
     q.then(() => {}, () => {});
   } catch (e) {}
 };
-const APP_VERSION = '2026.09.25'; // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION = '2026.09.26'; // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA'); // YYYY-MM-DD no fuso LOCAL
+
+/* O histórico que a tela do aluno carrega na abertura. Ficou numa constante
+   porque é lido em dois lugares e uma coluna esquecida some sem barulho: a
+   tonelagem já ficou zerada em produção por faltar reps aqui, e o teste não
+   pegou porque o servidor de mentira devolvia a linha inteira. */
+const COLUNAS_HIST = 'exercicio_id,exercicio_nome,carga,reps,data_treino,tipo_serie,is_pr,divisao_id';
 
 /* ── Sessões de treino ──
    O train_historico guarda uma linha POR SÉRIE. Para olhar o treino como ele
@@ -16701,8 +16707,10 @@ function TrainScreen({
   const [lib, setLib] = useState([]);
   const [divs, setDivs] = useState(null);
   const [series, setSeries] = useState({}); // divisaoId -> [serie]
+  const [quantos, setQuantos] = useState({}); // divisaoId -> nº de exercícios, sem abrir
   const [openId, setOpenId] = useState(null);
   const [nd, setNd] = useState('');
+  const [novaDiv, setNovaDiv] = useState(false);
   const [msg, setMsg] = useState(null);
   const blankEx = {
     nome: '',
@@ -16747,6 +16755,7 @@ function TrainScreen({
   const loadDivs = async s => {
     if (demo) {
       setDivs([]);
+      setQuantos({});
       return;
     }
     const {
@@ -16762,6 +16771,22 @@ function TrainScreen({
       return;
     }
     setDivs(data || []);
+    // Quantos exercícios cada divisão tem, ANTES de abrir. Antes disso o
+    // treinador tinha de abrir uma por uma só para descobrir onde mexer — e a
+    // divisão vazia, que é a que o aluno abre e não acha nada, não aparecia.
+    if ((data || []).length) {
+      const {
+        data: pres
+      } = await lerCopia('pres-conta-' + s.id, sb.from('train_serie_prescrita').select('divisao_id').in('divisao_id', data.map(d => d.id)));
+      const c = {};
+      (data || []).forEach(d => {
+        c[d.id] = 0;
+      });
+      (pres || []).forEach(p => {
+        c[p.divisao_id] = (c[p.divisao_id] || 0) + 1;
+      });
+      setQuantos(c);
+    } else setQuantos({});
   };
   useEffect(() => {
     if (stu) loadDivs(stu);else setDivs(null);
@@ -16800,7 +16825,12 @@ function TrainScreen({
         ...p,
         [row.id]: []
       }));
+      setQuantos(p => ({
+        ...p,
+        [row.id]: 0
+      }));
       setOpenId(row.id);
+      setNovaDiv(false);
       return;
     }
     const {
@@ -16825,11 +16855,29 @@ function TrainScreen({
       ...p,
       [data.id]: []
     }));
+    setQuantos(p => ({
+      ...p,
+      [data.id]: 0
+    }));
     setOpenId(data.id);
+    setNovaDiv(false);
   };
+  // Apagar divisão não tem desfazer, e uma ficha já se perdeu assim. O aviso
+  // diz o NOME e quantos exercícios vão junto: um "tem certeza?" genérico é
+  // exatamente o que se aceita no automático.
   const delDiv = async id => {
-    if (!confirm('Excluir esta divisão e seus exercícios?')) return;
+    const dv = (divs || []).find(d => d.id === id);
+    const n = (series[id] || []).length || quantos[id] || 0;
+    const nome = dv && dv.nome || 'esta divisão';
+    if (!confirm('Excluir ' + nome + ' da ficha de ' + stu.name.split(' ')[0] + '?' + (n ? '\n\nOs ' + plural(n, 'exercício') + ' dela vão junto.' : '') + '\n\nIsso não tem como desfazer.')) return;
     setDivs(p => p.filter(d => d.id !== id));
+    setQuantos(p => {
+      const c = {
+        ...p
+      };
+      delete c[id];
+      return c;
+    });
     if (!demo) await sb.from('train_divisao').delete().eq('id', id);
   };
   const addEx = async divId => {
@@ -17228,30 +17276,7 @@ function TrainScreen({
     className: "btn btn-ghost btn-sm",
     disabled: busyMod,
     onClick: salvarComoModelo
-  }, "Salvar como modelo")), /*#__PURE__*/React.createElement("div", {
-    className: "dash-panel",
-    style: {
-      marginBottom: 16
-    }
-  }, /*#__PURE__*/React.createElement("h4", null, "Nova divis\xE3o"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      gap: 10,
-      flexWrap: 'wrap'
-    }
-  }, /*#__PURE__*/React.createElement("input", {
-    className: "fi",
-    style: {
-      flex: 1,
-      minWidth: 180
-    },
-    placeholder: "Ex.: A \u2014 Membros inferiores",
-    value: nd,
-    onChange: e => setNd(e.target.value)
-  }), /*#__PURE__*/React.createElement("button", {
-    className: "btn btn-primary",
-    onClick: addDiv
-  }, "Adicionar divis\xE3o"))), divs === null ? /*#__PURE__*/React.createElement("div", {
+  }, "Salvar como modelo")), divs === null ? /*#__PURE__*/React.createElement("div", {
     className: "center-screen"
   }, /*#__PURE__*/React.createElement("div", {
     className: "spinner"
@@ -17261,9 +17286,12 @@ function TrainScreen({
     className: "empty-title"
   }, "Nenhuma divis\xE3o ainda"), /*#__PURE__*/React.createElement("p", {
     className: "s-meta"
-  }, "Use uma ficha pronta acima \u2014 ou crie a divis\xE3o A do zero.")) : divs.map(dv => {
+  }, "O caminho curto \xE9 \u201CUsar ficha pronta\u201D ou \u201CCopiar de outro aluno\u201D, a\xED \xE9 s\xF3 ajustar. Do zero, use \u201C+ Nova divis\xE3o\u201D logo abaixo.")) : divs.map(dv => {
     const ss = series[dv.id] || [];
     const open = openId === dv.id;
+    // quantos exercícios tem dentro: da lista já aberta, senão da contagem
+    // que veio junto com as divisões
+    const n = series[dv.id] ? ss.length : quantos[dv.id];
     return /*#__PURE__*/React.createElement("div", {
       key: dv.id,
       className: "dash-panel",
@@ -17279,34 +17307,26 @@ function TrainScreen({
         cursor: 'pointer'
       },
       onClick: () => toggleDiv(dv.id)
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        minWidth: 0
+      }
     }, /*#__PURE__*/React.createElement("h4", {
       style: {
         margin: 0
       }
     }, dv.nome || 'Divisão'), /*#__PURE__*/React.createElement("div", {
+      className: "s-meta",
       style: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10
+        margin: '3px 0 0'
       }
-    }, (dv.dias_semana || []).length > 0 && /*#__PURE__*/React.createElement("span", {
-      className: "info-pill",
+    }, n == null ? 'toque para abrir' : n === 0 ? 'sem exercício — o aluno abre e não acha nada' : plural(n, 'exercício'), (dv.dias_semana || []).length > 0 && ' · ' + listaDias(dv.dias_semana))), /*#__PURE__*/React.createElement("span", {
       style: {
-        margin: 0
+        color: 'var(--text3)',
+        fontSize: 18,
+        flexShrink: 0
       }
-    }, listaDias(dv.dias_semana)), /*#__PURE__*/React.createElement("span", {
-      className: "s-meta"
-    }, series[dv.id] ? ss.length + ' exercício' + (ss.length !== 1 ? 's' : '') : 'abrir'), /*#__PURE__*/React.createElement("button", {
-      className: "btn-icon btn-sm",
-      onClick: e => {
-        e.stopPropagation();
-        delDiv(dv.id);
-      }
-    }, "\xD7"), /*#__PURE__*/React.createElement("span", {
-      style: {
-        color: 'var(--text3)'
-      }
-    }, open ? '▾' : '▸'))), open && /*#__PURE__*/React.createElement("div", {
+    }, open ? '▾' : '▸')), open && /*#__PURE__*/React.createElement("div", {
       style: {
         marginTop: 12
       }
@@ -17633,8 +17653,58 @@ function TrainScreen({
       path: exSelecionado.video_path,
       name: exSelecionado.nome,
       dicas: exSelecionado.dicas
-    })))));
-  }), showMod && /*#__PURE__*/React.createElement(FichaModeloPicker, {
+    }))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        marginTop: 14,
+        textAlign: 'right'
+      }
+    }, /*#__PURE__*/React.createElement("button", {
+      className: "btn btn-ghost btn-sm",
+      style: {
+        color: 'var(--danger,#b3261e)'
+      },
+      onClick: () => delDiv(dv.id)
+    }, "Excluir esta divis\xE3o"))));
+  }), divs !== null && (novaDiv ? /*#__PURE__*/React.createElement("div", {
+    className: "dash-panel",
+    style: {
+      marginBottom: 16
+    }
+  }, /*#__PURE__*/React.createElement("h4", null, "Nova divis\xE3o"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 10,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    className: "fi",
+    style: {
+      flex: 1,
+      minWidth: 180
+    },
+    autoFocus: true,
+    placeholder: "Ex.: A \u2014 Membros inferiores",
+    value: nd,
+    onChange: e => setNd(e.target.value),
+    onKeyDown: e => {
+      if (e.key === 'Enter') addDiv();
+    }
+  }), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-primary",
+    onClick: addDiv
+  }, "Adicionar"), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-ghost",
+    onClick: () => {
+      setNovaDiv(false);
+      setNd('');
+    }
+  }, "Cancelar"))) : /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-ghost btn-sm",
+    style: {
+      marginBottom: 16
+    },
+    onClick: () => setNovaDiv(true)
+  }, "+ Nova divis\xE3o")), showMod && /*#__PURE__*/React.createElement(FichaModeloPicker, {
     busy: busyMod,
     onUsar: aplicarModelo,
     onClose: () => setShowMod(false)
@@ -22232,6 +22302,39 @@ const _DEMO_ALUNO_DIVS = [{
   id: 'd2',
   nome: 'B — Membros superiores'
 }];
+/* Histórico de mentira da TELA do aluno (o _DEMO_HIST lá de baixo é o do
+   gráfico de evolução, com datas fixas). 45 dias para trás, três treinos por
+   semana, com a carga subindo — assim a retrospectiva do mês tem o que contar
+   em qualquer dia em que a demonstração for aberta. */
+const _DEMO_HIST_ALUNO = (() => {
+  const linhas = [],
+    hoje = new Date();
+  for (let i = 45; i >= 0; i--) {
+    const d = new Date(hoje);
+    d.setDate(hoje.getDate() - i);
+    if ([1, 3, 5].indexOf(d.getDay()) < 0) continue;
+    const par = d.getDate() % 2 === 0;
+    const ex = par ? {
+      id: 'e1',
+      nome: 'Agachamento livre'
+    } : {
+      id: 'e2',
+      nome: 'Supino reto'
+    };
+    const carga = (par ? 40 : 30) + Math.round((45 - i) / 9) * 2.5;
+    for (let s = 0; s < 4; s++) linhas.push({
+      exercicio_id: ex.id,
+      exercicio_nome: ex.nome,
+      carga,
+      reps: 10,
+      data_treino: dayKey(d),
+      tipo_serie: 'Valida',
+      is_pr: s === 0 && i < 12,
+      divisao_id: par ? 'd1' : 'd2'
+    });
+  }
+  return linhas;
+})();
 const _DEMO_AVISOS = [{
   id: 'a1',
   tipo: 'parabens',
@@ -22807,6 +22910,461 @@ function CardAntesDepois({
   }, erro) : url ? /*#__PURE__*/React.createElement("img", {
     src: url,
     alt: "Meu antes e depois",
+    style: {
+      width: '100%',
+      borderRadius: 16,
+      display: 'block',
+      border: '1px solid var(--lvbd)',
+      boxShadow: '0 10px 40px rgba(139,92,246,.25)'
+    }
+  }) : /*#__PURE__*/React.createElement("div", {
+    className: "lv-card",
+    style: {
+      textAlign: 'center',
+      padding: '44px 0'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "spinner"
+  })), !erro && /*#__PURE__*/React.createElement("button", {
+    className: "lv-btn neon",
+    style: {
+      marginTop: 12
+    },
+    disabled: !url,
+    onClick: compartilhar
+  }, "Compartilhar nos stories"), salvo && /*#__PURE__*/React.createElement("div", {
+    className: "lv-sub",
+    style: {
+      marginTop: 8,
+      textAlign: 'center',
+      lineHeight: 1.45
+    }
+  }, "Imagem salva. Abra o Instagram, crie um story e escolha ela da galeria."), /*#__PURE__*/React.createElement("button", {
+    className: "lv-ghost",
+    style: {
+      width: '100%',
+      marginTop: 10,
+      padding: '11px'
+    },
+    onClick: onFechar
+  }, "Fechar")));
+}
+
+/* ── Retrospectiva do mês ────────────────────────────────────
+   O aluno abre o app para treinar. Uma vez por mês ele ganha motivo de abrir
+   só para olhar o que fez — e para mostrar. Sai do mesmo histórico que a tela
+   já carregou, então não custa nenhuma ida a mais ao servidor. */
+const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+const MIN_RETRO = 3; // abaixo de 3 treinos não existe mês para contar
+
+function resumoDoMes(hist, divs, hoje) {
+  const linhas = (hist || []).filter(h => h && h.data_treino);
+  if (!linhas.length) return null;
+  const agora = hoje || new Date();
+  const mesDe = d => d.slice(0, 7);
+  const atual = dayKey(agora).slice(0, 7);
+  const anterior = dayKey(new Date(agora.getFullYear(), agora.getMonth() - 1, 1)).slice(0, 7);
+  const diasDe = ch => new Set(linhas.filter(h => mesDe(h.data_treino) === ch).map(h => h.data_treino));
+  // Nos primeiros dias do mês o que interessa é o mês que fechou: ninguém quer
+  // a retrospectiva de setembro no dia 2 de setembro.
+  const chave = agora.getDate() <= 7 && diasDe(anterior).size >= MIN_RETRO ? anterior : atual;
+  const dias = [...diasDe(chave)].sort();
+  if (dias.length < MIN_RETRO) return null;
+  const doMes = linhas.filter(h => mesDe(h.data_treino) === chave);
+  const ton = doMes.reduce((a, h) => h.tipo_serie === 'Externo' ? a : a + (num(h.carga) || 0) * (num(h.reps) || 0), 0);
+  const prs = doMes.filter(h => h.is_pr).length;
+  const series = doMes.filter(h => h.tipo_serie !== 'Externo').length;
+
+  // treinos por semana do mês, para o gráfico do card. Semana aqui é bloco de
+  // sete dias do mês (1–7, 8–14…), que é como quem olha o calendário conta.
+  const semanas = [0, 0, 0, 0, 0];
+  dias.forEach(d => {
+    semanas[Math.min(4, Math.ceil(+d.slice(8) / 7) - 1)]++;
+  });
+  while (semanas.length > 1 && semanas[semanas.length - 1] === 0) semanas.pop();
+
+  // maior sequência de dias seguidos dentro do mês
+  let corrente = 1,
+    seq = 1;
+  for (let i = 1; i < dias.length; i++) {
+    const d = dias[i - 1] + 'T12:00',
+      e = dias[i] + 'T12:00';
+    if (Math.round((new Date(e) - new Date(d)) / 86400000) === 1) {
+      corrente++;
+      if (corrente > seq) seq = corrente;
+    } else corrente = 1;
+  }
+
+  // divisão mais treinada, contada em DIAS e não em séries
+  const porDiv = {};
+  doMes.forEach(h => {
+    if (!h.divisao_id) return;
+    (porDiv[h.divisao_id] = porDiv[h.divisao_id] || new Set()).add(h.data_treino);
+  });
+  let divId = null,
+    divDias = 0;
+  Object.keys(porDiv).forEach(id => {
+    if (porDiv[id].size > divDias) {
+      divDias = porDiv[id].size;
+      divId = id;
+    }
+  });
+  const d = divId && (divs || []).find(x => x.id === divId);
+
+  // maior salto de carga: o melhor do mês contra o melhor de antes do mês
+  const antes = {},
+    dentro = {};
+  linhas.forEach(h => {
+    if (h.tipo_serie !== 'Valida') return;
+    const nm = h.exercicio_nome,
+      c = num(h.carga);
+    if (!nm || !c) return;
+    const ch = mesDe(h.data_treino);
+    if (ch < chave) antes[nm] = Math.max(antes[nm] || 0, c);else if (ch === chave) dentro[nm] = Math.max(dentro[nm] || 0, c);
+  });
+  let salto = null,
+    pico = null;
+  Object.keys(dentro).forEach(nm => {
+    const de = antes[nm];
+    if (de == null) return;
+    const g = dentro[nm] - de;
+    if (g > 0 && (!salto || g > salto.ganho)) salto = {
+      nome: nm,
+      de,
+      para: dentro[nm],
+      ganho: g
+    };
+  });
+  // quem começou agora não tem com o que comparar; aí a carga mais pesada do
+  // mês já é uma coisa dele
+  if (!salto) Object.keys(dentro).forEach(nm => {
+    if (!pico || dentro[nm] > pico.carga) pico = {
+      nome: nm,
+      carga: dentro[nm]
+    };
+  });
+  const [ano, mm] = chave.split('-');
+  return {
+    chave,
+    mes: MESES[+mm - 1],
+    ano: +ano,
+    treinos: dias.length,
+    ton,
+    prs,
+    seq,
+    series,
+    semanas,
+    divisao: d && d.nome,
+    divisaoDias: divDias,
+    salto,
+    pico,
+    emCurso: chave === atual
+  };
+}
+function desenharRetro(ctx, {
+  nome,
+  resumo,
+  marca,
+  logo,
+  arroba
+}) {
+  const W = 1080,
+    H = 1920;
+  const roxo2 = '#c084fc',
+    verde = '#4ade80';
+  const fundo = ctx.createLinearGradient(0, 0, W * 0.4, H);
+  fundo.addColorStop(0, '#14121c');
+  fundo.addColorStop(0.55, '#0e0e13');
+  fundo.addColorStop(1, '#17131f');
+  ctx.fillStyle = fundo;
+  ctx.fillRect(0, 0, W, H);
+  const halo = ctx.createRadialGradient(W * 0.5, H * 0.28, 0, W * 0.5, H * 0.28, W * 0.95);
+  halo.addColorStop(0, 'rgba(139,92,246,.26)');
+  halo.addColorStop(1, 'rgba(139,92,246,0)');
+  ctx.fillStyle = halo;
+  ctx.fillRect(0, 0, W, H);
+  const serif = '"Playfair Display",Georgia,serif';
+  const sans = 'Inter,-apple-system,"Segoe UI",Roboto,sans-serif';
+  const espacado = (t, x, y, esp) => {
+    const ls = [...t],
+      larg = ls.reduce((a, c) => a + ctx.measureText(c).width + esp, 0) - esp;
+    let px = x - larg / 2;
+    ls.forEach(c => {
+      ctx.fillText(c, px + ctx.measureText(c).width / 2, y);
+      px += ctx.measureText(c).width + esp;
+    });
+  };
+  const centro = (t, y, font, cor, esp) => {
+    ctx.font = font;
+    ctx.fillStyle = cor;
+    ctx.textAlign = 'center';
+    if (esp) espacado(t, W / 2, y, esp);else ctx.fillText(t, W / 2, y);
+  };
+  const cantos = (x, y, w, h, r) => {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  };
+  // nome de exercício comprido não pode vazar do card
+  const caber = (t, font, max) => {
+    ctx.font = font;
+    if (ctx.measureText(t).width <= max) return t;
+    let s = t;
+    while (s.length > 1 && ctx.measureText(s + '…').width > max) s = s.slice(0, -1);
+    return s + '…';
+  };
+
+  // ── topo: marca do treinador ──
+  let y = 112;
+  if (logo) {
+    const alt = 76,
+      larg = Math.min(240, logo.naturalWidth / logo.naturalHeight * alt);
+    ctx.drawImage(logo, (W - larg) / 2, y - 54, larg, alt);
+    y += 52;
+  }
+  centro(caber((marca || '').toUpperCase(), '600 27px ' + sans, W - 200), y, '600 27px ' + sans, 'rgba(255,255,255,.62)', 7);
+
+  // ── título: o mês, grande ──
+  centro('RETROSPECTIVA', y + 96, '600 30px ' + sans, roxo2, 10);
+  centro(resumo.mes, y + 196, '700 104px ' + serif, '#ffffff');
+  const primeiro = (nome || '').trim().split(/\s+/)[0] || '';
+  const sub = [primeiro, String(resumo.ano)].filter(Boolean).join(' · ');
+  centro(sub, y + 256, '500 32px ' + sans, 'rgba(255,255,255,.55)');
+  if (resumo.emCurso) centro('até aqui', y + 306, '500 26px ' + sans, 'rgba(255,255,255,.36)');
+
+  // ── os quatro números ──
+  // "1 dia seguido" não é sequência nenhuma: nesse caso a quarta casa mostra as
+  // séries do mês, que é número que ele fez de verdade.
+  const quarta = resumo.seq > 1 ? [String(resumo.seq), 'DIAS SEGUIDOS'] : [String(resumo.series), rotuloN(resumo.series, 'série').toUpperCase()];
+  const celulas = [[String(resumo.treinos), rotuloN(resumo.treinos, 'treino').toUpperCase()], [fmtTon(resumo.ton), 'MOVIDOS'], [String(resumo.prs), rotuloN(resumo.prs, 'recorde').toUpperCase()], quarta];
+  const gx = 72,
+    gw = W - 144,
+    cw = (gw - 28) / 2,
+    chh = 210;
+  let gy = y + (resumo.emCurso ? 366 : 336);
+  celulas.forEach((c, i) => {
+    const x = gx + i % 2 * (cw + 28),
+      yy = gy + Math.floor(i / 2) * (chh + 28);
+    ctx.fillStyle = 'rgba(255,255,255,.045)';
+    cantos(x, yy, cw, chh, 30);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,.09)';
+    ctx.lineWidth = 2;
+    cantos(x, yy, cw, chh, 30);
+    ctx.stroke();
+    ctx.textAlign = 'center';
+    ctx.font = '700 84px ' + sans;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(caber(c[0], '700 84px ' + sans, cw - 56), x + cw / 2, yy + 118);
+    ctx.font = '600 24px ' + sans;
+    ctx.fillStyle = 'rgba(255,255,255,.5)';
+    espacado(c[1], x + cw / 2, yy + 164, 5);
+  });
+  gy += 2 * (chh + 28) + 18;
+
+  // ── as linhas que contam a história do mês ──
+  const linhas = [];
+  if (resumo.divisao) linhas.push({
+    rotulo: 'Treino mais feito',
+    valor: resumo.divisao + ' · ' + plural(resumo.divisaoDias, 'vez', 'vezes')
+  });
+  if (resumo.salto) linhas.push({
+    rotulo: 'Maior salto de carga',
+    valor: fmtCarga(resumo.salto.de) + ' → ' + fmtCarga(resumo.salto.para) + ' kg',
+    bom: true,
+    detalhe: resumo.salto.nome
+  });else if (resumo.pico) linhas.push({
+    rotulo: 'Carga mais pesada',
+    valor: fmtCarga(resumo.pico.carga) + ' kg',
+    detalhe: resumo.pico.nome
+  });
+  const eq = equivalePeso(resumo.ton);
+  if (eq) linhas.push({
+    rotulo: 'O peso disso',
+    valor: eq
+  });
+  if (linhas.length) {
+    const alt = linhas.reduce((a, l) => a + (l.detalhe ? 128 : 104), 0) + 40;
+    ctx.fillStyle = 'rgba(255,255,255,.045)';
+    cantos(72, gy, W - 144, alt, 30);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,.09)';
+    ctx.lineWidth = 2;
+    cantos(72, gy, W - 144, alt, 30);
+    ctx.stroke();
+    let ly = gy + 74;
+    linhas.forEach(l => {
+      ctx.textAlign = 'left';
+      ctx.font = '500 31px ' + sans;
+      ctx.fillStyle = 'rgba(255,255,255,.66)';
+      ctx.fillText(l.rotulo, 120, ly);
+      ctx.textAlign = 'right';
+      ctx.font = '700 38px ' + sans;
+      ctx.fillStyle = l.bom ? verde : '#ffffff';
+      ctx.fillText(caber(l.valor, '700 38px ' + sans, W - 240 - ctx.measureText(l.rotulo).width), W - 120, ly);
+      if (l.detalhe) {
+        ctx.textAlign = 'left';
+        ctx.font = '500 26px ' + sans;
+        ctx.fillStyle = 'rgba(255,255,255,.42)';
+        ctx.fillText(caber(l.detalhe, '500 26px ' + sans, W - 260), 120, ly + 40);
+        ly += 128;
+      } else ly += 104;
+    });
+    gy += alt + 30;
+  }
+
+  // ── treinos por semana ──
+  // Ocupa o pé do card com uma coisa que ele reconhece: a semana em que
+  // apertou e a que afrouxou. É o que faz o story parecer feito para ele.
+  const sem = resumo.semanas || [];
+  if (sem.length > 1) {
+    const pico = Math.max.apply(null, sem) || 1;
+    const espaco = Math.max(0, H - 230 - gy);
+    if (espaco >= 250) {
+      const altBloco = Math.min(300, espaco);
+      centro('TREINOS POR SEMANA', gy + 30, '600 24px ' + sans, 'rgba(255,255,255,.42)', 5);
+      // o topo da barra mais alta ainda tem de caber o número acima dela, sem
+      // encostar no título
+      const base = gy + altBloco - 52,
+        altMax = altBloco - 158;
+      const passo = (W - 200) / sem.length,
+        lg = Math.min(120, passo - 40);
+      sem.forEach((n, i) => {
+        const cx = 100 + passo * i + passo / 2,
+          h = Math.max(8, Math.round(altMax * n / pico));
+        ctx.fillStyle = n ? 'rgba(192,132,252,.85)' : 'rgba(255,255,255,.10)';
+        cantos(cx - lg / 2, base - h, lg, h, 12);
+        ctx.fill();
+        ctx.textAlign = 'center';
+        ctx.font = '700 30px ' + sans;
+        ctx.fillStyle = n ? '#ffffff' : 'rgba(255,255,255,.3)';
+        ctx.fillText(String(n), cx, base - h - 16);
+        ctx.font = '500 24px ' + sans;
+        ctx.fillStyle = 'rgba(255,255,255,.4)';
+        ctx.fillText(i + 1 + 'ª', cx, base + 34);
+      });
+    }
+  }
+
+  // ── rodapé: o @ do treinador ──
+  ctx.textAlign = 'center';
+  if (arroba) {
+    const a = arroba.startsWith('@') ? arroba : '@' + arroba;
+    centro(a, H - 118, '600 34px ' + sans, roxo2);
+    centro('acompanhamento profissional', H - 70, '500 24px ' + sans, 'rgba(255,255,255,.42)');
+  } else {
+    centro(caber((marca || '').toUpperCase(), '600 30px ' + sans, W - 200), H - 96, '600 30px ' + sans, 'rgba(255,255,255,.5)', 6);
+  }
+}
+function CardRetro({
+  stu,
+  resumo,
+  onFechar
+}) {
+  const [url, setUrl] = useState(null);
+  const [arquivo, setArquivo] = useState(null);
+  const [erro, setErro] = useState(null);
+  const [salvo, setSalvo] = useState(false);
+  useEffect(() => {
+    let vivo = true;
+    (async () => {
+      try {
+        try {
+          if (document.fonts && document.fonts.ready) await document.fonts.ready;
+        } catch (e) {}
+        let marca = null;
+        try {
+          const {
+            data
+          } = await lerCopia('marca-' + stu.coach_id, sb.from('profiles').select('brand_name,name,instagram,logo_url').eq('id', stu.coach_id).maybeSingle());
+          marca = data || null;
+        } catch (e) {/* sem a marca o card ainda vale */}
+        let logo = null;
+        if (marca && marca.logo_url) logo = await new Promise(res => {
+          const i = new Image();
+          i.crossOrigin = 'anonymous';
+          i.onload = () => res(i);
+          i.onerror = () => res(null);
+          i.src = marca.logo_url;
+        });
+        if (!vivo) return;
+        const c = document.createElement('canvas');
+        c.width = 1080;
+        c.height = 1920;
+        desenharRetro(c.getContext('2d'), {
+          nome: stu && stu.name || '',
+          resumo,
+          marca: marca && (marca.brand_name || marca.name) || 'MF Performance',
+          logo,
+          arroba: marca && marca.instagram
+        });
+        const blob = await new Promise(r => c.toBlob(r, 'image/png'));
+        if (!vivo || !blob) return;
+        setUrl(URL.createObjectURL(blob));
+        setArquivo(new File([blob], 'retrospectiva.png', {
+          type: 'image/png'
+        }));
+      } catch (e) {
+        if (vivo) setErro('Não deu para montar a imagem neste aparelho.');
+      }
+    })();
+    return () => {
+      vivo = false;
+    };
+  }, []);
+  const baixar = () => {
+    if (!url) return;
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'retrospectiva.png';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setSalvo(true);
+  };
+  const compartilhar = async () => {
+    try {
+      if (arquivo && navigator.canShare && navigator.canShare({
+        files: [arquivo]
+      })) {
+        await navigator.share({
+          files: [arquivo],
+          title: 'Minha retrospectiva'
+        });
+        return;
+      }
+    } catch (e) {
+      if (e && e.name === 'AbortError') return;
+    }
+    baixar();
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    className: "lv-cel",
+    style: {
+      padding: 18,
+      overflowY: 'auto'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: '100%',
+      maxWidth: 300
+    }
+  }, erro ? /*#__PURE__*/React.createElement("div", {
+    className: "lv-card",
+    style: {
+      lineHeight: 1.5
+    }
+  }, erro) : url ? /*#__PURE__*/React.createElement("img", {
+    src: url,
+    alt: "Minha retrospectiva",
     style: {
       width: '100%',
       borderRadius: 16,
@@ -28540,9 +29098,18 @@ function StudentApp({
     mes: 0,
     ton: 0
   });
+  // o histórico cru fica guardado porque a retrospectiva do mês sai dele, sem
+  // custar outra ida ao servidor
+  const [hist, setHist] = useState(demo ? _DEMO_HIST_ALUNO : []);
+  const [retro, setRetro] = useState(false);
   const [ultimaDiv, setUltimaDiv] = useState(null); // qual divisão ele fez por último
   const [divsCheias, setDivsCheias] = useState(null); // divisões que têm exercício (null = ainda não sei)
   const [avisos, setAvisos] = useState(demo ? _DEMO_AVISOS : []);
+  // O mês do aluno sai do histórico que já está na mão — nenhuma ida a mais ao
+  // servidor. Volta null quando o mês não tem treino que valha uma imagem.
+  // Fica aqui em cima, junto dos outros hooks: mais abaixo já existem returns
+  // condicionais, e hook depois de return quebra a tela na volta.
+  const resumoMes = React.useMemo(() => resumoDoMes(hist, divs), [hist, divs]);
   const naoLidos = avisos.filter(a => !a.lido).length;
   const computeStats = hi => {
     const dias = [...new Set((hi || []).map(h => h.data_treino))].sort();
@@ -28610,7 +29177,7 @@ function StudentApp({
     if (demo || !stu) return;
     const {
       data: hi
-    } = await lerCopia('hist-' + stu.id, sb.from('train_historico').select('exercicio_id,carga,data_treino,tipo_serie,is_pr,divisao_id').eq('student_id', stu.id));
+    } = await lerCopia('hist-' + stu.id, sb.from('train_historico').select(COLUNAS_HIST).eq('student_id', stu.id));
     const b = {};
     (hi || []).forEach(h => {
       if (h.tipo_serie === 'Valida' && h.exercicio_id && (b[h.exercicio_id] == null || h.carga > b[h.exercicio_id])) b[h.exercicio_id] = h.carga;
@@ -28625,6 +29192,7 @@ function StudentApp({
       done: days.size
     }));
     setStats(computeStats(hi));
+    setHist(hi || []);
     setUltimaDiv(divisaoMaisRecente(hi));
     loadAvisos(stu.id);
   };
@@ -28644,7 +29212,7 @@ function StudentApp({
     }).catch(() => setDivs([]));
     // histórico: alimenta recordes, frequência, sequência e o rodízio. Entra
     // pela cópia primeiro — nenhuma dessas coisas precisa travar a abertura.
-    lerJa('hist-' + s.id, sb.from('train_historico').select('exercicio_id,carga,data_treino,tipo_serie,is_pr,divisao_id').eq('student_id', s.id), hi => {
+    lerJa('hist-' + s.id, sb.from('train_historico').select(COLUNAS_HIST).eq('student_id', s.id), hi => {
       const b = {};
       (hi || []).forEach(h => {
         if (h.tipo_serie === 'Valida' && h.exercicio_id && (b[h.exercicio_id] == null || h.carga > b[h.exercicio_id])) b[h.exercicio_id] = h.carga;
@@ -28659,6 +29227,7 @@ function StudentApp({
         done: days.size
       }));
       setStats(computeStats(hi));
+      setHist(hi || []);
       setUltimaDiv(divisaoMaisRecente(hi));
     }).catch(() => {});
     loadAvisos(s.id);
@@ -29085,102 +29654,11 @@ function StudentApp({
   }, nm)), stats.streak > 0 && /*#__PURE__*/React.createElement("span", {
     className: "lv-streak"
   }, /*#__PURE__*/React.createElement(Chama, null), " ", stats.streak, " ", stats.streak === 1 ? 'dia' : 'dias'));
-  const homeTab = /*#__PURE__*/React.createElement("div", {
-    className: "lv-wrap"
-  }, header, !espiando && /*#__PURE__*/React.createElement(ConviteInstalar, {
-    lv: true,
-    fechavel: true,
-    chave: "aluno"
-  }), !espiando && !demo && stu && pushChecado && !pushOn && !convAvisoOff && !conviteInstalarVisivel('aluno') && /*#__PURE__*/React.createElement("div", {
-    className: "lv-card",
-    style: {
-      marginBottom: 14,
-      borderColor: 'var(--lvsel)'
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontWeight: 700,
-      marginBottom: 4
-    }
-  }, "Ligar os avisos no celular"), /*#__PURE__*/React.createElement("div", {
-    className: "lv-sub",
-    style: {
-      lineHeight: 1.55
-    }
-  }, "Assim voc\xEA fica sabendo na hora quando seu treinador mandar um recado ou trocar sua ficha \u2014 e pode receber o lembrete do treino no dia em que ainda n\xE3o treinou."), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      gap: 9,
-      marginTop: 13,
-      flexWrap: 'wrap'
-    }
-  }, /*#__PURE__*/React.createElement("button", {
-    className: "lv-btn",
-    style: {
-      flex: 1,
-      minWidth: 150
-    },
-    disabled: pushBusy,
-    onClick: togglePush
-  }, pushBusy ? 'Ligando…' : 'Ligar avisos'), /*#__PURE__*/React.createElement("button", {
-    className: "lv-btn",
-    style: {
-      background: 'var(--lvc2)',
-      color: 'var(--lvt2)',
-      minWidth: 110
-    },
-    onClick: () => {
-      setConvAvisoOff(true);
-      try {
-        localStorage.setItem('mfp-conv-aviso', 'off');
-      } catch (e) {}
-    }
-  }, "Agora n\xE3o")), pushMsg && /*#__PURE__*/React.createElement("div", {
-    className: "lv-sub",
-    style: {
-      color: '#fca5a5',
-      marginTop: 11
-    }
-  }, pushMsg)), /*#__PURE__*/React.createElement(AneisDoDia, {
-    stu: stu,
-    profile: profile,
-    demo: demo,
-    onTreino: () => proxDiv && setExec(proxDiv),
-    onDieta: () => goTab('dieta'),
-    onAgua: () => setHydra(true),
-    onCheckin: () => setChk(true)
-  }), /*#__PURE__*/React.createElement(PeriodizacaoAluno, {
-    demo: demo
-  }), /*#__PURE__*/React.createElement(EvolucaoAluno, {
-    stu: stu,
-    demo: demo,
-    onVer: () => setEvol(true)
-  }), /*#__PURE__*/React.createElement(PesoStatus, {
-    demo: demo
-  }), /*#__PURE__*/React.createElement("div", {
-    className: "lv-motiv"
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 13.5,
-      fontWeight: 600,
-      fontStyle: 'italic',
-      color: 'var(--lvt)'
-    }
-  }, frase)), /*#__PURE__*/React.createElement("div", {
-    className: "lv-stats"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "lv-stat"
-  }, /*#__PURE__*/React.createElement("b", null, /*#__PURE__*/React.createElement(Conta, {
-    valor: stats.total
-  })), /*#__PURE__*/React.createElement("span", null, rotuloN(stats.total, 'Treino'))), /*#__PURE__*/React.createElement("div", {
-    className: "lv-stat"
-  }, /*#__PURE__*/React.createElement("b", null, /*#__PURE__*/React.createElement(Conta, {
-    valor: stats.prs
-  })), /*#__PURE__*/React.createElement("span", null, rotuloN(stats.prs, 'Recorde'))), /*#__PURE__*/React.createElement("div", {
-    className: "lv-stat"
-  }, /*#__PURE__*/React.createElement("b", null, /*#__PURE__*/React.createElement(Conta, {
-    valor: stats.mes
-  })), /*#__PURE__*/React.createElement("span", null, "Este m\xEAs"))), list.length === 0 ? /*#__PURE__*/React.createElement("div", {
+
+  /* O treino é o motivo de o aluno abrir o app. Ficava em quarto lugar, embaixo
+     dos anéis do dia e do bloco de avaliação física: para começar a treinar ele
+     rolava a tela passando pelo próprio percentual de gordura. Agora vem primeiro. */
+  const blocoTreino = list.length === 0 ? /*#__PURE__*/React.createElement("div", {
     className: "lv-card",
     style: {
       textAlign: 'center',
@@ -29271,7 +29749,103 @@ function StudentApp({
         color: 'var(--lvt3)'
       }
     }, "\u203A"))));
-  })(), /*#__PURE__*/React.createElement(TreineiFora, {
+  })();
+  const homeTab = /*#__PURE__*/React.createElement("div", {
+    className: "lv-wrap"
+  }, header, !espiando && /*#__PURE__*/React.createElement(ConviteInstalar, {
+    lv: true,
+    fechavel: true,
+    chave: "aluno"
+  }), !espiando && !demo && stu && pushChecado && !pushOn && !convAvisoOff && !conviteInstalarVisivel('aluno') && /*#__PURE__*/React.createElement("div", {
+    className: "lv-card",
+    style: {
+      marginBottom: 14,
+      borderColor: 'var(--lvsel)'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 700,
+      marginBottom: 4
+    }
+  }, "Ligar os avisos no celular"), /*#__PURE__*/React.createElement("div", {
+    className: "lv-sub",
+    style: {
+      lineHeight: 1.55
+    }
+  }, "Assim voc\xEA fica sabendo na hora quando seu treinador mandar um recado ou trocar sua ficha \u2014 e pode receber o lembrete do treino no dia em que ainda n\xE3o treinou."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 9,
+      marginTop: 13,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "lv-btn",
+    style: {
+      flex: 1,
+      minWidth: 150
+    },
+    disabled: pushBusy,
+    onClick: togglePush
+  }, pushBusy ? 'Ligando…' : 'Ligar avisos'), /*#__PURE__*/React.createElement("button", {
+    className: "lv-btn",
+    style: {
+      background: 'var(--lvc2)',
+      color: 'var(--lvt2)',
+      minWidth: 110
+    },
+    onClick: () => {
+      setConvAvisoOff(true);
+      try {
+        localStorage.setItem('mfp-conv-aviso', 'off');
+      } catch (e) {}
+    }
+  }, "Agora n\xE3o")), pushMsg && /*#__PURE__*/React.createElement("div", {
+    className: "lv-sub",
+    style: {
+      color: '#fca5a5',
+      marginTop: 11
+    }
+  }, pushMsg)), blocoTreino, /*#__PURE__*/React.createElement(AneisDoDia, {
+    stu: stu,
+    profile: profile,
+    demo: demo,
+    onTreino: () => proxDiv && setExec(proxDiv),
+    onDieta: () => goTab('dieta'),
+    onAgua: () => setHydra(true),
+    onCheckin: () => setChk(true)
+  }), /*#__PURE__*/React.createElement(PeriodizacaoAluno, {
+    demo: demo
+  }), /*#__PURE__*/React.createElement(EvolucaoAluno, {
+    stu: stu,
+    demo: demo,
+    onVer: () => setEvol(true)
+  }), /*#__PURE__*/React.createElement(PesoStatus, {
+    demo: demo
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "lv-motiv"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13.5,
+      fontWeight: 600,
+      fontStyle: 'italic',
+      color: 'var(--lvt)'
+    }
+  }, frase)), /*#__PURE__*/React.createElement("div", {
+    className: "lv-stats"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "lv-stat"
+  }, /*#__PURE__*/React.createElement("b", null, /*#__PURE__*/React.createElement(Conta, {
+    valor: stats.total
+  })), /*#__PURE__*/React.createElement("span", null, rotuloN(stats.total, 'Treino'))), /*#__PURE__*/React.createElement("div", {
+    className: "lv-stat"
+  }, /*#__PURE__*/React.createElement("b", null, /*#__PURE__*/React.createElement(Conta, {
+    valor: stats.prs
+  })), /*#__PURE__*/React.createElement("span", null, rotuloN(stats.prs, 'Recorde'))), /*#__PURE__*/React.createElement("div", {
+    className: "lv-stat"
+  }, /*#__PURE__*/React.createElement("b", null, /*#__PURE__*/React.createElement(Conta, {
+    valor: stats.mes
+  })), /*#__PURE__*/React.createElement("span", null, "Este m\xEAs"))), /*#__PURE__*/React.createElement(TreineiFora, {
     stu: stu,
     demo: demo,
     somenteLeitura: espiando,
@@ -29610,7 +30184,37 @@ function StudentApp({
       lineHeight: 1.5,
       color: 'var(--lvt3)'
     }
-  }, "Somando carga vezes repeti\xE7\xF5es de tudo que voc\xEA registrou.")), /*#__PURE__*/React.createElement("div", {
+  }, "Somando carga vezes repeti\xE7\xF5es de tudo que voc\xEA registrou.")), resumoMes && /*#__PURE__*/React.createElement("div", {
+    className: "lv-card",
+    style: {
+      marginBottom: 12
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "lv-kick"
+  }, "Retrospectiva"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 26,
+      fontWeight: 900,
+      lineHeight: 1.2,
+      marginTop: 4
+    }
+  }, resumoMes.mes, resumoMes.emCurso ? ', até aqui' : ''), /*#__PURE__*/React.createElement("div", {
+    className: "lv-sub",
+    style: {
+      marginTop: 6,
+      lineHeight: 1.5
+    }
+  }, plural(resumoMes.treinos, 'treino'), " \xB7 ", fmtTon(resumoMes.ton), resumoMes.prs > 0 ? ' · ' + plural(resumoMes.prs, 'recorde') : ''), !espiando && /*#__PURE__*/React.createElement("button", {
+    className: "lv-btn neon",
+    style: {
+      marginTop: 12
+    },
+    onClick: () => setRetro(true)
+  }, "Ver minha retrospectiva")), retro && resumoMes && /*#__PURE__*/React.createElement(CardRetro, {
+    stu: stu,
+    resumo: resumoMes,
+    onFechar: () => setRetro(false)
+  }), /*#__PURE__*/React.createElement("div", {
     className: "lv-treino",
     style: {
       marginBottom: 12
