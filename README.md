@@ -145,6 +145,28 @@ Detalhes que decidem se ela presta:
   sequência é 1 — que não é sequência nenhuma — mostra as séries do mês.
 - Tudo sai do histórico que a tela já carregou: nenhuma ida a mais ao servidor.
 
+## O que cada tela põe em primeiro lugar
+Duas telas foram reordenadas pelo que a pessoa vai fazer nelas, não pelo que é
+bonito mostrar.
+
+**Início do aluno.** O treino ficava em quarto lugar, embaixo do banner de
+instalação, dos anéis do dia e do bloco de avaliação física: para começar a
+treinar ele rolava a tela passando pelo próprio percentual de gordura. Agora o
+cartão do treino vem primeiro e o botão de começar cabe na primeira tela do
+celular, sem rolagem — e existe teste que mede isso em pixel.
+
+**Ficha do aluno, no celular do treinador.** Três coisas mudaram:
+
+- o número de exercícios de cada divisão aparece **sem precisar abrir** (vem
+  numa consulta só, junto com as divisões), e divisão vazia é dita com todas as
+  letras — é a que o aluno abre e não acha nada;
+- o formulário de nova divisão saiu do topo e virou botão: criar divisão é
+  eventual, ver as que existem é o tempo todo;
+- o `×` de apagar saiu de perto do nome, onde era maior que o "abrir" e o dedo
+  errava. Agora mora dentro da divisão aberta, e o aviso diz o nome da divisão,
+  o aluno, quantos exercícios vão junto e que não tem desfazer. Uma ficha já se
+  perdeu com um "tem certeza?" genérico.
+
 ## Copiar a ficha de um aluno para outro
 Dar ao aluno novo a mesma ficha de outro custava três passos: salvar como
 modelo, abrir fichas prontas, aplicar. Agora é um botão na tela de treino, ao

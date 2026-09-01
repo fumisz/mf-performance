@@ -36,7 +36,7 @@ if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABAS
    .catch. Chamar .catch direto estoura TypeError, e dentro de um useEffect isso
    derruba a tela inteira do aluno. */
 const semEsperar=q=>{try{q.then(()=>{},()=>{});}catch(e){}};
-const APP_VERSION='2026.09.25';   // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION='2026.09.26';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
 
@@ -5789,8 +5789,10 @@ function TrainScreen({coach,students,preStudent,onBack}){
   const [lib,setLib]=useState([]);
   const [divs,setDivs]=useState(null);
   const [series,setSeries]=useState({});   // divisaoId -> [serie]
+  const [quantos,setQuantos]=useState({}); // divisaoId -> nº de exercícios, sem abrir
   const [openId,setOpenId]=useState(null);
   const [nd,setNd]=useState('');
+  const [novaDiv,setNovaDiv]=useState(false);
   const [msg,setMsg]=useState(null);
   const blankEx={nome:'',grupo:'Todos',tipo_serie:'Valida',qtd_series:3,faixa_reps:'8-12',intervalo_seg_min:60};
   const [verEx,setVerEx]=useState(null);
@@ -5808,9 +5810,20 @@ function TrainScreen({coach,students,preStudent,onBack}){
       sb.from('train_exercicios').select('*').order('grupo_muscular').order('nome'));
     setLib([...(data||[])].sort((a,b)=>(a.nome||'').localeCompare(b.nome||'')));
   })();},[]);
-  const loadDivs=async s=>{if(demo){setDivs([]);return;}
+  const loadDivs=async s=>{if(demo){setDivs([]);setQuantos({});return;}
     const {data,error}=await lerCopia('divs-'+s.id,sb.from('train_divisao').select('*').eq('student_id',s.id).order('ordem'));
-    if(error){setMsg({t:'err',m:'Erro: '+error.message});setDivs([]);return;}setDivs(data||[]);};
+    if(error){setMsg({t:'err',m:'Erro: '+error.message});setDivs([]);return;}setDivs(data||[]);
+    // Quantos exercícios cada divisão tem, ANTES de abrir. Antes disso o
+    // treinador tinha de abrir uma por uma só para descobrir onde mexer — e a
+    // divisão vazia, que é a que o aluno abre e não acha nada, não aparecia.
+    if((data||[]).length){
+      const {data:pres}=await lerCopia('pres-conta-'+s.id,
+        sb.from('train_serie_prescrita').select('divisao_id').in('divisao_id',data.map(d=>d.id)));
+      const c={};(data||[]).forEach(d=>{c[d.id]=0;});
+      (pres||[]).forEach(p=>{c[p.divisao_id]=(c[p.divisao_id]||0)+1;});
+      setQuantos(c);
+    }else setQuantos({});
+  };
   useEffect(()=>{if(stu)loadDivs(stu);else setDivs(null);},[stu&&stu.id]);
   const loadSeries=async id=>{if(demo)return;
     const {data}=await lerCopia('series-'+id,sb.from('train_serie_prescrita').select('*').eq('divisao_id',id).order('ordem'));
@@ -5820,13 +5833,26 @@ function TrainScreen({coach,students,preStudent,onBack}){
   const addDiv=async()=>{
     const nome=(nd||'').trim();if(!nome){return;}
     const ordem=(divs||[]).length;
-    if(demo){const row={id:'d'+Date.now(),student_id:stu.id,nome,ordem};setDivs(p=>[...p,row]);setNd('');setSeries(p=>({...p,[row.id]:[]}));setOpenId(row.id);return;}
+    if(demo){const row={id:'d'+Date.now(),student_id:stu.id,nome,ordem};setDivs(p=>[...p,row]);setNd('');
+      setSeries(p=>({...p,[row.id]:[]}));setQuantos(p=>({...p,[row.id]:0}));setOpenId(row.id);setNovaDiv(false);return;}
     const {data,error}=await sb.from('train_divisao').insert({coach_id:coach.id,student_id:stu.id,nome,ordem}).select().single();
     if(error){setMsg({t:'err',m:'Erro: '+error.message});return;}
-    setDivs(p=>[...p,data]);setNd('');setSeries(p=>({...p,[data.id]:[]}));setOpenId(data.id);
+    setDivs(p=>[...p,data]);setNd('');setSeries(p=>({...p,[data.id]:[]}));
+    setQuantos(p=>({...p,[data.id]:0}));setOpenId(data.id);setNovaDiv(false);
   };
-  const delDiv=async id=>{if(!confirm('Excluir esta divisão e seus exercícios?'))return;
-    setDivs(p=>p.filter(d=>d.id!==id));if(!demo)await sb.from('train_divisao').delete().eq('id',id);};
+  // Apagar divisão não tem desfazer, e uma ficha já se perdeu assim. O aviso
+  // diz o NOME e quantos exercícios vão junto: um "tem certeza?" genérico é
+  // exatamente o que se aceita no automático.
+  const delDiv=async id=>{
+    const dv=(divs||[]).find(d=>d.id===id);
+    const n=(series[id]||[]).length||quantos[id]||0;
+    const nome=(dv&&dv.nome)||'esta divisão';
+    if(!confirm('Excluir '+nome+' da ficha de '+stu.name.split(' ')[0]+'?'
+      +(n?'\n\nOs '+plural(n,'exercício')+' dela vão junto.':'')
+      +'\n\nIsso não tem como desfazer.'))return;
+    setDivs(p=>p.filter(d=>d.id!==id));
+    setQuantos(p=>{const c={...p};delete c[id];return c;});
+    if(!demo)await sb.from('train_divisao').delete().eq('id',id);};
   const addEx=async divId=>{
     const nome=(ex.nome||'').trim();if(!nome){return;}
     const cur=series[divId]||[];const ordem=cur.length;
@@ -5979,26 +6005,24 @@ function TrainScreen({coach,students,preStudent,onBack}){
       {(divs||[]).length>0&&<button className="btn btn-ghost btn-sm" disabled={busyMod} onClick={salvarComoModelo}>Salvar como modelo</button>}
     </div>
 
-    <div className="dash-panel" style={{marginBottom:16}}>
-      <h4>Nova divisão</h4>
-      <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>
-        <input className="fi" style={{flex:1,minWidth:180}} placeholder="Ex.: A — Membros inferiores" value={nd} onChange={e=>setNd(e.target.value)}/>
-        <button className="btn btn-primary" onClick={addDiv}>Adicionar divisão</button>
-      </div>
-    </div>
-
     {divs===null?<div className="center-screen"><div className="spinner"/></div>:
-     divs.length===0?<div className="empty"><div className="empty-title">Nenhuma divisão ainda</div><p className="s-meta">Use uma ficha pronta acima — ou crie a divisão A do zero.</p></div>:
+     divs.length===0?<div className="empty"><div className="empty-title">Nenhuma divisão ainda</div><p className="s-meta">O caminho curto é “Usar ficha pronta” ou “Copiar de outro aluno”, aí é só ajustar. Do zero, use “+ Nova divisão” logo abaixo.</p></div>:
      divs.map(dv=>{const ss=series[dv.id]||[];const open=openId===dv.id;
+      // quantos exercícios tem dentro: da lista já aberta, senão da contagem
+      // que veio junto com as divisões
+      const n=series[dv.id]?ss.length:quantos[dv.id];
       return(<div key={dv.id} className="dash-panel" style={{marginBottom:12}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,cursor:'pointer'}} onClick={()=>toggleDiv(dv.id)}>
-          <h4 style={{margin:0}}>{dv.nome||'Divisão'}</h4>
-          <div style={{display:'flex',alignItems:'center',gap:10}}>
-            {(dv.dias_semana||[]).length>0&&<span className="info-pill" style={{margin:0}}>{listaDias(dv.dias_semana)}</span>}
-            <span className="s-meta">{series[dv.id]?ss.length+' exercício'+(ss.length!==1?'s':''):'abrir'}</span>
-            <button className="btn-icon btn-sm" onClick={e=>{e.stopPropagation();delDiv(dv.id);}}>×</button>
-            <span style={{color:'var(--text3)'}}>{open?'▾':'▸'}</span>
+          <div style={{minWidth:0}}>
+            <h4 style={{margin:0}}>{dv.nome||'Divisão'}</h4>
+            <div className="s-meta" style={{margin:'3px 0 0'}}>
+              {n==null?'toque para abrir'
+                :n===0?'sem exercício — o aluno abre e não acha nada'
+                :plural(n,'exercício')}
+              {(dv.dias_semana||[]).length>0&&' · '+listaDias(dv.dias_semana)}
+            </div>
           </div>
+          <span style={{color:'var(--text3)',fontSize:18,flexShrink:0}}>{open?'▾':'▸'}</span>
         </div>
         {open&&<div style={{marginTop:12}}>
           <div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap',marginBottom:12}}>
@@ -6065,8 +6089,30 @@ function TrainScreen({coach,students,preStudent,onBack}){
               <div style={{flexBasis:'100%',maxWidth:300}}>
                 <ExDemo url={exSelecionado.video_url} path={exSelecionado.video_path} name={exSelecionado.nome} dicas={exSelecionado.dicas}/></div>}
           </div>
+          {/* Excluir a divisão mora aqui dentro, e não ao lado do nome: lá ele
+              ficava maior que o "abrir" e era o alvo fácil do dedo. */}
+          <div style={{marginTop:14,textAlign:'right'}}>
+            <button className="btn btn-ghost btn-sm" style={{color:'var(--danger,#b3261e)'}}
+              onClick={()=>delDiv(dv.id)}>Excluir esta divisão</button>
+          </div>
         </div>}
       </div>);})}
+
+    {/* Criar divisão é o que ele faz de vez em quando; ver as que existem é o
+        que ele faz sempre. Por isso o formulário desceu e virou botão. */}
+    {divs!==null&&(novaDiv
+      ? <div className="dash-panel" style={{marginBottom:16}}>
+          <h4>Nova divisão</h4>
+          <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>
+            <input className="fi" style={{flex:1,minWidth:180}} autoFocus placeholder="Ex.: A — Membros inferiores"
+              value={nd} onChange={e=>setNd(e.target.value)}
+              onKeyDown={e=>{if(e.key==='Enter')addDiv();}}/>
+            <button className="btn btn-primary" onClick={addDiv}>Adicionar</button>
+            <button className="btn btn-ghost" onClick={()=>{setNovaDiv(false);setNd('');}}>Cancelar</button>
+          </div>
+        </div>
+      : <button className="btn btn-ghost btn-sm" style={{marginBottom:16}} onClick={()=>setNovaDiv(true)}>
+          + Nova divisão</button>)}
     {showMod&&<FichaModeloPicker busy={busyMod} onUsar={aplicarModelo} onClose={()=>setShowMod(false)}/>}
     {showCopia&&<CopiarDeAlunoPicker alvo={stu} busy={busyMod} onUsar={copiarDeAluno} onClose={()=>setShowCopia(false)}/>}
   </div>);
@@ -10260,6 +10306,37 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
     {stats.streak>0&&<span className="lv-streak"><Chama/> {stats.streak} {stats.streak===1?'dia':'dias'}</span>}
   </div>);
 
+  /* O treino é o motivo de o aluno abrir o app. Ficava em quarto lugar, embaixo
+     dos anéis do dia e do bloco de avaliação física: para começar a treinar ele
+     rolava a tela passando pelo próprio percentual de gordura. Agora vem primeiro. */
+  const blocoTreino=list.length===0?<div className="lv-card" style={{textAlign:'center',color:'var(--lvt2)'}}>Seu treinador ainda não montou sua ficha de treino.</div>:(()=>{
+    // Sugere a PRÓXIMA do rodízio, não sempre a primeira: quem fechou o A
+    // ontem tem que abrir o app vendo o B.
+    const prox=proxDiv,feita=divFeita;
+    const resto=list.filter(d=>d.id!==prox.id);
+    return(<>
+    <div className="lv-card lv-hero">
+      <div className="lv-kick" style={{color:'#e9d5ff'}}>{proxEhDoDia?'Seu treino de hoje':'Próximo treino'}</div>
+      <div style={{fontSize:20,fontWeight:900,margin:'4px 0 4px'}}>{(prox.nome||'Treino').toUpperCase()}</div>
+      {proxEhDoDia
+        ? <div style={{fontSize:12,color:'#e9d5ff',marginBottom:10,opacity:.85}}>marcado para hoje na sua ficha</div>
+        : feita&&list.length>1
+          ? <div style={{fontSize:12,color:'#e9d5ff',marginBottom:10,opacity:.85}}>o último foi {feita.nome||'o anterior'}</div>
+          : <div style={{height:8}}/>}
+      <button className="lv-btn light" onClick={()=>setExec(prox)}>▶ Iniciar treino</button>
+      <button className="lv-ghost" style={{marginTop:9,width:'100%',background:'rgba(255,255,255,.12)',color:'#fff',border:'none'}}
+        onClick={()=>setEspiar(prox)}>Ver os exercícios antes</button>
+    </div>
+    {resto.length>0&&<div className="lv-kick" style={{margin:'8px 0 8px'}}>Outros treinos</div>}
+    {resto.map(dv=><div key={dv.id} className="lv-treino" style={{marginBottom:10}} onClick={()=>setEspiar(dv)}>
+      <span style={{width:3,height:30,borderRadius:2,background:'var(--lvrx)',flexShrink:0}}/>
+      <div style={{flex:1}}><div style={{fontWeight:700}}>{dv.nome||'Divisão'}</div>
+        <div className="lv-sub">{(dv.dias_semana||[]).length?listaDias(dv.dias_semana)
+          :feita&&dv.id===feita.id?'foi o último que você fez':'Toque para ver'}</div></div>
+      <span style={{color:'var(--lvt3)'}}>›</span>
+    </div>)}
+  </>);})();
+
   const homeTab=(<div className="lv-wrap">
     {header}
     {!espiando&&<ConviteInstalar lv fechavel chave="aluno"/>}
@@ -10279,6 +10356,7 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
         </div>
         {pushMsg&&<div className="lv-sub" style={{color:'#fca5a5',marginTop:11}}>{pushMsg}</div>}
       </div>)}
+    {blocoTreino}
     <AneisDoDia stu={stu} profile={profile} demo={demo}
       onTreino={()=>proxDiv&&setExec(proxDiv)} onDieta={()=>goTab('dieta')}
       onAgua={()=>setHydra(true)} onCheckin={()=>setChk(true)}/>
@@ -10291,33 +10369,6 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
       <div className="lv-stat"><b><Conta valor={stats.prs}/></b><span>{rotuloN(stats.prs,'Recorde')}</span></div>
       <div className="lv-stat"><b><Conta valor={stats.mes}/></b><span>Este mês</span></div>
     </div>
-    {list.length===0?<div className="lv-card" style={{textAlign:'center',color:'var(--lvt2)'}}>Seu treinador ainda não montou sua ficha de treino.</div>:(()=>{
-      // Sugere a PRÓXIMA do rodízio, não sempre a primeira: quem fechou o A
-      // ontem tem que abrir o app vendo o B.
-      const prox=proxDiv,feita=divFeita;
-      const resto=list.filter(d=>d.id!==prox.id);
-      return(<>
-      <div className="lv-card lv-hero">
-        <div className="lv-kick" style={{color:'#e9d5ff'}}>{proxEhDoDia?'Seu treino de hoje':'Próximo treino'}</div>
-        <div style={{fontSize:20,fontWeight:900,margin:'4px 0 4px'}}>{(prox.nome||'Treino').toUpperCase()}</div>
-        {proxEhDoDia
-          ? <div style={{fontSize:12,color:'#e9d5ff',marginBottom:10,opacity:.85}}>marcado para hoje na sua ficha</div>
-          : feita&&list.length>1
-            ? <div style={{fontSize:12,color:'#e9d5ff',marginBottom:10,opacity:.85}}>o último foi {feita.nome||'o anterior'}</div>
-            : <div style={{height:8}}/>}
-        <button className="lv-btn light" onClick={()=>setExec(prox)}>▶ Iniciar treino</button>
-        <button className="lv-ghost" style={{marginTop:9,width:'100%',background:'rgba(255,255,255,.12)',color:'#fff',border:'none'}}
-          onClick={()=>setEspiar(prox)}>Ver os exercícios antes</button>
-      </div>
-      {resto.length>0&&<div className="lv-kick" style={{margin:'8px 0 8px'}}>Outros treinos</div>}
-      {resto.map(dv=><div key={dv.id} className="lv-treino" style={{marginBottom:10}} onClick={()=>setEspiar(dv)}>
-        <span style={{width:3,height:30,borderRadius:2,background:'var(--lvrx)',flexShrink:0}}/>
-        <div style={{flex:1}}><div style={{fontWeight:700}}>{dv.nome||'Divisão'}</div>
-          <div className="lv-sub">{(dv.dias_semana||[]).length?listaDias(dv.dias_semana)
-            :feita&&dv.id===feita.id?'foi o último que você fez':'Toque para ver'}</div></div>
-        <span style={{color:'var(--lvt3)'}}>›</span>
-      </div>)}
-    </>);})()}
     <TreineiFora stu={stu} demo={demo} somenteLeitura={espiando} onPronto={refresh}/>
     <div className="lv-card" onClick={()=>setMetas(true)} style={{cursor:'pointer',background:'var(--bg3)',border:'1px solid var(--lvbd)'}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}><div className="lv-kick">Minhas metas & desafios</div><span style={{color:'var(--lvt3)'}}>›</span></div>

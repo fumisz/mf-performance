@@ -71,7 +71,7 @@ const semEsperar = q => {
     q.then(() => {}, () => {});
   } catch (e) {}
 };
-const APP_VERSION = '2026.09.25'; // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION = '2026.09.26'; // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA'); // YYYY-MM-DD no fuso LOCAL
 
@@ -16707,8 +16707,10 @@ function TrainScreen({
   const [lib, setLib] = useState([]);
   const [divs, setDivs] = useState(null);
   const [series, setSeries] = useState({}); // divisaoId -> [serie]
+  const [quantos, setQuantos] = useState({}); // divisaoId -> nº de exercícios, sem abrir
   const [openId, setOpenId] = useState(null);
   const [nd, setNd] = useState('');
+  const [novaDiv, setNovaDiv] = useState(false);
   const [msg, setMsg] = useState(null);
   const blankEx = {
     nome: '',
@@ -16753,6 +16755,7 @@ function TrainScreen({
   const loadDivs = async s => {
     if (demo) {
       setDivs([]);
+      setQuantos({});
       return;
     }
     const {
@@ -16768,6 +16771,22 @@ function TrainScreen({
       return;
     }
     setDivs(data || []);
+    // Quantos exercícios cada divisão tem, ANTES de abrir. Antes disso o
+    // treinador tinha de abrir uma por uma só para descobrir onde mexer — e a
+    // divisão vazia, que é a que o aluno abre e não acha nada, não aparecia.
+    if ((data || []).length) {
+      const {
+        data: pres
+      } = await lerCopia('pres-conta-' + s.id, sb.from('train_serie_prescrita').select('divisao_id').in('divisao_id', data.map(d => d.id)));
+      const c = {};
+      (data || []).forEach(d => {
+        c[d.id] = 0;
+      });
+      (pres || []).forEach(p => {
+        c[p.divisao_id] = (c[p.divisao_id] || 0) + 1;
+      });
+      setQuantos(c);
+    } else setQuantos({});
   };
   useEffect(() => {
     if (stu) loadDivs(stu);else setDivs(null);
@@ -16806,7 +16825,12 @@ function TrainScreen({
         ...p,
         [row.id]: []
       }));
+      setQuantos(p => ({
+        ...p,
+        [row.id]: 0
+      }));
       setOpenId(row.id);
+      setNovaDiv(false);
       return;
     }
     const {
@@ -16831,11 +16855,29 @@ function TrainScreen({
       ...p,
       [data.id]: []
     }));
+    setQuantos(p => ({
+      ...p,
+      [data.id]: 0
+    }));
     setOpenId(data.id);
+    setNovaDiv(false);
   };
+  // Apagar divisão não tem desfazer, e uma ficha já se perdeu assim. O aviso
+  // diz o NOME e quantos exercícios vão junto: um "tem certeza?" genérico é
+  // exatamente o que se aceita no automático.
   const delDiv = async id => {
-    if (!confirm('Excluir esta divisão e seus exercícios?')) return;
+    const dv = (divs || []).find(d => d.id === id);
+    const n = (series[id] || []).length || quantos[id] || 0;
+    const nome = dv && dv.nome || 'esta divisão';
+    if (!confirm('Excluir ' + nome + ' da ficha de ' + stu.name.split(' ')[0] + '?' + (n ? '\n\nOs ' + plural(n, 'exercício') + ' dela vão junto.' : '') + '\n\nIsso não tem como desfazer.')) return;
     setDivs(p => p.filter(d => d.id !== id));
+    setQuantos(p => {
+      const c = {
+        ...p
+      };
+      delete c[id];
+      return c;
+    });
     if (!demo) await sb.from('train_divisao').delete().eq('id', id);
   };
   const addEx = async divId => {
@@ -17234,30 +17276,7 @@ function TrainScreen({
     className: "btn btn-ghost btn-sm",
     disabled: busyMod,
     onClick: salvarComoModelo
-  }, "Salvar como modelo")), /*#__PURE__*/React.createElement("div", {
-    className: "dash-panel",
-    style: {
-      marginBottom: 16
-    }
-  }, /*#__PURE__*/React.createElement("h4", null, "Nova divis\xE3o"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      gap: 10,
-      flexWrap: 'wrap'
-    }
-  }, /*#__PURE__*/React.createElement("input", {
-    className: "fi",
-    style: {
-      flex: 1,
-      minWidth: 180
-    },
-    placeholder: "Ex.: A \u2014 Membros inferiores",
-    value: nd,
-    onChange: e => setNd(e.target.value)
-  }), /*#__PURE__*/React.createElement("button", {
-    className: "btn btn-primary",
-    onClick: addDiv
-  }, "Adicionar divis\xE3o"))), divs === null ? /*#__PURE__*/React.createElement("div", {
+  }, "Salvar como modelo")), divs === null ? /*#__PURE__*/React.createElement("div", {
     className: "center-screen"
   }, /*#__PURE__*/React.createElement("div", {
     className: "spinner"
@@ -17267,9 +17286,12 @@ function TrainScreen({
     className: "empty-title"
   }, "Nenhuma divis\xE3o ainda"), /*#__PURE__*/React.createElement("p", {
     className: "s-meta"
-  }, "Use uma ficha pronta acima \u2014 ou crie a divis\xE3o A do zero.")) : divs.map(dv => {
+  }, "O caminho curto \xE9 \u201CUsar ficha pronta\u201D ou \u201CCopiar de outro aluno\u201D, a\xED \xE9 s\xF3 ajustar. Do zero, use \u201C+ Nova divis\xE3o\u201D logo abaixo.")) : divs.map(dv => {
     const ss = series[dv.id] || [];
     const open = openId === dv.id;
+    // quantos exercícios tem dentro: da lista já aberta, senão da contagem
+    // que veio junto com as divisões
+    const n = series[dv.id] ? ss.length : quantos[dv.id];
     return /*#__PURE__*/React.createElement("div", {
       key: dv.id,
       className: "dash-panel",
@@ -17285,34 +17307,26 @@ function TrainScreen({
         cursor: 'pointer'
       },
       onClick: () => toggleDiv(dv.id)
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        minWidth: 0
+      }
     }, /*#__PURE__*/React.createElement("h4", {
       style: {
         margin: 0
       }
     }, dv.nome || 'Divisão'), /*#__PURE__*/React.createElement("div", {
+      className: "s-meta",
       style: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10
+        margin: '3px 0 0'
       }
-    }, (dv.dias_semana || []).length > 0 && /*#__PURE__*/React.createElement("span", {
-      className: "info-pill",
+    }, n == null ? 'toque para abrir' : n === 0 ? 'sem exercício — o aluno abre e não acha nada' : plural(n, 'exercício'), (dv.dias_semana || []).length > 0 && ' · ' + listaDias(dv.dias_semana))), /*#__PURE__*/React.createElement("span", {
       style: {
-        margin: 0
+        color: 'var(--text3)',
+        fontSize: 18,
+        flexShrink: 0
       }
-    }, listaDias(dv.dias_semana)), /*#__PURE__*/React.createElement("span", {
-      className: "s-meta"
-    }, series[dv.id] ? ss.length + ' exercício' + (ss.length !== 1 ? 's' : '') : 'abrir'), /*#__PURE__*/React.createElement("button", {
-      className: "btn-icon btn-sm",
-      onClick: e => {
-        e.stopPropagation();
-        delDiv(dv.id);
-      }
-    }, "\xD7"), /*#__PURE__*/React.createElement("span", {
-      style: {
-        color: 'var(--text3)'
-      }
-    }, open ? '▾' : '▸'))), open && /*#__PURE__*/React.createElement("div", {
+    }, open ? '▾' : '▸')), open && /*#__PURE__*/React.createElement("div", {
       style: {
         marginTop: 12
       }
@@ -17639,8 +17653,58 @@ function TrainScreen({
       path: exSelecionado.video_path,
       name: exSelecionado.nome,
       dicas: exSelecionado.dicas
-    })))));
-  }), showMod && /*#__PURE__*/React.createElement(FichaModeloPicker, {
+    }))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        marginTop: 14,
+        textAlign: 'right'
+      }
+    }, /*#__PURE__*/React.createElement("button", {
+      className: "btn btn-ghost btn-sm",
+      style: {
+        color: 'var(--danger,#b3261e)'
+      },
+      onClick: () => delDiv(dv.id)
+    }, "Excluir esta divis\xE3o"))));
+  }), divs !== null && (novaDiv ? /*#__PURE__*/React.createElement("div", {
+    className: "dash-panel",
+    style: {
+      marginBottom: 16
+    }
+  }, /*#__PURE__*/React.createElement("h4", null, "Nova divis\xE3o"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 10,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    className: "fi",
+    style: {
+      flex: 1,
+      minWidth: 180
+    },
+    autoFocus: true,
+    placeholder: "Ex.: A \u2014 Membros inferiores",
+    value: nd,
+    onChange: e => setNd(e.target.value),
+    onKeyDown: e => {
+      if (e.key === 'Enter') addDiv();
+    }
+  }), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-primary",
+    onClick: addDiv
+  }, "Adicionar"), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-ghost",
+    onClick: () => {
+      setNovaDiv(false);
+      setNd('');
+    }
+  }, "Cancelar"))) : /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-ghost btn-sm",
+    style: {
+      marginBottom: 16
+    },
+    onClick: () => setNovaDiv(true)
+  }, "+ Nova divis\xE3o")), showMod && /*#__PURE__*/React.createElement(FichaModeloPicker, {
     busy: busyMod,
     onUsar: aplicarModelo,
     onClose: () => setShowMod(false)
@@ -29590,102 +29654,11 @@ function StudentApp({
   }, nm)), stats.streak > 0 && /*#__PURE__*/React.createElement("span", {
     className: "lv-streak"
   }, /*#__PURE__*/React.createElement(Chama, null), " ", stats.streak, " ", stats.streak === 1 ? 'dia' : 'dias'));
-  const homeTab = /*#__PURE__*/React.createElement("div", {
-    className: "lv-wrap"
-  }, header, !espiando && /*#__PURE__*/React.createElement(ConviteInstalar, {
-    lv: true,
-    fechavel: true,
-    chave: "aluno"
-  }), !espiando && !demo && stu && pushChecado && !pushOn && !convAvisoOff && !conviteInstalarVisivel('aluno') && /*#__PURE__*/React.createElement("div", {
-    className: "lv-card",
-    style: {
-      marginBottom: 14,
-      borderColor: 'var(--lvsel)'
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontWeight: 700,
-      marginBottom: 4
-    }
-  }, "Ligar os avisos no celular"), /*#__PURE__*/React.createElement("div", {
-    className: "lv-sub",
-    style: {
-      lineHeight: 1.55
-    }
-  }, "Assim voc\xEA fica sabendo na hora quando seu treinador mandar um recado ou trocar sua ficha \u2014 e pode receber o lembrete do treino no dia em que ainda n\xE3o treinou."), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      gap: 9,
-      marginTop: 13,
-      flexWrap: 'wrap'
-    }
-  }, /*#__PURE__*/React.createElement("button", {
-    className: "lv-btn",
-    style: {
-      flex: 1,
-      minWidth: 150
-    },
-    disabled: pushBusy,
-    onClick: togglePush
-  }, pushBusy ? 'Ligando…' : 'Ligar avisos'), /*#__PURE__*/React.createElement("button", {
-    className: "lv-btn",
-    style: {
-      background: 'var(--lvc2)',
-      color: 'var(--lvt2)',
-      minWidth: 110
-    },
-    onClick: () => {
-      setConvAvisoOff(true);
-      try {
-        localStorage.setItem('mfp-conv-aviso', 'off');
-      } catch (e) {}
-    }
-  }, "Agora n\xE3o")), pushMsg && /*#__PURE__*/React.createElement("div", {
-    className: "lv-sub",
-    style: {
-      color: '#fca5a5',
-      marginTop: 11
-    }
-  }, pushMsg)), /*#__PURE__*/React.createElement(AneisDoDia, {
-    stu: stu,
-    profile: profile,
-    demo: demo,
-    onTreino: () => proxDiv && setExec(proxDiv),
-    onDieta: () => goTab('dieta'),
-    onAgua: () => setHydra(true),
-    onCheckin: () => setChk(true)
-  }), /*#__PURE__*/React.createElement(PeriodizacaoAluno, {
-    demo: demo
-  }), /*#__PURE__*/React.createElement(EvolucaoAluno, {
-    stu: stu,
-    demo: demo,
-    onVer: () => setEvol(true)
-  }), /*#__PURE__*/React.createElement(PesoStatus, {
-    demo: demo
-  }), /*#__PURE__*/React.createElement("div", {
-    className: "lv-motiv"
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 13.5,
-      fontWeight: 600,
-      fontStyle: 'italic',
-      color: 'var(--lvt)'
-    }
-  }, frase)), /*#__PURE__*/React.createElement("div", {
-    className: "lv-stats"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "lv-stat"
-  }, /*#__PURE__*/React.createElement("b", null, /*#__PURE__*/React.createElement(Conta, {
-    valor: stats.total
-  })), /*#__PURE__*/React.createElement("span", null, rotuloN(stats.total, 'Treino'))), /*#__PURE__*/React.createElement("div", {
-    className: "lv-stat"
-  }, /*#__PURE__*/React.createElement("b", null, /*#__PURE__*/React.createElement(Conta, {
-    valor: stats.prs
-  })), /*#__PURE__*/React.createElement("span", null, rotuloN(stats.prs, 'Recorde'))), /*#__PURE__*/React.createElement("div", {
-    className: "lv-stat"
-  }, /*#__PURE__*/React.createElement("b", null, /*#__PURE__*/React.createElement(Conta, {
-    valor: stats.mes
-  })), /*#__PURE__*/React.createElement("span", null, "Este m\xEAs"))), list.length === 0 ? /*#__PURE__*/React.createElement("div", {
+
+  /* O treino é o motivo de o aluno abrir o app. Ficava em quarto lugar, embaixo
+     dos anéis do dia e do bloco de avaliação física: para começar a treinar ele
+     rolava a tela passando pelo próprio percentual de gordura. Agora vem primeiro. */
+  const blocoTreino = list.length === 0 ? /*#__PURE__*/React.createElement("div", {
     className: "lv-card",
     style: {
       textAlign: 'center',
@@ -29776,7 +29749,103 @@ function StudentApp({
         color: 'var(--lvt3)'
       }
     }, "\u203A"))));
-  })(), /*#__PURE__*/React.createElement(TreineiFora, {
+  })();
+  const homeTab = /*#__PURE__*/React.createElement("div", {
+    className: "lv-wrap"
+  }, header, !espiando && /*#__PURE__*/React.createElement(ConviteInstalar, {
+    lv: true,
+    fechavel: true,
+    chave: "aluno"
+  }), !espiando && !demo && stu && pushChecado && !pushOn && !convAvisoOff && !conviteInstalarVisivel('aluno') && /*#__PURE__*/React.createElement("div", {
+    className: "lv-card",
+    style: {
+      marginBottom: 14,
+      borderColor: 'var(--lvsel)'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 700,
+      marginBottom: 4
+    }
+  }, "Ligar os avisos no celular"), /*#__PURE__*/React.createElement("div", {
+    className: "lv-sub",
+    style: {
+      lineHeight: 1.55
+    }
+  }, "Assim voc\xEA fica sabendo na hora quando seu treinador mandar um recado ou trocar sua ficha \u2014 e pode receber o lembrete do treino no dia em que ainda n\xE3o treinou."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 9,
+      marginTop: 13,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "lv-btn",
+    style: {
+      flex: 1,
+      minWidth: 150
+    },
+    disabled: pushBusy,
+    onClick: togglePush
+  }, pushBusy ? 'Ligando…' : 'Ligar avisos'), /*#__PURE__*/React.createElement("button", {
+    className: "lv-btn",
+    style: {
+      background: 'var(--lvc2)',
+      color: 'var(--lvt2)',
+      minWidth: 110
+    },
+    onClick: () => {
+      setConvAvisoOff(true);
+      try {
+        localStorage.setItem('mfp-conv-aviso', 'off');
+      } catch (e) {}
+    }
+  }, "Agora n\xE3o")), pushMsg && /*#__PURE__*/React.createElement("div", {
+    className: "lv-sub",
+    style: {
+      color: '#fca5a5',
+      marginTop: 11
+    }
+  }, pushMsg)), blocoTreino, /*#__PURE__*/React.createElement(AneisDoDia, {
+    stu: stu,
+    profile: profile,
+    demo: demo,
+    onTreino: () => proxDiv && setExec(proxDiv),
+    onDieta: () => goTab('dieta'),
+    onAgua: () => setHydra(true),
+    onCheckin: () => setChk(true)
+  }), /*#__PURE__*/React.createElement(PeriodizacaoAluno, {
+    demo: demo
+  }), /*#__PURE__*/React.createElement(EvolucaoAluno, {
+    stu: stu,
+    demo: demo,
+    onVer: () => setEvol(true)
+  }), /*#__PURE__*/React.createElement(PesoStatus, {
+    demo: demo
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "lv-motiv"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13.5,
+      fontWeight: 600,
+      fontStyle: 'italic',
+      color: 'var(--lvt)'
+    }
+  }, frase)), /*#__PURE__*/React.createElement("div", {
+    className: "lv-stats"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "lv-stat"
+  }, /*#__PURE__*/React.createElement("b", null, /*#__PURE__*/React.createElement(Conta, {
+    valor: stats.total
+  })), /*#__PURE__*/React.createElement("span", null, rotuloN(stats.total, 'Treino'))), /*#__PURE__*/React.createElement("div", {
+    className: "lv-stat"
+  }, /*#__PURE__*/React.createElement("b", null, /*#__PURE__*/React.createElement(Conta, {
+    valor: stats.prs
+  })), /*#__PURE__*/React.createElement("span", null, rotuloN(stats.prs, 'Recorde'))), /*#__PURE__*/React.createElement("div", {
+    className: "lv-stat"
+  }, /*#__PURE__*/React.createElement("b", null, /*#__PURE__*/React.createElement(Conta, {
+    valor: stats.mes
+  })), /*#__PURE__*/React.createElement("span", null, "Este m\xEAs"))), /*#__PURE__*/React.createElement(TreineiFora, {
     stu: stu,
     demo: demo,
     somenteLeitura: espiando,
