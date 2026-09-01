@@ -550,6 +550,11 @@ textarea.fi{resize:vertical;min-height:70px;line-height:1.5}
 .lv-aviso{display:flex;gap:12px;background:var(--lvc);border:1px solid var(--lvbd);border-radius:16px;padding:14px;margin-bottom:10px;position:relative}
 .lv-aviso.unread{border-color:var(--lvrx);box-shadow:0 0 0 1px rgba(139,92,246,.25)}
 .lv-aviso .ic{width:38px;height:38px;border-radius:11px;background:var(--lvc2);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+/* Conversa: balão de quem escreveu de cada lado */
+.lv-msg{max-width:82%;padding:10px 13px;border-radius:16px;margin-bottom:8px;font-size:13.5px;line-height:1.45;word-break:break-word;white-space:pre-wrap}
+.lv-msg.deles{background:var(--lvc);border:1px solid var(--lvbd);border-bottom-left-radius:5px;margin-right:auto}
+.lv-msg.minha{background:var(--lvrx);color:#fff;border-bottom-right-radius:5px;margin-left:auto}
+.lv-msg .hora{display:block;font-size:10.5px;opacity:.7;margin-top:5px}
 .lv-aviso .un{position:absolute;top:12px;right:12px;width:9px;height:9px;border-radius:50%;background:var(--lvrx)}
 
 /* O app do aluno tem identidade própria: escuro, roxo e neon. Redefinir os
@@ -743,7 +748,7 @@ if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABAS
    .catch. Chamar .catch direto estoura TypeError, e dentro de um useEffect isso
    derruba a tela inteira do aluno. */
 const semEsperar=q=>{try{q.then(()=>{},()=>{});}catch(e){}};
-const APP_VERSION='2026.09.14';   // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION='2026.09.15';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
 
@@ -1095,6 +1100,22 @@ async function avisarDorAoTreinador(id){
       body:JSON.stringify({mode:'dor',id:id||null}),
     }),12000);
   }catch(e){/* sem internet: o feedback já está gravado, só o aviso não sai */}
+}
+
+// Mensagem nova na conversa: o outro lado recebe no celular. O texto sai do
+// banco (conversa_para_aviso), nunca do aparelho de quem escreveu.
+async function avisarMensagem(id){
+  try{
+    if(!id)return;
+    const {data:sess}=await sb.auth.getSession();
+    const token=sess&&sess.session&&sess.session.access_token;
+    if(!token)return;
+    await comPrazo(fetch(CFG.SUPABASE_URL+'/functions/v1/push',{
+      method:'POST',
+      headers:{'content-type':'application/json',apikey:CFG.SUPABASE_ANON_KEY,authorization:'Bearer '+token},
+      body:JSON.stringify({mode:'mensagem',id}),
+    }),12000);
+  }catch(e){/* sem internet: a mensagem ja esta gravada, so o aviso nao sai */}
 }
 
 async function desativarPush(){try{const reg=await navigator.serviceWorker.ready;const sub=await reg.pushManager.getSubscription();if(sub){await sb.rpc('push_remover',{p_endpoint:sub.toJSON().endpoint}).catch(()=>{});await sub.unsubscribe();}}catch(e){}}
@@ -3203,6 +3224,7 @@ function StudentDetail({student,evals,onNewEval,onReassess,onEditEval,onDeleteEv
           <Stat lbl="Avaliações" val={evals.length}/>
         </div>)}
 
+      {sb&&!student._demo&&student.user_id&&<Conversa studentId={student.id} avisos={[]} demo={false}/>}
       <FeedbacksAluno student={student} demo={!!student._demo}/>
       {sb&&<TreinosCoach student={student} demo={!!student._demo}/>}
       {sb&&<FotosProgressoCoach student={student} demo={!!student._demo}/>}
@@ -6129,6 +6151,35 @@ function FichaModeloPicker({onUsar,onClose,busy}){
     </div></div>);
 }
 
+/* Quem está esperando resposta. Mensagem de aluno sem resposta é a coisa que
+   mais rápido faz ele voltar para o WhatsApp — então tem lugar próprio. */
+function RecadosScreen({naoLidas,students,onAbrir,onBack}){
+  const byId=Object.fromEntries((students||[]).map(s=>[s.id,s]));
+  return(<div>
+    <div className="abar"><div><div className="breadcrumb" onClick={onBack}>← Painel</div>
+      <div className="ph-title">Recados</div>
+      <div className="ph-sub">Alunos esperando sua resposta</div></div></div>
+    {(!naoLidas||naoLidas.length===0)?<div className="empty">
+      <div className="empty-title">Ninguém esperando</div>
+      <p style={{fontSize:13}}>Quando um aluno escrever, ele aparece aqui — e você recebe no celular.</p>
+    </div>:
+    <div className="card">
+      {naoLidas.map(n=>(
+        <div key={n.student_id} style={{display:'flex',alignItems:'center',gap:12,padding:'11px 0',
+          borderBottom:'1px solid var(--border)',cursor:byId[n.student_id]?'pointer':'default'}}
+          onClick={()=>{const s=byId[n.student_id];if(s&&onAbrir)onAbrir(s);}}>
+          <div className="avatar" style={{width:38,height:38,fontSize:13}}>{initials(n.nome||'?')}</div>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontWeight:600,fontSize:14}}>{n.nome||'Aluno'}</div>
+            <div className="s-meta">{n.quantas} {n.quantas>1?'mensagens':'mensagem'} sem resposta · {tempoRel(n.ultima)}</div>
+          </div>
+          <span className="info-pill" style={{margin:0,borderColor:'rgba(185,28,28,.4)',color:'#fca5a5'}}>{n.quantas}</span>
+        </div>))}
+      <p className="s-meta" style={{marginTop:12}}>Toque no aluno para abrir a ficha dele e responder.</p>
+    </div>}
+  </div>);
+}
+
 /* Aluno com conta e sem treino é aluno que abre o app e não vê nada. Esta tela
    junta todos eles numa lista e aplica uma ficha pronta em quantos ele marcar,
    de uma vez. O trabalho pesado é a RPC ficha_aplicar_modelo, que faz tudo
@@ -6608,6 +6659,9 @@ async function escoarFilaAluno(){
           // precisa saber agora que o sinal voltou
           if(it.rpc==='treino_feedback'&&(it.args||{}).p_dor>=4)
             semEsperar(avisarDorAoTreinador(data&&data.id));
+          // mensagem que ficou na fila: o outro lado precisa ser avisado agora
+          if(it.rpc==='conversa_enviar'&&data&&data.id)
+            semEsperar(avisarMensagem(data.id));
         }
       }catch(e){
         if(isNetErr(e))break;         // sem rede: fica na fila, tenta depois
@@ -7893,6 +7947,14 @@ function App({profile,setProfile}){
 
   // Aluno com conta e sem ficha abre o app numa tela vazia. O número fica no
   // menu para isso não passar batido.
+  // mensagens de aluno esperando resposta
+  const [naoLidas,setNaoLidas]=useState([]);
+  const contarNaoLidas=React.useCallback(async()=>{
+    if(profile._demo||!sb)return;
+    try{const {data}=await sb.rpc('conversa_nao_lidas');setNaoLidas(data||[]);}catch(e){}
+  },[profile._demo]);
+  useEffect(()=>{contarNaoLidas();},[coachId,view]);
+
   const [semTreino,setSemTreino]=useState(0);
   const contarSemTreino=React.useCallback(async()=>{
     if(profile._demo||!sb)return;
@@ -8002,6 +8064,7 @@ function App({profile,setProfile}){
         <button className={`nav-btn ${view==='agenda'?'active':''}`} onClick={()=>{setSelStudent(null);go('agenda');}}>Agenda</button>
         <button className={`nav-btn ${view==='intakes'?'active':''}`} onClick={()=>{setSelStudent(null);go('intakes');}}>Fichas online{intakeCount>0&&<span style={{marginLeft:6,background:'var(--gold)',color:'#1c0f16',borderRadius:10,padding:'0 7px',fontSize:11,fontWeight:700}}>{intakeCount}</span>}</button>
         <button className={`nav-btn ${view==='train'?'active':''}`} onClick={()=>{setSelStudent(null);go('train');}}>Treino</button>
+        <button className={`nav-btn ${view==='recados'?'active':''}`} onClick={()=>{setSelStudent(null);go('recados');}}>Recados{naoLidas.length>0&&<span style={{marginLeft:6,background:'var(--red)',color:'#fff',borderRadius:10,padding:'0 7px',fontSize:11,fontWeight:700}}>{naoLidas.reduce((a,x)=>a+(x.quantas||0),0)}</span>}</button>
         <button className={`nav-btn ${view==='semtreino'?'active':''}`} onClick={()=>{setSelStudent(null);go('semtreino');}}>Alunos sem treino{semTreino>0&&<span style={{marginLeft:6,background:'var(--gold)',color:'#1c0f16',borderRadius:10,padding:'0 7px',fontSize:11,fontWeight:700}}>{semTreino}</span>}</button>
         <button className={`nav-btn ${view==='tech'?'active':''}`} onClick={()=>{setSelStudent(null);go('tech');}}>Avaliação técnica</button>
         <button className={`nav-btn ${view==='nutri'?'active':''}`} onClick={()=>{setSelStudent(null);go('nutri');}}>Nutrição</button>
@@ -8083,6 +8146,8 @@ function App({profile,setProfile}){
           {view==='tech'&&<TechScreen coach={profile} students={students} preStudent={selStudent} onBack={()=>go('dashboard')}/>}
           {view==='train'&&<TrainScreen coach={profile} students={students} preStudent={selStudent} onBack={()=>go('dashboard')}/>}
           {view==='semtreino'&&<SemTreinoScreen coach={profile} onBack={()=>go('dashboard')} onFeito={contarSemTreino}/>}
+          {view==='recados'&&<RecadosScreen naoLidas={naoLidas} students={students}
+            onAbrir={s=>{setSelStudent(s);go('detail');}} onBack={()=>go('dashboard')}/>}
           {view==='nutri'&&<NutriScreen coach={profile} students={students} preStudent={selStudent} onBack={()=>go('dashboard')}/>}
           {view==='perio'&&<PeriodizacaoScreen coach={profile} students={students} preStudent={selStudent} onBack={()=>go('dashboard')}/>}
           {view==='stu-form'&&<StudentForm student={editStu} onSave={saveStu} onCancel={()=>go(selStudent?'detail':'dashboard')}/>}
@@ -8782,6 +8847,104 @@ function EvolScreen({student,demo,onBack}){
         </>);})()}
     </>}
   </div>);
+}
+
+/* Conversa treinador <-> aluno.
+   Os avisos eram mão-única: o treinador escrevia, o aluno lia e ia responder no
+   WhatsApp. Aqui os dois falam, e os avisos antigos entram na mesma linha do
+   tempo — o aluno não precisa saber que são duas coisas diferentes. */
+function Conversa({studentId,souAluno,avisos,demo,somenteLeitura,onLido,compacto}){
+  const [msgs,setMsgs]=useState(demo?[]:null);
+  const [texto,setTexto]=useState('');
+  const [enviando,setEnviando]=useState(false);
+  const [erro,setErro]=useState(null);
+  const fimRef=useRef(null);
+  const carregar=async()=>{
+    if(demo)return;
+    const q=sb.from('train_conversa').select('*').order('created_at');
+    const {data}=souAluno
+      ? await lerCopia('conversa-'+studentId,q.eq('student_id',studentId))
+      : await q.eq('student_id',studentId);
+    setMsgs(data||[]);
+  };
+  useEffect(()=>{carregar();},[studentId]);
+  // marca como lida o que veio do outro lado
+  useEffect(()=>{if(demo||somenteLeitura||!msgs||!msgs.length)return;
+    const temNova=msgs.some(m=>m.de_aluno!==souAluno&&!m.lido_em);
+    if(!temNova)return;
+    semEsperar(sb.rpc('conversa_marcar_lida',souAluno?{}:{p_student:studentId}));
+    if(onLido)onLido();
+  },[msgs]);
+  useEffect(()=>{try{fimRef.current&&fimRef.current.scrollIntoView({block:'nearest'});}catch(e){}},[msgs]);
+
+  // avisos antigos + mensagens numa linha do tempo só
+  const linha=React.useMemo(()=>{
+    const a=(avisos||[]).map(x=>({id:'a'+x.id,quando:x.created_at,deles:true,
+      texto:(x.titulo?x.titulo+'\n':'')+x.texto}));
+    const m=(msgs||[]).map(x=>({id:'m'+x.id,quando:x.created_at,deles:x.de_aluno!==souAluno,texto:x.texto}));
+    return [...a,...m].sort((x,y)=>new Date(x.quando)-new Date(y.quando));
+  },[avisos,msgs,souAluno]);
+
+  const enviar=async()=>{
+    const t=texto.trim();
+    if(!t||enviando||somenteLeitura)return;
+    setEnviando(true);setErro(null);
+    const args=souAluno?{p_texto:t}:{p_texto:t,p_student:studentId};
+    // aparece na hora; se falhar de vez, sai da tela junto com o aviso de erro
+    const provisoria={id:'tmp'+Date.now(),created_at:new Date().toISOString(),
+      de_aluno:souAluno,texto:t,_provisoria:true};
+    setMsgs(p=>[...(p||[]),provisoria]);
+    setTexto('');
+    try{
+      if(demo)throw new Error('Modo demonstração: a mensagem não é enviada.');
+      const {data,error}=await comPrazo(sb.rpc('conversa_enviar',args));
+      if(error)throw error;
+      if(!data||!data.ok)throw new Error(data&&data.erro==='SEM_TREINADOR'
+        ?'Sua conta ainda não está ligada a um treinador.':'Não consegui enviar.');
+      setMsgs(p=>(p||[]).map(m=>m.id===provisoria.id?{...m,id:data.id,_provisoria:false}:m));
+      semEsperar(avisarMensagem(data.id));
+    }catch(e){
+      if(isNetErr(e)&&!demo){
+        // sem sinal: entra na fila e sobe quando voltar
+        await enfileirarAluno({rpc:'conversa_enviar',args});
+        setMsgs(p=>(p||[]).map(m=>m.id===provisoria.id?{...m,_naFila:true,_provisoria:false}:m));
+      }else{
+        setMsgs(p=>(p||[]).filter(m=>m.id!==provisoria.id));
+        setTexto(t);
+        setErro(e.message||String(e));
+      }
+    }
+    setEnviando(false);
+  };
+
+  const caixa=(<div style={{display:'flex',gap:8,marginTop:10}}>
+    <textarea className={souAluno?'lv-in':'fi'} rows={1} placeholder="Escreva uma mensagem"
+      value={texto} onChange={e=>setTexto(e.target.value)}
+      onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();enviar();}}}
+      style={{flex:1,resize:'none',minHeight:42,paddingTop:11}}/>
+    <button className={souAluno?'lv-btn':'btn btn-primary'} style={{flexShrink:0,width:'auto',padding:'0 18px'}}
+      disabled={!texto.trim()||enviando} onClick={enviar}>{enviando?'…':'Enviar'}</button>
+  </div>);
+
+  const corpo=(<>
+    {msgs===null?<div className="center-screen" style={{minHeight:100}}><div className="spinner"/></div>:
+     linha.length===0?<div className={souAluno?'lv-sub':'s-meta'} style={{textAlign:'center',padding:'18px 0',lineHeight:1.5}}>
+       {souAluno?'Nenhuma mensagem ainda. Pode escrever — seu treinador recebe no celular.'
+                :'Nenhuma mensagem ainda. Escreva a primeira; ele recebe no celular dele.'}</div>:
+     <div style={{display:'flex',flexDirection:'column',maxHeight:compacto?320:'none',overflowY:compacto?'auto':'visible'}}>
+       {linha.map(m=><div key={m.id} className={'lv-msg '+(m.deles?'deles':'minha')}>
+         {m.texto}
+         <span className="hora">{tempoRel(m.quando)}{m._naFila?' · guardada no aparelho':''}</span>
+       </div>)}
+       <div ref={fimRef}/>
+     </div>}
+    {erro&&<div className={souAluno?'lv-sub':'s-meta'} style={{color:'var(--lvrx)',marginTop:8}}>{erro}</div>}
+    {!somenteLeitura&&caixa}
+    {somenteLeitura&&<div className="lv-sub" style={{marginTop:10,textAlign:'center'}}>Só leitura nesta visão.</div>}
+  </>);
+
+  return souAluno?corpo:<div className="card" style={{marginBottom:14}}>
+    <div className="sec-title">Conversa</div>{corpo}</div>;
 }
 
 /* Meus treinos: o diário do que ele fez, sessão por sessão.
@@ -9945,7 +10108,7 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
       {navItem('home','','Início',0)}
       {navItem('dieta','','Dieta',0)}
       {navItem('prog','','Progresso',0)}
-      {navItem('avisos','','Avisos',naoLidos)}
+      {navItem('avisos','','Recados',naoLidos)}
       {navItem('conta','','Conta',0)}
     </div>}
   </div>);
@@ -10137,18 +10300,9 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
   </div>);
 
   const avisosTab=(<div className="lv-wrap">
-    <div className="lv-title" style={{marginBottom:14}}>Avisos</div>
-    {avisos.length===0?<div className="lv-card" style={{textAlign:'center',color:'var(--lvt2)'}}>
-Nenhum aviso por aqui ainda.<div className="lv-sub" style={{marginTop:4}}>Seus lembretes e mensagens do treinador aparecem aqui.</div>
-    </div>:avisos.map(a=><div key={a.id} className={'lv-aviso'+(a.lido?'':' unread')}>
-      <div className="ic">{AVISO_ICON[a.tipo]||''}</div>
-      <div style={{flex:1,minWidth:0}}>
-        <div style={{fontWeight:800,fontSize:14,paddingRight:14}}>{a.titulo}</div>
-        <div style={{fontSize:13,color:'var(--lvt2)',marginTop:3,lineHeight:1.4}}>{a.texto}</div>
-        <div className="lv-sub" style={{marginTop:6,fontSize:11}}>{tempoRel(a.created_at)}</div>
-      </div>
-      {!a.lido&&<span className="un"/>}
-    </div>)}
+    <div className="lv-title" style={{marginBottom:4}}>Recados</div>
+    <p className="lv-sub" style={{marginBottom:14}}>Fale direto com seu treinador — ele recebe no celular.</p>
+    <Conversa studentId={stu.id} souAluno avisos={avisos} demo={demo} somenteLeitura={espiando}/>
   </div>);
 
   const contaTab=(<div className="lv-wrap">

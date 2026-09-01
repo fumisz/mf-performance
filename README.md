@@ -67,6 +67,19 @@ capturado ainda no `<head>`.
   de cada série. O treinador vê a mesma coisa na ficha do aluno, com a média de
   séries por treino — é isso que diz se ele está cumprindo a ficha ou cortando.
 
+## Recados
+A aba **Recados** do aluno é uma conversa de verdade: ele escreve, o treinador
+responde, e cada um recebe no celular. Os avisos antigos aparecem na mesma
+linha do tempo, então o aluno não precisa saber que são duas coisas.
+
+No treinador, **Recados** no menu mostra quem está esperando resposta (com o
+número ao lado), e a conversa fica na ficha do aluno. Mensagem sem sinal entra
+na fila e sobe quando o sinal volta.
+
+O texto do aviso no celular é montado pelo servidor a partir do que ficou
+gravado — o aparelho só passa o id da mensagem, então ninguém usa o push do app
+para mandar mensagem arbitrária para outra pessoa.
+
 ## No papel
 Em **Treino → Imprimir ficha** sai a ficha inteira do aluno em uma folha, com
 colunas em branco para ele anotar a carga de cada semana. Serve para quem não
