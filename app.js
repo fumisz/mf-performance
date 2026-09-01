@@ -71,7 +71,7 @@ const semEsperar = q => {
     q.then(() => {}, () => {});
   } catch (e) {}
 };
-const APP_VERSION = '2026.09.21'; // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION = '2026.09.22'; // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA'); // YYYY-MM-DD no fuso LOCAL
 
@@ -3197,6 +3197,25 @@ function LigarAvisoCard({
     }
   }, msg));
 }
+
+// Parabenizar tinha cinco passos: abrir o aluno, abrir o compositor, escolher o
+// tipo, escrever, enviar. Por isso quase nunca acontecia — e quem recebe uma
+// palavra depois de treinar volta mais. Aqui e um toque. O texto muda com o dia
+// para nao chegar sempre igual em quem treina toda semana.
+const PARABENS_DO_DIA = [{
+  titulo: 'Mandou bem hoje',
+  texto: 'Vi aqui que você fechou o treino de hoje. É essa constância que constrói resultado.'
+}, {
+  titulo: 'Treino fechado',
+  texto: 'Mais um na conta. O resultado vem de dias assim, não de um dia só.'
+}, {
+  titulo: 'Boa!',
+  texto: 'Fechou o treino de hoje. Segue nesse ritmo que a evolução aparece na próxima avaliação.'
+}, {
+  titulo: 'Presença marcada',
+  texto: 'Mais um treino registrado. Quem aparece nos dias comuns é quem chega longe.'
+}];
+const chaveParabens = id => 'mfp-parabens-' + id + '-' + new Date().toISOString().slice(0, 10);
 function PainelHoje({
   onSelect,
   students,
@@ -3204,6 +3223,62 @@ function PainelHoje({
 }) {
   const [rows, setRows] = useState(undefined);
   const [aberto, setAberto] = useState(true);
+  const [parabens, setParabens] = useState({}); // student_id -> 'indo' | 'feito' | 'erro'
+  // se ele recarregar a pagina, o botao nao pode voltar a oferecer o que ja foi
+  const jaMandou = id => {
+    try {
+      return localStorage.getItem(chaveParabens(id)) === '1';
+    } catch (e) {
+      return false;
+    }
+  };
+  const mandarParabens = async (id, nome) => {
+    if (demo) {
+      setParabens(p => ({
+        ...p,
+        [id]: 'feito'
+      }));
+      return;
+    }
+    setParabens(p => ({
+      ...p,
+      [id]: 'indo'
+    }));
+    const m = PARABENS_DO_DIA[new Date().getDate() % PARABENS_DO_DIA.length];
+    try {
+      const {
+        error
+      } = await sb.rpc('aviso_enviar', {
+        p_student: id,
+        p_titulo: m.titulo,
+        p_texto: m.texto,
+        p_tipo: 'parabens'
+      });
+      if (error) throw error;
+      try {
+        await sb.functions.invoke('push', {
+          body: {
+            student_id: id,
+            titulo: m.titulo,
+            texto: m.texto,
+            tipo: 'parabens'
+          }
+        });
+      } catch (e) {}
+      try {
+        localStorage.setItem(chaveParabens(id), '1');
+      } catch (e) {}
+      setParabens(p => ({
+        ...p,
+        [id]: 'feito'
+      }));
+    } catch (e) {
+      setParabens(p => ({
+        ...p,
+        [id]: 'erro'
+      }));
+    }
+  };
   useEffect(() => {
     if (demo) {
       setRows(_DEMO_PAINEL);
@@ -3423,7 +3498,59 @@ function PainelHoje({
         borderRadius: 3
       }
     })));
-  })), alertas.length === 0 ? /*#__PURE__*/React.createElement("div", {
+  })), (() => {
+    const t = rows.filter(r => r.treinou);
+    if (!t.length) return null;
+    return /*#__PURE__*/React.createElement("div", {
+      style: {
+        marginBottom: 16
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11,
+        fontWeight: 700,
+        textTransform: 'uppercase',
+        letterSpacing: .5,
+        color: '#15803d',
+        marginBottom: 8
+      }
+    }, "Treinaram hoje"), t.map(r => {
+      const st = parabens[r.student_id] || (jaMandou(r.student_id) ? 'feito' : null);
+      return /*#__PURE__*/React.createElement("div", {
+        key: r.student_id,
+        style: {
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          padding: '9px 0',
+          borderTop: '1px solid var(--border)'
+        }
+      }, /*#__PURE__*/React.createElement("span", {
+        className: "link",
+        style: {
+          flex: 1,
+          minWidth: 0,
+          cursor: 'pointer',
+          fontWeight: 600,
+          fontSize: 13.5
+        },
+        onClick: () => abrir(r.student_id)
+      }, r.nome), st === 'feito' ? /*#__PURE__*/React.createElement("span", {
+        className: "s-meta",
+        style: {
+          fontSize: 12
+        }
+      }, "parabenizado") : /*#__PURE__*/React.createElement("button", {
+        className: "btn btn-secondary",
+        style: {
+          padding: '5px 12px',
+          fontSize: 12.5
+        },
+        disabled: st === 'indo',
+        onClick: () => mandarParabens(r.student_id, r.nome)
+      }, st === 'indo' ? 'Enviando…' : st === 'erro' ? 'Tentar de novo' : 'Parabenizar'));
+    }));
+  })(), alertas.length === 0 ? /*#__PURE__*/React.createElement("div", {
     style: {
       textAlign: 'center',
       padding: '18px 10px',
@@ -22135,6 +22262,362 @@ function FeedbackTreino({
   }, "Pular"));
 }
 
+/* ── Card do antes e depois para os stories ──────────────────
+   O aluno ja tem as duas fotos lado a lado na tela de Progresso, com os dias
+   entre elas, e os numeros da avaliacao logo acima. Faltava poder mostrar. E o
+   formato mais postado do fitness, e o unico que traz aluno novo para o
+   treinador: a marca e o @ dele vao na imagem.
+   As fotos moram num balde publico, entao com crossOrigin o canvas nao fica
+   sujo e o toBlob funciona. Se alguma nao carregar, o card nao e montado — nao
+   existe antes e depois com um lado so. */
+function desenharAntesDepois(ctx, {
+  nome,
+  fotoA,
+  fotoB,
+  dataA,
+  dataB,
+  dias,
+  linhas,
+  marca,
+  logo,
+  arroba
+}) {
+  const W = 1080,
+    H = 1920;
+  const roxo = '#8b5cf6',
+    roxo2 = '#c084fc';
+  const fundo = ctx.createLinearGradient(0, 0, W * 0.4, H);
+  fundo.addColorStop(0, '#14121c');
+  fundo.addColorStop(0.55, '#0e0e13');
+  fundo.addColorStop(1, '#17131f');
+  ctx.fillStyle = fundo;
+  ctx.fillRect(0, 0, W, H);
+  const halo = ctx.createRadialGradient(W * 0.5, H * 0.3, 0, W * 0.5, H * 0.3, W * 0.95);
+  halo.addColorStop(0, 'rgba(139,92,246,.26)');
+  halo.addColorStop(1, 'rgba(139,92,246,0)');
+  ctx.fillStyle = halo;
+  ctx.fillRect(0, 0, W, H);
+  const serif = '"Playfair Display",Georgia,serif';
+  const sans = 'Inter,-apple-system,"Segoe UI",Roboto,sans-serif';
+  const espacado = (txt, x, y, esp) => {
+    const ls = [...txt],
+      larg = ls.reduce((a, c) => a + ctx.measureText(c).width + esp, 0) - esp;
+    let px = x - larg / 2;
+    ls.forEach(c => {
+      ctx.fillText(c, px + ctx.measureText(c).width / 2, y);
+      px += ctx.measureText(c).width + esp;
+    });
+  };
+  const centro = (txt, y, font, cor, esp) => {
+    ctx.font = font;
+    ctx.fillStyle = cor;
+    ctx.textAlign = 'center';
+    if (esp) espacado(txt, W / 2, y, esp);else ctx.fillText(txt, W / 2, y);
+  };
+  const cantos = (x, y, w, h, r) => {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  };
+  // desenha a foto preenchendo o retangulo sem distorcer (corta o excedente)
+  const coberto = (img, x, y, w, h, r) => {
+    ctx.save();
+    cantos(x, y, w, h, r);
+    ctx.clip();
+    const ei = img.naturalWidth / img.naturalHeight,
+      ed = w / h;
+    let sw = img.naturalWidth,
+      sh = img.naturalHeight,
+      sx = 0,
+      sy = 0;
+    if (ei > ed) {
+      sw = img.naturalHeight * ed;
+      sx = (img.naturalWidth - sw) / 2;
+    } else {
+      sh = img.naturalWidth / ed;
+      sy = (img.naturalHeight - sh) / 2;
+    }
+    ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
+    ctx.restore();
+    ctx.strokeStyle = 'rgba(255,255,255,.14)';
+    ctx.lineWidth = 2;
+    cantos(x, y, w, h, r);
+    ctx.stroke();
+  };
+
+  // ── topo: marca do treinador ──
+  let y = 112;
+  if (logo) {
+    const alt = 76,
+      larg = Math.min(240, logo.naturalWidth / logo.naturalHeight * alt);
+    ctx.drawImage(logo, (W - larg) / 2, y - 54, larg, alt);
+    y += 52;
+  }
+  centro((marca || '').toUpperCase(), y, '600 27px ' + sans, 'rgba(255,255,255,.62)', 7);
+
+  // ── titulo ──
+  centro('ANTES E DEPOIS', y + 92, '600 30px ' + sans, roxo2, 10);
+  const primeiro = (nome || '').trim().split(/\s+/)[0] || '';
+  if (primeiro) centro(primeiro, y + 178, '700 76px ' + serif, '#ffffff');
+
+  // ── as duas fotos ──
+  const topo = y + 238,
+    larg = 486,
+    altura = 648,
+    vao = W - 2 * larg - larg * 0; // 2 fotos + folga
+  const x1 = (W - (larg * 2 + 36)) / 2,
+    x2 = x1 + larg + 36;
+  coberto(fotoA, x1, topo, larg, altura, 26);
+  coberto(fotoB, x2, topo, larg, altura, 26);
+  // etiqueta sobre cada foto
+  const etiqueta = (txt, cx, cy) => {
+    ctx.font = '700 26px ' + sans;
+    const w = ctx.measureText(txt).width + 44;
+    ctx.fillStyle = 'rgba(10,10,14,.72)';
+    cantos(cx - w / 2, cy - 38, w, 52, 26);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center';
+    ctx.fillText(txt, cx, cy);
+  };
+  etiqueta('ANTES', x1 + larg / 2, topo + 52);
+  etiqueta('AGORA', x2 + larg / 2, topo + 52);
+  ctx.font = '500 25px ' + sans;
+  ctx.fillStyle = 'rgba(255,255,255,.55)';
+  ctx.textAlign = 'center';
+  ctx.fillText(dataA || '', x1 + larg / 2, topo + altura + 46);
+  ctx.fillText(dataB || '', x2 + larg / 2, topo + altura + 46);
+
+  // ── quantos dias separam as duas ──
+  let yy = topo + altura + 140;
+  if (dias > 0) {
+    centro(dias === 1 ? '1 DIA DE DIFERENÇA' : dias + ' DIAS DE DIFERENÇA', yy, '600 27px ' + sans, roxo2, 6);
+    yy += 74;
+  }
+
+  // ── numeros da avaliacao, quando existem duas ──
+  if (linhas && linhas.length) {
+    const alturaBloco = linhas.length * 104 + 40;
+    ctx.fillStyle = 'rgba(255,255,255,.045)';
+    cantos(72, yy - 24, W - 144, alturaBloco, 30);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,.09)';
+    ctx.lineWidth = 2;
+    cantos(72, yy - 24, W - 144, alturaBloco, 30);
+    ctx.stroke();
+    let ly = yy + 50;
+    linhas.forEach(l => {
+      ctx.textAlign = 'left';
+      ctx.font = '500 31px ' + sans;
+      ctx.fillStyle = 'rgba(255,255,255,.66)';
+      ctx.fillText(l.rotulo, 120, ly);
+      ctx.textAlign = 'right';
+      ctx.font = '700 39px ' + sans;
+      ctx.fillStyle = l.bom ? '#4ade80' : '#ffffff';
+      ctx.fillText(l.valor, W - 120, ly);
+      ly += 104;
+    });
+    yy += alturaBloco + 26;
+  }
+
+  // ── rodape: o @ do treinador ──
+  ctx.textAlign = 'center';
+  if (arroba) {
+    const a = arroba.startsWith('@') ? arroba : '@' + arroba;
+    centro(a, H - 118, '600 34px ' + sans, roxo2);
+    centro('acompanhamento profissional', H - 70, '500 24px ' + sans, 'rgba(255,255,255,.42)');
+  } else {
+    centro((marca || '').toUpperCase(), H - 96, '600 30px ' + sans, 'rgba(255,255,255,.5)', 6);
+  }
+}
+function CardAntesDepois({
+  stu,
+  primeira,
+  ultima,
+  marca,
+  onFechar
+}) {
+  const [url, setUrl] = useState(null);
+  const [arquivo, setArquivo] = useState(null);
+  const [erro, setErro] = useState(null);
+  const [salvo, setSalvo] = useState(false);
+  useEffect(() => {
+    let vivo = true;
+    (async () => {
+      try {
+        try {
+          if (document.fonts && document.fonts.ready) await document.fonts.ready;
+        } catch (e) {}
+        const carregar = src => new Promise(res => {
+          const i = new Image();
+          i.crossOrigin = 'anonymous';
+          i.onload = () => res(i);
+          i.onerror = () => res(null);
+          i.src = src;
+        });
+        const [fa, fb, logo] = await Promise.all([carregar(primeira.url), carregar(ultima.url), marca && marca.logo_url ? carregar(marca.logo_url) : Promise.resolve(null)]);
+        if (!vivo) return;
+        // sem as duas fotos nao existe antes e depois: melhor nao entregar nada
+        if (!fa || !fb) {
+          setErro('Não deu para carregar as duas fotos. Tente de novo com internet.');
+          return;
+        }
+
+        // os numeros so entram se houver duas avaliacoes de verdade
+        let linhas = [];
+        try {
+          const {
+            data
+          } = await sb.from('assessments').select('*').eq('student_id', stu.id).order('date');
+          if (data && data.length >= 2) {
+            const conv = r => ({
+              ...r.data,
+              date: r.date
+            });
+            const pri = derive(stu, conv(data[0])),
+              ult = derive(stu, conv(data[data.length - 1]));
+            const d = (a, b) => a != null && b != null ? +(b - a).toFixed(1) : null;
+            const põe = (rotulo, de, para, un, melhorSeCai) => {
+              const delta = d(de, para);
+              if (delta == null || delta === 0) return;
+              linhas.push({
+                rotulo,
+                valor: (delta > 0 ? '+' : '−') + fmt(Math.abs(delta)) + un,
+                bom: melhorSeCai ? delta < 0 : delta > 0
+              });
+            };
+            põe('Peso', pri.weight, ult.weight, ' kg', true);
+            põe('Gordura corporal', pri.fatPct, ult.fatPct, '%', true);
+            põe('Massa magra', pri.leanMass, ult.leanMass, ' kg', false);
+          }
+        } catch (e) {/* sem numeros o card ainda vale pelas fotos */}
+        const c = document.createElement('canvas');
+        c.width = 1080;
+        c.height = 1920;
+        const dia = iso => new Date(iso).toLocaleDateString('pt-BR', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric'
+        });
+        desenharAntesDepois(c.getContext('2d'), {
+          nome: stu && stu.name || '',
+          fotoA: fa,
+          fotoB: fb,
+          dataA: dia(primeira.created_at),
+          dataB: dia(ultima.created_at),
+          dias: Math.round((new Date(ultima.created_at) - new Date(primeira.created_at)) / 86400000),
+          linhas,
+          marca: marca && (marca.brand_name || marca.name) || 'MF Performance',
+          logo,
+          arroba: marca && marca.instagram
+        });
+        const blob = await new Promise(r => c.toBlob(r, 'image/png'));
+        if (!vivo || !blob) return;
+        setUrl(URL.createObjectURL(blob));
+        setArquivo(new File([blob], 'antes-e-depois.png', {
+          type: 'image/png'
+        }));
+      } catch (e) {
+        if (vivo) setErro('Não deu para montar a imagem neste aparelho.');
+      }
+    })();
+    return () => {
+      vivo = false;
+    };
+  }, []);
+  const baixar = () => {
+    if (!url) return;
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'antes-e-depois.png';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setSalvo(true);
+  };
+  const compartilhar = async () => {
+    try {
+      if (arquivo && navigator.canShare && navigator.canShare({
+        files: [arquivo]
+      })) {
+        await navigator.share({
+          files: [arquivo],
+          title: 'Meu antes e depois'
+        });
+        return;
+      }
+    } catch (e) {
+      if (e && e.name === 'AbortError') return;
+    }
+    baixar();
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    className: "lv-cel",
+    style: {
+      padding: 18,
+      overflowY: 'auto'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: '100%',
+      maxWidth: 300
+    }
+  }, erro ? /*#__PURE__*/React.createElement("div", {
+    className: "lv-card",
+    style: {
+      lineHeight: 1.5
+    }
+  }, erro) : url ? /*#__PURE__*/React.createElement("img", {
+    src: url,
+    alt: "Meu antes e depois",
+    style: {
+      width: '100%',
+      borderRadius: 16,
+      display: 'block',
+      border: '1px solid var(--lvbd)',
+      boxShadow: '0 10px 40px rgba(139,92,246,.25)'
+    }
+  }) : /*#__PURE__*/React.createElement("div", {
+    className: "lv-card",
+    style: {
+      textAlign: 'center',
+      padding: '44px 0'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "spinner"
+  })), !erro && /*#__PURE__*/React.createElement("button", {
+    className: "lv-btn neon",
+    style: {
+      marginTop: 12
+    },
+    disabled: !url,
+    onClick: compartilhar
+  }, "Compartilhar nos stories"), salvo && /*#__PURE__*/React.createElement("div", {
+    className: "lv-sub",
+    style: {
+      marginTop: 8,
+      textAlign: 'center',
+      lineHeight: 1.45
+    }
+  }, "Imagem salva. Abra o Instagram, crie um story e escolha ela da galeria."), /*#__PURE__*/React.createElement("button", {
+    className: "lv-ghost",
+    style: {
+      width: '100%',
+      marginTop: 10,
+      padding: '11px'
+    },
+    onClick: onFechar
+  }, "Fechar")));
+}
+
 /* ── Card do treino para os stories ──────────────────────────
    Desenha 1080x1920 num canvas e entrega pronto para o compartilhamento do
    celular. A imagem sai com a marca e o @ do treinador, então quando o aluno
@@ -27354,7 +27837,15 @@ function FotosProgresso({
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState(null);
   const [aberta, setAberta] = useState(null);
+  const [card, setCard] = useState(false);
+  const [marca, setMarca] = useState(null); // marca do treinador, para o card
   const arqRef = useRef(null);
+  useEffect(() => {
+    if (demo || !stu || !stu.coach_id) return;
+    lerCopia('marca-' + stu.coach_id, sb.from('profiles').select('brand_name,name,instagram,logo_url').eq('id', stu.coach_id).maybeSingle()).then(({
+      data
+    }) => setMarca(data || null)).catch(() => {});
+  }, [stu && stu.coach_id, demo]);
   const carregar = async () => {
     if (demo) return;
     if (!conta) {
@@ -27449,7 +27940,19 @@ function FotosProgresso({
       marginTop: 5,
       textAlign: 'center'
     }
-  }, lb, " \xB7 ", fmtTime(f.created_at)))))), /*#__PURE__*/React.createElement("div", {
+  }, lb, " \xB7 ", fmtTime(f.created_at))))), !somenteLeitura && !demo && /*#__PURE__*/React.createElement("button", {
+    className: "lv-btn neon",
+    style: {
+      marginTop: 12
+    },
+    onClick: () => setCard(true)
+  }, "Montar meu antes e depois")), card && /*#__PURE__*/React.createElement(CardAntesDepois, {
+    stu: stu,
+    primeira: primeira,
+    ultima: ultima,
+    marca: marca,
+    onFechar: () => setCard(false)
+  }), /*#__PURE__*/React.createElement("div", {
     className: "lv-card",
     style: {
       marginBottom: 12
