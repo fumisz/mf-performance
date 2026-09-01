@@ -36,7 +36,7 @@ if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABAS
    .catch. Chamar .catch direto estoura TypeError, e dentro de um useEffect isso
    derruba a tela inteira do aluno. */
 const semEsperar=q=>{try{q.then(()=>{},()=>{});}catch(e){}};
-const APP_VERSION='2026.09.24';   // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION='2026.09.25';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
 
@@ -75,6 +75,16 @@ function agruparSessoes(hist){
   }).sort((a,b)=>a.data<b.data?1:-1);   // mais recente primeiro
 }
 const fmtTon = kg=>kg>=1000?(kg/1000).toFixed(1).replace('.',',')+' t':Math.round(kg)+' kg';
+// "47 toneladas" não diz nada; "o peso de 39 carros" é post. Os pesos são
+// aproximados de propósito e o texto diz "mais ou menos" — número redondo que
+// se entende vale mais aqui do que precisão que ninguém confere.
+function equivalePeso(kg){
+  if(!kg||kg<400)return null;
+  const t=kg/1000;
+  if(t<12) return plural(Math.max(1,Math.round(kg/1200)),'carro popular','carros populares');
+  if(t<200)return Math.max(1,Math.round(t/12))+' ônibus';   // ônibus não muda no plural
+  return plural(Math.max(1,Math.round(t/180)),'avião de carreira','aviões de carreira');
+}
 // Qual divisão ele fez por último — é o que diz qual vem agora no rodízio.
 function divisaoMaisRecente(hist){
   let melhor=null;
@@ -9714,7 +9724,7 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
   // depois que a resposta do servidor chegou. E quem dispensa nao ve de novo.
   const [pushChecado,setPushChecado]=useState(false);
   const [convAvisoOff,setConvAvisoOff]=useState(()=>{try{return localStorage.getItem('mfp-conv-aviso')==='off';}catch(e){return false;}});
-  const [stats,setStats]=useState({total:0,prs:0,streak:0,mes:0});
+  const [stats,setStats]=useState({total:0,prs:0,streak:0,mes:0,ton:0});
   const [ultimaDiv,setUltimaDiv]=useState(null);   // qual divisão ele fez por último
   const [divsCheias,setDivsCheias]=useState(null); // divisões que têm exercício (null = ainda não sei)
   const [avisos,setAvisos]=useState(demo?_DEMO_AVISOS:[]);
@@ -9729,7 +9739,12 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
     const iso=d=>dayKey(d);
     if(!setD.has(iso(cur)))cur.setDate(cur.getDate()-1);
     while(setD.has(iso(cur))){streak++;cur.setDate(cur.getDate()-1);}
-    return{total:dias.length,prs,streak,mes};
+    // Tonelagem da vida toda: carga x reps de tudo que ele registrou. É o
+    // número que só cresce, então dá motivo de abrir o app num dia sem treino.
+    // Série externa não entra: ali não há carga registrada.
+    const ton=(hi||[]).reduce((a,h)=>
+      h.tipo_serie==='Externo'?a:a+(num(h.carga)||0)*(num(h.reps)||0),0);
+    return{total:dias.length,prs,streak,mes,ton};
   };
   const loadAvisos=async(sid)=>{const {data}=await lerCopia('avisos-'+sid,
     sb.from('train_avisos').select('*').eq('student_id',sid).order('created_at',{ascending:false}).limit(50));setAvisos(data||[]);};
@@ -9777,7 +9792,7 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
     loadAvisos(s.id);
   },[]);
 
-  useEffect(()=>{if(demo){setFreq({done:3,meta:4});setStats({total:24,prs:7,streak:3,mes:9});return;}(async()=>{
+  useEffect(()=>{if(demo){setFreq({done:3,meta:4});setStats({total:24,prs:7,streak:3,mes:9,ton:186400});return;}(async()=>{
     let s=verComoAluno||null;
     if(!espiando){
       // aluno_link so faz sentido quando ha codigo esperando. Chamar sempre
@@ -10039,6 +10054,16 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
       <div className="lv-stat"><b>{stats.prs}</b><span>{rotuloN(stats.prs,'Recorde')}</span></div>
       <div className="lv-stat"><b>{stats.streak}</b><span>Sequência</span></div>
     </div>
+    {/* O peso que ele já moveu na vida. Só cresce, então é o número que traz
+        de volta em dia sem treino — e é o que dá vontade de contar pra alguém. */}
+    {stats.ton>0&&<div className="lv-card" style={{marginBottom:12}}>
+      <div className="lv-kick">Você já levantou</div>
+      <div style={{fontSize:34,fontWeight:900,color:'var(--lvsel2)',lineHeight:1.15,marginTop:4}}>{fmtTon(stats.ton)}</div>
+      {equivalePeso(stats.ton)&&<div className="lv-sub" style={{marginTop:5,lineHeight:1.5}}>
+        mais ou menos o peso de {equivalePeso(stats.ton)}</div>}
+      <div className="lv-sub" style={{marginTop:8,fontSize:11.5,lineHeight:1.5,color:'var(--lvt3)'}}>
+        Somando carga vezes repetições de tudo que você registrou.</div>
+    </div>}
     <div className="lv-treino" style={{marginBottom:12}} onClick={()=>setTreinos(true)}>
       <span style={{width:3,height:30,borderRadius:2,background:'var(--lvrx)',flexShrink:0}}/>
       <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700}}>Meus treinos</div><div className="lv-sub">Tudo que você fez, treino por treino</div></div>

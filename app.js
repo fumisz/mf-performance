@@ -71,7 +71,7 @@ const semEsperar = q => {
     q.then(() => {}, () => {});
   } catch (e) {}
 };
-const APP_VERSION = '2026.09.24'; // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION = '2026.09.25'; // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA'); // YYYY-MM-DD no fuso LOCAL
 
@@ -134,6 +134,16 @@ function agruparSessoes(hist) {
   }).sort((a, b) => a.data < b.data ? 1 : -1); // mais recente primeiro
 }
 const fmtTon = kg => kg >= 1000 ? (kg / 1000).toFixed(1).replace('.', ',') + ' t' : Math.round(kg) + ' kg';
+// "47 toneladas" não diz nada; "o peso de 39 carros" é post. Os pesos são
+// aproximados de propósito e o texto diz "mais ou menos" — número redondo que
+// se entende vale mais aqui do que precisão que ninguém confere.
+function equivalePeso(kg) {
+  if (!kg || kg < 400) return null;
+  const t = kg / 1000;
+  if (t < 12) return plural(Math.max(1, Math.round(kg / 1200)), 'carro popular', 'carros populares');
+  if (t < 200) return Math.max(1, Math.round(t / 12)) + ' ônibus'; // ônibus não muda no plural
+  return plural(Math.max(1, Math.round(t / 180)), 'avião de carreira', 'aviões de carreira');
+}
 // Qual divisão ele fez por último — é o que diz qual vem agora no rodízio.
 function divisaoMaisRecente(hist) {
   let melhor = null;
@@ -28527,7 +28537,8 @@ function StudentApp({
     total: 0,
     prs: 0,
     streak: 0,
-    mes: 0
+    mes: 0,
+    ton: 0
   });
   const [ultimaDiv, setUltimaDiv] = useState(null); // qual divisão ele fez por último
   const [divsCheias, setDivsCheias] = useState(null); // divisões que têm exercício (null = ainda não sei)
@@ -28549,11 +28560,16 @@ function StudentApp({
       streak++;
       cur.setDate(cur.getDate() - 1);
     }
+    // Tonelagem da vida toda: carga x reps de tudo que ele registrou. É o
+    // número que só cresce, então dá motivo de abrir o app num dia sem treino.
+    // Série externa não entra: ali não há carga registrada.
+    const ton = (hi || []).reduce((a, h) => h.tipo_serie === 'Externo' ? a : a + (num(h.carga) || 0) * (num(h.reps) || 0), 0);
     return {
       total: dias.length,
       prs,
       streak,
-      mes
+      mes,
+      ton
     };
   };
   const loadAvisos = async sid => {
@@ -28657,7 +28673,8 @@ function StudentApp({
         total: 24,
         prs: 7,
         streak: 3,
-        mes: 9
+        mes: 9,
+        ton: 186400
       });
       return;
     }
@@ -29564,7 +29581,36 @@ function StudentApp({
     className: "lv-stat"
   }, /*#__PURE__*/React.createElement("b", null, stats.prs), /*#__PURE__*/React.createElement("span", null, rotuloN(stats.prs, 'Recorde'))), /*#__PURE__*/React.createElement("div", {
     className: "lv-stat"
-  }, /*#__PURE__*/React.createElement("b", null, stats.streak), /*#__PURE__*/React.createElement("span", null, "Sequ\xEAncia"))), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("b", null, stats.streak), /*#__PURE__*/React.createElement("span", null, "Sequ\xEAncia"))), stats.ton > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "lv-card",
+    style: {
+      marginBottom: 12
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "lv-kick"
+  }, "Voc\xEA j\xE1 levantou"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 34,
+      fontWeight: 900,
+      color: 'var(--lvsel2)',
+      lineHeight: 1.15,
+      marginTop: 4
+    }
+  }, fmtTon(stats.ton)), equivalePeso(stats.ton) && /*#__PURE__*/React.createElement("div", {
+    className: "lv-sub",
+    style: {
+      marginTop: 5,
+      lineHeight: 1.5
+    }
+  }, "mais ou menos o peso de ", equivalePeso(stats.ton)), /*#__PURE__*/React.createElement("div", {
+    className: "lv-sub",
+    style: {
+      marginTop: 8,
+      fontSize: 11.5,
+      lineHeight: 1.5,
+      color: 'var(--lvt3)'
+    }
+  }, "Somando carga vezes repeti\xE7\xF5es de tudo que voc\xEA registrou.")), /*#__PURE__*/React.createElement("div", {
     className: "lv-treino",
     style: {
       marginBottom: 12

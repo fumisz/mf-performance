@@ -108,6 +108,16 @@ alcança o nome do exercício de dentro da ficha. O filtro de frequência lê o
 nome, não o campo `dias`: o Arnold Split tem três divisões e é feito 6x por
 semana, então filtrar por divisões enganaria.
 
+## Tonelagem acumulada
+Na tela de Progresso o aluno vê o peso que já moveu na vida: carga vezes
+repetições de tudo que ele registrou, com o cardio e o "treinei fora" de fora,
+porque ali não há carga.
+
+É o único número do app que **só cresce** — por isso é o que traz de volta num
+dia sem treino. E vem com uma equivalência, porque "47 toneladas" não diz nada
+e "o peso de 4 ônibus" sim. Os pesos de referência são aproximados de
+propósito (carro popular 1,2 t, ônibus 12 t) e o texto diz "mais ou menos".
+
 ## Copiar a ficha de um aluno para outro
 Dar ao aluno novo a mesma ficha de outro custava três passos: salvar como
 modelo, abrir fichas prontas, aplicar. Agora é um botão na tela de treino, ao
