@@ -71,7 +71,7 @@ const semEsperar = q => {
     q.then(() => {}, () => {});
   } catch (e) {}
 };
-const APP_VERSION = '2026.09.23'; // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION = '2026.09.24'; // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA'); // YYYY-MM-DD no fuso LOCAL
 
@@ -15895,6 +15895,138 @@ function ExerciseLibrary({
 /* ── Modelos de ficha ───────────────────────────────────────
    Os que já vêm no app (coach_id null) e os que o treinador salvou.
    Aplicar um modelo cria as divisões e a prescrição inteira de uma vez. */
+// Copiar a ficha de um aluno para outro. Ja dava para fazer em tres passos
+// (salvar como modelo -> abrir fichas prontas -> aplicar), mas no dia a dia o
+// treinador so quer dar ao aluno novo o mesmo que montou para outro.
+function CopiarDeAlunoPicker({
+  alvo,
+  onUsar,
+  onClose,
+  busy
+}) {
+  const [linhas, setLinhas] = useState(null);
+  const [busca, setBusca] = useState('');
+  useEffect(() => {
+    (async () => {
+      try {
+        const {
+          data
+        } = await sb.from('train_divisao').select('student_id,nome,ordem').order('ordem');
+        const porAluno = new Map();
+        (data || []).forEach(d => {
+          if (!porAluno.has(d.student_id)) porAluno.set(d.student_id, []);
+          porAluno.get(d.student_id).push(d.nome);
+        });
+        const ids = [...porAluno.keys()].filter(id => id !== (alvo && alvo.id));
+        if (!ids.length) {
+          setLinhas([]);
+          return;
+        }
+        const {
+          data: als
+        } = await sb.from('assess_students').select('id,name').in('id', ids);
+        setLinhas((als || []).map(a => ({
+          id: a.id,
+          nome: a.name,
+          divs: porAluno.get(a.id) || []
+        })).sort((x, y) => x.nome.localeCompare(y.nome)));
+      } catch (e) {
+        setLinhas([]);
+      }
+    })();
+  }, [alvo && alvo.id]);
+  const vis = (linhas || []).filter(l => {
+    const q = busca.trim().toLowerCase();
+    return !q || l.nome.toLowerCase().includes(q) || l.divs.join(' ').toLowerCase().includes(q);
+  });
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'fixed',
+      inset: 0,
+      zIndex: 120,
+      background: 'rgba(10,8,10,.8)',
+      display: 'flex',
+      alignItems: 'flex-start',
+      justifyContent: 'center',
+      padding: 16,
+      overflowY: 'auto'
+    },
+    onClick: () => !busy && onClose()
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      maxWidth: 560,
+      width: '100%',
+      margin: 'auto'
+    },
+    onClick: e => e.stopPropagation()
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontFamily: 'var(--serif)',
+      fontSize: 19,
+      fontWeight: 600
+    }
+  }, "Copiar de outro aluno"), /*#__PURE__*/React.createElement("p", {
+    className: "s-meta",
+    style: {
+      margin: '4px 0 12px'
+    }
+  }, "As divis\xF5es entram depois das que ", alvo ? alvo.name.split(' ')[0] : 'o aluno', " j\xE1 tem \u2014 nada \xE9 sobrescrito. As cargas n\xE3o v\xE3o junto: cada um registra a sua."), /*#__PURE__*/React.createElement("div", {
+    className: "search-wrap",
+    style: {
+      marginBottom: 12
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "search-icon"
+  }, /*#__PURE__*/React.createElement(IconBusca, null)), /*#__PURE__*/React.createElement("input", {
+    className: "fi",
+    placeholder: "Buscar aluno ou divis\xE3o...",
+    value: busca,
+    onChange: e => setBusca(e.target.value)
+  })), linhas === null ? /*#__PURE__*/React.createElement("div", {
+    className: "center-screen",
+    style: {
+      minHeight: 90
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "spinner"
+  })) : vis.length === 0 ? /*#__PURE__*/React.createElement("p", {
+    className: "s-meta"
+  }, (linhas || []).length ? 'Nenhum aluno com esse filtro.' : 'Nenhum outro aluno tem ficha montada ainda.') : vis.map(l => /*#__PURE__*/React.createElement("div", {
+    key: l.id,
+    className: "dash-panel",
+    style: {
+      marginBottom: 10,
+      display: 'flex',
+      gap: 10,
+      alignItems: 'center'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "s-name"
+  }, l.nome), /*#__PURE__*/React.createElement("div", {
+    className: "s-meta",
+    style: {
+      marginTop: 3,
+      lineHeight: 1.5
+    }
+  }, plural(l.divs.length, 'divisão', 'divisões'), " \xB7 ", l.divs.join(' · '))), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-primary btn-sm",
+    disabled: busy,
+    onClick: () => onUsar(l)
+  }, "Copiar"))), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-ghost btn-sm",
+    style: {
+      marginTop: 6
+    },
+    disabled: busy,
+    onClick: onClose
+  }, "Fechar")));
+}
 function FichaModeloPicker({
   onUsar,
   onClose,
@@ -16574,6 +16706,7 @@ function TrainScreen({
   const [ex, setEx] = useState(blankEx);
   const [showMod, setShowMod] = useState(false);
   const [busyMod, setBusyMod] = useState(false);
+  const [showCopia, setShowCopia] = useState(false);
   const libGrupos = ['Todos', ...[...new Set((lib || []).map(x => x.grupo_muscular).filter(Boolean))].sort()];
   const libFiltered = (lib || []).filter(x => ex.grupo === 'Todos' || x.grupo_muscular === ex.grupo);
   const exSelecionado = (lib || []).find(x => x.nome.toLowerCase() === (ex.nome || '').trim().toLowerCase()) || null;
@@ -16871,6 +17004,56 @@ function TrainScreen({
     }
     setBusyMod(false);
   };
+
+  // Mesmo desenho do aplicarModelo: quem monta e o servidor, numa transacao so.
+  // Aqui tambem vale a regra de nao mentir: se a RPC servir zero alunos, isso e
+  // erro, nao sucesso.
+  const copiarDeAluno = async origem => {
+    if (demo) {
+      setShowCopia(false);
+      setMsg({
+        t: 'err',
+        m: 'Modo demonstração: a ficha não é salva.'
+      });
+      return;
+    }
+    setBusyMod(true);
+    setMsg(null);
+    try {
+      const {
+        data: feitos,
+        error
+      } = await comPrazo(sb.rpc('ficha_copiar_de_aluno', {
+        p_origem: origem.id,
+        p_alunos: [stu.id]
+      }), 30000);
+      if (error) throw error;
+      if (!feitos) throw new Error('o servidor não copiou a ficha para este aluno.');
+      const {
+        data: dv
+      } = await sb.from('train_divisao').select('*').eq('student_id', stu.id).order('ordem');
+      setDivs(dv || []);
+      const novos = {};
+      await Promise.all((dv || []).map(async d => {
+        const {
+          data: sp
+        } = await sb.from('train_serie_prescrita').select('*').eq('divisao_id', d.id).order('ordem');
+        novos[d.id] = sp || [];
+      }));
+      setSeries(novos);
+      setShowCopia(false);
+      setMsg({
+        t: 'ok',
+        m: 'Ficha de ' + origem.nome.split(' ')[0] + ' copiada para ' + stu.name.split(' ')[0] + '.'
+      });
+    } catch (e) {
+      setMsg({
+        t: 'err',
+        m: 'Não deu para copiar: ' + (e.message || e)
+      });
+    }
+    setBusyMod(false);
+  };
   const salvarComoModelo = async () => {
     if (!divs || !divs.length) {
       setMsg({
@@ -17025,6 +17208,10 @@ function TrainScreen({
     disabled: busyMod,
     onClick: () => setShowMod(true)
   }, "Usar ficha pronta"), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-secondary btn-sm",
+    disabled: busyMod,
+    onClick: () => setShowCopia(true)
+  }, "Copiar de outro aluno"), /*#__PURE__*/React.createElement("button", {
     className: "btn btn-ghost btn-sm",
     onClick: () => setImprimir(true)
   }, "Imprimir ficha"), (divs || []).length > 0 && /*#__PURE__*/React.createElement("button", {
@@ -17441,6 +17628,11 @@ function TrainScreen({
     busy: busyMod,
     onUsar: aplicarModelo,
     onClose: () => setShowMod(false)
+  }), showCopia && /*#__PURE__*/React.createElement(CopiarDeAlunoPicker, {
+    alvo: stu,
+    busy: busyMod,
+    onUsar: copiarDeAluno,
+    onClose: () => setShowCopia(false)
   }));
 }
 
