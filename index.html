@@ -725,7 +725,10 @@ const { useState, useEffect, useRef, useCallback } = React;
 
 /* ── Helpers ── */
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,6);
-const fmt = (n,d=1)=>(n!=null&&n!==''&&!isNaN(parseFloat(n)))?parseFloat(n).toFixed(d):'—';
+// Número para MOSTRAR na tela, em português: 24,3 e não 24.3. Só exibição —
+// nenhum campo de entrada nem exportação passa por aqui.
+const fmt = (n,d=1)=>(n!=null&&n!==''&&!isNaN(parseFloat(n)))
+  ? parseFloat(n).toFixed(d).replace('.',',') : '—';
 const fmtDate = d=>d?new Date(d+'T00:00:00').toLocaleDateString('pt-BR'):'—';
 // data de um timestamp (created_at). fmtDate só serve para 'AAAA-MM-DD'.
 const fmtTime = t=>{if(!t)return'—';const d=new Date(t);return isNaN(d)?'—':d.toLocaleDateString('pt-BR');};
@@ -748,7 +751,7 @@ if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABAS
    .catch. Chamar .catch direto estoura TypeError, e dentro de um useEffect isso
    derruba a tela inteira do aluno. */
 const semEsperar=q=>{try{q.then(()=>{},()=>{});}catch(e){}};
-const APP_VERSION='2026.09.15';   // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION='2026.09.16';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
 
@@ -1572,7 +1575,8 @@ function FTA({label,...p}){return(
   <div className="fg">{label&&<label className="flbl">{label}</label>}<textarea className="fi" {...p}/></div>);}
 function Stat({lbl,val,unit,badge}){return(
   <div className="stat"><div className="stat-lbl">{lbl}</div>
-    <div className="stat-val">{val??'—'}{unit&&<span className="stat-unit"> {unit}</span>}</div>
+    <div className="stat-val">{typeof val==='number'||(typeof val==='string'&&val!==''&&!isNaN(parseFloat(val))&&/^-?\d+(\.\d+)?$/.test(String(val).trim()))
+      ? fmt(val,String(val).includes('.')?1:0) : (val??'—')}{unit&&<span className="stat-unit"> {unit}</span>}</div>
     {badge&&<span className={`badge ${badge.c}`} style={{marginTop:7,display:'inline-flex'}}>{badge.l}</span>}</div>);}
 function Badge({cls,children}){return<span className={`badge ${cls}`}>{children}</span>;}
 
@@ -1953,7 +1957,7 @@ function PainelEvolucao({rows,onSelect}){
     if(v==null)return<span style={{color:'var(--text3)'}}>—</span>;
     const bom=melhorSeCai?v<0:v>0;
     const cor=v===0?'#8a8378':bom?'#2f8f4e':'#b3434f';
-    return<span style={{color:cor,fontWeight:700}}>{v>0?'+':''}{v}</span>;
+    return<span style={{color:cor,fontWeight:700}}>{v>0?'+':''}{fmt(v)}</span>;
   };
 
   return(<div className="card" style={{marginBottom:18}}>
@@ -1997,7 +2001,7 @@ function PainelEvolucao({rows,onSelect}){
                   {seta(x.dScore,false)}
                 </div>
               </td>
-              <td style={{padding:'10px 8px',textAlign:'right'}}>{x.dPeso==null?'—':<span>{x.dPeso>0?'+':''}{x.dPeso} kg</span>}</td>
+              <td style={{padding:'10px 8px',textAlign:'right'}}>{x.dPeso==null?'—':<span>{x.dPeso>0?'+':''}{fmt(x.dPeso)} kg</span>}</td>
               <td style={{padding:'10px 8px',textAlign:'right'}}>{x.dGord==null?'—':<>{seta(x.dGord,true)}<span style={{color:'var(--text3)'}}> pp</span></>}</td>
               <td style={{padding:'10px 8px',textAlign:'right'}}>{x.dMagra==null?'—':<>{seta(x.dMagra,false)}<span style={{color:'var(--text3)'}}> kg</span></>}</td>
               <td style={{padding:'10px 0 10px 8px'}}>
@@ -3245,7 +3249,7 @@ function StudentDetail({student,evals,onNewEval,onReassess,onEditEval,onDeleteEv
                 {i===0&&<span className="badge bo">mais recente</span>}
                 {i<sorted.length-1&&<span style={{fontSize:11,color:'var(--text3)',fontWeight:400}}>nº {sorted.length-i}</span>}</div>
               <div className="eval-meta">
-                {ev.weight&&`${ev.weight} kg · `}{dd.bmi&&`IMC ${fmt(dd.bmi)} · `}
+                {ev.weight&&`${fmt(ev.weight)} kg · `}{dd.bmi&&`IMC ${fmt(dd.bmi)} · `}
                 {dd.fatPct!=null&&`Gordura ${fmt(dd.fatPct)}% · `}
                 {ev.bp_sys&&`PA ${ev.bp_sys}/${ev.bp_dia} · `}{dd.dynAvg&&`Preensão ${fmt(dd.dynAvg)} kgf`}</div>
             </div>
@@ -9241,8 +9245,8 @@ function AvalScreen({student,demo,onBack}){
   const dw=prev?num(latest.weight)-num(prev.weight):null;
   const df=(d.fatPct!=null&&prev)?d.fatPct-derive(student,prev).fatPct:null;
   const stat=(l,v,u,delta,down)=>v==null?null:<div className="lv-card" style={{flex:1,minWidth:120,margin:0,textAlign:'center'}}>
-    <div className="lv-kick">{l}</div><div style={{fontSize:22,fontWeight:800,marginTop:3}}>{v}<span style={{fontSize:12,color:'var(--lvt2)'}}> {u}</span></div>
-    {delta!=null&&delta!==0&&<div style={{fontSize:11.5,fontWeight:700,color:(down?delta<0:delta>0)?'var(--green)':'var(--red)'}}>{delta>0?'▲ +':'▼ '}{Math.abs(+delta.toFixed(1))} {u}</div>}</div>;
+    <div className="lv-kick">{l}</div><div style={{fontSize:22,fontWeight:800,marginTop:3}}>{fmt(v)}<span style={{fontSize:12,color:'var(--lvt2)'}}> {u}</span></div>
+    {delta!=null&&delta!==0&&<div style={{fontSize:11.5,fontWeight:700,color:(down?delta<0:delta>0)?'var(--green)':'var(--red)'}}>{delta>0?'▲ +':'▼ '}{fmt(Math.abs(delta))} {u}</div>}</div>;
   return(<div className="lv-wrap">
     <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14}}><button className="lv-ghost" onClick={onBack}>‹ Voltar</button><div className="lv-title" style={{flex:1}}>Minha avaliação</div></div>
     <div className="lv-card" style={{display:'flex',gap:16,alignItems:'center'}}>
@@ -9290,7 +9294,7 @@ function Conta({valor,dur=900,dec=0}){
     raf=requestAnimationFrame(passo);
     return()=>{if(raf)cancelAnimationFrame(raf);};
   },[alvo,dur]);
-  return <span className="lv-num">{dec?v.toFixed(dec):Math.round(v)}</span>;
+  return <span className="lv-num">{dec?v.toFixed(dec).replace('.',','):Math.round(v)}</span>;
 }
 
 /* Chama da sequência de dias (desenhada, não emoji) */
@@ -9746,7 +9750,7 @@ function EvolucaoAluno({stu,demo,onVer}){
       </div>
       <div style={{textAlign:'right'}}>
         <div style={{fontWeight:800,fontSize:16}}>{fmt(para)}<span style={{fontSize:11,color:'var(--lvt3)'}}>{un}</span></div>
-        <div style={{fontSize:11.5,fontWeight:800,color:cor}}>{delta>0?'+':''}{delta}{un}</div>
+        <div style={{fontSize:11.5,fontWeight:800,color:cor}}>{delta>0?'+':''}{fmt(delta)}{un}</div>
       </div>
     </div>);
   };

@@ -129,6 +129,13 @@ animado do free-exercise-db e as 12 técnicas avançadas com a instrução escri
 Os modelos que vêm no app ficam com `coach_id` nulo (todo mundo enxerga, ninguém
 edita); os que o treinador salva ficam com o `coach_id` dele.
 
+## Números
+Tudo que aparece na tela usa vírgula decimal (24,3 e não 24.3), como se escreve
+em português. Só exibição: nenhum campo de entrada nem exportação passa pelo
+`fmt()`. A suíte `virgula.js` varre as telas do treinador e do aluno procurando
+decimal com ponto no texto visível — se alguém puser um número cru numa tela
+nova, ela acusa.
+
 ## Banco de dados
 Os arquivos `.sql` da raiz são as migrações, na ordem em que foram aplicadas no
 Supabase. `correcoes.sql` traz as últimas correções e `modelos-treino.sql` cria
