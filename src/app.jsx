@@ -31,7 +31,7 @@ if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABAS
    .catch. Chamar .catch direto estoura TypeError, e dentro de um useEffect isso
    derruba a tela inteira do aluno. */
 const semEsperar=q=>{try{q.then(()=>{},()=>{});}catch(e){}};
-const APP_VERSION='2026.09.19';   // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION='2026.09.20';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
 
@@ -9332,6 +9332,10 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
   const [temDieta,setTemDieta]=useState(false);
   const [pushOn,setPushOn]=useState(false);const [pushBusy,setPushBusy]=useState(false);const [pushMsg,setPushMsg]=useState(null);const [agua,setAgua]=useState(false);
   const [lembTreino,setLembTreino]=useState(false);const [periodo,setPeriodo]=useState('noite');
+  // pushChecado evita o convite piscar na tela de quem ja ligou: so mostra
+  // depois que a resposta do servidor chegou. E quem dispensa nao ve de novo.
+  const [pushChecado,setPushChecado]=useState(false);
+  const [convAvisoOff,setConvAvisoOff]=useState(()=>{try{return localStorage.getItem('mfp-conv-aviso')==='off';}catch(e){return false;}});
   const [stats,setStats]=useState({total:0,prs:0,streak:0,mes:0});
   const [ultimaDiv,setUltimaDiv]=useState(null);   // qual divisão ele fez por último
   const [divsCheias,setDivsCheias]=useState(null); // divisões que têm exercício (null = ainda não sei)
@@ -9420,14 +9424,39 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
     (async()=>{try{const p=await getActivePlan(contaAluno);setTemDieta(!!p);}catch(e){}})();},[contaAluno]);
   useEffect(()=>{if(tab==='avisos'&&naoLidos>0&&!espiando){setAvisos(a=>a.map(x=>({...x,lido:true})));if(!demo)semEsperar(sb.rpc('avisos_marcar_lidos'));}},[tab]);
   useEffect(()=>{if(demo||espiando||!stu)return;(async()=>{
-    try{if(pushSuportado()&&Notification.permission==='granted'){const reg=await navigator.serviceWorker.ready;const s=await reg.pushManager.getSubscription();setPushOn(!!s);}}catch(e){}
+    // Quem manda aqui e o servidor, nao o navegador. Ter inscricao no aparelho
+    // nao significa que ela chegou ao banco — e se nao chegou, nada e enviado.
+    // Mostrar "ligado" nesse caso e prometer um aviso que nunca vem.
+    try{if(pushSuportado()&&Notification.permission==='granted'){
+      const reg=await navigator.serviceWorker.ready;const s=await reg.pushManager.getSubscription();
+      if(!s){setPushOn(false);}
+      else{const {data}=await sb.from('train_push').select('endpoint')
+        .eq('endpoint',s.toJSON().endpoint).eq('papel','aluno').maybeSingle();
+        setPushOn(!!data);}
+    }}catch(e){}
+    setPushChecado(true);
     try{const {data}=await sb.from('train_lembrete').select('agua_ativo,treino_ativo,treino_periodo').eq('student_id',stu.id).maybeSingle();
       if(data){setAgua(!!data.agua_ativo);setLembTreino(!!data.treino_ativo);setPeriodo(data.treino_periodo||'noite');}}catch(e){}
   })();},[stu]);
   const togglePush=async()=>{if(espiando)return;if(demo){setPushOn(p=>!p);return;}setPushBusy(true);setPushMsg(null);
     if(pushOn){await desativarPush();setPushOn(false);}else{const r=await ativarPush();if(r.ok)setPushOn(true);else setPushMsg(r.msg);}setPushBusy(false);};
-  const toggleAgua=async(v)=>{if(espiando)return;setAgua(v);if(!demo)semEsperar(sb.rpc('lembrete_agua',{p_ativo:v}));};
-  const salvarLembreteTreino=(ativo,per)=>{if(espiando)return;
+  // Um lembrete so existe se houver para onde mandar. Antes dava para ligar o
+  // lembrete de treino com os avisos desligados: a preferencia era guardada, o
+  // servidor mandava o push e ele nao chegava em aparelho nenhum. Ligar o
+  // lembrete e pedir para ser avisado, entao a inscricao vai junto.
+  const garantirPush=async()=>{
+    if(pushOn||demo)return true;
+    setPushBusy(true);setPushMsg(null);
+    const r=await ativarPush();
+    setPushBusy(false);
+    if(r.ok){setPushOn(true);return true;}
+    setPushMsg(r.msg);return false;
+  };
+  const toggleAgua=async(v)=>{if(espiando)return;
+    if(v&&!(await garantirPush()))return;
+    setAgua(v);if(!demo)semEsperar(sb.rpc('lembrete_agua',{p_ativo:v}));};
+  const salvarLembreteTreino=async(ativo,per)=>{if(espiando)return;
+    if(ativo&&!(await garantirPush()))return;
     setLembTreino(ativo);setPeriodo(per);
     if(!demo)semEsperar(sb.rpc('lembrete_treino',{p_ativo:ativo,p_periodo:per}));};
   const hr=new Date().getHours();const saud=hr<12?'Bom dia':hr<18?'Boa tarde':'Boa noite';
@@ -9519,6 +9548,22 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
   const homeTab=(<div className="lv-wrap">
     {header}
     {!espiando&&<ConviteInstalar lv fechavel chave="aluno"/>}
+    {/* O interruptor existia so na aba Conta, onde ninguem entra: o banco tinha
+        zero inscricoes. Aqui o aluno ve o convite onde ele de fato olha. */}
+    {!espiando&&!demo&&stu&&pushChecado&&!pushOn&&!convAvisoOff&&(
+      <div className="lv-card" style={{marginBottom:14,borderColor:'var(--lvsel)'}}>
+        <div style={{fontWeight:700,marginBottom:4}}>Ligar os avisos no celular</div>
+        <div className="lv-sub" style={{lineHeight:1.55}}>
+          Assim você fica sabendo na hora quando seu treinador mandar um recado ou trocar sua
+          ficha — e pode receber o lembrete do treino no dia em que ainda não treinou.</div>
+        <div style={{display:'flex',gap:9,marginTop:13,flexWrap:'wrap'}}>
+          <button className="lv-btn" style={{flex:1,minWidth:150}} disabled={pushBusy} onClick={togglePush}>
+            {pushBusy?'Ligando…':'Ligar avisos'}</button>
+          <button className="lv-btn" style={{background:'var(--lvc2)',color:'var(--lvt2)',minWidth:110}}
+            onClick={()=>{setConvAvisoOff(true);try{localStorage.setItem('mfp-conv-aviso','off');}catch(e){}}}>Agora não</button>
+        </div>
+        {pushMsg&&<div className="lv-sub" style={{color:'#fca5a5',marginTop:11}}>{pushMsg}</div>}
+      </div>)}
     <AneisDoDia stu={stu} profile={profile} demo={demo}
       onTreino={()=>proxDiv&&setExec(proxDiv)} onDieta={()=>goTab('dieta')}
       onAgua={()=>setHydra(true)} onCheckin={()=>setChk(true)}/>
@@ -9689,6 +9734,9 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
           <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700}}>Lembrete de beber água</div><div className="lv-sub">Toques ao longo do dia pra manter a hidratação</div></div>
         <LvToggle rotulo="Lembrete de beber água" on={agua} onClick={()=>toggleAgua(!agua)}/>
       </div>
+      {/* caso que sobra: ligou os lembretes e depois desligou os avisos */}
+      {!pushOn&&(lembTreino||agua)&&<div className="lv-sub" style={{color:'var(--gold)',marginTop:12,fontSize:11.5,lineHeight:1.5}}>
+        Os avisos no celular estão desligados — enquanto estiverem, estes lembretes não chegam neste aparelho.</div>}
       {pushMsg&&<div className="lv-sub" style={{color:'#fca5a5',marginTop:12}}>{pushMsg}</div>}
       {!pushOn&&<div className="lv-sub" style={{marginTop:12,fontSize:11.5,lineHeight:1.5}}>No iPhone: abra pelo Safari, toque em Compartilhar → “Adicionar à Tela de Início” e abra o app por lá para ativar as notificações.</div>}
     </div>
