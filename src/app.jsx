@@ -12,6 +12,11 @@ const fmt = (n,d=1)=>(n!=null&&n!==''&&!isNaN(parseFloat(n)))
 const fmtDate = d=>d?new Date(d+'T00:00:00').toLocaleDateString('pt-BR'):'—';
 // data de um timestamp (created_at). fmtDate só serve para 'AAAA-MM-DD'.
 const fmtTime = t=>{if(!t)return'—';const d=new Date(t);return isNaN(d)?'—':d.toLocaleDateString('pt-BR');};
+// "1 aluno" / "2 alunos". O "(s)" entre parenteses e jeito de formulario, nao
+// de app: quem le sabe quantos sao, o texto tem que saber tambem.
+const plural=(n,um,muitos)=>n+' '+(n===1?um:(muitos||um+'s'));
+// So o rotulo, sem o numero: o bloco de estatistica ja mostra o valor em cima.
+const rotuloN=(n,um,muitos)=>n===1?um:(muitos||um+'s');
 const tempoRel = iso=>{if(!iso)return'';const s=Math.floor((Date.now()-new Date(iso).getTime())/1000);
   if(s<60)return'agora';if(s<3600)return'há '+Math.floor(s/60)+' min';if(s<86400)return'há '+Math.floor(s/3600)+'h';
   const d=Math.floor(s/86400);if(d<7)return'há '+d+(d===1?' dia':' dias');return new Date(iso).toLocaleDateString('pt-BR');};
@@ -31,7 +36,7 @@ if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABAS
    .catch. Chamar .catch direto estoura TypeError, e dentro de um useEffect isso
    derruba a tela inteira do aluno. */
 const semEsperar=q=>{try{q.then(()=>{},()=>{});}catch(e){}};
-const APP_VERSION='2026.09.20';   // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION='2026.09.21';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
 
@@ -892,7 +897,7 @@ function NotifyModal({target,students,onClose}){
     try{
       if(all){const {data,error}=await sb.rpc('aviso_enviar_todos',{p_titulo:titulo,p_texto:texto,p_tipo:tipo});if(error)throw error;
         try{await sb.functions.invoke('push',{body:{all:true,titulo,texto,tipo}});}catch(e){}
-        setOkMsg('Aviso enviado para '+(data??students.length)+' aluno(s).');}
+        setOkMsg('Aviso enviado para '+plural(data??students.length,'aluno')+'.');}
       else{const {error}=await sb.rpc('aviso_enviar',{p_student:stu.id,p_titulo:titulo,p_texto:texto,p_tipo:tipo});if(error)throw error;
         try{await sb.functions.invoke('push',{body:{student_id:stu.id,titulo,texto,tipo}});}catch(e){}
         setOkMsg('Aviso enviado para '+stu.name+'.');}
@@ -1073,6 +1078,7 @@ function LigarAvisoCard({demo}){
     }catch(e){setEstado('precisa');}
   })();},[demo]);
   if(estado==='vendo'||estado==='ok')return null;
+  if(conviteInstalarVisivel('coach'))return null;
   return(<div className="card" style={{marginBottom:18,borderColor:'rgba(234,179,8,.35)'}}>
     <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:14,flexWrap:'wrap'}}>
       <div style={{minWidth:220,flex:1}}>
@@ -2362,6 +2368,19 @@ function TreinosCoach({student,demo}){
   </div>);
 }
 
+// Uma foto que pode nao carregar: link do Storage expirado, arquivo apagado,
+// celular sem rede. Sem tratar, o navegador desenha o icone de imagem quebrada
+// com o texto alternativo em azul sublinhado — parece defeito do app.
+function FotoThumb({url,legenda,alt}){
+  const [falhou,setFalhou]=useState(false);
+  return(<a className="photo-thumb" href={url} target="_blank" rel="noopener">
+    {falhou
+      ? <div className="photo-ph"><span className="photo-ph-icon">Foto</span>não carregou</div>
+      : <img src={url} alt={alt||''} loading="lazy" onError={()=>setFalhou(true)}/>}
+    <div className="photo-cap">{legenda}</div>
+  </a>);
+}
+
 // As fotos que o aluno manda pelo app dele. Só aparece se ele já mandou alguma.
 function FotosProgressoCoach({student,demo}){
   const [fotos,setFotos]=useState([]);
@@ -2377,10 +2396,7 @@ function FotosProgressoCoach({student,demo}){
       {fotos.length} foto{fotos.length>1?'s':''} enviada{fotos.length>1?'s':''} pelo aluno
       {fotos.length>1&&dias>0?` · ${dias} dias entre a primeira e a última`:''}.</p>
     <div className="photo-grid">{fotos.map(f=>(
-      <a key={f.id} className="photo-thumb" href={f.url} target="_blank" rel="noopener">
-        <img src={f.url} alt="Progresso"/>
-        <div className="photo-cap">{fmtTime(f.created_at)}</div>
-      </a>))}</div>
+      <FotoThumb key={f.id} url={f.url} alt="Foto de progresso" legenda={fmtTime(f.created_at)}/>))}</div>
   </div>);
 }
 
@@ -2891,7 +2907,7 @@ function buildExecutive(student,ev,d,prevEval){
   const eva=classifyEVA(ev.eva);if(eva&&eva.c==='ba')risco-=12;if(eva&&eva.c==='br'){risco-=25;rl.push('Dor atual intensa (EVA)');}
   finds.filter(f=>f.c==='br').forEach(f=>{risco-=8;});
   const asyms=[asymmetry(ev.kneewall_r,ev.kneewall_l,null,1.5),asymmetry(ev.slr_r,ev.slr_l,10),asymmetry(ev.yb_ant_r,ev.yb_ant_l,null,4)].filter(x=>x&&x.badge.c==='br');
-  asyms.forEach(()=>risco-=10);if(asyms.length)rl.push('Assimetria(s) funcional(is) detectada(s)');
+  asyms.forEach(()=>risco-=10);if(asyms.length)rl.push(asyms.length===1?'Assimetria funcional detectada':'Assimetrias funcionais detectadas');
   if(equilibrio!=null&&equilibrio<45){risco-=10;rl.push('Equilíbrio reduzido');}
   risco=Math.max(10,Math.min(100,risco));
   const domains=[['Saúde',saude],['Mobilidade',mobilidade],['Flexibilidade',flexibilidade],['Força',forca],['Potência',potencia],['Cardiorrespiratório',cardio],['Postura',postura],['Equilíbrio',equilibrio],['Performance',performance],['Risco de lesão (↑=melhor)',risco]].filter(x=>x[1]!=null);
@@ -3618,6 +3634,14 @@ function SeloOffline(){
    com a barra do navegador por cima. Este convite explica o caminho,
    e no Android instala com um toque só. */
 const APP_INSTALADO=()=>{try{return window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;}catch(e){return false;}};
+// Um convite de cada vez. Os dois cartoes empilhados viravam um muro antes do
+// treino, e no iPhone o aviso so funciona com o app na tela de inicio — entao
+// instalar vem primeiro e o convite de avisos espera a vez. Quem dispensa o
+// primeiro ve o segundo na proxima abertura, nao no mesmo instante.
+const conviteInstalarVisivel=chave=>{
+  if(APP_INSTALADO())return false;
+  try{return localStorage.getItem('mfp_instalar_'+(chave||'geral'))!=='1';}catch(e){return true;}
+};
 const EH_IOS=(()=>{try{return /iphone|ipad|ipod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);}catch(e){return false;}})();
 const PASSOS_INSTALAR=EH_IOS
   ?['Toque em Compartilhar — o quadrado com a seta para cima, na barra do Safari.',
@@ -4158,7 +4182,7 @@ function DuplicadosScreen({coach,onBack,onMudou}){
     if(!alvo||!outros.length)return;
     const rAlvo=grupo.find(r=>r.student_id===alvo)||{};
     const nomeAlvo=rAlvo.nome;
-    if(!confirm('Juntar '+outros.length+' cadastro(s) em "'+nomeAlvo+'"?\n\n'
+    if(!confirm('Juntar '+plural(outros.length,'cadastro')+' em "'+nomeAlvo+'"?\n\n'
       +'Avaliações, treinos, histórico e avisos vão para ele. Os outros cadastros somem.\n'
       +'Isso não tem desfazer.'))return;
     setBusy(chave);setMsg(null);
@@ -4390,7 +4414,7 @@ function AgendaScreen({coach,students,preStudent,onBack}){
     if(demo){setSlots(p=>[...p,...rows.map((r,i)=>({...r,id:'d'+Date.now()+i}))].sort((a,b)=>new Date(a.starts_at)-new Date(b.starts_at)));setMsg({t:'ok',m:'Horários adicionados (demo, não salvos).'});return;}
     setBusy(true);const {error}=await sb.from('assess_slots').insert(rows);setBusy(false);
     if(error){setMsg({t:'err',m:'Erro ao salvar: '+error.message});return;}
-    setMsg({t:'ok',m:`${rows.length} horário(s) adicionado(s).`});load();
+    setMsg({t:'ok',m:rows.length===1?'1 horário adicionado.':`${rows.length} horários adicionados.`});load();
   };
   const delSlot=async(id)=>{
     if(demo){setSlots(p=>p.filter(s=>s.id!==id));return;}
@@ -4751,7 +4775,7 @@ function IntakeInbox({coach,students,onImport,onBack}){
             <Field l="Atividade" v={ps.activity}/><Field l="Frequência" v={ps.schedule}/><Field l="Sono" v={ps.sleep}/>
             <Field l="Dor (EVA)" v={ed.eva}/><Field l="Fadiga" v={ed.fatigue}/><Field l="Estresse" v={ed.stress}/>
             <Field l="Saúde" v={ps.health}/><Field l="Medicamentos" v={ps.meds}/><Field l="Lesões" v={ps.injuries}/>
-            <div style={{marginTop:6}}><span className="s-meta">PAR-Q: </span>{parqYes.length?<span className="badge br">{parqYes.length} resposta(s) "Sim" — encaminhar avaliação médica</span>:<span className="badge bg">Sem respostas positivas</span>}</div>
+            <div style={{marginTop:6}}><span className="s-meta">PAR-Q: </span>{parqYes.length?<span className="badge br">{plural(parqYes.length,'resposta')} "Sim" — encaminhar avaliação médica</span>:<span className="badge bg">Sem respostas positivas</span>}</div>
           </div>
         </div>
         {(ph.front||ph.side||ph.back)&&<div className="dash-panel"><h4>Fotos</h4>
@@ -5203,6 +5227,9 @@ function TechScreen({coach,students,preStudent,onBack}){
 
 /* ══════════════ Módulo Treino — montador de ficha (coach) ══════════════ */
 const TRAIN_TIERS=['Aquecimento','Preparatoria','Valida'];
+// O banco guarda o tipo sem acento (Valida, Preparatoria). Na tela vai
+// acentuado: quem treina nao tem que ver o valor cru da coluna.
+const tierNome=t=>t==='Preparatoria'?'Preparatória':t==='Valida'?'Válida':(t||'');
 const tierColor=t=>t==='Valida'?'#2f8f4e':t==='Preparatoria'?'#b0894f':'#8a8378';
 const TRAIN_GRUPOS=['Peito','Costas','Ombro','Bíceps','Tríceps','Antebraço','Quadríceps','Posterior de Coxa','Glúteos','Adutores','Abdutores','Panturrilha','Abdômen','Lombar','Cardio','Mobilidade'];
 const openVideo=(url,name)=>{const u=(url&&url.trim())?url.trim():('https://www.youtube.com/results?search_query='+encodeURIComponent((name||'exercício')+' execução técnica'));window.open(u,'_blank');};
@@ -5837,7 +5864,7 @@ function TrainScreen({coach,students,preStudent,onBack}){
                   : <span style={{marginLeft:8,fontSize:11,color:'var(--text3)'}}>sem demo</span>}
                 {verEx===s.id&&dem&&<div style={{marginTop:8,maxWidth:280}}><ExDemo url={dem.video_url} path={dem.video_path} name={dem.nome} dicas={dem.dicas}/></div>}
               </td>
-              <td><span className="badge" style={{background:'transparent',color:tierColor(s.tipo_serie),border:'1px solid '+tierColor(s.tipo_serie)}}>{s.tipo_serie}</span></td>
+              <td><span className="badge" style={{background:'transparent',color:tierColor(s.tipo_serie),border:'1px solid '+tierColor(s.tipo_serie)}}>{tierNome(s.tipo_serie)}</span></td>
               <td style={{whiteSpace:'nowrap'}}>
                 <input className="fi" type="number" min="1" style={{width:52,padding:'4px 6px',display:'inline-block'}}
                   defaultValue={s.qtd_series} onBlur={e=>{const v=parseInt(e.target.value)||1;if(v!==s.qtd_series)updEx(dv.id,s.id,{qtd_series:v});}}/>
@@ -5864,7 +5891,7 @@ function TrainScreen({coach,students,preStudent,onBack}){
             <div className="fg" style={{margin:0,flex:1,minWidth:150}}><label className="flbl">Exercício</label>
               <input className="fi" list="trainlibf" value={ex.nome} onChange={e=>setEx(p=>({...p,nome:e.target.value}))} placeholder={ex.grupo==='Todos'?'Nome do exercício':'Exercícios de '+ex.grupo}/></div>
             <div className="fg" style={{margin:0}}><label className="flbl">Tipo</label>
-              <select className="fi" style={{width:120}} value={ex.tipo_serie} onChange={e=>setEx(p=>({...p,tipo_serie:e.target.value}))}>{TRAIN_TIERS.map(t=><option key={t} value={t}>{t}</option>)}</select></div>
+              <select className="fi" style={{width:120}} value={ex.tipo_serie} onChange={e=>setEx(p=>({...p,tipo_serie:e.target.value}))}>{TRAIN_TIERS.map(t=><option key={t} value={t}>{tierNome(t)}</option>)}</select></div>
             <div className="fg" style={{margin:0}}><label className="flbl">Séries</label>
               <input className="fi" type="number" style={{width:70}} value={ex.qtd_series} onChange={e=>setEx(p=>({...p,qtd_series:e.target.value}))}/></div>
             <div className="fg" style={{margin:0}}><label className="flbl">Reps</label>
@@ -6753,10 +6780,8 @@ function NutriRegistros({fichaId,studentUid,demo}){
       <div className="sec-title">Fotos enviadas</div>
       {d.photos.length===0?<p className="s-meta">Nenhuma foto ainda.</p>:
         <div className="photo-grid">{d.photos.map(x=>(
-          <a key={x.id} className="photo-thumb" href={x.url} target="_blank" rel="noopener">
-            <img src={x.url}/>
-            <div className="photo-cap">{x.kind==='progress'?'Progresso':'Refeição'} · {fmtTime(x.created_at)}</div>
-          </a>))}</div>}
+          <FotoThumb key={x.id} url={x.url} alt={x.kind==='progress'?'Foto de progresso':'Foto da refeição'}
+            legenda={(x.kind==='progress'?'Progresso':'Refeição')+' · '+fmtTime(x.created_at)}/>))}</div>}
     </div>
     <div className="card" style={{marginBottom:14}}>
       <div className="sec-title">Cardio</div>
@@ -8016,7 +8041,7 @@ function TrainExec({student,divisao,demo,somenteLeitura,best,onBack,onSaved,onFi
           {e.tiers.map(t=>{const ai=activeIdx(t);const complete=tierDoneCount(t)>=t.qtd_series;const iv=t.intervalo_seg_min||60;
             return(<div key={t.id} style={{marginBottom:16}}>
               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
-                <span style={{display:'inline-flex',alignItems:'center',gap:8,fontWeight:700}}><i className="lv-dot" style={{background:tierColor(t.tipo_serie)}}/>{t.tipo_serie==='Preparatoria'?'Preparatória':t.tipo_serie}</span>
+                <span style={{display:'inline-flex',alignItems:'center',gap:8,fontWeight:700}}><i className="lv-dot" style={{background:tierColor(t.tipo_serie)}}/>{tierNome(t.tipo_serie)}</span>
                 <span className="lv-sub">{complete?'concluído ✓':`Reps ${t.faixa_reps} · desc. ${Math.floor(iv/60)}:${String(iv%60).padStart(2,'0')}`}</span>
               </div>
               <div className="lv-setchips">{Array.from({length:t.qtd_series}).map((_,i)=>{const dn=done[t.id+'_'+i];const isA=!dn&&i===ai;
@@ -8335,9 +8360,9 @@ function TreinosScreen({student,demo,onBack}){
      sessoes.length===0?<div className="lv-card" style={{textAlign:'center',color:'var(--lvt2)'}}>
        Nenhum treino registrado ainda. O primeiro aparece aqui assim que você fechar.</div>:<>
       <div className="lv-stats" style={{marginBottom:14}}>
-        <div className="lv-stat"><b><Conta valor={sessoes.length}/></b><span>Treinos</span></div>
+        <div className="lv-stat"><b><Conta valor={sessoes.length}/></b><span>{rotuloN(sessoes.length,'Treino')}</span></div>
         <div className="lv-stat"><b><Conta valor={totalSem}/></b><span>Esta semana</span></div>
-        <div className="lv-stat"><b><Conta valor={sessoes.reduce((a,s)=>a+s.prs,0)}/></b><span>Recordes</span></div>
+        <div className="lv-stat"><b><Conta valor={sessoes.reduce((a,s)=>a+s.prs,0)}/></b><span>{rotuloN(sessoes.reduce((a,s)=>a+s.prs,0),'Recorde')}</span></div>
       </div>
       {sessoes.map(s=>{const open=aberta===s.data;
         return(<div key={s.data} className="lv-card" style={{marginBottom:10}}>
@@ -9550,7 +9575,7 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
     {!espiando&&<ConviteInstalar lv fechavel chave="aluno"/>}
     {/* O interruptor existia so na aba Conta, onde ninguem entra: o banco tinha
         zero inscricoes. Aqui o aluno ve o convite onde ele de fato olha. */}
-    {!espiando&&!demo&&stu&&pushChecado&&!pushOn&&!convAvisoOff&&(
+    {!espiando&&!demo&&stu&&pushChecado&&!pushOn&&!convAvisoOff&&!conviteInstalarVisivel('aluno')&&(
       <div className="lv-card" style={{marginBottom:14,borderColor:'var(--lvsel)'}}>
         <div style={{fontWeight:700,marginBottom:4}}>Ligar os avisos no celular</div>
         <div className="lv-sub" style={{lineHeight:1.55}}>
@@ -9572,8 +9597,8 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
     <PesoStatus demo={demo}/>
     <div className="lv-motiv"><div style={{fontSize:13.5,fontWeight:600,fontStyle:'italic',color:'var(--lvt)'}}>{frase}</div></div>
     <div className="lv-stats">
-      <div className="lv-stat"><b><Conta valor={stats.total}/></b><span>Treinos</span></div>
-      <div className="lv-stat"><b><Conta valor={stats.prs}/></b><span>Recordes</span></div>
+      <div className="lv-stat"><b><Conta valor={stats.total}/></b><span>{rotuloN(stats.total,'Treino')}</span></div>
+      <div className="lv-stat"><b><Conta valor={stats.prs}/></b><span>{rotuloN(stats.prs,'Recorde')}</span></div>
       <div className="lv-stat"><b><Conta valor={stats.mes}/></b><span>Este mês</span></div>
     </div>
     {list.length===0?<div className="lv-card" style={{textAlign:'center',color:'var(--lvt2)'}}>Seu treinador ainda não montou sua ficha de treino.</div>:(()=>{
@@ -9612,11 +9637,11 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
     <div className="lv-card">
       <div className="lv-kick" style={{marginBottom:10}}>Resumo da semana</div>
       <div style={{display:'flex',gap:10,textAlign:'center'}}>
-        <div style={{flex:1}}><div style={{fontSize:22,fontWeight:900,color:'var(--lvrx)'}}><Conta valor={freq.done}/></div><div className="lv-sub" style={{fontSize:11}}>treinos</div></div>
-        <div style={{flex:1}}><div style={{fontSize:22,fontWeight:900,color:'var(--lvrx)'}}><Conta valor={stats.prs}/></div><div className="lv-sub" style={{fontSize:11}}>recordes</div></div>
-        <div style={{flex:1}}><div style={{fontSize:22,fontWeight:900,color:'var(--lvrx)'}}><Conta valor={stats.streak}/></div><div className="lv-sub" style={{fontSize:11}}>seq. dias</div></div>
+        <div style={{flex:1}}><div style={{fontSize:22,fontWeight:900,color:'var(--lvrx)'}}><Conta valor={freq.done}/></div><div className="lv-sub" style={{fontSize:11}}>{rotuloN(freq.done,'treino')}</div></div>
+        <div style={{flex:1}}><div style={{fontSize:22,fontWeight:900,color:'var(--lvrx)'}}><Conta valor={stats.prs}/></div><div className="lv-sub" style={{fontSize:11}}>{rotuloN(stats.prs,'recorde')}</div></div>
+        <div style={{flex:1}}><div style={{fontSize:22,fontWeight:900,color:'var(--lvrx)'}}><Conta valor={stats.streak}/></div><div className="lv-sub" style={{fontSize:11}}>{rotuloN(stats.streak,'dia seguido','dias seguidos')}</div></div>
       </div>
-      <div className="lv-sub" style={{marginTop:10,lineHeight:1.5}}>{freq.done>=freq.meta?'Semana fechada com chave de ouro! Orgulho do seu compromisso.':`Faltam ${Math.max(0,freq.meta-freq.done)} treino(s) pra bater sua meta da semana. Bora!`}</div>
+      <div className="lv-sub" style={{marginTop:10,lineHeight:1.5}}>{freq.done>=freq.meta?'Semana fechada com chave de ouro! Orgulho do seu compromisso.':(freq.meta-freq.done===1?'Falta 1 treino pra bater sua meta da semana. Bora!':`Faltam ${Math.max(0,freq.meta-freq.done)} treinos pra bater sua meta da semana. Bora!`)}</div>
     </div>
     <div className="lv-kick" style={{margin:'18px 0 10px'}}>Meu dia</div>
     <div style={{display:'flex',gap:10,marginBottom:14}}>
@@ -9657,8 +9682,8 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
       <div className="lv-freq"><i style={{width:pct+'%'}}/></div>
     </div>
     <div className="lv-stats">
-      <div className="lv-stat"><b>{stats.total}</b><span>Treinos</span></div>
-      <div className="lv-stat"><b>{stats.prs}</b><span>Recordes</span></div>
+      <div className="lv-stat"><b>{stats.total}</b><span>{rotuloN(stats.total,'Treino')}</span></div>
+      <div className="lv-stat"><b>{stats.prs}</b><span>{rotuloN(stats.prs,'Recorde')}</span></div>
       <div className="lv-stat"><b>{stats.streak}</b><span>Sequência</span></div>
     </div>
     <div className="lv-treino" style={{marginBottom:12}} onClick={()=>setTreinos(true)}>
@@ -9696,8 +9721,8 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
       <div><div style={{fontWeight:800,fontSize:17}}>{stu.name}</div><div className="lv-sub">{stu.gender==='F'?'Aluna':'Aluno'} · MF Performance</div></div>
     </div>
     <div className="lv-stats">
-      <div className="lv-stat"><b>{stats.total}</b><span>Treinos</span></div>
-      <div className="lv-stat"><b>{stats.prs}</b><span>Recordes</span></div>
+      <div className="lv-stat"><b>{stats.total}</b><span>{rotuloN(stats.total,'Treino')}</span></div>
+      <div className="lv-stat"><b>{stats.prs}</b><span>{rotuloN(stats.prs,'Recorde')}</span></div>
       <div className="lv-stat"><b>{stats.streak}</b><span>Sequência</span></div>
     </div>
     <div className="lv-treino" style={{marginBottom:12}} onClick={()=>setAval(true)}>

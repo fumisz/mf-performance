@@ -22,6 +22,11 @@ const fmtTime = t => {
   const d = new Date(t);
   return isNaN(d) ? '—' : d.toLocaleDateString('pt-BR');
 };
+// "1 aluno" / "2 alunos". O "(s)" entre parenteses e jeito de formulario, nao
+// de app: quem le sabe quantos sao, o texto tem que saber tambem.
+const plural = (n, um, muitos) => n + ' ' + (n === 1 ? um : muitos || um + 's');
+// So o rotulo, sem o numero: o bloco de estatistica ja mostra o valor em cima.
+const rotuloN = (n, um, muitos) => n === 1 ? um : muitos || um + 's';
 const tempoRel = iso => {
   if (!iso) return '';
   const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
@@ -66,7 +71,7 @@ const semEsperar = q => {
     q.then(() => {}, () => {});
   } catch (e) {}
 };
-const APP_VERSION = '2026.09.20'; // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION = '2026.09.21'; // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA'); // YYYY-MM-DD no fuso LOCAL
 
@@ -2316,7 +2321,7 @@ function NotifyModal({
             }
           });
         } catch (e) {}
-        setOkMsg('Aviso enviado para ' + (data ?? students.length) + ' aluno(s).');
+        setOkMsg('Aviso enviado para ' + plural(data ?? students.length, 'aluno') + '.');
       } else {
         const {
           error
@@ -3141,6 +3146,7 @@ function LigarAvisoCard({
     })();
   }, [demo]);
   if (estado === 'vendo' || estado === 'ok') return null;
+  if (conviteInstalarVisivel('coach')) return null;
   return /*#__PURE__*/React.createElement("div", {
     className: "card",
     style: {
@@ -6876,6 +6882,34 @@ function TreinosCoach({
   }, tudo ? 'Mostrar menos' : `Ver os ${sessoes.length} treinos`)));
 }
 
+// Uma foto que pode nao carregar: link do Storage expirado, arquivo apagado,
+// celular sem rede. Sem tratar, o navegador desenha o icone de imagem quebrada
+// com o texto alternativo em azul sublinhado — parece defeito do app.
+function FotoThumb({
+  url,
+  legenda,
+  alt
+}) {
+  const [falhou, setFalhou] = useState(false);
+  return /*#__PURE__*/React.createElement("a", {
+    className: "photo-thumb",
+    href: url,
+    target: "_blank",
+    rel: "noopener"
+  }, falhou ? /*#__PURE__*/React.createElement("div", {
+    className: "photo-ph"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "photo-ph-icon"
+  }, "Foto"), "n\xE3o carregou") : /*#__PURE__*/React.createElement("img", {
+    src: url,
+    alt: alt || '',
+    loading: "lazy",
+    onError: () => setFalhou(true)
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "photo-cap"
+  }, legenda));
+}
+
 // As fotos que o aluno manda pelo app dele. Só aparece se ele já mandou alguma.
 function FotosProgressoCoach({
   student,
@@ -6906,18 +6940,12 @@ function FotosProgressoCoach({
     }
   }, fotos.length, " foto", fotos.length > 1 ? 's' : '', " enviada", fotos.length > 1 ? 's' : '', " pelo aluno", fotos.length > 1 && dias > 0 ? ` · ${dias} dias entre a primeira e a última` : '', "."), /*#__PURE__*/React.createElement("div", {
     className: "photo-grid"
-  }, fotos.map(f => /*#__PURE__*/React.createElement("a", {
+  }, fotos.map(f => /*#__PURE__*/React.createElement(FotoThumb, {
     key: f.id,
-    className: "photo-thumb",
-    href: f.url,
-    target: "_blank",
-    rel: "noopener"
-  }, /*#__PURE__*/React.createElement("img", {
-    src: f.url,
-    alt: "Progresso"
-  }), /*#__PURE__*/React.createElement("div", {
-    className: "photo-cap"
-  }, fmtTime(f.created_at))))));
+    url: f.url,
+    alt: "Foto de progresso",
+    legenda: fmtTime(f.created_at)
+  }))));
 }
 function FeedbacksAluno({
   student,
@@ -8394,7 +8422,7 @@ function buildExecutive(student, ev, d, prevEval) {
   });
   const asyms = [asymmetry(ev.kneewall_r, ev.kneewall_l, null, 1.5), asymmetry(ev.slr_r, ev.slr_l, 10), asymmetry(ev.yb_ant_r, ev.yb_ant_l, null, 4)].filter(x => x && x.badge.c === 'br');
   asyms.forEach(() => risco -= 10);
-  if (asyms.length) rl.push('Assimetria(s) funcional(is) detectada(s)');
+  if (asyms.length) rl.push(asyms.length === 1 ? 'Assimetria funcional detectada' : 'Assimetrias funcionais detectadas');
   if (equilibrio != null && equilibrio < 45) {
     risco -= 10;
     rl.push('Equilíbrio reduzido');
@@ -10659,6 +10687,18 @@ const APP_INSTALADO = () => {
     return false;
   }
 };
+// Um convite de cada vez. Os dois cartoes empilhados viravam um muro antes do
+// treino, e no iPhone o aviso so funciona com o app na tela de inicio — entao
+// instalar vem primeiro e o convite de avisos espera a vez. Quem dispensa o
+// primeiro ve o segundo na proxima abertura, nao no mesmo instante.
+const conviteInstalarVisivel = chave => {
+  if (APP_INSTALADO()) return false;
+  try {
+    return localStorage.getItem('mfp_instalar_' + (chave || 'geral')) !== '1';
+  } catch (e) {
+    return true;
+  }
+};
 const EH_IOS = (() => {
   try {
     return /iphone|ipad|ipod/i.test(navigator.userAgent) || navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
@@ -11858,7 +11898,7 @@ function DuplicadosScreen({
     if (!alvo || !outros.length) return;
     const rAlvo = grupo.find(r => r.student_id === alvo) || {};
     const nomeAlvo = rAlvo.nome;
-    if (!confirm('Juntar ' + outros.length + ' cadastro(s) em "' + nomeAlvo + '"?\n\n' + 'Avaliações, treinos, histórico e avisos vão para ele. Os outros cadastros somem.\n' + 'Isso não tem desfazer.')) return;
+    if (!confirm('Juntar ' + plural(outros.length, 'cadastro') + ' em "' + nomeAlvo + '"?\n\n' + 'Avaliações, treinos, histórico e avisos vão para ele. Os outros cadastros somem.\n' + 'Isso não tem desfazer.')) return;
     setBusy(chave);
     setMsg(null);
     try {
@@ -12423,7 +12463,7 @@ function AgendaScreen({
     }
     setMsg({
       t: 'ok',
-      m: `${rows.length} horário(s) adicionado(s).`
+      m: rows.length === 1 ? '1 horário adicionado.' : `${rows.length} horários adicionados.`
     });
     load();
   };
@@ -13570,7 +13610,7 @@ function IntakeInbox({
       className: "s-meta"
     }, "PAR-Q: "), parqYes.length ? /*#__PURE__*/React.createElement("span", {
       className: "badge br"
-    }, parqYes.length, " resposta(s) \"Sim\" \u2014 encaminhar avalia\xE7\xE3o m\xE9dica") : /*#__PURE__*/React.createElement("span", {
+    }, plural(parqYes.length, 'resposta'), " \"Sim\" \u2014 encaminhar avalia\xE7\xE3o m\xE9dica") : /*#__PURE__*/React.createElement("span", {
       className: "badge bg"
     }, "Sem respostas positivas")))), (ph.front || ph.side || ph.back) && /*#__PURE__*/React.createElement("div", {
       className: "dash-panel"
@@ -15104,6 +15144,9 @@ function TechScreen({
 
 /* ══════════════ Módulo Treino — montador de ficha (coach) ══════════════ */
 const TRAIN_TIERS = ['Aquecimento', 'Preparatoria', 'Valida'];
+// O banco guarda o tipo sem acento (Valida, Preparatoria). Na tela vai
+// acentuado: quem treina nao tem que ver o valor cru da coluna.
+const tierNome = t => t === 'Preparatoria' ? 'Preparatória' : t === 'Valida' ? 'Válida' : t || '';
 const tierColor = t => t === 'Valida' ? '#2f8f4e' : t === 'Preparatoria' ? '#b0894f' : '#8a8378';
 const TRAIN_GRUPOS = ['Peito', 'Costas', 'Ombro', 'Bíceps', 'Tríceps', 'Antebraço', 'Quadríceps', 'Posterior de Coxa', 'Glúteos', 'Adutores', 'Abdutores', 'Panturrilha', 'Abdômen', 'Lombar', 'Cardio', 'Mobilidade'];
 const openVideo = (url, name) => {
@@ -16961,7 +17004,7 @@ function TrainScreen({
           color: tierColor(s.tipo_serie),
           border: '1px solid ' + tierColor(s.tipo_serie)
         }
-      }, s.tipo_serie)), /*#__PURE__*/React.createElement("td", {
+      }, tierNome(s.tipo_serie))), /*#__PURE__*/React.createElement("td", {
         style: {
           whiteSpace: 'nowrap'
         }
@@ -17117,7 +17160,7 @@ function TrainScreen({
     }, TRAIN_TIERS.map(t => /*#__PURE__*/React.createElement("option", {
       key: t,
       value: t
-    }, t)))), /*#__PURE__*/React.createElement("div", {
+    }, tierNome(t))))), /*#__PURE__*/React.createElement("div", {
       className: "fg",
       style: {
         margin: 0
@@ -19592,17 +19635,12 @@ function NutriRegistros({
     className: "s-meta"
   }, "Nenhuma foto ainda.") : /*#__PURE__*/React.createElement("div", {
     className: "photo-grid"
-  }, d.photos.map(x => /*#__PURE__*/React.createElement("a", {
+  }, d.photos.map(x => /*#__PURE__*/React.createElement(FotoThumb, {
     key: x.id,
-    className: "photo-thumb",
-    href: x.url,
-    target: "_blank",
-    rel: "noopener"
-  }, /*#__PURE__*/React.createElement("img", {
-    src: x.url
-  }), /*#__PURE__*/React.createElement("div", {
-    className: "photo-cap"
-  }, x.kind === 'progress' ? 'Progresso' : 'Refeição', " \xB7 ", fmtTime(x.created_at)))))), /*#__PURE__*/React.createElement("div", {
+    url: x.url,
+    alt: x.kind === 'progress' ? 'Foto de progresso' : 'Foto da refeição',
+    legenda: (x.kind === 'progress' ? 'Progresso' : 'Refeição') + ' · ' + fmtTime(x.created_at)
+  })))), /*#__PURE__*/React.createElement("div", {
     className: "card",
     style: {
       marginBottom: 14
@@ -23055,7 +23093,7 @@ function TrainExec({
         style: {
           background: tierColor(t.tipo_serie)
         }
-      }), t.tipo_serie === 'Preparatoria' ? 'Preparatória' : t.tipo_serie), /*#__PURE__*/React.createElement("span", {
+      }), tierNome(t.tipo_serie)), /*#__PURE__*/React.createElement("span", {
         className: "lv-sub"
       }, complete ? 'concluído ✓' : `Reps ${t.faixa_reps} · desc. ${Math.floor(iv / 60)}:${String(iv % 60).padStart(2, '0')}`)), /*#__PURE__*/React.createElement("div", {
         className: "lv-setchips"
@@ -24034,7 +24072,7 @@ function TreinosScreen({
     className: "lv-stat"
   }, /*#__PURE__*/React.createElement("b", null, /*#__PURE__*/React.createElement(Conta, {
     valor: sessoes.length
-  })), /*#__PURE__*/React.createElement("span", null, "Treinos")), /*#__PURE__*/React.createElement("div", {
+  })), /*#__PURE__*/React.createElement("span", null, rotuloN(sessoes.length, 'Treino'))), /*#__PURE__*/React.createElement("div", {
     className: "lv-stat"
   }, /*#__PURE__*/React.createElement("b", null, /*#__PURE__*/React.createElement(Conta, {
     valor: totalSem
@@ -24042,7 +24080,7 @@ function TreinosScreen({
     className: "lv-stat"
   }, /*#__PURE__*/React.createElement("b", null, /*#__PURE__*/React.createElement(Conta, {
     valor: sessoes.reduce((a, s) => a + s.prs, 0)
-  })), /*#__PURE__*/React.createElement("span", null, "Recordes"))), sessoes.map(s => {
+  })), /*#__PURE__*/React.createElement("span", null, rotuloN(sessoes.reduce((a, s) => a + s.prs, 0), 'Recorde')))), sessoes.map(s => {
     const open = aberta === s.data;
     return /*#__PURE__*/React.createElement("div", {
       key: s.data,
@@ -28281,7 +28319,7 @@ function StudentApp({
     lv: true,
     fechavel: true,
     chave: "aluno"
-  }), !espiando && !demo && stu && pushChecado && !pushOn && !convAvisoOff && /*#__PURE__*/React.createElement("div", {
+  }), !espiando && !demo && stu && pushChecado && !pushOn && !convAvisoOff && !conviteInstalarVisivel('aluno') && /*#__PURE__*/React.createElement("div", {
     className: "lv-card",
     style: {
       marginBottom: 14,
@@ -28362,11 +28400,11 @@ function StudentApp({
     className: "lv-stat"
   }, /*#__PURE__*/React.createElement("b", null, /*#__PURE__*/React.createElement(Conta, {
     valor: stats.total
-  })), /*#__PURE__*/React.createElement("span", null, "Treinos")), /*#__PURE__*/React.createElement("div", {
+  })), /*#__PURE__*/React.createElement("span", null, rotuloN(stats.total, 'Treino'))), /*#__PURE__*/React.createElement("div", {
     className: "lv-stat"
   }, /*#__PURE__*/React.createElement("b", null, /*#__PURE__*/React.createElement(Conta, {
     valor: stats.prs
-  })), /*#__PURE__*/React.createElement("span", null, "Recordes")), /*#__PURE__*/React.createElement("div", {
+  })), /*#__PURE__*/React.createElement("span", null, rotuloN(stats.prs, 'Recorde'))), /*#__PURE__*/React.createElement("div", {
     className: "lv-stat"
   }, /*#__PURE__*/React.createElement("b", null, /*#__PURE__*/React.createElement(Conta, {
     valor: stats.mes
@@ -28531,7 +28569,7 @@ function StudentApp({
     style: {
       fontSize: 11
     }
-  }, "treinos")), /*#__PURE__*/React.createElement("div", {
+  }, rotuloN(freq.done, 'treino'))), /*#__PURE__*/React.createElement("div", {
     style: {
       flex: 1
     }
@@ -28548,7 +28586,7 @@ function StudentApp({
     style: {
       fontSize: 11
     }
-  }, "recordes")), /*#__PURE__*/React.createElement("div", {
+  }, rotuloN(stats.prs, 'recorde'))), /*#__PURE__*/React.createElement("div", {
     style: {
       flex: 1
     }
@@ -28565,13 +28603,13 @@ function StudentApp({
     style: {
       fontSize: 11
     }
-  }, "seq. dias"))), /*#__PURE__*/React.createElement("div", {
+  }, rotuloN(stats.streak, 'dia seguido', 'dias seguidos')))), /*#__PURE__*/React.createElement("div", {
     className: "lv-sub",
     style: {
       marginTop: 10,
       lineHeight: 1.5
     }
-  }, freq.done >= freq.meta ? 'Semana fechada com chave de ouro! Orgulho do seu compromisso.' : `Faltam ${Math.max(0, freq.meta - freq.done)} treino(s) pra bater sua meta da semana. Bora!`)), /*#__PURE__*/React.createElement("div", {
+  }, freq.done >= freq.meta ? 'Semana fechada com chave de ouro! Orgulho do seu compromisso.' : freq.meta - freq.done === 1 ? 'Falta 1 treino pra bater sua meta da semana. Bora!' : `Faltam ${Math.max(0, freq.meta - freq.done)} treinos pra bater sua meta da semana. Bora!`)), /*#__PURE__*/React.createElement("div", {
     className: "lv-kick",
     style: {
       margin: '18px 0 10px'
@@ -28767,9 +28805,9 @@ function StudentApp({
     className: "lv-stats"
   }, /*#__PURE__*/React.createElement("div", {
     className: "lv-stat"
-  }, /*#__PURE__*/React.createElement("b", null, stats.total), /*#__PURE__*/React.createElement("span", null, "Treinos")), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("b", null, stats.total), /*#__PURE__*/React.createElement("span", null, rotuloN(stats.total, 'Treino'))), /*#__PURE__*/React.createElement("div", {
     className: "lv-stat"
-  }, /*#__PURE__*/React.createElement("b", null, stats.prs), /*#__PURE__*/React.createElement("span", null, "Recordes")), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("b", null, stats.prs), /*#__PURE__*/React.createElement("span", null, rotuloN(stats.prs, 'Recorde'))), /*#__PURE__*/React.createElement("div", {
     className: "lv-stat"
   }, /*#__PURE__*/React.createElement("b", null, stats.streak), /*#__PURE__*/React.createElement("span", null, "Sequ\xEAncia"))), /*#__PURE__*/React.createElement("div", {
     className: "lv-treino",
@@ -28927,9 +28965,9 @@ function StudentApp({
     className: "lv-stats"
   }, /*#__PURE__*/React.createElement("div", {
     className: "lv-stat"
-  }, /*#__PURE__*/React.createElement("b", null, stats.total), /*#__PURE__*/React.createElement("span", null, "Treinos")), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("b", null, stats.total), /*#__PURE__*/React.createElement("span", null, rotuloN(stats.total, 'Treino'))), /*#__PURE__*/React.createElement("div", {
     className: "lv-stat"
-  }, /*#__PURE__*/React.createElement("b", null, stats.prs), /*#__PURE__*/React.createElement("span", null, "Recordes")), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("b", null, stats.prs), /*#__PURE__*/React.createElement("span", null, rotuloN(stats.prs, 'Recorde'))), /*#__PURE__*/React.createElement("div", {
     className: "lv-stat"
   }, /*#__PURE__*/React.createElement("b", null, stats.streak), /*#__PURE__*/React.createElement("span", null, "Sequ\xEAncia"))), /*#__PURE__*/React.createElement("div", {
     className: "lv-treino",
