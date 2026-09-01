@@ -25,10 +25,26 @@ caiu para **0,4s / 1,1s / 1,4s**, o pacote foi de 4,1 MB para 1,3 MB, e o
 `unsafe-eval` saiu do CSP (ele só existia por causa do Babel).
 
 ## Sem internet
-O app abre e funciona no modo avião. Para isso **nada é carregado de fora**: o
-React, o Babel e o `supabase-js` moram em `lib/` e são pré-guardados pelo
-service worker. Fontes e desenhos de exercício ficam em cache depois da
-primeira vez que carregam.
+O app abre e funciona no modo avião. **Nada é carregado de fora**: React,
+`supabase-js` e as **fontes** moram em `lib/` e são pré-guardados pelo service
+worker. Só os desenhos de exercício vêm de fora, e ficam em cache depois da
+primeira vez.
+
+As fontes eram carregadas do Google por um `<link>` bloqueante de renderização.
+Medido, numa rede que não responde isso segurava o app inteiro por **12,5s** —
+React, Supabase, `app.js` e todas as consultas ao banco esperavam na fila. É o
+cenário do wifi de academia com portal de login. Trazendo as fontes para dentro
+(258 KB, só latin), essa etapa caiu para 27ms e a segunda abertura foi de
+**13,3s para 1,1s**.
+
+## Abertura rápida
+Quem já abriu o app antes vê a tela **na hora**: o `lerJa()` entrega a cópia
+local primeiro e atualiza sozinho quando o dado fresco chega. O `lerCopia()`
+antigo continua para o que precisa esperar a rede.
+
+A suíte `rede.js` mede a abertura com latência de celular e lista tudo que o
+app pede antes de ficar utilizável, em quantas ondas sequenciais — foi ela que
+achou o `aluno_link` sendo chamado em toda abertura sem ter código pendente.
 
 As leituras que precisam aparecer offline passam por `lerCopia()`: tenta a rede
 com prazo, guarda o resultado no IndexedDB e, sem rede, devolve a última cópia.

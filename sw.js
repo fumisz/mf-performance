@@ -1,17 +1,24 @@
-const CACHE='mfp-v76';
+const CACHE='mfp-v77';
 // Tudo que o app precisa para ABRIR sem rede. A biblioteca do Supabase entrou
 // aqui: antes vinha da jsdelivr, e como o worker so guardava o proprio dominio,
 // no modo aviao ela nao carregava e o app morria na tela de configuracao.
 const ASSETS=[
   './','./index.html','./config.js','./manifest.json',
-  './app.js',
+  './app.js','./lib/fontes.css',
   './lib/react.js','./lib/react-dom.js','./lib/supabase.js',
+  './lib/fontes/inter-latin.woff2',
+  './lib/fontes/inter-latin-ext.woff2',
+  './lib/fontes/cormorant-latin-ext.woff2',
+  './lib/fontes/cormorant-latin.woff2',
+  './lib/fontes/playfair-latin-ext.woff2',
+  './lib/fontes/playfair-latin.woff2',
   './icons/icon-192.png','./icons/icon-512.png','./icons/icon-180.png'
 ];
 // De fora do dominio: guarda depois de carregar uma vez. Fonte e desenho de
 // exercicio nao mudam, entao servir do cache e sempre certo — e e o que faz o
 // app ficar igual offline em vez de perder a tipografia e as demonstracoes.
-const DE_FORA=/^https:\/\/(fonts\.googleapis\.com|fonts\.gstatic\.com|cdn\.jsdelivr\.net)\//;
+// so os desenhos de exercicio vem de fora agora; as fontes moram em lib/fontes
+const DE_FORA=/^https:\/\/cdn\.jsdelivr\.net\//;
 self.addEventListener('install',e=>{
   self.skipWaiting();
   // cache:'reload' obriga a buscar na rede: sem isso o navegador podia

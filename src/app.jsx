@@ -31,7 +31,7 @@ if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABAS
    .catch. Chamar .catch direto estoura TypeError, e dentro de um useEffect isso
    derruba a tela inteira do aluno. */
 const semEsperar=q=>{try{q.then(()=>{},()=>{});}catch(e){}};
-const APP_VERSION='2026.09.17';   // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION='2026.09.19';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
 
@@ -847,12 +847,15 @@ function BodyMap({value,onChange}){
 }
 
 /* ── UI primitives ── */
+// O rotulo ENVOLVE o campo. Antes era um <label> irmao, sem for nem
+// aninhamento: visualmente parecia rotulado, mas o leitor de tela anunciava
+// "campo de edicao" e nada mais. Envolver associa os dois sem precisar de id.
 function FI({label,unit,...p}){return(
-  <div className="fg">{label&&<label className="flbl">{label}{unit&&<span style={{color:'var(--text3)',marginLeft:3}}>({unit})</span>}</label>}<input className="fi" {...p}/></div>);}
+  <label className="fg">{label&&<span className="flbl">{label}{unit&&<span style={{color:'var(--text3)',marginLeft:3}}>({unit})</span>}</span>}<input className="fi" {...p}/></label>);}
 function FS({label,children,...p}){return(
-  <div className="fg">{label&&<label className="flbl">{label}</label>}<select className="fi" {...p}>{children}</select></div>);}
+  <label className="fg">{label&&<span className="flbl">{label}</span>}<select className="fi" {...p}>{children}</select></label>);}
 function FTA({label,...p}){return(
-  <div className="fg">{label&&<label className="flbl">{label}</label>}<textarea className="fi" {...p}/></div>);}
+  <label className="fg">{label&&<span className="flbl">{label}</span>}<textarea className="fi" {...p}/></label>);}
 function Stat({lbl,val,unit,badge}){return(
   <div className="stat"><div className="stat-lbl">{lbl}</div>
     <div className="stat-val">{typeof val==='number'||(typeof val==='string'&&val!==''&&!isNaN(parseFloat(val))&&/^-?\d+(\.\d+)?$/.test(String(val).trim()))
@@ -1375,7 +1378,7 @@ function Dashboard({students,evals,onSelect,onNew,onDelete,onReassess,onSchedule
       <div style={{display:'flex',gap:12,marginBottom:12,flexWrap:'wrap',alignItems:'center'}}>
         <div className="search-wrap" style={{flex:1,minWidth:180}}><span className="search-icon"><IconBusca/></span>
           <input className="fi" placeholder="Buscar aluno..." value={q} onChange={e=>setQ(e.target.value)}/></div>
-        <select className="fi" style={{width:'auto',minWidth:170}} value={sortBy} onChange={e=>setSortBy(e.target.value)}>
+        <select className="fi" aria-label="Ordenar a lista de alunos" style={{width:'auto',minWidth:170}} value={sortBy} onChange={e=>setSortBy(e.target.value)}>
           <option value="urgencia">Ordenar: urgência</option>
           <option value="recente">Ordenar: mais recente</option>
           <option value="score">Ordenar: maior score</option>
@@ -4434,7 +4437,7 @@ function AgendaScreen({coach,students,preStudent,onBack}){
         </div>
         <p className="s-meta" style={{marginBottom:10}}>{linkKind==='ficha'?'O aluno preenche a ficha (medidas, fotos, PAR-Q, rotina) e você recebe em Fichas online para importar como avaliação.':'O aluno abre o link, vê seus horários livres e confirma um. Você recebe o horário marcado aqui na agenda.'}</p>
         <div style={{display:'flex',gap:10,flexWrap:'wrap',alignItems:'center',marginBottom:10}}>
-          <select className="fi" style={{width:'auto',minWidth:200}} value={linkStu} onChange={e=>setLinkStu(e.target.value)}>
+          <select className="fi" aria-label="Para qual aluno é o link" style={{width:'auto',minWidth:200}} value={linkStu} onChange={e=>setLinkStu(e.target.value)}>
             <option value="">Link geral (qualquer aluno)</option>
             {students.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
@@ -4447,13 +4450,13 @@ function AgendaScreen({coach,students,preStudent,onBack}){
       <div className="dash-panel" style={{marginBottom:16}}>
         <h4>Adicionar horários livres</h4>
         <div style={{display:'flex',gap:10,flexWrap:'wrap',alignItems:'flex-end'}}>
-          <div className="fg" style={{margin:0}}><label className="flbl">Data</label>
-            <input className="fi" type="date" value={date} min={todayStr()} onChange={e=>setDate(e.target.value)}/></div>
-          <div className="fg" style={{margin:0,flex:1,minWidth:160}}><label className="flbl">Horários (separados por vírgula)</label>
-            <input className="fi" value={times} onChange={e=>setTimes(e.target.value)} placeholder="08:00, 09:00, 10:00"/></div>
-          <div className="fg" style={{margin:0}}><label className="flbl">Duração</label>
+          <label className="fg" style={{margin:0}}><span className="flbl">Data</span>
+            <input className="fi" type="date" value={date} min={todayStr()} onChange={e=>setDate(e.target.value)}/></label>
+          <label className="fg" style={{margin:0,flex:1,minWidth:160}}><span className="flbl">Horários (separados por vírgula)</span>
+            <input className="fi" value={times} onChange={e=>setTimes(e.target.value)} placeholder="08:00, 09:00, 10:00"/></label>
+          <label className="fg" style={{margin:0}}><span className="flbl">Duração</span>
             <select className="fi" value={dur} onChange={e=>setDur(e.target.value)} style={{width:110}}>
-              <option value={30}>30 min</option><option value={45}>45 min</option><option value={60}>60 min</option><option value={90}>90 min</option></select></div>
+              <option value={30}>30 min</option><option value={45}>45 min</option><option value={60}>60 min</option><option value={90}>90 min</option></select></label>
           <button className="btn btn-primary" disabled={busy} onClick={addSlots}>Adicionar</button>
         </div>
       </div>
@@ -5959,6 +5962,31 @@ async function escoarFilaAluno(){
 }
 if(typeof window!=='undefined'){
   window.addEventListener('online',()=>{escoarFilaAluno();});
+}
+
+/* Mostra JA a copia local e atualiza por tras.
+   lerCopia sempre espera a rede primeiro e so cai no cache se ela falhar: quem
+   ja abriu o app antes fica olhando spinner por dado que o aparelho tem.
+   Aqui e o contrario — quem tem copia ve a tela na hora, e o dado fresco
+   entra sozinho quando chega. Na primeira vez (sem copia) espera a rede,
+   como antes. */
+async function lerJa(chave,consulta,aplicar,ms){
+  let mostrou=false;
+  try{
+    const c=await IDB.get('ler-'+chave);
+    if(c){aplicar(c.dado,true);mostrou=true;}
+  }catch(e){}
+  try{
+    const r=await comPrazo(Promise.resolve(consulta),ms);
+    if(r&&r.error)throw r.error;
+    const dado=(r&&'data' in r)?r.data:r;
+    IDB.set('ler-'+chave,{dado,ts:Date.now()});
+    aplicar(dado,false);
+    return dado;
+  }catch(e){
+    if(!mostrou&&!isNetErr(e))throw e;   // sem copia e erro de verdade: quem chamou decide
+    return null;
+  }
 }
 
 async function lerCopia(chave,consulta,ms){
@@ -8885,6 +8913,8 @@ function DietaScreen({profile,demo,onBack,onHidra}){
       return(<div key={m.id} className="lv-card" style={{padding:0,overflow:'hidden',borderColor:done?'rgba(74,222,128,.45)':'var(--lvbd)'}}>
         <div style={{display:'flex',alignItems:'center',gap:12,padding:14,cursor:'pointer'}} onClick={()=>setOpen(o=>({...o,[m.id]:!isOpen}))}>
           <button onClick={e=>{e.stopPropagation();toggle(m.id);}}
+            aria-label={(done?'Desmarcar ':'Marcar ')+(m.name||'refeição')+(done?'':' como feita')}
+            aria-pressed={done} title={done?'Feita':'Marcar como feita'}
             style={{width:34,height:34,borderRadius:'50%',flexShrink:0,cursor:'pointer',fontSize:15,fontWeight:800,
               border:done?'none':'2px solid var(--lvbd)',background:done?'linear-gradient(135deg,var(--green),var(--green))':'transparent',
               color:done?'#08130c':'var(--lvt3)'}}>{done?'✓':''}</button>
@@ -9334,31 +9364,56 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
     const md=new Date();md.setDate(md.getDate()-((md.getDay()+6)%7));const mk=dayKey(md);
     const days=new Set((hi||[]).filter(h=>h.data_treino>=mk).map(h=>h.data_treino));setFreq(f=>({...f,done:days.size}));
     setStats(computeStats(hi));setUltimaDiv(divisaoMaisRecente(hi));loadAvisos(stu.id);};
+  // Tudo que a tela do aluno precisa depois de saber QUEM ele e. Roda uma vez
+  // com a copia local (instantaneo) e de novo com o dado fresco.
+  const carregarDoAluno=React.useCallback(async(s)=>{
+    if(!s)return;
+    lerJa('divs-'+s.id,
+      sb.from('train_divisao').select('*').eq('student_id',s.id).order('ordem'),
+      dv=>{
+        setDivs(dv||[]);
+        // divisão sem exercício não pode ser sugerida: o aluno tocaria em
+        // "Iniciar treino" e cairia numa tela vazia
+        if((dv||[]).length){
+          lerJa('pres-divs-'+s.id,
+            sb.from('train_serie_prescrita').select('divisao_id').in('divisao_id',dv.map(d=>d.id)),
+            pres=>{if(pres)setDivsCheias(new Set(pres.map(x=>x.divisao_id)));}).catch(()=>{});
+        }else setDivsCheias(new Set());
+      }).catch(()=>setDivs([]));
+    // histórico: alimenta recordes, frequência, sequência e o rodízio. Entra
+    // pela cópia primeiro — nenhuma dessas coisas precisa travar a abertura.
+    lerJa('hist-'+s.id,
+      sb.from('train_historico').select('exercicio_id,carga,data_treino,tipo_serie,is_pr,divisao_id').eq('student_id',s.id),
+      hi=>{
+        const b={};(hi||[]).forEach(h=>{if(h.tipo_serie==='Valida'&&h.exercicio_id&&(b[h.exercicio_id]==null||h.carga>b[h.exercicio_id]))b[h.exercicio_id]=h.carga;});
+        setBest(b);
+        const md=new Date();md.setDate(md.getDate()-((md.getDay()+6)%7));const mk=dayKey(md);
+        const days=new Set((hi||[]).filter(h=>h.data_treino>=mk).map(h=>h.data_treino));
+        setFreq(f=>({...f,done:days.size}));
+        setStats(computeStats(hi));setUltimaDiv(divisaoMaisRecente(hi));
+      }).catch(()=>{});
+    loadAvisos(s.id);
+  },[]);
+
   useEffect(()=>{if(demo){setFreq({done:3,meta:4});setStats({total:24,prs:7,streak:3,mes:9});return;}(async()=>{
     let s=verComoAluno||null;
     if(!espiando){
-      try{const c=localStorage.getItem('mfp_aluno_code');const {data:lk}=await sb.rpc('aluno_link',{p_code:c||null});if(lk&&lk.linked){try{localStorage.removeItem('mfp_aluno_code');}catch(e){}}}catch(e){}
-      const {data:sr}=await lerCopia('aluno-'+profile.id,
-        sb.from('assess_students').select('*').eq('user_id',profile.id).limit(1));
-      s=(sr&&sr[0])?rowToStu(sr[0]):null;
+      // aluno_link so faz sentido quando ha codigo esperando. Chamar sempre
+      // custava uma ida e volta ao servidor na abertura, para nada.
+      try{const c=localStorage.getItem('mfp_aluno_code');
+        if(c){const {data:lk}=await sb.rpc('aluno_link',{p_code:c});
+          if(lk&&lk.linked){try{localStorage.removeItem('mfp_aluno_code');}catch(e){}}}
+      }catch(e){}
+      // a copia local aparece na hora; a rede confirma depois
+      let jaTem=false;
+      await lerJa('aluno-'+profile.id,
+        sb.from('assess_students').select('*').eq('user_id',profile.id).limit(1),
+        (sr,daCopia)=>{const q=(sr&&sr[0])?rowToStu(sr[0]):null;
+          if(daCopia){jaTem=!!q;setStu(q);carregarDoAluno(q);}else s=q;});
+      if(jaTem&&s===null)return;   // ja montou pela copia; a rede so confirmou
     }
     setStu(s);
-    if(s){
-      const {data:dv}=await lerCopia('divs-'+s.id,
-        sb.from('train_divisao').select('*').eq('student_id',s.id).order('ordem'));setDivs(dv||[]);
-      // divisão sem exercício não pode ser sugerida: o aluno tocaria em
-      // "Iniciar treino" e cairia numa tela vazia
-      if((dv||[]).length){
-        const {data:pres}=await lerCopia('pres-divs-'+s.id,
-          sb.from('train_serie_prescrita').select('divisao_id').in('divisao_id',dv.map(d=>d.id)));
-        if(pres)setDivsCheias(new Set(pres.map(x=>x.divisao_id)));
-      }else setDivsCheias(new Set());
-      const {data:hi}=await sb.from('train_historico').select('exercicio_id,carga,data_treino,tipo_serie,is_pr,divisao_id').eq('student_id',s.id);
-      const b={};(hi||[]).forEach(h=>{if(h.tipo_serie==='Valida'&&h.exercicio_id&&(b[h.exercicio_id]==null||h.carga>b[h.exercicio_id]))b[h.exercicio_id]=h.carga;});setBest(b);
-      const mondayD=new Date();mondayD.setDate(mondayD.getDate()-((mondayD.getDay()+6)%7));const monday=dayKey(mondayD);
-      const days=new Set((hi||[]).filter(h=>h.data_treino>=monday).map(h=>h.data_treino));setFreq({done:days.size,meta:(dv||[]).length||4});
-      setStats(computeStats(hi));setUltimaDiv(divisaoMaisRecente(hi));loadAvisos(s.id);
-    }
+    if(s)await carregarDoAluno(s);
   })();},[]);
   useEffect(()=>{if(demo){setTemDieta(true);return;}
     if(!contaAluno){setTemDieta(false);return;}

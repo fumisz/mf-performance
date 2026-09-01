@@ -66,7 +66,7 @@ const semEsperar = q => {
     q.then(() => {}, () => {});
   } catch (e) {}
 };
-const APP_VERSION = '2026.09.17'; // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION = '2026.09.19'; // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA'); // YYYY-MM-DD no fuso LOCAL
 
@@ -2148,14 +2148,17 @@ function BodyMap({
 }
 
 /* ── UI primitives ── */
+// O rotulo ENVOLVE o campo. Antes era um <label> irmao, sem for nem
+// aninhamento: visualmente parecia rotulado, mas o leitor de tela anunciava
+// "campo de edicao" e nada mais. Envolver associa os dois sem precisar de id.
 function FI({
   label,
   unit,
   ...p
 }) {
-  return /*#__PURE__*/React.createElement("div", {
+  return /*#__PURE__*/React.createElement("label", {
     className: "fg"
-  }, label && /*#__PURE__*/React.createElement("label", {
+  }, label && /*#__PURE__*/React.createElement("span", {
     className: "flbl"
   }, label, unit && /*#__PURE__*/React.createElement("span", {
     style: {
@@ -2171,9 +2174,9 @@ function FS({
   children,
   ...p
 }) {
-  return /*#__PURE__*/React.createElement("div", {
+  return /*#__PURE__*/React.createElement("label", {
     className: "fg"
-  }, label && /*#__PURE__*/React.createElement("label", {
+  }, label && /*#__PURE__*/React.createElement("span", {
     className: "flbl"
   }, label), /*#__PURE__*/React.createElement("select", _extends({
     className: "fi"
@@ -2183,9 +2186,9 @@ function FTA({
   label,
   ...p
 }) {
-  return /*#__PURE__*/React.createElement("div", {
+  return /*#__PURE__*/React.createElement("label", {
     className: "fg"
-  }, label && /*#__PURE__*/React.createElement("label", {
+  }, label && /*#__PURE__*/React.createElement("span", {
     className: "flbl"
   }, label), /*#__PURE__*/React.createElement("textarea", _extends({
     className: "fi"
@@ -3906,6 +3909,7 @@ function Dashboard({
     onChange: e => setQ(e.target.value)
   })), /*#__PURE__*/React.createElement("select", {
     className: "fi",
+    "aria-label": "Ordenar a lista de alunos",
     style: {
       width: 'auto',
       minWidth: 170
@@ -12523,6 +12527,7 @@ function AgendaScreen({
     }
   }, /*#__PURE__*/React.createElement("select", {
     className: "fi",
+    "aria-label": "Para qual aluno \xE9 o link",
     style: {
       width: 'auto',
       minWidth: 200
@@ -12561,12 +12566,12 @@ function AgendaScreen({
       flexWrap: 'wrap',
       alignItems: 'flex-end'
     }
-  }, /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("label", {
     className: "fg",
     style: {
       margin: 0
     }
-  }, /*#__PURE__*/React.createElement("label", {
+  }, /*#__PURE__*/React.createElement("span", {
     className: "flbl"
   }, "Data"), /*#__PURE__*/React.createElement("input", {
     className: "fi",
@@ -12574,26 +12579,26 @@ function AgendaScreen({
     value: date,
     min: todayStr(),
     onChange: e => setDate(e.target.value)
-  })), /*#__PURE__*/React.createElement("div", {
+  })), /*#__PURE__*/React.createElement("label", {
     className: "fg",
     style: {
       margin: 0,
       flex: 1,
       minWidth: 160
     }
-  }, /*#__PURE__*/React.createElement("label", {
+  }, /*#__PURE__*/React.createElement("span", {
     className: "flbl"
   }, "Hor\xE1rios (separados por v\xEDrgula)"), /*#__PURE__*/React.createElement("input", {
     className: "fi",
     value: times,
     onChange: e => setTimes(e.target.value),
     placeholder: "08:00, 09:00, 10:00"
-  })), /*#__PURE__*/React.createElement("div", {
+  })), /*#__PURE__*/React.createElement("label", {
     className: "fg",
     style: {
       margin: 0
     }
-  }, /*#__PURE__*/React.createElement("label", {
+  }, /*#__PURE__*/React.createElement("span", {
     className: "flbl"
   }, "Dura\xE7\xE3o"), /*#__PURE__*/React.createElement("select", {
     className: "fi",
@@ -17359,6 +17364,37 @@ if (typeof window !== 'undefined') {
   window.addEventListener('online', () => {
     escoarFilaAluno();
   });
+}
+
+/* Mostra JA a copia local e atualiza por tras.
+   lerCopia sempre espera a rede primeiro e so cai no cache se ela falhar: quem
+   ja abriu o app antes fica olhando spinner por dado que o aparelho tem.
+   Aqui e o contrario — quem tem copia ve a tela na hora, e o dado fresco
+   entra sozinho quando chega. Na primeira vez (sem copia) espera a rede,
+   como antes. */
+async function lerJa(chave, consulta, aplicar, ms) {
+  let mostrou = false;
+  try {
+    const c = await IDB.get('ler-' + chave);
+    if (c) {
+      aplicar(c.dado, true);
+      mostrou = true;
+    }
+  } catch (e) {}
+  try {
+    const r = await comPrazo(Promise.resolve(consulta), ms);
+    if (r && r.error) throw r.error;
+    const dado = r && 'data' in r ? r.data : r;
+    IDB.set('ler-' + chave, {
+      dado,
+      ts: Date.now()
+    });
+    aplicar(dado, false);
+    return dado;
+  } catch (e) {
+    if (!mostrou && !isNetErr(e)) throw e; // sem copia e erro de verdade: quem chamou decide
+    return null;
+  }
 }
 async function lerCopia(chave, consulta, ms) {
   try {
@@ -26432,6 +26468,9 @@ function DietaScreen({
         e.stopPropagation();
         toggle(m.id);
       },
+      "aria-label": (done ? 'Desmarcar ' : 'Marcar ') + (m.name || 'refeição') + (done ? '' : ' como feita'),
+      "aria-pressed": done,
+      title: done ? 'Feita' : 'Marcar como feita',
       style: {
         width: 34,
         height: 34,
@@ -27770,6 +27809,41 @@ function StudentApp({
     setUltimaDiv(divisaoMaisRecente(hi));
     loadAvisos(stu.id);
   };
+  // Tudo que a tela do aluno precisa depois de saber QUEM ele e. Roda uma vez
+  // com a copia local (instantaneo) e de novo com o dado fresco.
+  const carregarDoAluno = React.useCallback(async s => {
+    if (!s) return;
+    lerJa('divs-' + s.id, sb.from('train_divisao').select('*').eq('student_id', s.id).order('ordem'), dv => {
+      setDivs(dv || []);
+      // divisão sem exercício não pode ser sugerida: o aluno tocaria em
+      // "Iniciar treino" e cairia numa tela vazia
+      if ((dv || []).length) {
+        lerJa('pres-divs-' + s.id, sb.from('train_serie_prescrita').select('divisao_id').in('divisao_id', dv.map(d => d.id)), pres => {
+          if (pres) setDivsCheias(new Set(pres.map(x => x.divisao_id)));
+        }).catch(() => {});
+      } else setDivsCheias(new Set());
+    }).catch(() => setDivs([]));
+    // histórico: alimenta recordes, frequência, sequência e o rodízio. Entra
+    // pela cópia primeiro — nenhuma dessas coisas precisa travar a abertura.
+    lerJa('hist-' + s.id, sb.from('train_historico').select('exercicio_id,carga,data_treino,tipo_serie,is_pr,divisao_id').eq('student_id', s.id), hi => {
+      const b = {};
+      (hi || []).forEach(h => {
+        if (h.tipo_serie === 'Valida' && h.exercicio_id && (b[h.exercicio_id] == null || h.carga > b[h.exercicio_id])) b[h.exercicio_id] = h.carga;
+      });
+      setBest(b);
+      const md = new Date();
+      md.setDate(md.getDate() - (md.getDay() + 6) % 7);
+      const mk = dayKey(md);
+      const days = new Set((hi || []).filter(h => h.data_treino >= mk).map(h => h.data_treino));
+      setFreq(f => ({
+        ...f,
+        done: days.size
+      }));
+      setStats(computeStats(hi));
+      setUltimaDiv(divisaoMaisRecente(hi));
+    }).catch(() => {});
+    loadAvisos(s.id);
+  }, []);
   useEffect(() => {
     if (demo) {
       setFreq({
@@ -27787,58 +27861,37 @@ function StudentApp({
     (async () => {
       let s = verComoAluno || null;
       if (!espiando) {
+        // aluno_link so faz sentido quando ha codigo esperando. Chamar sempre
+        // custava uma ida e volta ao servidor na abertura, para nada.
         try {
           const c = localStorage.getItem('mfp_aluno_code');
-          const {
-            data: lk
-          } = await sb.rpc('aluno_link', {
-            p_code: c || null
-          });
-          if (lk && lk.linked) {
-            try {
-              localStorage.removeItem('mfp_aluno_code');
-            } catch (e) {}
+          if (c) {
+            const {
+              data: lk
+            } = await sb.rpc('aluno_link', {
+              p_code: c
+            });
+            if (lk && lk.linked) {
+              try {
+                localStorage.removeItem('mfp_aluno_code');
+              } catch (e) {}
+            }
           }
         } catch (e) {}
-        const {
-          data: sr
-        } = await lerCopia('aluno-' + profile.id, sb.from('assess_students').select('*').eq('user_id', profile.id).limit(1));
-        s = sr && sr[0] ? rowToStu(sr[0]) : null;
+        // a copia local aparece na hora; a rede confirma depois
+        let jaTem = false;
+        await lerJa('aluno-' + profile.id, sb.from('assess_students').select('*').eq('user_id', profile.id).limit(1), (sr, daCopia) => {
+          const q = sr && sr[0] ? rowToStu(sr[0]) : null;
+          if (daCopia) {
+            jaTem = !!q;
+            setStu(q);
+            carregarDoAluno(q);
+          } else s = q;
+        });
+        if (jaTem && s === null) return; // ja montou pela copia; a rede so confirmou
       }
       setStu(s);
-      if (s) {
-        const {
-          data: dv
-        } = await lerCopia('divs-' + s.id, sb.from('train_divisao').select('*').eq('student_id', s.id).order('ordem'));
-        setDivs(dv || []);
-        // divisão sem exercício não pode ser sugerida: o aluno tocaria em
-        // "Iniciar treino" e cairia numa tela vazia
-        if ((dv || []).length) {
-          const {
-            data: pres
-          } = await lerCopia('pres-divs-' + s.id, sb.from('train_serie_prescrita').select('divisao_id').in('divisao_id', dv.map(d => d.id)));
-          if (pres) setDivsCheias(new Set(pres.map(x => x.divisao_id)));
-        } else setDivsCheias(new Set());
-        const {
-          data: hi
-        } = await sb.from('train_historico').select('exercicio_id,carga,data_treino,tipo_serie,is_pr,divisao_id').eq('student_id', s.id);
-        const b = {};
-        (hi || []).forEach(h => {
-          if (h.tipo_serie === 'Valida' && h.exercicio_id && (b[h.exercicio_id] == null || h.carga > b[h.exercicio_id])) b[h.exercicio_id] = h.carga;
-        });
-        setBest(b);
-        const mondayD = new Date();
-        mondayD.setDate(mondayD.getDate() - (mondayD.getDay() + 6) % 7);
-        const monday = dayKey(mondayD);
-        const days = new Set((hi || []).filter(h => h.data_treino >= monday).map(h => h.data_treino));
-        setFreq({
-          done: days.size,
-          meta: (dv || []).length || 4
-        });
-        setStats(computeStats(hi));
-        setUltimaDiv(divisaoMaisRecente(hi));
-        loadAvisos(s.id);
-      }
+      if (s) await carregarDoAluno(s);
     })();
   }, []);
   useEffect(() => {
