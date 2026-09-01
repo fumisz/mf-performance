@@ -145,6 +145,28 @@ Detalhes que decidem se ela presta:
   sequência é 1 — que não é sequência nenhuma — mostra as séries do mês.
 - Tudo sai do histórico que a tela já carregou: nenhuma ida a mais ao servidor.
 
+## "O treino não está aparecendo"
+Alunos com a ficha já montada abriam o app e liam **"Seu treinador ainda não
+montou sua ficha de treino"**.
+
+Não era o banco nem a RLS — simulando o aluno logado, ele enxerga as divisões e
+os exercícios dele. Era a tela confundindo duas coisas diferentes: *ainda não
+chegou* e *chegou e está vazio*.
+
+O app guarda uma cópia local de cada consulta para abrir rápido e funcionar sem
+internet (`lerJa`: mostra a cópia na hora, a rede confirma depois). Quem abriu o
+app **antes** de o treinador montar a ficha ficou com uma cópia vazia guardada —
+e a tela tratava essa cópia como resposta definitiva. Enquanto a rede não
+respondesse (ou se ela falhasse), a mensagem afirmava algo falso, e a culpa caía
+no treinador.
+
+Agora são três estados separados: carregando, falhou (com **Tentar de novo**), e
+vazio de verdade. A regra que ficou: **cópia local nunca fundamenta uma
+afirmação negativa** — só a resposta fresca do servidor pode dizer que algo não
+existe. A suíte `treinosumiu.js` reproduz o caso (semeia a cópia vazia no
+IndexedDB e atrasa/derruba a consulta das divisões) e falha em 5 pontos na build
+anterior.
+
 ## O que cada tela põe em primeiro lugar
 Duas telas foram reordenadas pelo que a pessoa vai fazer nelas, não pelo que é
 bonito mostrar.
