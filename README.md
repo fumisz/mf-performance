@@ -76,6 +76,32 @@ A suíte `push.js` simula a API de push do navegador (o navegador de teste não
 tem serviço de push de verdade) e cobre os dois papéis, incluindo o caso do
 navegador inscrito com o banco vazio.
 
+## Antes e depois, e o parabéns de um toque
+O aluno já tinha as duas fotos lado a lado na tela de Progresso. Agora ele monta
+um card 1080x1920 com as datas, os dias entre elas e a variação de peso,
+gordura e massa magra — com a marca e o @ do treinador na imagem, então o post
+dele traz aluno novo. O card só existe no app do aluno: quem decide postar a
+própria foto é ele, e o botão não aparece quando o treinador está olhando pela
+visão do aluno.
+
+Os números só entram quando existem duas avaliações de verdade, e o card não é
+montado se alguma das fotos não carregar — não existe antes e depois com um
+lado só. As fotos moram num balde público, então com `crossOrigin` o canvas não
+fica "sujo" e o `toBlob` funciona.
+
+No painel, quem treinou hoje aparece num bloco próprio com um botão que já
+manda a mensagem pronta. Parabenizar tinha cinco passos (abrir o aluno, abrir o
+compositor, escolher o tipo, escrever, enviar) e por isso quase não acontecia. O
+texto muda com o dia, para não chegar sempre igual em quem treina toda semana, e
+o envio fica marcado no aparelho para recarregar a página não oferecer de novo o
+que já foi mandado.
+
+A suíte `dopamina.js` cobre os dois. Ela roda com `serviceWorkers:'block'`: o
+worker intercepta as imagens de fora e o `fetch` dele não passa pelas rotas do
+Playwright, então ia para a rede de verdade, morria, e o worker devolvia
+`undefined` — que o navegador mostra como `ERR_FAILED`. É por isso que as fotos
+de exercício sempre apareceram quebradas nas capturas de tela.
+
 ## Português na tela
 O `virgula.js` varre as telas dos dois papéis atrás de texto que não devia
 chegar ao usuário: número decimal com ponto, valor cru do banco (a coluna
