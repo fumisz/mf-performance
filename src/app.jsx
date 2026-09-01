@@ -2368,6 +2368,17 @@ function TreinosCoach({student,demo}){
   </div>);
 }
 
+// Irma do FotoThumb, para as fotos que abrem em tela cheia em vez de virar
+// link. Mesmo motivo: sem isso o navegador desenha o icone de imagem quebrada.
+function ImgFoto({url,alt,onClick,estilo}){
+  const [falhou,setFalhou]=useState(false);
+  if(falhou)return(<div onClick={onClick} style={{...estilo,display:'flex',alignItems:'center',
+    justifyContent:'center',textAlign:'center',fontSize:11,lineHeight:1.4,
+    background:'rgba(128,128,128,.16)',opacity:.75}}>foto não<br/>carregou</div>);
+  return <img src={url} alt={alt||''} loading="lazy" onClick={onClick}
+    onError={()=>setFalhou(true)} style={estilo}/>;
+}
+
 // Uma foto que pode nao carregar: link do Storage expirado, arquivo apagado,
 // celular sem rede. Sem tratar, o navegador desenha o icone de imagem quebrada
 // com o texto alternativo em azul sublinhado — parece defeito do app.
@@ -9242,8 +9253,8 @@ function FotosProgresso({stu,conta,demo,somenteLeitura}){
       <div style={{display:'flex',gap:8,marginTop:10}}>
         {[[primeira,'Antes'],[ultima,'Agora']].map(([f,lb])=>(
           <div key={lb} style={{flex:1,minWidth:0}}>
-            <img src={f.url} alt={lb} onClick={()=>setAberta(f)}
-              style={{width:'100%',aspectRatio:'3/4',objectFit:'cover',borderRadius:12,display:'block',cursor:'pointer'}}/>
+            <ImgFoto url={f.url} alt={lb+' — foto de progresso'} onClick={()=>setAberta(f)}
+              estilo={{width:'100%',aspectRatio:'3/4',objectFit:'cover',borderRadius:12,display:'block',cursor:'pointer'}}/>
             <div className="lv-sub" style={{fontSize:11.5,marginTop:5,textAlign:'center'}}>{lb} · {fmtTime(f.created_at)}</div>
           </div>))}
       </div>
@@ -9264,8 +9275,8 @@ function FotosProgresso({stu,conta,demo,somenteLeitura}){
        Nenhuma foto ainda. A de hoje vira a sua foto “antes”.</div>:
      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8}}>
        {lista.map(f=><div key={f.id}>
-         <img src={f.url} alt="Progresso" onClick={()=>setAberta(f)}
-           style={{width:'100%',aspectRatio:'3/4',objectFit:'cover',borderRadius:10,display:'block',cursor:'pointer'}}/>
+         <ImgFoto url={f.url} alt="Foto de progresso" onClick={()=>setAberta(f)}
+           estilo={{width:'100%',aspectRatio:'3/4',objectFit:'cover',borderRadius:10,display:'block',cursor:'pointer'}}/>
          <div className="lv-sub" style={{fontSize:10.5,marginTop:4,textAlign:'center'}}>{fmtTime(f.created_at)}</div>
        </div>)}
      </div>}
