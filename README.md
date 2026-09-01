@@ -76,6 +76,38 @@ A suíte `push.js` simula a API de push do navegador (o navegador de teste não
 tem serviço de push de verdade) e cobre os dois papéis, incluindo o caso do
 navegador inscrito com o banco vazio.
 
+## Fichas prontas
+São **46 modelos públicos**. Os 14 novos fecham o que faltava: emagrecimento
+(era só um) e as frequências de 2x a 6x em corpo inteiro, upper/lower, push
+pull legs e Arnold split.
+
+Eles saem do `gera-fichas.js`, que **confere cada nome de exercício contra a
+biblioteca antes de escrever o SQL** — se um nome não existir em
+`train_exercicios`, o gerador para. É o que garante que todo exercício de todo
+modelo abre com demonstração no app. Para acrescentar fichas, edite o gerador
+e rode `node gera-fichas.js`; ele reescreve o `fichas-frequencia.sql`, que é
+idempotente (não duplica o que já está lá).
+
+O SQL guarda cada ficha numa linha compacta em vez de JSON:
+
+    divisões separadas por  ~   ->  Nome da divisão ^ exercícios
+    exercícios separados por |  ->  nome ; séries ; reps ; descanso ; tipo
+
+O próprio SQL expande isso no jsonb da tabela. Em JSON o arquivo tinha 52 KB,
+quase tudo chave repetida.
+
+Uma observação de conteúdo: **o treino de emagrecimento não é um circuito para
+suar.** Quem perde gordura é o déficit calórico; a musculação existe ali para
+segurar a massa magra enquanto o peso cai, então é treino com carga e descanso
+de verdade, com o cardio no fim. As versões "feminina" e "masculina" têm a
+mesma estrutura — muda só a ênfase (glúteo e posterior de um lado, peito,
+costas e ombro do outro), que é o que cada público costuma pedir.
+
+Na tela de escolha há filtro por objetivo, por **dias na semana** e busca que
+alcança o nome do exercício de dentro da ficha. O filtro de frequência lê o
+nome, não o campo `dias`: o Arnold Split tem três divisões e é feito 6x por
+semana, então filtrar por divisões enganaria.
+
 ## Antes e depois, e o parabéns de um toque
 O aluno já tinha as duas fotos lado a lado na tela de Progresso. Agora ele monta
 um card 1080x1920 com as datas, os dias entre elas e a variação de peso,

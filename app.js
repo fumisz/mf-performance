@@ -71,7 +71,7 @@ const semEsperar = q => {
     q.then(() => {}, () => {});
   } catch (e) {}
 };
-const APP_VERSION = '2026.09.22'; // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION = '2026.09.23'; // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA'); // YYYY-MM-DD no fuso LOCAL
 
@@ -15903,6 +15903,7 @@ function FichaModeloPicker({
   const [mods, setMods] = useState(null);
   const [aberto, setAberto] = useState(null);
   const [obj, setObj] = useState('Todos');
+  const [freq, setFreq] = useState('Todas');
   const [busca, setBusca] = useState('');
   useEffect(() => {
     sb.from('train_ficha_modelo').select('*').then(({
@@ -15911,13 +15912,20 @@ function FichaModeloPicker({
   }, []);
   const lista = (mods || []).slice().sort((a, b) => (a.coach_id ? 0 : 1) - (b.coach_id ? 0 : 1) || (a.dias || 0) - (b.dias || 0) || a.nome.localeCompare(b.nome));
   const objetivos = ['Todos', ...[...new Set(lista.map(m => m.objetivo).filter(Boolean))]];
+  // A frequência semanal mora no NOME, não no campo dias: o Arnold Split tem
+  // três divisões e é feito 6x por semana. Filtrar por dias enganaria.
+  const freqDe = m => {
+    const x = /(\d)x por semana/.exec(m.nome || '');
+    return x ? x[1] + 'x' : null;
+  };
+  const freqs = ['Todas', ...[...new Set(lista.map(freqDe).filter(Boolean))].sort()];
   // a busca também acha pelo nome do exercício: "elástico", "hip thrust", "cadeira"
   const casa = (m, q) => {
     if (!q) return true;
     const alvo = [m.nome, m.objetivo, m.nivel, m.resumo, ...(m.divisoes || []).map(d => d.nome), ...(m.divisoes || []).flatMap(d => (d.exercicios || []).map(e => e.nome))].join(' ').toLowerCase();
     return q.toLowerCase().split(/\s+/).filter(Boolean).every(t => alvo.includes(t));
   };
-  const vis = lista.filter(m => (obj === 'Todos' || m.objetivo === obj) && casa(m, busca));
+  const vis = lista.filter(m => (obj === 'Todos' || m.objetivo === obj) && (freq === 'Todas' || freqDe(m) === freq) && casa(m, busca));
   const apagar = async (ev, m) => {
     ev.stopPropagation();
     if (!confirm('Apagar o modelo "' + m.nome + '"? As fichas já montadas não mudam.')) return;
@@ -15969,7 +15977,26 @@ function FichaModeloPicker({
     type: "button",
     className: 'btn btn-sm ' + (obj === o ? 'btn-primary' : 'btn-ghost'),
     onClick: () => setObj(o)
-  }, o))), /*#__PURE__*/React.createElement("div", {
+  }, o))), freqs.length > 2 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 6,
+      flexWrap: 'wrap',
+      alignItems: 'center',
+      marginBottom: 10
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "s-meta",
+    style: {
+      fontSize: 11.5,
+      marginRight: 2
+    }
+  }, "Dias por semana:"), freqs.map(f => /*#__PURE__*/React.createElement("button", {
+    key: f,
+    type: "button",
+    className: 'btn btn-sm ' + (freq === f ? 'btn-primary' : 'btn-ghost'),
+    onClick: () => setFreq(f)
+  }, f))), /*#__PURE__*/React.createElement("div", {
     className: "search-wrap",
     style: {
       marginBottom: 12
