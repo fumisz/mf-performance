@@ -108,6 +108,22 @@ alcança o nome do exercício de dentro da ficha. O filtro de frequência lê o
 nome, não o campo `dias`: o Arnold Split tem três divisões e é feito 6x por
 semana, então filtrar por divisões enganaria.
 
+## Copiar a ficha de um aluno para outro
+Dar ao aluno novo a mesma ficha de outro custava três passos: salvar como
+modelo, abrir fichas prontas, aplicar. Agora é um botão na tela de treino, ao
+lado de "Usar ficha pronta".
+
+Quem monta é o servidor (`ficha_copiar_de_aluno`, em `copiar-ficha.sql`), numa
+transação só — pelo mesmo motivo do `ficha_aplicar_modelo`: fazer isso do
+navegador era uma requisição por divisão e um lote por exercício, e cair no
+meio numa internet de academia deixava o aluno com meia ficha. A RPC devolve
+quantos alunos foram servidos, e **zero é tratado como erro** — dizer
+"copiada" sem ter copiado seria mentira.
+
+As divisões entram depois das que o aluno já tem, então nada é sobrescrito. O
+vídeo colado em cada exercício vai junto; as cargas não, porque elas são o
+histórico de quem treinou. A tela avisa isso antes de copiar.
+
 ## Antes e depois, e o parabéns de um toque
 O aluno já tinha as duas fotos lado a lado na tela de Progresso. Agora ele monta
 um card 1080x1920 com as datas, os dias entre elas e a variação de peso,
