@@ -8,6 +8,22 @@ no `index.html` da raiz.
 Abra `index.html` num navegador moderno (Safari, Chrome) ou publique a pasta.
 Os dados ficam no Supabase (ver `config.js`).
 
+## Onde mexer no código
+O código do app é o **`src/app.jsx`**. O que vai para o celular é o `app.js`,
+gerado dele:
+
+    node build.js
+
+Rode isso sempre que mexer no `src/app.jsx` — o `app.js` não se atualiza
+sozinho. O teste `sincronia.js` acusa se ele ficar velho.
+
+Por que existe essa etapa: antes o JSX morava dentro do `index.html` e o
+navegador compilava tudo na hora, com o Babel de 3 MB junto. Medido, o app
+levava **9s num computador, 46s num celular mediano e 72s num simples** — a
+cada abertura, porque compilar é CPU e o cache não ajuda. Compilando aqui,
+caiu para **0,4s / 1,1s / 1,4s**, o pacote foi de 4,1 MB para 1,3 MB, e o
+`unsafe-eval` saiu do CSP (ele só existia por causa do Babel).
+
 ## Sem internet
 O app abre e funciona no modo avião. Para isso **nada é carregado de fora**: o
 React, o Babel e o `supabase-js` moram em `lib/` e são pré-guardados pelo
