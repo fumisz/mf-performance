@@ -76,6 +76,17 @@ A suíte `push.js` simula a API de push do navegador (o navegador de teste não
 tem serviço de push de verdade) e cobre os dois papéis, incluindo o caso do
 navegador inscrito com o banco vazio.
 
+## Português na tela
+O `virgula.js` varre as telas dos dois papéis atrás de texto que não devia
+chegar ao usuário: número decimal com ponto, valor cru do banco (a coluna
+`tipo_serie` guarda `Valida` e `Preparatoria` sem acento — na tela vai pelo
+`tierNome()`), plural de formulário (`3 treino(s)`), concordância errada
+(`1 treinos`) e valor de JavaScript vazando (`undefined`, `null`, `NaN`).
+
+A navegação dele **falha alto** de propósito. Ela já passava direto pela tela
+do treino em execução sem avisar, e era justamente lá que o `Valida` cru
+aparecia: um varredor que engole erro de navegação dá verde de mentira.
+
 ## Abertura rápida
 Quem já abriu o app antes vê a tela **na hora**: o `lerJa()` entrega a cópia
 local primeiro e atualiza sozinho quando o dado fresco chega. O `lerCopia()`
