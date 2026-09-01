@@ -17,6 +17,15 @@ gerado dele:
 Rode isso sempre que mexer no `src/app.jsx` — o `app.js` não se atualiza
 sozinho. O teste `sincronia.js` acusa se ele ficar velho.
 
+O `build.js` também carimba o `APP_VERSION` em três lugares: no `?v=` do
+`<script>` do `index.html`, no nome do cache do `sw.js` e no endereço do
+`app.js` dentro da lista do worker. Isso existe porque o `index.html` vem
+sempre da rede mas o `app.js` é servido do cache: sem o carimbo, uma versão
+nova só aparecia na **segunda** abertura, e na primeira o HTML novo rodava
+com o JS velho. Os três têm que bater — o `sincronia.js` confere. Para
+publicar uma versão, mude o `APP_VERSION` e rode o build; não mexa no nome
+do cache na mão.
+
 Por que existe essa etapa: antes o JSX morava dentro do `index.html` e o
 navegador compilava tudo na hora, com o Babel de 3 MB junto. Medido, o app
 levava **9s num computador, 46s num celular mediano e 72s num simples** — a
@@ -36,6 +45,36 @@ React, Supabase, `app.js` e todas as consultas ao banco esperavam na fila. É o
 cenário do wifi de academia com portal de login. Trazendo as fontes para dentro
 (258 KB, só latin), essa etapa caiu para 27ms e a segunda abertura foi de
 **13,3s para 1,1s**.
+
+O `formulario_pre_inscricao.html` tinha o mesmo `<link>` bloqueante e é a
+primeira página que um aluno novo abre. As fontes dele estão em
+`lib/fontes-form.css`. A suíte `fontes.js` confere as duas páginas: todo
+woff2 em 200, as famílias aplicadas e nenhum pedido ao Google.
+
+## Notificações
+O banco ficou dias com **zero** inscrições de push. Não era defeito de
+entrega: os cron jobs disparam, a função responde 200 e o motivo vem escrito
+na resposta — `{"sent":0,"motivo":"ninguem com push ligado"}`. Faltava
+inscrição.
+
+Dois defeitos reais apareceram no caminho, os dois da mesma família — a tela
+dizendo "ligado" com base no aparelho em vez do servidor:
+
+- o interruptor do aluno vinha de `pushManager.getSubscription()`. Ter
+  inscrição no navegador não quer dizer que ela chegou ao banco; se o
+  `push_salvar` falhasse, o aluno via "ligado" e nunca recebia nada. Agora a
+  resposta vem do servidor, como já era no lado do treinador.
+- dava para ligar o "lembrete de treino" com os avisos desligados: a
+  preferência era guardada, o servidor mandava o push e ele não chegava a
+  aparelho nenhum. Ligar um lembrete agora inscreve junto.
+
+E a causa do zero: o interruptor existia só na aba Conta, onde ninguém entra.
+O treinador tinha um cartão no painel; o aluno não tinha nada. Agora tem o
+mesmo convite na tela inicial, dispensável.
+
+A suíte `push.js` simula a API de push do navegador (o navegador de teste não
+tem serviço de push de verdade) e cobre os dois papéis, incluindo o caso do
+navegador inscrito com o banco vazio.
 
 ## Abertura rápida
 Quem já abriu o app antes vê a tela **na hora**: o `lerJa()` entrega a cópia

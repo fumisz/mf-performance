@@ -66,7 +66,7 @@ const semEsperar = q => {
     q.then(() => {}, () => {});
   } catch (e) {}
 };
-const APP_VERSION = '2026.09.19'; // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION = '2026.09.20'; // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA'); // YYYY-MM-DD no fuso LOCAL
 
@@ -27720,6 +27720,16 @@ function StudentApp({
   const [agua, setAgua] = useState(false);
   const [lembTreino, setLembTreino] = useState(false);
   const [periodo, setPeriodo] = useState('noite');
+  // pushChecado evita o convite piscar na tela de quem ja ligou: so mostra
+  // depois que a resposta do servidor chegou. E quem dispensa nao ve de novo.
+  const [pushChecado, setPushChecado] = useState(false);
+  const [convAvisoOff, setConvAvisoOff] = useState(() => {
+    try {
+      return localStorage.getItem('mfp-conv-aviso') === 'off';
+    } catch (e) {
+      return false;
+    }
+  });
   const [stats, setStats] = useState({
     total: 0,
     prs: 0,
@@ -27922,13 +27932,24 @@ function StudentApp({
   useEffect(() => {
     if (demo || espiando || !stu) return;
     (async () => {
+      // Quem manda aqui e o servidor, nao o navegador. Ter inscricao no aparelho
+      // nao significa que ela chegou ao banco — e se nao chegou, nada e enviado.
+      // Mostrar "ligado" nesse caso e prometer um aviso que nunca vem.
       try {
         if (pushSuportado() && Notification.permission === 'granted') {
           const reg = await navigator.serviceWorker.ready;
           const s = await reg.pushManager.getSubscription();
-          setPushOn(!!s);
+          if (!s) {
+            setPushOn(false);
+          } else {
+            const {
+              data
+            } = await sb.from('train_push').select('endpoint').eq('endpoint', s.toJSON().endpoint).eq('papel', 'aluno').maybeSingle();
+            setPushOn(!!data);
+          }
         }
       } catch (e) {}
+      setPushChecado(true);
       try {
         const {
           data
@@ -27958,15 +27979,34 @@ function StudentApp({
     }
     setPushBusy(false);
   };
+  // Um lembrete so existe se houver para onde mandar. Antes dava para ligar o
+  // lembrete de treino com os avisos desligados: a preferencia era guardada, o
+  // servidor mandava o push e ele nao chegava em aparelho nenhum. Ligar o
+  // lembrete e pedir para ser avisado, entao a inscricao vai junto.
+  const garantirPush = async () => {
+    if (pushOn || demo) return true;
+    setPushBusy(true);
+    setPushMsg(null);
+    const r = await ativarPush();
+    setPushBusy(false);
+    if (r.ok) {
+      setPushOn(true);
+      return true;
+    }
+    setPushMsg(r.msg);
+    return false;
+  };
   const toggleAgua = async v => {
     if (espiando) return;
+    if (v && !(await garantirPush())) return;
     setAgua(v);
     if (!demo) semEsperar(sb.rpc('lembrete_agua', {
       p_ativo: v
     }));
   };
-  const salvarLembreteTreino = (ativo, per) => {
+  const salvarLembreteTreino = async (ativo, per) => {
     if (espiando) return;
+    if (ativo && !(await garantirPush())) return;
     setLembTreino(ativo);
     setPeriodo(per);
     if (!demo) semEsperar(sb.rpc('lembrete_treino', {
@@ -28241,7 +28281,57 @@ function StudentApp({
     lv: true,
     fechavel: true,
     chave: "aluno"
-  }), /*#__PURE__*/React.createElement(AneisDoDia, {
+  }), !espiando && !demo && stu && pushChecado && !pushOn && !convAvisoOff && /*#__PURE__*/React.createElement("div", {
+    className: "lv-card",
+    style: {
+      marginBottom: 14,
+      borderColor: 'var(--lvsel)'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 700,
+      marginBottom: 4
+    }
+  }, "Ligar os avisos no celular"), /*#__PURE__*/React.createElement("div", {
+    className: "lv-sub",
+    style: {
+      lineHeight: 1.55
+    }
+  }, "Assim voc\xEA fica sabendo na hora quando seu treinador mandar um recado ou trocar sua ficha \u2014 e pode receber o lembrete do treino no dia em que ainda n\xE3o treinou."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 9,
+      marginTop: 13,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "lv-btn",
+    style: {
+      flex: 1,
+      minWidth: 150
+    },
+    disabled: pushBusy,
+    onClick: togglePush
+  }, pushBusy ? 'Ligando…' : 'Ligar avisos'), /*#__PURE__*/React.createElement("button", {
+    className: "lv-btn",
+    style: {
+      background: 'var(--lvc2)',
+      color: 'var(--lvt2)',
+      minWidth: 110
+    },
+    onClick: () => {
+      setConvAvisoOff(true);
+      try {
+        localStorage.setItem('mfp-conv-aviso', 'off');
+      } catch (e) {}
+    }
+  }, "Agora n\xE3o")), pushMsg && /*#__PURE__*/React.createElement("div", {
+    className: "lv-sub",
+    style: {
+      color: '#fca5a5',
+      marginTop: 11
+    }
+  }, pushMsg)), /*#__PURE__*/React.createElement(AneisDoDia, {
     stu: stu,
     profile: profile,
     demo: demo,
@@ -28984,7 +29074,15 @@ function StudentApp({
     rotulo: "Lembrete de beber \xE1gua",
     on: agua,
     onClick: () => toggleAgua(!agua)
-  })), pushMsg && /*#__PURE__*/React.createElement("div", {
+  })), !pushOn && (lembTreino || agua) && /*#__PURE__*/React.createElement("div", {
+    className: "lv-sub",
+    style: {
+      color: 'var(--gold)',
+      marginTop: 12,
+      fontSize: 11.5,
+      lineHeight: 1.5
+    }
+  }, "Os avisos no celular est\xE3o desligados \u2014 enquanto estiverem, estes lembretes n\xE3o chegam neste aparelho."), pushMsg && /*#__PURE__*/React.createElement("div", {
     className: "lv-sub",
     style: {
       color: '#fca5a5',
