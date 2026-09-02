@@ -36,7 +36,7 @@ if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABAS
    .catch. Chamar .catch direto estoura TypeError, e dentro de um useEffect isso
    derruba a tela inteira do aluno. */
 const semEsperar=q=>{try{q.then(()=>{},()=>{});}catch(e){}};
-const APP_VERSION='2026.09.29';   // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION='2026.09.30';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
 
@@ -8607,6 +8607,27 @@ function TrainExec({student,divisao,demo,somenteLeitura,best,onBack,onSaved,onFi
     });
     Object.values(porEx).forEach(v=>v.series.sort((a,b)=>(a.i||0)-(b.i||0)));
     setUltima(porEx);
+
+    // ── o campo já vem com o que ele fez da última vez ──────────
+    // O quadro "Da última vez" existia, mas os campos nasciam vazios: o aluno
+    // lia o número e digitava o mesmo de novo, série após série. Agora vem
+    // preenchido, e registrar custa um toque. O que estiver no campo é o que
+    // vai gravado — quem mudou a carga corrige o número antes de concluir.
+    const semente={};
+    (data||[]).forEach(s=>{
+      const u=porEx[s.exercicio_id]||porEx[s.exercicio_nome];
+      if(!u||!u.series.length)return;
+      for(let i=0;i<(s.qtd_series||0);i++){
+        const x=u.series.find(y=>(y.i||0)===i+1)||u.series[i];
+        if(!x)continue;
+        const v={};
+        if(x.carga!=null)v.carga=String(x.carga);
+        if(x.reps!=null)v.reps=String(x.reps);
+        if(Object.keys(v).length)semente[s.id+'_'+i]=v;
+      }
+    });
+    // o que ele já digitou nesta sessão manda: a semente só preenche o vazio
+    if(Object.keys(semente).length)setVals(p=>({...semente,...p}));
 
     // ── retomar o treino de hoje ──────────────────────────────
     // Fechar o app no meio do treino zerava a tela: as séries estavam
