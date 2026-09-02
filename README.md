@@ -167,6 +167,46 @@ existe. A suíte `treinosumiu.js` reproduz o caso (semeia a cópia vazia no
 IndexedDB e atrasa/derruba a consulta das divisões) e falha em 5 pontos na build
 anterior.
 
+O mesmo defeito estava em **mais quatro telas** — dieta, avaliação, meus treinos
+e fotos de progresso. A raiz é o `lerCopia`: quando a rede falha e não há cópia,
+ele devolve `{data:null}`, um erro disfarçado de "não tem nada". Ele já sinalizava
+isso em `semCopia`, mas nenhum dos 32 pontos de chamada lia o campo.
+
+Agora existe `semRede(r)` e um `CardVazio` único, usado pelas quatro telas: com a
+rede caída ele diz que não conseguiu carregar e oferece tentar de novo; com a rede
+de pé, diz o vazio de verdade. A suíte `semrede.js` derruba a tabela de cada tela,
+uma por vez, e confere qual das duas frases apareceu — na build anterior as quatro
+respondiam "culpou o treinador".
+
+## Treino interrompido
+Fechar o app no meio do treino, o celular matar o app, acabar a bateria, treinar
+no subsolo sem sinal — nada disso pode custar o treino do aluno. Três coisas
+estavam erradas:
+
+**A fila só escoava na virada de offline para online.** O `escoarFilaAluno`
+estava preso ao evento `online`, que dispara apenas na *transição*. Quem treinou
+sem sinal, fechou o app e abriu de novo já com internet nunca passava por essa
+transição: as séries ficavam guardadas no aparelho para sempre e o treino nunca
+chegava ao treinador. Agora escoa também ao abrir o app e ao voltar para ele
+(`visibilitychange`).
+
+**Reabrir o treino zerava a tela.** As séries estavam gravadas, mas a tela
+voltava mostrando 0/24 e o aluno refazia tudo. Ao abrir uma divisão, o que já foi
+feito hoje é remontado a partir do servidor **e da fila do aparelho** — quem
+treinou sem sinal tem as séries só na fila, e elas contam igual. O que não dá
+para casar é exercício trocado na hora: aí o histórico tem outro nome.
+
+**A tela inicial oferecia "Iniciar treino" como se nada tivesse acontecido.**
+Agora, quando existem séries de hoje e elas são menos que o total prescrito da
+divisão, aparece um cartão "Treino em andamento — 8 de 24 séries" com
+**Continuar treino**.
+
+A suíte `retomar.js` cobre os três: conclui uma série, recarrega o app, confere
+que ela continua marcada; recusa a gravação para simular a falta de sinal e
+confere que a série entra na fila e ainda assim conta como treino feito; e
+confere que abrir o app já online esvazia a fila. Na build anterior ela falha em
+7 pontos.
+
 ## O que cada tela põe em primeiro lugar
 Duas telas foram reordenadas pelo que a pessoa vai fazer nelas, não pelo que é
 bonito mostrar.

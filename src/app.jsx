@@ -36,7 +36,7 @@ if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABAS
    .catch. Chamar .catch direto estoura TypeError, e dentro de um useEffect isso
    derruba a tela inteira do aluno. */
 const semEsperar=q=>{try{q.then(()=>{},()=>{});}catch(e){}};
-const APP_VERSION='2026.09.27';   // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION='2026.09.28';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
 
@@ -131,11 +131,24 @@ function sumMeals(meals){
     return {kcal:a.kcal+s.kcal, protein:a.protein+s.protein, carb:a.carb+s.carb, fat:a.fat+s.fat};
   }, {kcal:0,protein:0,carb:0,fat:0});
 }
+/* Uma leitura que falhou por falta de internet NÃO é "não existe". Sem isso a
+   tela escreve "seu treinador ainda não montou" com a coisa pronta no
+   servidor — foi o que aconteceu com a ficha de treino. O flag semCopia já
+   vinha do lerCopia; ninguém lia. */
+const semRede = r => !!(r&&(r.semCopia||r.error));
+
 async function getActivePlan(studentId){
-  const { data } = await lerCopia('plano-'+studentId,
+  const r = await lerCopia('plano-'+studentId,
     sb.from('meal_plans').select('*').eq('student_id',studentId).eq('active',true)
       .order('created_at',{ascending:false}).limit(1).maybeSingle());
-  return data||null;
+  return r.data||null;
+}
+// mesma consulta, mas dizendo se o vazio é de verdade ou é falta de rede
+async function getActivePlanR(studentId){
+  const r = await lerCopia('plano-'+studentId,
+    sb.from('meal_plans').select('*').eq('student_id',studentId).eq('active',true)
+      .order('created_at',{ascending:false}).limit(1).maybeSingle());
+  return {plano:r.data||null, offline:semRede(r)};
 }
 async function loadPlanTree(planId){
   const { data:meals } = await lerCopia('refeicoes-'+planId,
@@ -6191,6 +6204,15 @@ async function escoarFilaAluno(){
 }
 if(typeof window!=='undefined'){
   window.addEventListener('online',()=>{escoarFilaAluno();});
+  // O evento 'online' só dispara na TRANSIÇÃO. Quem treinou sem sinal, fechou o
+  // app e abriu de novo já com internet nunca passava por essa transição: a
+  // fila ficava parada e o treino nunca chegava ao treinador. Agora também
+  // escoa ao abrir e ao voltar para o app.
+  const tentarEscoar=()=>{if(navigator.onLine)semEsperar(escoarFilaAluno());};
+  window.addEventListener('load',tentarEscoar);
+  document.addEventListener('visibilitychange',()=>{
+    if(document.visibilityState==='visible')tentarEscoar();});
+  tentarEscoar();
 }
 
 /* Mostra JA a copia local e atualiza por tras.
@@ -8573,7 +8595,7 @@ function TrainExec({student,divisao,demo,somenteLeitura,best,onBack,onSaved,onFi
     // ── o que ele fez da última vez: é isso que diz se hoje é para subir a carga ──
     const {data:hi}=await lerCopia('ultimas-'+divisao.id,
       sb.from('train_historico')
-        .select('exercicio_id,exercicio_nome,data_treino,carga,reps,indice_serie,tipo_serie')
+        .select('exercicio_id,exercicio_nome,data_treino,carga,reps,indice_serie,tipo_serie,divisao_id,is_pr')
         .eq('student_id',student.id).order('data_treino',{ascending:false}).limit(400));
     const hoje=todayStr(), porEx={};
     (hi||[]).forEach(h=>{
@@ -8585,6 +8607,29 @@ function TrainExec({student,divisao,demo,somenteLeitura,best,onBack,onSaved,onFi
     });
     Object.values(porEx).forEach(v=>v.series.sort((a,b)=>(a.i||0)-(b.i||0)));
     setUltima(porEx);
+
+    // ── retomar o treino de hoje ──────────────────────────────
+    // Fechar o app no meio do treino zerava a tela: as séries estavam
+    // gravadas, mas ele voltava vendo 0/24 e refazia tudo. O que já foi feito
+    // hoje vem do servidor E da fila do aparelho — quem treinou sem sinal tem
+    // as séries só na fila, e elas contam igual.
+    const daFila=(await filaAluno())
+      .filter(it=>it.tabela==='train_historico'&&it.linha
+        &&it.linha.divisao_id===divisao.id&&it.linha.data_treino===hoje)
+      .map(it=>it.linha);
+    const deHoje=[...(hi||[]).filter(h=>h.data_treino===hoje&&h.divisao_id===divisao.id),...daFila];
+    if(deHoje.length){
+      const feito={};
+      deHoje.forEach(h=>{
+        const s=(data||[]).find(x=>x.tipo_serie===h.tipo_serie&&
+          ((h.exercicio_id&&x.exercicio_id===h.exercicio_id)||x.exercicio_nome===h.exercicio_nome));
+        if(!s)return;                                   // exercício trocado na hora: não dá para casar
+        const i=(h.indice_serie||1)-1;
+        if(i<0||i>=s.qtd_series)return;
+        feito[s.id+'_'+i]={carga:num(h.carga),reps:num(h.reps),isPr:!!h.is_pr};
+      });
+      if(Object.keys(feito).length)setDone(p=>({...feito,...p}));
+    }
   })();},[]);
 
   // biblioteca para a troca de exercício (guardada, funciona sem internet)
@@ -9040,12 +9085,13 @@ function TreinosScreen({student,demo,onBack}){
   const [hist,setHist]=useState(demo?_DEMO_HIST:null);
   const [nomes,setNomes]=useState({});
   const [aberta,setAberta]=useState(null);
+  const [offline,setOffline]=useState(false);
   useEffect(()=>{if(demo)return;(async()=>{
-    const {data}=await lerCopia('sessoes-'+student.id,
+    const r=await lerCopia('sessoes-'+student.id,
       sb.from('train_historico')
         .select('divisao_id,exercicio_id,exercicio_nome,data_treino,tipo_serie,carga,reps,indice_serie,is_pr,observacao,registrado_em')
         .eq('student_id',student.id).order('data_treino',{ascending:false}).order('registrado_em').limit(1200));
-    setHist(data||[]);
+    setHist(r.data||[]);setOffline(semRede(r));
     const {data:dv}=await lerCopia('divs-'+student.id,
       sb.from('train_divisao').select('*').eq('student_id',student.id).order('ordem'));
     const m={};(dv||[]).forEach(d=>m[d.id]=d.nome);setNomes(m);
@@ -9066,8 +9112,9 @@ function TreinosScreen({student,demo,onBack}){
       <div className="lv-title" style={{flex:1}}>Meus treinos</div>
     </div>
     {hist===null?<div className="center-screen"><div className="spinner"/></div>:
-     sessoes.length===0?<div className="lv-card" style={{textAlign:'center',color:'var(--lvt2)'}}>
-       Nenhum treino registrado ainda. O primeiro aparece aqui assim que você fechar.</div>:<>
+     sessoes.length===0?<CardVazio offline={offline}
+       titulo="Nenhum treino registrado ainda"
+       texto="O primeiro aparece aqui assim que você fechar um treino."/>:<>
       <div className="lv-stats" style={{marginBottom:14}}>
         <div className="lv-stat"><b><Conta valor={sessoes.length}/></b><span>{rotuloN(sessoes.length,'Treino')}</span></div>
         <div className="lv-stat"><b><Conta valor={totalSem}/></b><span>Esta semana</span></div>
@@ -9269,16 +9316,40 @@ function CicloScreen({student,demo,onBack}){
   </div>);
 }
 
+/* ── Tela vazia: é vazio mesmo, ou faltou internet? ──────────
+   A mesma frase aparecia na ficha, na dieta, na avaliação, nos treinos e nas
+   fotos, sempre afirmando ausência a partir de uma leitura que podia ter
+   falhado. Uma peça só, para não virar cinco remendos diferentes. */
+function CardVazio({offline,titulo,texto,onTentar}){
+  return(<div className="lv-card" style={{textAlign:'center',padding:'30px 18px'}}>
+    <div style={{fontSize:17,fontWeight:800,marginBottom:6}}>
+      {offline?'Não consegui carregar agora':titulo}</div>
+    <div className="lv-sub" style={{lineHeight:1.6}}>
+      {offline?'Parece que a internet falhou. O que já existe continua guardado.':texto}</div>
+    {offline&&onTentar&&<button className="lv-btn" style={{marginTop:14}} onClick={onTentar}>Tentar de novo</button>}
+  </div>);
+}
+
 /* ── Minha avaliação física (aluno) ── */
 function AvalScreen({student,demo,onBack}){
   const [evals,setEvals]=useState(demo?[
     {id:'e1',date:'2026-03-09',weight:'84',height:'175',bio_fat:'22',bio_lean:'58',bp_sys:'128',bp_dia:'84'},
     {id:'e2',date:'2026-07-09',weight:'78',height:'175',bio_fat:'16',bio_lean:'63',bp_sys:'120',bp_dia:'78'}]:null);
   const [showRep,setShowRep]=useState(false);
-  useEffect(()=>{if(demo)return;(async()=>{const {data}=await sb.from('assessments').select('*').eq('student_id',student.id).order('date');setEvals((data||[]).map(rowToEval));})();},[]);
+  const [offline,setOffline]=useState(false);
+  const carregar=React.useCallback(async()=>{
+    if(demo)return;
+    const r=await lerCopia('aval-'+student.id,
+      sb.from('assessments').select('*').eq('student_id',student.id).order('date'));
+    setOffline(semRede(r));
+    setEvals((r.data||[]).map(rowToEval));
+  },[student.id,demo]);
+  useEffect(()=>{carregar();},[carregar]);
   if(evals===null)return(<div className="lv-wrap"><div className="center-screen"><div className="spinner"/></div></div>);
   if(evals.length===0)return(<div className="lv-wrap"><div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14}}><button className="lv-ghost" onClick={onBack}>‹ Voltar</button><div className="lv-title" style={{flex:1}}>Minha avaliação</div></div>
-    <div className="lv-card" style={{textAlign:'center',color:'var(--lvt2)'}}>Você ainda não tem uma avaliação física registrada. Fale com seu treinador.</div></div>);
+    <CardVazio offline={offline} onTentar={carregar}
+      titulo="Avaliação a caminho"
+      texto="Você ainda não tem uma avaliação física registrada. Fale com seu treinador."/></div>);
   const asc=[...evals].sort((a,b)=>a.date<b.date?-1:1);const latest=asc[asc.length-1];const prev=asc[asc.length-2]||null;
   const d=derive(student,latest);let ex={};try{ex=buildExecutive(student,latest,d,prev)||{};}catch(e){ex={};}
   if(showRep)return <Report student={student} evalData={latest} coach={{brand_name:'MF Performance'}} allEvals={evals} onBack={()=>setShowRep(false)}/>;
@@ -9518,6 +9589,7 @@ function MacroBar({lbl,val,goal,color}){
 
 function DietaScreen({profile,demo,onBack,onHidra}){
   const [plan,setPlan]=useState(undefined);
+  const [offline,setOffline]=useState(false);   // vazio de verdade x rede caída
   const [meals,setMeals]=useState([]);
   const [checks,setChecks]=useState({});
   const [open,setOpen]=useState({});
@@ -9534,7 +9606,8 @@ function DietaScreen({profile,demo,onBack,onHidra}){
       setPlan(_DEMO_DIETA);setMeals(_DEMO_DIETA.meals);
       setChecks({dm1:true,dm2:true});setSupps(_DEMO_SUPPS);setSck({dp1:true});return;
     }
-    const p=await getActivePlan(profile.id);
+    const {plano:p,offline:semNet}=await getActivePlanR(profile.id);
+    setOffline(semNet);
     if(!p){setPlan(null);return;}
     const tree=await loadPlanTree(p.id);
     const [ck,sp,spc]=await Promise.all([
@@ -9594,10 +9667,10 @@ function DietaScreen({profile,demo,onBack,onHidra}){
 
   if(plan===undefined)return<div className="lv-wrap">{head}<div className="center-screen" style={{minHeight:200}}><div className="spinner"/></div></div>;
   if(plan===null)return(<div className="lv-wrap">{head}
-    <div className="lv-card" style={{textAlign:'center',padding:'34px 18px'}}>
-      <div style={{fontSize:17,fontWeight:800,marginBottom:6}}>Plano a caminho</div>
-      <div className="lv-sub" style={{lineHeight:1.6}}>Seu treinador ainda não montou seu plano alimentar. Assim que ele publicar, aparece aqui.</div>
-    </div></div>);
+    <CardVazio offline={offline} onTentar={load}
+      titulo="Plano a caminho"
+      texto="Seu treinador ainda não montou seu plano alimentar. Assim que ele publicar, aparece aqui."/>
+    </div>);
 
   const total=sumMeals(meals);
   const doneMeals=meals.filter(m=>checks[m.id]);
@@ -9913,6 +9986,7 @@ function PesoMetaCoach({student,demo}){
    a primeira ao lado da última — que é o que faz ele continuar. */
 function FotosProgresso({stu,conta,demo,somenteLeitura}){
   const [fotos,setFotos]=useState(demo?[]:null);
+  const [offline,setOffline]=useState(false);
   const [enviando,setEnviando]=useState(false);
   const [erro,setErro]=useState(null);
   const [aberta,setAberta]=useState(null);
@@ -9926,9 +10000,10 @@ function FotosProgresso({stu,conta,demo,somenteLeitura}){
   const carregar=async()=>{
     if(demo)return;
     if(!conta){setFotos([]);return;}
-    const {data}=await lerCopia('fotos-prog-'+conta,
+    const r=await lerCopia('fotos-prog-'+conta,
       sb.from('photos').select('id,url,created_at,kind').eq('student_id',conta).eq('kind','progress').order('created_at',{ascending:false}).limit(60));
-    setFotos(data||[]);
+    setOffline(semRede(r));
+    setFotos(r.data||[]);
   };
   useEffect(()=>{carregar();},[conta]);
   const enviar=async(file)=>{
@@ -9982,8 +10057,9 @@ function FotosProgresso({stu,conta,demo,somenteLeitura}){
       {erro&&<div className="lv-sub" style={{marginTop:8,color:'var(--lvrx)',lineHeight:1.45}}>{erro}</div>}
     </div>
     {fotos===null?<div className="center-screen" style={{minHeight:110}}><div className="spinner"/></div>:
-     lista.length===0?<div className="lv-card" style={{textAlign:'center',color:'var(--lvt2)'}}>
-       Nenhuma foto ainda. A de hoje vira a sua foto “antes”.</div>:
+     lista.length===0?<CardVazio offline={offline} onTentar={carregar}
+       titulo="Nenhuma foto ainda"
+       texto={'A de hoje vira a sua foto “antes”.'}/>:
      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8}}>
        {lista.map(f=><div key={f.id}>
          <ImgFoto url={f.url} alt="Foto de progresso" onClick={()=>setAberta(f)}
@@ -10090,6 +10166,18 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
   const [retro,setRetro]=useState(false);
   const [ultimaDiv,setUltimaDiv]=useState(null);   // qual divisão ele fez por último
   const [divsCheias,setDivsCheias]=useState(null); // divisões que têm exercício (null = ainda não sei)
+  const [seriesPorDiv,setSeriesPorDiv]=useState({});// quantas séries cada divisão tem prescritas
+  // Séries que ainda não subiram: quem treinou sem sinal tem o treino SÓ aqui.
+  // Sem isso a tela diria que ele não treinou nada hoje.
+  const [filaHoje,setFilaHoje]=useState([]);
+  useEffect(()=>{if(demo)return;
+    const ler=()=>filaAluno().then(q=>setFilaHoje((q||[])
+      .filter(it=>it.tabela==='train_historico'&&it.linha&&it.linha.data_treino===todayStr())
+      .map(it=>it.linha))).catch(()=>{});
+    ler();
+    const f=()=>ler();
+    window.addEventListener('mfp-fila',f);
+    return()=>window.removeEventListener('mfp-fila',f);},[demo]);
   // "ainda não chegou" e "chegou e está vazio" são coisas diferentes na tela:
   // dizer que o treinador não montou a ficha quando ela só não carregou é o
   // tipo de mentira que faz o aluno fechar o app.
@@ -10152,8 +10240,14 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
         // "Iniciar treino" e cairia numa tela vazia
         if((dv||[]).length){
           lerJa('pres-divs-'+s.id,
-            sb.from('train_serie_prescrita').select('divisao_id').in('divisao_id',dv.map(d=>d.id)),
-            pres=>{if(pres)setDivsCheias(new Set(pres.map(x=>x.divisao_id)));}).catch(()=>{});
+            sb.from('train_serie_prescrita').select('divisao_id,qtd_series').in('divisao_id',dv.map(d=>d.id)),
+            pres=>{if(pres){
+              setDivsCheias(new Set(pres.map(x=>x.divisao_id)));
+              // total de SÉRIES de cada divisão: é com isso que dá para saber
+              // se o treino de hoje ficou pela metade
+              const c={};pres.forEach(x=>{c[x.divisao_id]=(c[x.divisao_id]||0)+(x.qtd_series||1);});
+              setSeriesPorDiv(c);
+            }}).catch(()=>{});
         }else setDivsCheias(new Set());
       })
       .then(dado=>{
@@ -10325,6 +10419,29 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
   /* O treino é o motivo de o aluno abrir o app. Ficava em quarto lugar, embaixo
      dos anéis do dia e do bloco de avaliação física: para começar a treinar ele
      rolava a tela passando pelo próprio percentual de gordura. Agora vem primeiro. */
+  // ── treino de hoje que ficou pela metade ────────────────────
+  // Fechar o app, o celular matar o app, acabar a bateria: as séries já feitas
+  // estão gravadas, mas a tela oferecia "Iniciar treino" como se nada tivesse
+  // acontecido. Aqui ela reconhece o que ficou aberto.
+  const emAndamento=(()=>{
+    if(!list.length)return null;
+    const hoje=todayStr();
+    const porDiv={};
+    [...(hist||[]),...filaHoje].forEach(h=>{
+      if(h.data_treino!==hoje||!h.divisao_id)return;
+      porDiv[h.divisao_id]=(porDiv[h.divisao_id]||0)+1;
+    });
+    let achado=null;
+    Object.keys(porDiv).forEach(id=>{
+      const total=seriesPorDiv[id];
+      // sem saber o total, não dá para afirmar que ficou pela metade
+      if(!total||porDiv[id]>=total)return;
+      const dv=list.find(d=>d.id===id);
+      if(dv&&(!achado||porDiv[id]>achado.feitas))achado={div:dv,feitas:porDiv[id],total};
+    });
+    return achado;
+  })();
+
   const blocoTreino=list.length===0?(
     falhouDivs
       ? <div className="lv-card" style={{textAlign:'center'}}>
@@ -10345,6 +10462,13 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
     const prox=proxDiv,feita=divFeita;
     const resto=list.filter(d=>d.id!==prox.id);
     return(<>
+    {emAndamento&&<div className="lv-card lv-hero" style={{marginBottom:12}}>
+      <div className="lv-kick" style={{color:'#e9d5ff'}}>Treino em andamento</div>
+      <div style={{fontSize:20,fontWeight:900,margin:'4px 0 4px'}}>{(emAndamento.div.nome||'Treino').toUpperCase()}</div>
+      <div style={{fontSize:12,color:'#e9d5ff',marginBottom:10,opacity:.85}}>
+        {emAndamento.feitas} de {plural(emAndamento.total,'série')} · continua de onde você parou</div>
+      <button className="lv-btn light" onClick={()=>setExec(emAndamento.div)}>▶ Continuar treino</button>
+    </div>}
     <div className="lv-card lv-hero">
       <div className="lv-kick" style={{color:'#e9d5ff'}}>{proxEhDoDia?'Seu treino de hoje':'Próximo treino'}</div>
       <div style={{fontSize:20,fontWeight:900,margin:'4px 0 4px'}}>{(prox.nome||'Treino').toUpperCase()}</div>
