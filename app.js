@@ -71,7 +71,7 @@ const semEsperar = q => {
     q.then(() => {}, () => {});
   } catch (e) {}
 };
-const APP_VERSION = '2026.10.05'; // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION = '2026.10.06'; // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA'); // YYYY-MM-DD no fuso LOCAL
 
@@ -98,9 +98,12 @@ function agruparSessoes(hist) {
       series: 0,
       tonelagem: 0,
       prs: 0,
-      externos: []
+      externos: [],
+      ultimo: null
     });
     const s = dias.get(d);
+    // a hora da última série é o que diz se o treino ainda está rolando
+    if (h.registrado_em && (!s.ultimo || h.registrado_em > s.ultimo)) s.ultimo = h.registrado_em;
     if (h.tipo_serie === 'Externo') {
       s.externos.push({
         nome: h.exercicio_nome || 'Treino externo',
@@ -6906,19 +6909,31 @@ function TreinosCoach({
   const [nomes, setNomes] = useState({});
   const [aberta, setAberta] = useState(null);
   const [tudo, setTudo] = useState(false);
-  useEffect(() => {
+  const carregar = React.useCallback(async () => {
     if (demo) return;
-    (async () => {
-      const [h, d] = await Promise.all([sb.from('train_historico').select('divisao_id,exercicio_id,exercicio_nome,data_treino,tipo_serie,carga,reps,indice_serie,is_pr,observacao,registrado_em').eq('student_id', student.id).order('data_treino', {
-        ascending: false
-      }).order('registrado_em').limit(1200), sb.from('train_divisao').select('id,nome').eq('student_id', student.id)]);
-      setHist(h.data || []);
-      const m = {};
-      (d.data || []).forEach(x => m[x.id] = x.nome);
-      setNomes(m);
-    })().catch(() => setHist([]));
-  }, [student.id]);
+    const [h, d] = await Promise.all([sb.from('train_historico').select('divisao_id,exercicio_id,exercicio_nome,data_treino,tipo_serie,carga,reps,indice_serie,is_pr,observacao,registrado_em').eq('student_id', student.id).order('data_treino', {
+      ascending: false
+    }).order('registrado_em').limit(1200), sb.from('train_divisao').select('id,nome').eq('student_id', student.id)]);
+    setHist(h.data || []);
+    const m = {};
+    (d.data || []).forEach(x => m[x.id] = x.nome);
+    setNomes(m);
+  }, [student.id, demo]);
+  useEffect(() => {
+    carregar().catch(() => setHist([]));
+  }, [carregar]);
   const sessoes = React.useMemo(() => agruparSessoes(hist), [hist]);
+  // Treino em andamento: a sessão de hoje com série registrada há pouco. Sem
+  // isso o treinador abre a ficha no meio do treino, lê "1 exercício · 1 série"
+  // e acha que o app perdeu o resto — quando o aluno só não tinha feito ainda.
+  const emAndamento = sessoes.find(s => s.data === todayStr() && s.ultimo && Date.now() - new Date(s.ultimo).getTime() < 90 * 60000);
+  useEffect(() => {
+    if (!emAndamento) return;
+    const t = setInterval(() => {
+      carregar().catch(() => {});
+    }, 60000);
+    return () => clearInterval(t);
+  }, [!!emAndamento, carregar]);
   if (hist === null) return /*#__PURE__*/React.createElement("div", {
     className: "card",
     style: {
@@ -6956,7 +6971,13 @@ function TreinosCoach({
     style: {
       marginBottom: 12
     }
-  }, sessoes.length, " ", sessoes.length > 1 ? 'sessões' : 'sessão', " no total \xB7 m\xE9dia de ", media, " s\xE9ries por treino", comSerie.length < sessoes.length && ` · ${sessoes.length - comSerie.length} fora do app`), lista.map(s => {
+  }, plural(sessoes.length, 'sessão', 'sessões'), " no total \xB7 m\xE9dia de ", plural(media, 'série'), " por treino", comSerie.length < sessoes.length && ` · ${sessoes.length - comSerie.length} fora do app`), emAndamento && /*#__PURE__*/React.createElement("p", {
+    className: "s-meta",
+    style: {
+      marginBottom: 12,
+      color: 'var(--gold)'
+    }
+  }, "Treino em andamento \u2014 a \xFAltima s\xE9rie entrou ", tempoRel(emAndamento.ultimo), ". Os n\xFAmeros de hoje ainda v\xE3o subir; esta tela se atualiza sozinha."), lista.map(s => {
     const open = aberta === s.data;
     return /*#__PURE__*/React.createElement("div", {
       key: s.data,
@@ -6987,14 +7008,21 @@ function TreinosCoach({
       style: {
         marginTop: 2
       }
-    }, s.soExterno ? 'Fora do app' + (s.externos[0] && s.externos[0].obs ? ' · ' + s.externos[0].obs : '') : `${s.exercicios.length} exercícios · ${s.series} séries · ${fmtTon(s.tonelagem)}`)), /*#__PURE__*/React.createElement("div", {
+    }, s.soExterno ? 'Fora do app' + (s.externos[0] && s.externos[0].obs ? ' · ' + s.externos[0].obs : '') : `${plural(s.exercicios.length, 'exercício')} · ${plural(s.series, 'série')} · ${fmtTon(s.tonelagem)}`)), /*#__PURE__*/React.createElement("div", {
       style: {
         display: 'flex',
         alignItems: 'center',
         gap: 8,
         flexShrink: 0
       }
-    }, s.prs > 0 && /*#__PURE__*/React.createElement("span", {
+    }, emAndamento && emAndamento.data === s.data && /*#__PURE__*/React.createElement("span", {
+      className: "info-pill",
+      style: {
+        margin: 0,
+        borderColor: 'rgba(245,158,11,.45)',
+        color: 'var(--gold)'
+      }
+    }, "treinando agora"), s.prs > 0 && /*#__PURE__*/React.createElement("span", {
       className: "info-pill",
       style: {
         margin: 0,
@@ -18156,7 +18184,10 @@ async function escoarFilaAluno() {
         if (it.tabela) {
           const {
             error
-          } = await comPrazo(sb.from(it.tabela).insert(it.linha));
+          } = await comPrazo(sb.from(it.tabela).upsert(it.linha, {
+            onConflict: 'id',
+            ignoreDuplicates: true
+          }));
           if (error) throw error;
         } else if (it.rpc) {
           const {
@@ -24555,7 +24586,12 @@ function TrainExec({
       // se o aluno trocou o exercício, é o trocado que vai para o histórico —
       // assim o treinador vê o que foi feito de verdade
       const tr = trocas[s.exercicio_id || s.exercicio_nome];
+      // O id sai daqui, não do banco. Numa internet de academia o insert
+      // responde depois do prazo, o app acha que falhou, joga na fila e a fila
+      // grava de novo — a mesma série virava duas linhas. Com id próprio, a
+      // segunda gravação bate no id que já existe e é ignorada.
       const linha = {
+        id: genId(),
         coach_id: student.coach_id,
         student_id: student.id,
         divisao_id: divisao.id,
@@ -24573,7 +24609,10 @@ function TrainExec({
         try {
           const {
             error
-          } = await comPrazo(sb.from('train_historico').insert(linha));
+          } = await comPrazo(sb.from('train_historico').upsert(linha, {
+            onConflict: 'id',
+            ignoreDuplicates: true
+          }));
           if (!error) subiu = true;
         } catch (e) {}
       }
@@ -29416,7 +29455,9 @@ function TreineiFora({
   })();
   const salvar = async () => {
     setSalvando(true);
+    // mesmo motivo da série: id do lado do app para a fila não gravar duas vezes
     const linha = {
+      id: genId(),
       coach_id: stu.coach_id,
       student_id: stu.id,
       divisao_id: null,
@@ -29436,7 +29477,10 @@ function TreineiFora({
         try {
           const {
             error
-          } = await comPrazo(sb.from('train_historico').insert(linha));
+          } = await comPrazo(sb.from('train_historico').upsert(linha, {
+            onConflict: 'id',
+            ignoreDuplicates: true
+          }));
           if (!error) subiu = true;
         } catch (e) {}
       }

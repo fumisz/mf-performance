@@ -313,6 +313,37 @@ coisas trabalhavam contra ele:
   registro daquele índice exato. Quem fez 4 séries hoje e registrou 1 na vez
   passada repete a carga mais próxima que existir.
 
+## Treino em andamento, e o contrato com o banco
+Três coisas que saíram de um print: o treinador abriu a ficha de um aluno às
+18:14 e leu **"1 exercícios · 1 séries"**. Parecia que o app tinha registrado
+uma série só. O banco diz outra coisa: a primeira série entrou 18:11 e o aluno
+seguiu treinando até 18:50. **A tela estava certa e parecia quebrada.**
+
+- a sessão de hoje com série registrada há menos de 1h30 agora aparece como
+  **"treinando agora"**, com uma linha dizendo que os números ainda vão subir —
+  e a tela **se atualiza sozinha** a cada minuto enquanto isso dura;
+- **"1 exercícios · 1 séries"** virou "1 exercício · 1 série". A concordância
+  entra pelo `plural()`, como no resto do app;
+- **a mesma série virava duas linhas.** Numa internet de academia o insert
+  responde depois do prazo, o app conclui que falhou, joga na fila e a fila
+  grava de novo. Agora o `id` sai do app, não do banco, e a segunda gravação
+  bate no id que já existe e é ignorada (`resolution=ignore-duplicates`, que
+  não precisa de permissão de update). Vale para a série e para o "treinei fora
+  do app".
+
+**O contrato com o banco.** O "Salvar diário de hoje" estava quebrado para todo
+aluno: o app chamava `diario_salvar(p_peso, p_sono, p_passos, p_fome, p_obs)` e
+a função publicada era a de sete argumentos, de quando sono/fadiga/dor moravam
+no Diário. O PostgREST resolve RPC pelo **nome** dos parâmetros — nome que não
+bate é função que não existe. Nenhuma suíte pegava isso porque o mock responde
+a qualquer `/rpc/<nome>` sem olhar os parâmetros.
+
+`diario-fome.sql` adiciona a coluna `fome` e a assinatura nova (sem remover a
+antiga: as duas convivem). E a suíte **contrato** confere, estaticamente, cada
+`sb.rpc('x',{...})` do app contra as assinaturas dos `.sql` do repositório,
+respeitando parâmetro com `DEFAULT`. Ela reprova esse defeito e passa com a
+correção.
+
 ## O primeiro dia do treinador
 A conta recém-criada — nenhum aluno, nenhuma avaliação, nenhum modelo — é como
 todo treinador abre o app pela primeira vez, e era o outro estado que nenhuma

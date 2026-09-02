@@ -36,7 +36,7 @@ if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABAS
    .catch. Chamar .catch direto estoura TypeError, e dentro de um useEffect isso
    derruba a tela inteira do aluno. */
 const semEsperar=q=>{try{q.then(()=>{},()=>{});}catch(e){}};
-const APP_VERSION='2026.10.05';   // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION='2026.10.06';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
 
@@ -56,8 +56,10 @@ function agruparSessoes(hist){
   (hist||[]).forEach(h=>{
     const d=h.data_treino;if(!d)return;
     if(!dias.has(d))dias.set(d,{data:d,divisoes:new Set(),exercicios:new Map(),
-      series:0,tonelagem:0,prs:0,externos:[]});
+      series:0,tonelagem:0,prs:0,externos:[],ultimo:null});
     const s=dias.get(d);
+    // a hora da última série é o que diz se o treino ainda está rolando
+    if(h.registrado_em&&(!s.ultimo||h.registrado_em>s.ultimo))s.ultimo=h.registrado_em;
     if(h.tipo_serie==='Externo'){
       s.externos.push({nome:h.exercicio_nome||'Treino externo',obs:h.observacao||null});
       return;
@@ -2384,7 +2386,8 @@ function TreinosCoach({student,demo}){
   const [nomes,setNomes]=useState({});
   const [aberta,setAberta]=useState(null);
   const [tudo,setTudo]=useState(false);
-  useEffect(()=>{if(demo)return;(async()=>{
+  const carregar=React.useCallback(async()=>{
+    if(demo)return;
     const [h,d]=await Promise.all([
       sb.from('train_historico')
         .select('divisao_id,exercicio_id,exercicio_nome,data_treino,tipo_serie,carga,reps,indice_serie,is_pr,observacao,registrado_em')
@@ -2393,8 +2396,19 @@ function TreinosCoach({student,demo}){
     ]);
     setHist(h.data||[]);
     const m={};(d.data||[]).forEach(x=>m[x.id]=x.nome);setNomes(m);
-  })().catch(()=>setHist([]));},[student.id]);
+  },[student.id,demo]);
+  useEffect(()=>{carregar().catch(()=>setHist([]));},[carregar]);
   const sessoes=React.useMemo(()=>agruparSessoes(hist),[hist]);
+  // Treino em andamento: a sessão de hoje com série registrada há pouco. Sem
+  // isso o treinador abre a ficha no meio do treino, lê "1 exercício · 1 série"
+  // e acha que o app perdeu o resto — quando o aluno só não tinha feito ainda.
+  const emAndamento=sessoes.find(s=>s.data===todayStr()&&s.ultimo
+    &&(Date.now()-new Date(s.ultimo).getTime())<90*60000);
+  useEffect(()=>{
+    if(!emAndamento)return;
+    const t=setInterval(()=>{carregar().catch(()=>{});},60000);
+    return ()=>clearInterval(t);
+  },[!!emAndamento,carregar]);
   if(hist===null)return <div className="card" style={{marginBottom:14}}><div className="sec-title">Treinos</div>
     <div className="center-screen" style={{minHeight:90}}><div className="spinner"/></div></div>;
   const rotulo=s=>{const ns=s.divisoes.map(id=>nomes[id]).filter(Boolean);
@@ -2407,8 +2421,11 @@ function TreinosCoach({student,demo}){
     <div className="sec-title">Treinos</div>
     {sessoes.length===0?<p className="s-meta">Nenhum treino registrado ainda.</p>:<>
       <p className="s-meta" style={{marginBottom:12}}>
-        {sessoes.length} {sessoes.length>1?'sessões':'sessão'} no total · média de {media} séries por treino
+        {plural(sessoes.length,'sessão','sessões')} no total · média de {plural(media,'série')} por treino
         {comSerie.length<sessoes.length&&` · ${sessoes.length-comSerie.length} fora do app`}</p>
+      {emAndamento&&<p className="s-meta" style={{marginBottom:12,color:'var(--gold)'}}>
+        Treino em andamento — a última série entrou {tempoRel(emAndamento.ultimo)}.
+        Os números de hoje ainda vão subir; esta tela se atualiza sozinha.</p>}
       {lista.map(s=>{const open=aberta===s.data;
         return(<div key={s.data} style={{borderBottom:'1px solid var(--border)',padding:'9px 0'}}>
           <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,
@@ -2418,9 +2435,11 @@ function TreinosCoach({student,demo}){
               <div style={{fontWeight:600,fontSize:13.5}}>{fmtDate(s.data)} · {rotulo(s)}</div>
               <div className="s-meta" style={{marginTop:2}}>
                 {s.soExterno?'Fora do app'+(s.externos[0]&&s.externos[0].obs?' · '+s.externos[0].obs:'')
-                  :`${s.exercicios.length} exercícios · ${s.series} séries · ${fmtTon(s.tonelagem)}`}</div>
+                  :`${plural(s.exercicios.length,'exercício')} · ${plural(s.series,'série')} · ${fmtTon(s.tonelagem)}`}</div>
             </div>
             <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
+              {emAndamento&&emAndamento.data===s.data&&<span className="info-pill"
+                style={{margin:0,borderColor:'rgba(245,158,11,.45)',color:'var(--gold)'}}>treinando agora</span>}
               {s.prs>0&&<span className="info-pill" style={{margin:0,borderColor:'rgba(74,222,128,.35)',color:'var(--green)'}}>{s.prs} PR</span>}
               {!s.soExterno&&<span className="muted">{open?'▾':'▸'}</span>}
             </div>
@@ -6341,7 +6360,8 @@ async function escoarFilaAluno(){
     while(q.length){
       const it=q[0];
       try{
-        if(it.tabela)  {const {error}=await comPrazo(sb.from(it.tabela).insert(it.linha));if(error)throw error;}
+        if(it.tabela)  {const {error}=await comPrazo(sb.from(it.tabela)
+          .upsert(it.linha,{onConflict:'id',ignoreDuplicates:true}));if(error)throw error;}
         else if(it.rpc){
           const {data,error}=await comPrazo(sb.rpc(it.rpc,it.args||{}));if(error)throw error;
           // feedback que estava na fila: se tinha dor alta, o treinador
@@ -8916,13 +8936,18 @@ function TrainExec({student,divisao,demo,somenteLeitura,best,onBack,onSaved,onFi
       // se o aluno trocou o exercício, é o trocado que vai para o histórico —
       // assim o treinador vê o que foi feito de verdade
       const tr=trocas[s.exercicio_id||s.exercicio_nome];
-      const linha={coach_id:student.coach_id,student_id:student.id,divisao_id:divisao.id,
+      // O id sai daqui, não do banco. Numa internet de academia o insert
+      // responde depois do prazo, o app acha que falhou, joga na fila e a fila
+      // grava de novo — a mesma série virava duas linhas. Com id próprio, a
+      // segunda gravação bate no id que já existe e é ignorada.
+      const linha={id:genId(),coach_id:student.coach_id,student_id:student.id,divisao_id:divisao.id,
         exercicio_id:tr?tr.id:s.exercicio_id,exercicio_nome:tr?tr.nome:s.exercicio_nome,
         data_treino:todayStr(),
         indice_serie:i+1,tipo_serie:s.tipo_serie,carga,reps,is_pr:isPr};
       let subiu=false;
       if(navigator.onLine){
-        try{const {error}=await comPrazo(sb.from('train_historico').insert(linha));if(!error)subiu=true;}catch(e){}
+        try{const {error}=await comPrazo(sb.from('train_historico')
+          .upsert(linha,{onConflict:'id',ignoreDuplicates:true}));if(!error)subiu=true;}catch(e){}
       }
       if(!subiu){await enfileirarAluno({tabela:'train_historico',linha});setPendentes(n=>n+1);}
     }
@@ -10341,12 +10366,14 @@ function TreineiFora({stu,demo,somenteLeitura,onPronto}){
   const ontem=(()=>{const d=new Date();d.setDate(d.getDate()-1);return dayKey(d);})();
   const salvar=async()=>{
     setSalvando(true);
-    const linha={coach_id:stu.coach_id,student_id:stu.id,divisao_id:null,exercicio_id:null,
+    // mesmo motivo da série: id do lado do app para a fila não gravar duas vezes
+    const linha={id:genId(),coach_id:stu.coach_id,student_id:stu.id,divisao_id:null,exercicio_id:null,
       exercicio_nome:tipo,data_treino:dia,indice_serie:1,tipo_serie:'Externo',
       carga:null,reps:null,observacao:num(min)?num(min)+' min':null,is_pr:false};
     if(!demo&&!somenteLeitura){
       let subiu=false;
-      if(navigator.onLine){try{const {error}=await comPrazo(sb.from('train_historico').insert(linha));if(!error)subiu=true;}catch(e){}}
+      if(navigator.onLine){try{const {error}=await comPrazo(sb.from('train_historico')
+          .upsert(linha,{onConflict:'id',ignoreDuplicates:true}));if(!error)subiu=true;}catch(e){}}
       if(!subiu)await enfileirarAluno({tabela:'train_historico',linha});
     }
     setSalvando(false);setFeito(true);setAberto(false);
