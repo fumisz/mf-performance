@@ -200,6 +200,28 @@ ela falha, com o contador indo de 0 para 0.
 A lição que fica: **botão que não responde é pior que botão que recusa.** Se uma
 ação não pode acontecer, a tela precisa dizer por quê.
 
+## Registrar tem de custar um toque
+O registro é o produto: sem carga e repetição gravadas não existe progressão,
+recorde, tonelagem nem painel. Então a resposta para "dá trabalho registrar"
+nunca é registrar menos — é registrar mais rápido.
+
+Duas coisas atrapalhavam:
+
+**Exigir peso.** O `Concluir série` tinha `if(carga==null)return` e saía calado.
+Exercício de elástico, peso do corpo, prancha ou alongamento não tem carga: o
+botão simplesmente não respondia, sem aviso nenhum. Uma aluna abandonou o app
+por isso — a abertura da ficha dela era uma abdução de quadril com elástico, e
+o banco mostra zero séries registradas na conta dela. Campo em branco agora
+vale "sem carga": a série é gravada, só não vira recorde.
+
+**Campo vazio a cada série.** O quadro "Da última vez" já mostrava o que ele
+tinha feito, mas os campos nasciam vazios — o aluno lia o número e digitava o
+mesmo de novo, série após série. Agora o campo já vem preenchido com o que ele
+fez **naquela mesma série** na sessão anterior. Quem repetiu a carga toca em
+Concluir; quem subiu, corrige o número. O que está no campo é o que vai gravado,
+então nada fica escondido. As suítes `sempeso.js` e `umtoque.js` cobrem os dois,
+incluindo corrigir o número e limpar o campo.
+
 ## Treino interrompido
 Fechar o app no meio do treino, o celular matar o app, acabar a bateria, treinar
 no subsolo sem sinal — nada disso pode custar o treino do aluno. Três coisas
