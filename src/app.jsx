@@ -36,7 +36,7 @@ if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABAS
    .catch. Chamar .catch direto estoura TypeError, e dentro de um useEffect isso
    derruba a tela inteira do aluno. */
 const semEsperar=q=>{try{q.then(()=>{},()=>{});}catch(e){}};
-const APP_VERSION='2026.10.06';   // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION='2026.10.07';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
 
@@ -9089,20 +9089,26 @@ function TrainExec({student,divisao,demo,somenteLeitura,best,onBack,onSaved,onFi
       onDesfazer={()=>{setTrocas(p=>{const c={...p};delete c[trocando.key];return c;});setTrocando(null);}}
       onFechar={()=>setTrocando(null)}/>}
 
+    {/* Os quatro controles não cabiam na mesma linha do cronômetro: em 390px o
+        "Pular" ficava fora da tela e em 360px o pause também. Quem terminou o
+        descanso antes não tinha como seguir. Agora o tempo fica em cima e os
+        botões dividem a linha de baixo — cabe a partir de 320px. */}
     {rest>0&&!finished&&<div className="lv-rest">
       <div className="lv-restbar"><i style={{width:Math.max(0,Math.min(100,(rest/(restTotal||1))*100))+'%'}}/></div>
-      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}>
-        <div>
-          <div className="lv-kick" style={{maxWidth:170,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
-            Descanso{restName?' — '+restName:''}</div>
-          <div className="lv-restnum">{fmtT(rest)}</div>
-        </div>
-        <div style={{display:'flex',gap:7,alignItems:'center'}}>
-          <button className="lv-ghost" onClick={()=>{vibrar(8);const n=Math.max(1,rest-15);setRest(n);if(!paused)ajustarFim(n);}}>−15s</button>
-          <button className="lv-ghost" onClick={()=>{vibrar(8);const n=rest+30;setRest(n);setRestTotal(t=>t+30);if(!paused)ajustarFim(n);}}>+30s</button>
-          <button className="lv-round" onClick={()=>{const p=!paused;setPaused(p);if(p)cancelarAvisoDescanso();else ajustarFim(rest);}}>{paused?'▶':'❚❚'}</button>
-          <button className="lv-ghost" onClick={()=>{vibrar(8);setRest(0);ajustarFim(0);}}>Pular</button>
-        </div>
+      <div style={{display:'flex',alignItems:'baseline',gap:10,marginBottom:10}}>
+        <div className="lv-restnum">{fmtT(rest)}</div>
+        <div className="lv-kick" style={{flex:1,minWidth:0,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
+          {paused?'pausado':'descanso'}{restName?' · '+restName:''}</div>
+      </div>
+      <div style={{display:'flex',gap:7,alignItems:'center'}}>
+        <button className="lv-ghost" style={{flex:1,padding:'9px 4px'}}
+          onClick={()=>{vibrar(8);const n=Math.max(1,rest-15);setRest(n);if(!paused)ajustarFim(n);}}>−15s</button>
+        <button className="lv-ghost" style={{flex:1,padding:'9px 4px'}}
+          onClick={()=>{vibrar(8);const n=rest+30;setRest(n);setRestTotal(t=>t+30);if(!paused)ajustarFim(n);}}>+30s</button>
+        <button className="lv-ghost" style={{flex:1,padding:'9px 4px'}}
+          onClick={()=>{const p=!paused;setPaused(p);if(p)cancelarAvisoDescanso();else ajustarFim(rest);}}>{paused?'▶ Voltar':'❚❚ Pausar'}</button>
+        <button className="lv-ghost" style={{flex:1,padding:'9px 4px',background:'var(--lvrx)',color:'#fff'}}
+          onClick={()=>{vibrar(8);setRest(0);ajustarFim(0);}}>Pular</button>
       </div>
     </div>}
   </div>);

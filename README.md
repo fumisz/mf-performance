@@ -313,6 +313,23 @@ coisas trabalhavam contra ele:
   registro daquele índice exato. Quem fez 4 séries hoje e registrou 1 na vez
   passada repete a carga mais próxima que existir.
 
+## O cronômetro de descanso
+É o que os alunos mais elogiam — e era onde o **"Pular" ficava fora da tela**.
+Os quatro controles dividiam a linha com o cronômetro e não cabiam: em 390px o
+"Pular" saía pela direita, em 360px o pause também. Quem terminava o descanso
+antes do tempo não tinha como seguir: esperava o relógio ou saía do treino.
+
+O tempo subiu para a linha de cima e os quatro controles dividem a de baixo,
+cada um com `flex:1`. Cabe a partir de **320px**, e a suíte **descanso** mede
+os quatro em 320/360/390/430 — dentro da tela e com área de toque decente — e
+confere que cada um faz o que promete: +30s soma, −15s tira, pausar para o
+relógio de verdade, "Pular" encerra na hora. O pause ganhou rótulo
+("❚❚ Pausar" / "▶ Voltar") em vez do símbolo sozinho.
+
+O resto do cronômetro já estava certo e não mexi: ele conta **pelo relógio**,
+não de segundo em segundo, então sobrevive ao celular no bolso; agenda a
+notificação no service worker; e apita e vibra no fim.
+
 ## Treino em andamento, e o contrato com o banco
 Três coisas que saíram de um print: o treinador abriu a ficha de um aluno às
 18:14 e leu **"1 exercícios · 1 séries"**. Parecia que o app tinha registrado

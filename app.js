@@ -71,7 +71,7 @@ const semEsperar = q => {
     q.then(() => {}, () => {});
   } catch (e) {}
 };
-const APP_VERSION = '2026.10.06'; // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION = '2026.10.07'; // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA'); // YYYY-MM-DD no fuso LOCAL
 
@@ -25130,21 +25130,22 @@ function TrainExec({
   })), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: 10
+      alignItems: 'baseline',
+      gap: 10,
+      marginBottom: 10
     }
-  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "lv-restnum"
+  }, fmtT(rest)), /*#__PURE__*/React.createElement("div", {
     className: "lv-kick",
     style: {
-      maxWidth: 170,
+      flex: 1,
+      minWidth: 0,
       whiteSpace: 'nowrap',
       overflow: 'hidden',
       textOverflow: 'ellipsis'
     }
-  }, "Descanso", restName ? ' — ' + restName : ''), /*#__PURE__*/React.createElement("div", {
-    className: "lv-restnum"
-  }, fmtT(rest))), /*#__PURE__*/React.createElement("div", {
+  }, paused ? 'pausado' : 'descanso', restName ? ' · ' + restName : '')), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       gap: 7,
@@ -25152,6 +25153,10 @@ function TrainExec({
     }
   }, /*#__PURE__*/React.createElement("button", {
     className: "lv-ghost",
+    style: {
+      flex: 1,
+      padding: '9px 4px'
+    },
     onClick: () => {
       vibrar(8);
       const n = Math.max(1, rest - 15);
@@ -25160,6 +25165,10 @@ function TrainExec({
     }
   }, "\u221215s"), /*#__PURE__*/React.createElement("button", {
     className: "lv-ghost",
+    style: {
+      flex: 1,
+      padding: '9px 4px'
+    },
     onClick: () => {
       vibrar(8);
       const n = rest + 30;
@@ -25168,20 +25177,30 @@ function TrainExec({
       if (!paused) ajustarFim(n);
     }
   }, "+30s"), /*#__PURE__*/React.createElement("button", {
-    className: "lv-round",
+    className: "lv-ghost",
+    style: {
+      flex: 1,
+      padding: '9px 4px'
+    },
     onClick: () => {
       const p = !paused;
       setPaused(p);
       if (p) cancelarAvisoDescanso();else ajustarFim(rest);
     }
-  }, paused ? '▶' : '❚❚'), /*#__PURE__*/React.createElement("button", {
+  }, paused ? '▶ Voltar' : '❚❚ Pausar'), /*#__PURE__*/React.createElement("button", {
     className: "lv-ghost",
+    style: {
+      flex: 1,
+      padding: '9px 4px',
+      background: 'var(--lvrx)',
+      color: '#fff'
+    },
     onClick: () => {
       vibrar(8);
       setRest(0);
       ajustarFim(0);
     }
-  }, "Pular")))));
+  }, "Pular"))));
 }
 const _DEMO_HIST = (() => {
   const out = [];

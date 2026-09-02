@@ -584,6 +584,8 @@ textarea.fi{resize:vertical;min-height:70px;line-height:1.5}
 .lv-somenteleitura{font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;
   color:var(--lvrx);background:rgba(139,92,246,.16);border-radius:20px;padding:4px 10px;white-space:nowrap}
 .lv-ghost{white-space:nowrap;flex-shrink:0}
+/* na barra de descanso os quatro controles dividem a linha: nao podem crescer */
+.lv-rest .lv-ghost{flex-shrink:1;min-width:0;font-size:12.5px}
 
 
 /* ═════════ Camada de movimento ═════════
@@ -717,7 +719,7 @@ function _mfpAvisa(){try{window.MFP_INSTALL_OUVINTES.forEach(function(f){f();});
 window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.MFP_INSTALL=e;_mfpAvisa();});
 window.addEventListener('appinstalled',function(){window.MFP_INSTALL=null;_mfpAvisa();});
 </script>
-<script src="./app.js?v=2026.10.06"></script>
+<script src="./app.js?v=2026.10.07"></script>
 <script>
 /* Atualizacao automatica.
    O registro antigo so chamava register() uma vez: se o navegador ja tinha um
