@@ -167,6 +167,17 @@ existe. A suíte `treinosumiu.js` reproduz o caso (semeia a cópia vazia no
 IndexedDB e atrasa/derruba a consulta das divisões) e falha em 5 pontos na build
 anterior.
 
+O mesmo defeito estava em **mais quatro telas** — dieta, avaliação, meus treinos
+e fotos de progresso. A raiz é o `lerCopia`: quando a rede falha e não há cópia,
+ele devolve `{data:null}`, um erro disfarçado de "não tem nada". Ele já sinalizava
+isso em `semCopia`, mas nenhum dos 32 pontos de chamada lia o campo.
+
+Agora existe `semRede(r)` e um `CardVazio` único, usado pelas quatro telas: com a
+rede caída ele diz que não conseguiu carregar e oferece tentar de novo; com a rede
+de pé, diz o vazio de verdade. A suíte `semrede.js` derruba a tabela de cada tela,
+uma por vez, e confere qual das duas frases apareceu — na build anterior as quatro
+respondiam "culpou o treinador".
+
 ## O que cada tela põe em primeiro lugar
 Duas telas foram reordenadas pelo que a pessoa vai fazer nelas, não pelo que é
 bonito mostrar.

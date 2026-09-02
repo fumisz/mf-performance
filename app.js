@@ -71,7 +71,7 @@ const semEsperar = q => {
     q.then(() => {}, () => {});
   } catch (e) {}
 };
-const APP_VERSION = '2026.09.27'; // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION = '2026.09.28'; // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA'); // YYYY-MM-DD no fuso LOCAL
 
@@ -222,13 +222,26 @@ function sumMeals(meals) {
     fat: 0
   });
 }
+/* Uma leitura que falhou por falta de internet NÃO é "não existe". Sem isso a
+   tela escreve "seu treinador ainda não montou" com a coisa pronta no
+   servidor — foi o que aconteceu com a ficha de treino. O flag semCopia já
+   vinha do lerCopia; ninguém lia. */
+const semRede = r => !!(r && (r.semCopia || r.error));
 async function getActivePlan(studentId) {
-  const {
-    data
-  } = await lerCopia('plano-' + studentId, sb.from('meal_plans').select('*').eq('student_id', studentId).eq('active', true).order('created_at', {
+  const r = await lerCopia('plano-' + studentId, sb.from('meal_plans').select('*').eq('student_id', studentId).eq('active', true).order('created_at', {
     ascending: false
   }).limit(1).maybeSingle());
-  return data || null;
+  return r.data || null;
+}
+// mesma consulta, mas dizendo se o vazio é de verdade ou é falta de rede
+async function getActivePlanR(studentId) {
+  const r = await lerCopia('plano-' + studentId, sb.from('meal_plans').select('*').eq('student_id', studentId).eq('active', true).order('created_at', {
+    ascending: false
+  }).limit(1).maybeSingle());
+  return {
+    plano: r.data || null,
+    offline: semRede(r)
+  };
 }
 async function loadPlanTree(planId) {
   const {
@@ -25309,15 +25322,15 @@ function TreinosScreen({
   const [hist, setHist] = useState(demo ? _DEMO_HIST : null);
   const [nomes, setNomes] = useState({});
   const [aberta, setAberta] = useState(null);
+  const [offline, setOffline] = useState(false);
   useEffect(() => {
     if (demo) return;
     (async () => {
-      const {
-        data
-      } = await lerCopia('sessoes-' + student.id, sb.from('train_historico').select('divisao_id,exercicio_id,exercicio_nome,data_treino,tipo_serie,carga,reps,indice_serie,is_pr,observacao,registrado_em').eq('student_id', student.id).order('data_treino', {
+      const r = await lerCopia('sessoes-' + student.id, sb.from('train_historico').select('divisao_id,exercicio_id,exercicio_nome,data_treino,tipo_serie,carga,reps,indice_serie,is_pr,observacao,registrado_em').eq('student_id', student.id).order('data_treino', {
         ascending: false
       }).order('registrado_em').limit(1200));
-      setHist(data || []);
+      setHist(r.data || []);
+      setOffline(semRede(r));
       const {
         data: dv
       } = await lerCopia('divs-' + student.id, sb.from('train_divisao').select('*').eq('student_id', student.id).order('ordem'));
@@ -25360,13 +25373,11 @@ function TreinosScreen({
     className: "center-screen"
   }, /*#__PURE__*/React.createElement("div", {
     className: "spinner"
-  })) : sessoes.length === 0 ? /*#__PURE__*/React.createElement("div", {
-    className: "lv-card",
-    style: {
-      textAlign: 'center',
-      color: 'var(--lvt2)'
-    }
-  }, "Nenhum treino registrado ainda. O primeiro aparece aqui assim que voc\xEA fechar.") : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+  })) : sessoes.length === 0 ? /*#__PURE__*/React.createElement(CardVazio, {
+    offline: offline,
+    titulo: "Nenhum treino registrado ainda",
+    texto: "O primeiro aparece aqui assim que voc\xEA fechar um treino."
+  }) : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     className: "lv-stats",
     style: {
       marginBottom: 14
@@ -26274,6 +26285,42 @@ function CicloScreen({
   }, "Este acompanhamento \xE9 ", /*#__PURE__*/React.createElement("b", null, "educativo"), " e n\xE3o altera seu treino automaticamente."));
 }
 
+/* ── Tela vazia: é vazio mesmo, ou faltou internet? ──────────
+   A mesma frase aparecia na ficha, na dieta, na avaliação, nos treinos e nas
+   fotos, sempre afirmando ausência a partir de uma leitura que podia ter
+   falhado. Uma peça só, para não virar cinco remendos diferentes. */
+function CardVazio({
+  offline,
+  titulo,
+  texto,
+  onTentar
+}) {
+  return /*#__PURE__*/React.createElement("div", {
+    className: "lv-card",
+    style: {
+      textAlign: 'center',
+      padding: '30px 18px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 17,
+      fontWeight: 800,
+      marginBottom: 6
+    }
+  }, offline ? 'Não consegui carregar agora' : titulo), /*#__PURE__*/React.createElement("div", {
+    className: "lv-sub",
+    style: {
+      lineHeight: 1.6
+    }
+  }, offline ? 'Parece que a internet falhou. O que já existe continua guardado.' : texto), offline && onTentar && /*#__PURE__*/React.createElement("button", {
+    className: "lv-btn",
+    style: {
+      marginTop: 14
+    },
+    onClick: onTentar
+  }, "Tentar de novo"));
+}
+
 /* ── Minha avaliação física (aluno) ── */
 function AvalScreen({
   student,
@@ -26300,15 +26347,16 @@ function AvalScreen({
     bp_dia: '78'
   }] : null);
   const [showRep, setShowRep] = useState(false);
-  useEffect(() => {
+  const [offline, setOffline] = useState(false);
+  const carregar = React.useCallback(async () => {
     if (demo) return;
-    (async () => {
-      const {
-        data
-      } = await sb.from('assessments').select('*').eq('student_id', student.id).order('date');
-      setEvals((data || []).map(rowToEval));
-    })();
-  }, []);
+    const r = await lerCopia('aval-' + student.id, sb.from('assessments').select('*').eq('student_id', student.id).order('date'));
+    setOffline(semRede(r));
+    setEvals((r.data || []).map(rowToEval));
+  }, [student.id, demo]);
+  useEffect(() => {
+    carregar();
+  }, [carregar]);
   if (evals === null) return /*#__PURE__*/React.createElement("div", {
     className: "lv-wrap"
   }, /*#__PURE__*/React.createElement("div", {
@@ -26333,13 +26381,12 @@ function AvalScreen({
     style: {
       flex: 1
     }
-  }, "Minha avalia\xE7\xE3o")), /*#__PURE__*/React.createElement("div", {
-    className: "lv-card",
-    style: {
-      textAlign: 'center',
-      color: 'var(--lvt2)'
-    }
-  }, "Voc\xEA ainda n\xE3o tem uma avalia\xE7\xE3o f\xEDsica registrada. Fale com seu treinador."));
+  }, "Minha avalia\xE7\xE3o")), /*#__PURE__*/React.createElement(CardVazio, {
+    offline: offline,
+    onTentar: carregar,
+    titulo: "Avalia\xE7\xE3o a caminho",
+    texto: "Voc\xEA ainda n\xE3o tem uma avalia\xE7\xE3o f\xEDsica registrada. Fale com seu treinador."
+  }));
   const asc = [...evals].sort((a, b) => a.date < b.date ? -1 : 1);
   const latest = asc[asc.length - 1];
   const prev = asc[asc.length - 2] || null;
@@ -27477,6 +27524,7 @@ function DietaScreen({
   onHidra
 }) {
   const [plan, setPlan] = useState(undefined);
+  const [offline, setOffline] = useState(false); // vazio de verdade x rede caída
   const [meals, setMeals] = useState([]);
   const [checks, setChecks] = useState({});
   const [open, setOpen] = useState({});
@@ -27501,7 +27549,11 @@ function DietaScreen({
       });
       return;
     }
-    const p = await getActivePlan(profile.id);
+    const {
+      plano: p,
+      offline: semNet
+    } = await getActivePlanR(profile.id);
+    setOffline(semNet);
     if (!p) {
       setPlan(null);
       return;
@@ -27617,24 +27669,12 @@ function DietaScreen({
   })));
   if (plan === null) return /*#__PURE__*/React.createElement("div", {
     className: "lv-wrap"
-  }, head, /*#__PURE__*/React.createElement("div", {
-    className: "lv-card",
-    style: {
-      textAlign: 'center',
-      padding: '34px 18px'
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 17,
-      fontWeight: 800,
-      marginBottom: 6
-    }
-  }, "Plano a caminho"), /*#__PURE__*/React.createElement("div", {
-    className: "lv-sub",
-    style: {
-      lineHeight: 1.6
-    }
-  }, "Seu treinador ainda n\xE3o montou seu plano alimentar. Assim que ele publicar, aparece aqui.")));
+  }, head, /*#__PURE__*/React.createElement(CardVazio, {
+    offline: offline,
+    onTentar: load,
+    titulo: "Plano a caminho",
+    texto: "Seu treinador ainda n\xE3o montou seu plano alimentar. Assim que ele publicar, aparece aqui."
+  }));
   const total = sumMeals(meals);
   const doneMeals = meals.filter(m => checks[m.id]);
   const consumed = sumMeals(doneMeals);
@@ -28621,6 +28661,7 @@ function FotosProgresso({
   somenteLeitura
 }) {
   const [fotos, setFotos] = useState(demo ? [] : null);
+  const [offline, setOffline] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState(null);
   const [aberta, setAberta] = useState(null);
@@ -28639,12 +28680,11 @@ function FotosProgresso({
       setFotos([]);
       return;
     }
-    const {
-      data
-    } = await lerCopia('fotos-prog-' + conta, sb.from('photos').select('id,url,created_at,kind').eq('student_id', conta).eq('kind', 'progress').order('created_at', {
+    const r = await lerCopia('fotos-prog-' + conta, sb.from('photos').select('id,url,created_at,kind').eq('student_id', conta).eq('kind', 'progress').order('created_at', {
       ascending: false
     }).limit(60));
-    setFotos(data || []);
+    setOffline(semRede(r));
+    setFotos(r.data || []);
   };
   useEffect(() => {
     carregar();
@@ -28782,13 +28822,12 @@ function FotosProgresso({
     }
   }, /*#__PURE__*/React.createElement("div", {
     className: "spinner"
-  })) : lista.length === 0 ? /*#__PURE__*/React.createElement("div", {
-    className: "lv-card",
-    style: {
-      textAlign: 'center',
-      color: 'var(--lvt2)'
-    }
-  }, "Nenhuma foto ainda. A de hoje vira a sua foto \u201Cantes\u201D.") : /*#__PURE__*/React.createElement("div", {
+  })) : lista.length === 0 ? /*#__PURE__*/React.createElement(CardVazio, {
+    offline: offline,
+    onTentar: carregar,
+    titulo: "Nenhuma foto ainda",
+    texto: 'A de hoje vira a sua foto “antes”.'
+  }) : /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'grid',
       gridTemplateColumns: 'repeat(3,1fr)',

@@ -1,10 +1,10 @@
-const CACHE='mfp-2026.09.27';
+const CACHE='mfp-2026.09.28';
 // Tudo que o app precisa para ABRIR sem rede. A biblioteca do Supabase entrou
 // aqui: antes vinha da jsdelivr, e como o worker so guardava o proprio dominio,
 // no modo aviao ela nao carregava e o app morria na tela de configuracao.
 const ASSETS=[
   './','./index.html','./config.js','./manifest.json',
-  './app.js?v=2026.09.27','./lib/fontes.css',
+  './app.js?v=2026.09.28','./lib/fontes.css',
   './lib/react.js','./lib/react-dom.js','./lib/supabase.js',
   './lib/fontes/inter-latin.woff2',
   './lib/fontes/inter-latin-ext.woff2',
