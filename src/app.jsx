@@ -6204,6 +6204,15 @@ async function escoarFilaAluno(){
 }
 if(typeof window!=='undefined'){
   window.addEventListener('online',()=>{escoarFilaAluno();});
+  // O evento 'online' só dispara na TRANSIÇÃO. Quem treinou sem sinal, fechou o
+  // app e abriu de novo já com internet nunca passava por essa transição: a
+  // fila ficava parada e o treino nunca chegava ao treinador. Agora também
+  // escoa ao abrir e ao voltar para o app.
+  const tentarEscoar=()=>{if(navigator.onLine)semEsperar(escoarFilaAluno());};
+  window.addEventListener('load',tentarEscoar);
+  document.addEventListener('visibilitychange',()=>{
+    if(document.visibilityState==='visible')tentarEscoar();});
+  tentarEscoar();
 }
 
 /* Mostra JA a copia local e atualiza por tras.
@@ -8586,7 +8595,7 @@ function TrainExec({student,divisao,demo,somenteLeitura,best,onBack,onSaved,onFi
     // ── o que ele fez da última vez: é isso que diz se hoje é para subir a carga ──
     const {data:hi}=await lerCopia('ultimas-'+divisao.id,
       sb.from('train_historico')
-        .select('exercicio_id,exercicio_nome,data_treino,carga,reps,indice_serie,tipo_serie')
+        .select('exercicio_id,exercicio_nome,data_treino,carga,reps,indice_serie,tipo_serie,divisao_id,is_pr')
         .eq('student_id',student.id).order('data_treino',{ascending:false}).limit(400));
     const hoje=todayStr(), porEx={};
     (hi||[]).forEach(h=>{
@@ -8598,6 +8607,29 @@ function TrainExec({student,divisao,demo,somenteLeitura,best,onBack,onSaved,onFi
     });
     Object.values(porEx).forEach(v=>v.series.sort((a,b)=>(a.i||0)-(b.i||0)));
     setUltima(porEx);
+
+    // ── retomar o treino de hoje ──────────────────────────────
+    // Fechar o app no meio do treino zerava a tela: as séries estavam
+    // gravadas, mas ele voltava vendo 0/24 e refazia tudo. O que já foi feito
+    // hoje vem do servidor E da fila do aparelho — quem treinou sem sinal tem
+    // as séries só na fila, e elas contam igual.
+    const daFila=(await filaAluno())
+      .filter(it=>it.tabela==='train_historico'&&it.linha
+        &&it.linha.divisao_id===divisao.id&&it.linha.data_treino===hoje)
+      .map(it=>it.linha);
+    const deHoje=[...(hi||[]).filter(h=>h.data_treino===hoje&&h.divisao_id===divisao.id),...daFila];
+    if(deHoje.length){
+      const feito={};
+      deHoje.forEach(h=>{
+        const s=(data||[]).find(x=>x.tipo_serie===h.tipo_serie&&
+          ((h.exercicio_id&&x.exercicio_id===h.exercicio_id)||x.exercicio_nome===h.exercicio_nome));
+        if(!s)return;                                   // exercício trocado na hora: não dá para casar
+        const i=(h.indice_serie||1)-1;
+        if(i<0||i>=s.qtd_series)return;
+        feito[s.id+'_'+i]={carga:num(h.carga),reps:num(h.reps),isPr:!!h.is_pr};
+      });
+      if(Object.keys(feito).length)setDone(p=>({...feito,...p}));
+    }
   })();},[]);
 
   // biblioteca para a troca de exercício (guardada, funciona sem internet)
@@ -10134,6 +10166,18 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
   const [retro,setRetro]=useState(false);
   const [ultimaDiv,setUltimaDiv]=useState(null);   // qual divisão ele fez por último
   const [divsCheias,setDivsCheias]=useState(null); // divisões que têm exercício (null = ainda não sei)
+  const [seriesPorDiv,setSeriesPorDiv]=useState({});// quantas séries cada divisão tem prescritas
+  // Séries que ainda não subiram: quem treinou sem sinal tem o treino SÓ aqui.
+  // Sem isso a tela diria que ele não treinou nada hoje.
+  const [filaHoje,setFilaHoje]=useState([]);
+  useEffect(()=>{if(demo)return;
+    const ler=()=>filaAluno().then(q=>setFilaHoje((q||[])
+      .filter(it=>it.tabela==='train_historico'&&it.linha&&it.linha.data_treino===todayStr())
+      .map(it=>it.linha))).catch(()=>{});
+    ler();
+    const f=()=>ler();
+    window.addEventListener('mfp-fila',f);
+    return()=>window.removeEventListener('mfp-fila',f);},[demo]);
   // "ainda não chegou" e "chegou e está vazio" são coisas diferentes na tela:
   // dizer que o treinador não montou a ficha quando ela só não carregou é o
   // tipo de mentira que faz o aluno fechar o app.
@@ -10196,8 +10240,14 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
         // "Iniciar treino" e cairia numa tela vazia
         if((dv||[]).length){
           lerJa('pres-divs-'+s.id,
-            sb.from('train_serie_prescrita').select('divisao_id').in('divisao_id',dv.map(d=>d.id)),
-            pres=>{if(pres)setDivsCheias(new Set(pres.map(x=>x.divisao_id)));}).catch(()=>{});
+            sb.from('train_serie_prescrita').select('divisao_id,qtd_series').in('divisao_id',dv.map(d=>d.id)),
+            pres=>{if(pres){
+              setDivsCheias(new Set(pres.map(x=>x.divisao_id)));
+              // total de SÉRIES de cada divisão: é com isso que dá para saber
+              // se o treino de hoje ficou pela metade
+              const c={};pres.forEach(x=>{c[x.divisao_id]=(c[x.divisao_id]||0)+(x.qtd_series||1);});
+              setSeriesPorDiv(c);
+            }}).catch(()=>{});
         }else setDivsCheias(new Set());
       })
       .then(dado=>{
@@ -10369,6 +10419,29 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
   /* O treino é o motivo de o aluno abrir o app. Ficava em quarto lugar, embaixo
      dos anéis do dia e do bloco de avaliação física: para começar a treinar ele
      rolava a tela passando pelo próprio percentual de gordura. Agora vem primeiro. */
+  // ── treino de hoje que ficou pela metade ────────────────────
+  // Fechar o app, o celular matar o app, acabar a bateria: as séries já feitas
+  // estão gravadas, mas a tela oferecia "Iniciar treino" como se nada tivesse
+  // acontecido. Aqui ela reconhece o que ficou aberto.
+  const emAndamento=(()=>{
+    if(!list.length)return null;
+    const hoje=todayStr();
+    const porDiv={};
+    [...(hist||[]),...filaHoje].forEach(h=>{
+      if(h.data_treino!==hoje||!h.divisao_id)return;
+      porDiv[h.divisao_id]=(porDiv[h.divisao_id]||0)+1;
+    });
+    let achado=null;
+    Object.keys(porDiv).forEach(id=>{
+      const total=seriesPorDiv[id];
+      // sem saber o total, não dá para afirmar que ficou pela metade
+      if(!total||porDiv[id]>=total)return;
+      const dv=list.find(d=>d.id===id);
+      if(dv&&(!achado||porDiv[id]>achado.feitas))achado={div:dv,feitas:porDiv[id],total};
+    });
+    return achado;
+  })();
+
   const blocoTreino=list.length===0?(
     falhouDivs
       ? <div className="lv-card" style={{textAlign:'center'}}>
@@ -10389,6 +10462,13 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
     const prox=proxDiv,feita=divFeita;
     const resto=list.filter(d=>d.id!==prox.id);
     return(<>
+    {emAndamento&&<div className="lv-card lv-hero" style={{marginBottom:12}}>
+      <div className="lv-kick" style={{color:'#e9d5ff'}}>Treino em andamento</div>
+      <div style={{fontSize:20,fontWeight:900,margin:'4px 0 4px'}}>{(emAndamento.div.nome||'Treino').toUpperCase()}</div>
+      <div style={{fontSize:12,color:'#e9d5ff',marginBottom:10,opacity:.85}}>
+        {emAndamento.feitas} de {plural(emAndamento.total,'série')} · continua de onde você parou</div>
+      <button className="lv-btn light" onClick={()=>setExec(emAndamento.div)}>▶ Continuar treino</button>
+    </div>}
     <div className="lv-card lv-hero">
       <div className="lv-kick" style={{color:'#e9d5ff'}}>{proxEhDoDia?'Seu treino de hoje':'Próximo treino'}</div>
       <div style={{fontSize:20,fontWeight:900,margin:'4px 0 4px'}}>{(prox.nome||'Treino').toUpperCase()}</div>
