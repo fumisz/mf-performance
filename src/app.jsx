@@ -36,7 +36,7 @@ if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABAS
    .catch. Chamar .catch direto estoura TypeError, e dentro de um useEffect isso
    derruba a tela inteira do aluno. */
 const semEsperar=q=>{try{q.then(()=>{},()=>{});}catch(e){}};
-const APP_VERSION='2026.09.28';   // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION='2026.09.29';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
 
@@ -8701,8 +8701,12 @@ function TrainExec({student,divisao,demo,somenteLeitura,best,onBack,onSaved,onFi
   const fmtT=x=>String(Math.floor(x/60)).padStart(2,'0')+':'+String(x%60).padStart(2,'0');
   const celebrate=carga=>{setCel({carga});try{navigator.vibrate&&navigator.vibrate([35,45,90]);}catch(e){}setTimeout(()=>setCel(null),2200);};
   const concluir=async(s,i)=>{
-    const k=s.id+'_'+i;const v=vals[k]||{};const carga=num(v.carga),reps=num(v.reps);if(carga==null)return;
-    const isPr=s.tipo_serie==='Valida'&&carga>(best[s.exercicio_id]||0);
+    // Exercício sem peso existe: elástico, peso do corpo, prancha, alongamento.
+    // Exigir carga fazia o botão não responder a nada — sem aviso, sem erro. Uma
+    // aluna abandonou o app por isso: a primeira coisa da ficha dela era uma
+    // abdução com elástico. Peso em branco agora vale "sem carga".
+    const k=s.id+'_'+i;const v=vals[k]||{};const carga=num(v.carga),reps=num(v.reps);
+    const isPr=s.tipo_serie==='Valida'&&carga!=null&&carga>(best[s.exercicio_id]||0);
     setDone(p=>({...p,[k]:{carga,reps,isPr}}));
     let nx=i+1;while(nx<s.qtd_series&&done[s.id+'_'+nx])nx++;setActive(p=>({...p,[s.id]:nx}));
     try{
@@ -8714,7 +8718,7 @@ function TrainExec({student,divisao,demo,somenteLeitura,best,onBack,onSaved,onFi
     const nomeEx=(trocas[s.exercicio_id||s.exercicio_nome]||{}).nome||s.exercicio_nome;
     setRestTotal(desc);setRest(desc);setRestName(nomeEx);setPaused(false);
     ajustarFim(desc,nomeEx);
-    if(onSaved)onSaved(s.exercicio_id,carga);
+    if(onSaved&&carga!=null)onSaved(s.exercicio_id,carga);
     if(isPr)celebrate(carga);
     if(!demo&&!somenteLeitura){
       // se o aluno trocou o exercício, é o trocado que vai para o histórico —
@@ -8799,10 +8803,10 @@ function TrainExec({student,divisao,demo,somenteLeitura,best,onBack,onSaved,onFi
                 <span className="lv-sub">{complete?'concluído ✓':`Reps ${t.faixa_reps} · desc. ${Math.floor(iv/60)}:${String(iv%60).padStart(2,'0')}`}</span>
               </div>
               <div className="lv-setchips">{Array.from({length:t.qtd_series}).map((_,i)=>{const dn=done[t.id+'_'+i];const isA=!dn&&i===ai;
-                return(<div key={i} className={'lv-setchip '+(dn?'done':isA?'active':'')} onClick={()=>!dn&&setActive(p=>({...p,[t.id]:i}))}>{dn?'✓ ':''}{i+1}ª{dn&&<div style={{fontSize:10,fontWeight:600,marginTop:2}}>{dn.carga}kg{dn.isPr?'':''}</div>}</div>);})}</div>
+                return(<div key={i} className={'lv-setchip '+(dn?'done':isA?'active':'')} onClick={()=>!dn&&setActive(p=>({...p,[t.id]:i}))}>{dn?'✓ ':''}{i+1}ª{dn&&<div style={{fontSize:10,fontWeight:600,marginTop:2}}>{dn.carga!=null?dn.carga+'kg':(dn.reps!=null?dn.reps+' reps':'feita')}</div>}</div>);})}</div>
               {!complete&&ai<t.qtd_series&&<div>
                 <div style={{display:'flex',gap:10,marginBottom:10}}>
-                  <div style={{flex:1}}><span className="lv-inlbl">Peso (kg)</span><input className="lv-in" type="number" inputMode="decimal" placeholder="kg" value={(vals[t.id+'_'+ai]||{}).carga||''} onChange={ev=>setV(t.id+'_'+ai,'carga',ev.target.value)}/></div>
+                  <div style={{flex:1}}><span className="lv-inlbl">Peso (kg)</span><input className="lv-in" type="number" inputMode="decimal" placeholder="sem peso" value={(vals[t.id+'_'+ai]||{}).carga||''} onChange={ev=>setV(t.id+'_'+ai,'carga',ev.target.value)}/></div>
                   <div style={{flex:1}}><span className="lv-inlbl">Reps feitas</span><input className="lv-in" type="number" inputMode="numeric" placeholder="reps" value={(vals[t.id+'_'+ai]||{}).reps||''} onChange={ev=>setV(t.id+'_'+ai,'reps',ev.target.value)}/></div>
                 </div>
                 <button className="lv-btn" onClick={()=>concluir(t,ai)}>✓ Concluir série</button>

@@ -178,6 +178,28 @@ de pé, diz o vazio de verdade. A suíte `semrede.js` derruba a tabela de cada t
 uma por vez, e confere qual das duas frases apareceu — na build anterior as quatro
 respondiam "culpou o treinador".
 
+## Exercício sem peso
+Uma aluna avisou pelo WhatsApp que achou o app confuso e foi treinar pela ficha
+da academia. Não era vago: a ficha dela começava com **abdução de quadril com
+elástico**, e o `concluir` tinha
+
+    if(carga==null)return;
+
+Sem digitar um peso, o botão "Concluir série" não fazia nada — sem aviso, sem
+erro. Ela tocou, nada aconteceu, e desistiu. O mesmo valia para prancha, peso do
+corpo, barra fixa com elástico, alongamento: toda ficha com exercício sem carga
+tinha esse buraco. A coluna `carga` sempre aceitou nulo no banco; a trava era só
+do app.
+
+Agora peso em branco vale "sem carga": a série é concluída e gravada com
+`carga: null`, só não vira recorde (não há com o que comparar), e o campo diz
+`sem peso` em vez de `kg`. A suíte `sempeso.js` conclui uma série sem digitar
+nada e confere que ela conta, é gravada e aparece marcada — na build anterior
+ela falha, com o contador indo de 0 para 0.
+
+A lição que fica: **botão que não responde é pior que botão que recusa.** Se uma
+ação não pode acontecer, a tela precisa dizer por quê.
+
 ## Treino interrompido
 Fechar o app no meio do treino, o celular matar o app, acabar a bateria, treinar
 no subsolo sem sinal — nada disso pode custar o treino do aluno. Três coisas
