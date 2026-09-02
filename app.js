@@ -71,7 +71,7 @@ const semEsperar = q => {
     q.then(() => {}, () => {});
   } catch (e) {}
 };
-const APP_VERSION = '2026.09.28'; // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION = '2026.09.29'; // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA'); // YYYY-MM-DD no fuso LOCAL
 
@@ -24133,12 +24133,15 @@ function TrainExec({
     setTimeout(() => setCel(null), 2200);
   };
   const concluir = async (s, i) => {
+    // Exercício sem peso existe: elástico, peso do corpo, prancha, alongamento.
+    // Exigir carga fazia o botão não responder a nada — sem aviso, sem erro. Uma
+    // aluna abandonou o app por isso: a primeira coisa da ficha dela era uma
+    // abdução com elástico. Peso em branco agora vale "sem carga".
     const k = s.id + '_' + i;
     const v = vals[k] || {};
     const carga = num(v.carga),
       reps = num(v.reps);
-    if (carga == null) return;
-    const isPr = s.tipo_serie === 'Valida' && carga > (best[s.exercicio_id] || 0);
+    const isPr = s.tipo_serie === 'Valida' && carga != null && carga > (best[s.exercicio_id] || 0);
     setDone(p => ({
       ...p,
       [k]: {
@@ -24165,7 +24168,7 @@ function TrainExec({
     setRestName(nomeEx);
     setPaused(false);
     ajustarFim(desc, nomeEx);
-    if (onSaved) onSaved(s.exercicio_id, carga);
+    if (onSaved && carga != null) onSaved(s.exercicio_id, carga);
     if (isPr) celebrate(carga);
     if (!demo && !somenteLeitura) {
       // se o aluno trocou o exercício, é o trocado que vai para o histórico —
@@ -24469,7 +24472,7 @@ function TrainExec({
             fontWeight: 600,
             marginTop: 2
           }
-        }, dn.carga, "kg", dn.isPr ? '' : ''));
+        }, dn.carga != null ? dn.carga + 'kg' : dn.reps != null ? dn.reps + ' reps' : 'feita'));
       })), !complete && ai < t.qtd_series && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
         style: {
           display: 'flex',
@@ -24486,7 +24489,7 @@ function TrainExec({
         className: "lv-in",
         type: "number",
         inputMode: "decimal",
-        placeholder: "kg",
+        placeholder: "sem peso",
         value: (vals[t.id + '_' + ai] || {}).carga || '',
         onChange: ev => setV(t.id + '_' + ai, 'carga', ev.target.value)
       })), /*#__PURE__*/React.createElement("div", {
