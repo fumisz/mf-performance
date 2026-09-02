@@ -36,7 +36,7 @@ if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABAS
    .catch. Chamar .catch direto estoura TypeError, e dentro de um useEffect isso
    derruba a tela inteira do aluno. */
 const semEsperar=q=>{try{q.then(()=>{},()=>{});}catch(e){}};
-const APP_VERSION='2026.10.01';   // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION='2026.10.02';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
 
@@ -8618,7 +8618,10 @@ function TrainExec({student,divisao,demo,somenteLeitura,best,onBack,onSaved,onFi
       const u=porEx[s.exercicio_id]||porEx[s.exercicio_nome];
       if(!u||!u.series.length)return;
       for(let i=0;i<(s.qtd_series||0);i++){
-        const x=u.series.find(y=>(y.i||0)===i+1)||u.series[i];
+        // sem registro daquela série exata, vale a mais próxima que existir:
+        // quem fez 4 séries hoje e 1 na vez passada repete a mesma carga
+        const x=u.series.find(y=>(y.i||0)===i+1)
+          ||u.series[Math.min(i,u.series.length-1)];
         if(!x)continue;
         const v={};
         if(x.carga!=null)v.carga=String(x.carga);
@@ -8821,7 +8824,11 @@ function TrainExec({student,divisao,demo,somenteLeitura,best,onBack,onSaved,onFi
             return(<div key={t.id} style={{marginBottom:16}}>
               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
                 <span style={{display:'inline-flex',alignItems:'center',gap:8,fontWeight:700}}><i className="lv-dot" style={{background:tierColor(t.tipo_serie)}}/>{tierNome(t.tipo_serie)}</span>
-                <span className="lv-sub">{complete?'concluído ✓':`Reps ${t.faixa_reps} · desc. ${Math.floor(iv/60)}:${String(iv%60).padStart(2,'0')}`}</span>
+                {/* o que ele precisa saber para fazer a série vinha menor que
+                    o rótulo dos campos; agora tem o peso de informação */}
+                <span className="lv-sub">{complete?'concluído ✓':<>
+                  <b style={{color:'var(--lvt)',fontSize:14}}>{t.qtd_series}×{t.faixa_reps}</b>
+                  {' · desc. '+Math.floor(iv/60)+':'+String(iv%60).padStart(2,'0')}</>}</span>
               </div>
               <div className="lv-setchips">{Array.from({length:t.qtd_series}).map((_,i)=>{const dn=done[t.id+'_'+i];const isA=!dn&&i===ai;
                 return(<div key={i} className={'lv-setchip '+(dn?'done':isA?'active':'')} onClick={()=>!dn&&setActive(p=>({...p,[t.id]:i}))}>{dn?'✓ ':''}{i+1}ª{dn&&<div style={{fontSize:10,fontWeight:600,marginTop:2}}>{dn.carga!=null?dn.carga+'kg':(dn.reps!=null?dn.reps+' reps':'feita')}</div>}</div>);})}</div>
@@ -8835,7 +8842,15 @@ function TrainExec({student,divisao,demo,somenteLeitura,best,onBack,onSaved,onFi
             </div>);})}
         </div>}
       </div>);})}
-    {series!==null&&exs.length>0&&<button className="lv-btn neon" style={{marginTop:8}} onClick={()=>{
+    {/* Enquanto sobra série, "Finalizar" é o botão que ele NÃO quer tocar — e
+        era o mais chamativo da tela, verde neon, no meio do caminho. Só ganha
+        destaque quando o treino realmente acabou; antes disso fica discreto e
+        diz quantas faltam, para o toque sem querer não encerrar o treino. */}
+    {series!==null&&exs.length>0&&<button
+      className={'lv-btn'+(doneSets>=totalSets?' neon':'')}
+      style={doneSets>=totalSets?{marginTop:8}
+        :{marginTop:8,background:'var(--lvc2)',color:'var(--lvt2)'}}
+      onClick={()=>{
       const ton=Object.values(done).reduce((a,d)=>a+(num(d.carga)||0)*(num(d.reps)||0),0);
       const prs=Object.values(done).filter(d=>d.isPr).length;
       // resumo por exercício: a melhor série de cada um, que é o que dá orgulho
@@ -8850,7 +8865,8 @@ function TrainExec({student,divisao,demo,somenteLeitura,best,onBack,onSaved,onFi
       try{navigator.vibrate&&navigator.vibrate([50,50,50,50,120]);}catch(e){}
       // o treinador recebe na tela do celular que este aluno acabou de treinar
       if(!demo&&!somenteLeitura)avisarTreinoConcluido(divisao&&divisao.nome);
-    }}>✓ Finalizar treino</button>}
+    }}>{doneSets>=totalSets?'✓ Finalizar treino'
+        :'Finalizar treino · faltam '+plural(totalSets-doneSets,'série')}</button>}
     <div style={{height:rest>0?96:16}}/>
 
     {finished&&fbAberto&&<div className="lv-cel" style={{padding:'20px 8px',overflowY:'auto',alignItems:'stretch',justifyContent:'flex-start'}}>

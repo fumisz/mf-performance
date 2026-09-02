@@ -71,7 +71,7 @@ const semEsperar = q => {
     q.then(() => {}, () => {});
   } catch (e) {}
 };
-const APP_VERSION = '2026.10.01'; // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION = '2026.10.02'; // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA'); // YYYY-MM-DD no fuso LOCAL
 
@@ -23971,7 +23971,9 @@ function TrainExec({
         const u = porEx[s.exercicio_id] || porEx[s.exercicio_nome];
         if (!u || !u.series.length) return;
         for (let i = 0; i < (s.qtd_series || 0); i++) {
-          const x = u.series.find(y => (y.i || 0) === i + 1) || u.series[i];
+          // sem registro daquela série exata, vale a mais próxima que existir:
+          // quem fez 4 séries hoje e 1 na vez passada repete a mesma carga
+          const x = u.series.find(y => (y.i || 0) === i + 1) || u.series[Math.min(i, u.series.length - 1)];
           if (!x) continue;
           const v = {};
           if (x.carga != null) v.carga = String(x.carga);
@@ -24479,7 +24481,12 @@ function TrainExec({
         }
       }), tierNome(t.tipo_serie)), /*#__PURE__*/React.createElement("span", {
         className: "lv-sub"
-      }, complete ? 'concluído ✓' : `Reps ${t.faixa_reps} · desc. ${Math.floor(iv / 60)}:${String(iv % 60).padStart(2, '0')}`)), /*#__PURE__*/React.createElement("div", {
+      }, complete ? 'concluído ✓' : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("b", {
+        style: {
+          color: 'var(--lvt)',
+          fontSize: 14
+        }
+      }, t.qtd_series, "\xD7", t.faixa_reps), ' · desc. ' + Math.floor(iv / 60) + ':' + String(iv % 60).padStart(2, '0')))), /*#__PURE__*/React.createElement("div", {
         className: "lv-setchips"
       }, Array.from({
         length: t.qtd_series
@@ -24538,9 +24545,13 @@ function TrainExec({
       }, "\u2713 Concluir s\xE9rie")));
     })));
   }), series !== null && exs.length > 0 && /*#__PURE__*/React.createElement("button", {
-    className: "lv-btn neon",
-    style: {
+    className: 'lv-btn' + (doneSets >= totalSets ? ' neon' : ''),
+    style: doneSets >= totalSets ? {
       marginTop: 8
+    } : {
+      marginTop: 8,
+      background: 'var(--lvc2)',
+      color: 'var(--lvt2)'
     },
     onClick: () => {
       const ton = Object.values(done).reduce((a, d) => a + (num(d.carga) || 0) * (num(d.reps) || 0), 0);
@@ -24577,7 +24588,7 @@ function TrainExec({
       // o treinador recebe na tela do celular que este aluno acabou de treinar
       if (!demo && !somenteLeitura) avisarTreinoConcluido(divisao && divisao.nome);
     }
-  }, "\u2713 Finalizar treino"), /*#__PURE__*/React.createElement("div", {
+  }, doneSets >= totalSets ? '✓ Finalizar treino' : 'Finalizar treino · faltam ' + plural(totalSets - doneSets, 'série')), /*#__PURE__*/React.createElement("div", {
     style: {
       height: rest > 0 ? 96 : 16
     }

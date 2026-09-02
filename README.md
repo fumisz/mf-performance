@@ -297,6 +297,22 @@ celular, sem rolagem — e existe teste que mede isso em pixel.
   o aluno, quantos exercícios vão junto e que não tem desfazer. Uma ficha já se
   perdeu com um "tem certeza?" genérico.
 
+**Execução do treino.** É a tela onde o aluno passa os quarenta minutos, e três
+coisas trabalhavam contra ele:
+
+- o **"Finalizar treino" era o botão mais chamativo da tela** — verde neon, no
+  meio do caminho — desde a primeira série. Agora ele só fica neon quando a
+  última série cai; antes disso é cinza e diz quantas faltam ("faltam 2
+  séries"). O botão que encerra o treino não pode ser o mais fácil de tocar sem
+  querer;
+- a **prescrição vinha menor que o rótulo dos campos**: o que ele precisa saber
+  para fazer a série ("3×8-12") estava em cinza pequeno, abaixo de "PESO (KG)"
+  na hierarquia. Agora vem em negrito e maior que o resto da linha;
+- o **peso sugerido só chegava na 1ª série**. O quadro dizia "da última vez
+  30×10" e o campo da 2ª série nascia vazio, porque a semente procurava o
+  registro daquele índice exato. Quem fez 4 séries hoje e registrou 1 na vez
+  passada repete a carga mais próxima que existir.
+
 ## Copiar a ficha de um aluno para outro
 Dar ao aluno novo a mesma ficha de outro custava três passos: salvar como
 modelo, abrir fichas prontas, aplicar. Agora é um botão na tela de treino, ao
