@@ -313,6 +313,29 @@ coisas trabalhavam contra ele:
   registro daquele índice exato. Quem fez 4 séries hoje e registrou 1 na vez
   passada repete a carga mais próxima que existir.
 
+## O primeiro dia do aluno
+Todo aluno começa sem ficha, sem histórico, sem foto, sem avaliação e sem
+dieta. É o estado em que ninguém testa, porque as fixtures vêm cheias — e era
+onde o app estava pior:
+
+- ele **cobrava meta de treino de quem não tinha ficha**. "Faltam 4 treinos pra
+  bater sua meta da semana", "Desafio da semana: 0/4", "0 de 4 treinos" na
+  Frequência. O 4 era fixo no código, para todo mundo, e a cobrança caía em
+  cima do aluno por uma coisa que depende do treinador. Agora a meta sai da
+  ficha: quando o treinador marcou os dias das divisões, a meta é o que ele
+  marcou; sem dias marcados fica nos 4 de antes (contar as divisões seria pior,
+  porque quem tem A e B costuma treinar ABAB); **sem ficha não existe meta**, e
+  as três telas dizem isso em vez de cobrar;
+- o **anel do dia** contava o treino como pendência: "0 de 3" desde a primeira
+  abertura, um anel que só o treinador fecha. Sem ficha ele sai da conta e o
+  rótulo vira "sem ficha". Quem registra treino de fora do app fecha o anel do
+  mesmo jeito, e aí ele volta a contar;
+- "Seu treinador ainda não montou sua ficha de treino" era **a informação mais
+  importante da tela em cinza pequeno**, menor que o convite de instalar o app,
+  e sem saída. Virou um cartão com título e um botão: **Avisar meu treinador**,
+  que cai na conversa e no celular dele como qualquer mensagem. Sem sinal,
+  entra na fila e sobe depois.
+
 ## Copiar a ficha de um aluno para outro
 Dar ao aluno novo a mesma ficha de outro custava três passos: salvar como
 modelo, abrir fichas prontas, aplicar. Agora é um botão na tela de treino, ao

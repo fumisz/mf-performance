@@ -36,7 +36,7 @@ if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABAS
    .catch. Chamar .catch direto estoura TypeError, e dentro de um useEffect isso
    derruba a tela inteira do aluno. */
 const semEsperar=q=>{try{q.then(()=>{},()=>{});}catch(e){}};
-const APP_VERSION='2026.10.02';   // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION='2026.10.03';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
 
@@ -9573,9 +9573,9 @@ function MetasScreen({student,demo,onBack,freq}){
   if(metas===null)return(<div className="lv-wrap"><div className="center-screen"><div className="spinner"/></div></div>);
   return(<div className="lv-wrap">
     <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14}}><button className="lv-ghost" onClick={onBack}>‹ Voltar</button><div className="lv-title" style={{flex:1}}>Minhas metas</div></div>
-    {freq&&<div className="lv-card lv-hero">
+    {freq&&freq.meta>0&&<div className="lv-card lv-hero">
       <div className="lv-kick" style={{color:'#e9d5ff'}}>Desafio da semana</div>
-      <div style={{fontSize:17,fontWeight:800,margin:'4px 0 10px'}}>Complete {freq.meta} treinos</div>
+      <div style={{fontSize:17,fontWeight:800,margin:'4px 0 10px'}}>Complete {freq.meta} {rotuloN(freq.meta,'treino')}</div>
       <div className="lv-freq" style={{background:'rgba(255,255,255,.25)'}}><i style={{width:Math.min(100,Math.round(freq.done/(freq.meta||1)*100))+'%',background:'#fff'}}/></div>
       <div style={{marginTop:8,fontWeight:700}}>{freq.done} / {freq.meta} {freq.done>=freq.meta?'concluído!':''}</div>
     </div>}
@@ -9817,6 +9817,43 @@ function DietaScreen({profile,demo,onBack,onHidra}){
   </div>);
 }
 
+/* ── Sem ficha, a única coisa na mão do aluno é cobrar o treinador ──
+   A tela dizia "seu treinador ainda não montou sua ficha" e parava ali. Quem
+   abre o app no primeiro dia e lê isso não tem o que fazer: fecha o app. Aqui
+   ele avisa com um toque, e o recado cai na conversa e no celular do treinador
+   como qualquer outra mensagem. Sem sinal, entra na fila e sobe depois. */
+function AvisarFicha({demo,somenteLeitura}){
+  const [estado,setEstado]=useState('parado');   // parado | indo | avisado | fila | erro
+  const [erro,setErro]=useState(null);
+  const avisar=async()=>{
+    if(estado==='indo'||somenteLeitura)return;
+    setEstado('indo');setErro(null);
+    const texto='Oi! Ainda não recebi minha ficha de treino no app. Quando der, dá uma olhada?';
+    try{
+      if(demo)throw new Error('Modo demonstração: a mensagem não é enviada.');
+      const {data,error}=await comPrazo(sb.rpc('conversa_enviar',{p_texto:texto}));
+      if(error)throw error;
+      if(!data||!data.ok)throw new Error(data&&data.erro==='SEM_TREINADOR'
+        ?'Sua conta ainda não está ligada a um treinador.':'Não consegui enviar.');
+      semEsperar(avisarMensagem(data.id));
+      setEstado('avisado');
+    }catch(e){
+      if(isNetErr(e)&&!demo){
+        await enfileirarAluno({rpc:'conversa_enviar',args:{p_texto:texto}});
+        setEstado('fila');
+      }else{setErro(e.message||String(e));setEstado('erro');}
+    }
+  };
+  if(estado==='avisado')return(<div className="lv-sub" style={{marginTop:12,color:'var(--green)'}}>
+    Avisado. Seu treinador recebeu o recado.</div>);
+  if(estado==='fila')return(<div className="lv-sub" style={{marginTop:12}}>
+    Sem sinal agora — o recado sobe assim que a internet voltar.</div>);
+  return(<>
+    <button className="lv-btn" style={{marginTop:14}} disabled={estado==='indo'||somenteLeitura}
+      onClick={avisar}>{estado==='indo'?'Enviando…':'Avisar meu treinador'}</button>
+    {erro&&<div className="lv-sub" style={{marginTop:8,color:'#fca5a5'}}>{erro}</div>}</>);
+}
+
 /* ── Anéis do dia: as 4 coisas que o aluno tem que fechar hoje ── */
 function Anel({pct,cor,ic,lbl,val,onClick}){
   const R=26,C=2*Math.PI*R,p=Math.max(0,Math.min(1,pct));
@@ -9835,7 +9872,7 @@ function Anel({pct,cor,ic,lbl,val,onClick}){
   </div>);
 }
 
-function AneisDoDia({stu,profile,demo,onTreino,onDieta,onAgua,onCheckin}){
+function AneisDoDia({stu,profile,demo,semFicha,onTreino,onDieta,onAgua,onCheckin}){
   const [h,setH]=useState(demo?{treinou:false,ref:2,refTot:4,agua:1750,aguaMeta:2500,checkin:'Verde'}:undefined);
   useEffect(()=>{if(demo||!stu)return;(async()=>{
     const hoje=todayStr();
@@ -9858,8 +9895,13 @@ function AneisDoDia({stu,profile,demo,onTreino,onDieta,onAgua,onCheckin}){
   })();},[stu&&stu.id,demo]);
 
   if(h===undefined)return null;
+  // Sem ficha, treinar não está na mão do aluno: contar o anel de Treino
+  // deixava o dia fechado em "0 de 3" desde a primeira abertura, com uma
+  // pendência que só o treinador resolve. Quem registra treino de fora do app
+  // fecha o anel do mesmo jeito, e aí ele volta a contar.
+  const contaTreino=!semFicha||h.treinou;
   const feitos=[h.treinou,h.refTot>0&&h.ref>=h.refTot,h.agua>=h.aguaMeta,!!h.checkin].filter(Boolean).length;
-  const total=h.refTot>0?4:3;
+  const total=(h.refTot>0?3:2)+(contaTreino?1:0);
   return(<div className="lv-card">
     <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
       <div className="lv-kick">Seu dia</div>
@@ -9867,7 +9909,8 @@ function AneisDoDia({stu,profile,demo,onTreino,onDieta,onAgua,onCheckin}){
         {feitos===total?'tudo fechado':`${feitos} de ${total}`}</span>
     </div>
     <div style={{display:'flex',gap:6}}>
-      <Anel pct={h.treinou?1:0} cor="var(--accent)" ic="" lbl="Treino" val={h.treinou?'feito':'pendente'} onClick={onTreino}/>
+      <Anel pct={h.treinou?1:0} cor="var(--accent)" ic="" lbl="Treino"
+        val={h.treinou?'feito':semFicha?'sem ficha':'pendente'} onClick={onTreino}/>
       {h.refTot>0&&<Anel pct={h.refTot?h.ref/h.refTot:0} cor="var(--green)" ic={h.ref+'/'+h.refTot} lbl="Dieta" val={h.ref+' de '+h.refTot} onClick={onDieta}/>}
       <Anel pct={h.aguaMeta?h.agua/h.aguaMeta:0} cor="var(--blue)" ic={Math.round((h.agua/(h.aguaMeta||1))*100)+'%'} lbl="Água"
         val={(h.agua/1000).toFixed(1).replace('.',',')+' L'} onClick={onAgua}/>
@@ -10230,6 +10273,22 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
   // Fica aqui em cima, junto dos outros hooks: mais abaixo já existem returns
   // condicionais, e hook depois de return quebra a tela na volta.
   const resumoMes=React.useMemo(()=>resumoDoMes(hist,divs),[hist,divs]);
+  // A meta da semana era 4 para todo mundo — um número que ninguém escolheu e
+  // que aparecia até para quem ainda não tem ficha ("faltam 4 treinos"),
+  // cobrando o aluno por uma coisa que depende do treinador. Agora, quando o
+  // treinador marcou os dias das divisões, a meta é o que ele marcou. Sem dias
+  // marcados fica nos 4 de antes — contar as divisões seria pior, porque quem
+  // tem A e B costuma treinar ABAB. E sem ficha nenhuma não existe meta.
+  const metaSemana=React.useMemo(()=>{
+    if(demo)return 4;
+    const lista=divs||[];
+    if(!lista.length)return 0;
+    const dias=new Set();
+    lista.forEach(d=>(d.dias_semana||[]).forEach(x=>dias.add(String(x))));
+    return dias.size||4;
+  },[divs,demo]);
+  useEffect(()=>{setFreq(f=>f.meta===metaSemana?f:{...f,meta:metaSemana});},[metaSemana]);
+  const semMeta=!freq.meta;
   const naoLidos=avisos.filter(a=>!a.lido).length;
   const computeStats=(hi)=>{
     const dias=[...new Set((hi||[]).map(h=>h.data_treino))].sort();
@@ -10496,7 +10555,15 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
         // ainda esperando a resposta do servidor: não dá para afirmar que não
         // existe ficha só porque a cópia guardada no celular está vazia
         ? <div className="lv-card" style={{textAlign:'center',padding:'34px 0'}}><div className="spinner"/></div>
-        : <div className="lv-card" style={{textAlign:'center',color:'var(--lvt2)'}}>Seu treinador ainda não montou sua ficha de treino.</div>
+        // É a informação mais importante da tela para quem acabou de entrar, e
+        // vinha em cinza, menor que o convite de instalar o app.
+        : <div className="lv-card" style={{textAlign:'center'}}>
+            <div style={{fontWeight:800,fontSize:17,marginBottom:6}}>Sua ficha ainda não chegou</div>
+            <div className="lv-sub" style={{lineHeight:1.5}}>
+              Quem monta o treino é seu treinador. Assim que ele publicar, aparece aqui
+              e o app avisa você.</div>
+            <AvisarFicha demo={demo} somenteLeitura={espiando}/>
+          </div>
   ):(()=>{
     // Sugere a PRÓXIMA do rodízio, não sempre a primeira: quem fechou o A
     // ontem tem que abrir o app vendo o B.
@@ -10552,8 +10619,8 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
         {pushMsg&&<div className="lv-sub" style={{color:'#fca5a5',marginTop:11}}>{pushMsg}</div>}
       </div>)}
     {blocoTreino}
-    <AneisDoDia stu={stu} profile={profile} demo={demo}
-      onTreino={()=>proxDiv&&setExec(proxDiv)} onDieta={()=>goTab('dieta')}
+    <AneisDoDia stu={stu} profile={profile} demo={demo} semFicha={!list.length&&divsFrescas}
+      onTreino={proxDiv?()=>setExec(proxDiv):null} onDieta={()=>goTab('dieta')}
       onAgua={()=>setHydra(true)} onCheckin={()=>setChk(true)}/>
     <PeriodizacaoAluno demo={demo}/>
     <EvolucaoAluno stu={stu} demo={demo} onVer={()=>setEvol(true)}/>
@@ -10567,8 +10634,9 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
     <TreineiFora stu={stu} demo={demo} somenteLeitura={espiando} onPronto={refresh}/>
     <div className="lv-card" onClick={()=>setMetas(true)} style={{cursor:'pointer',background:'var(--bg3)',border:'1px solid var(--lvbd)'}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}><div className="lv-kick">Minhas metas & desafios</div><span style={{color:'var(--lvt3)'}}>›</span></div>
-      <div style={{fontWeight:700,fontSize:15,marginTop:6}}>Desafio da semana: {freq.done}/{freq.meta} treinos</div>
-      <div className={'lv-freq'+(pct>=100?' cheia':'')} style={{marginTop:8}}><i style={{width:pct+'%'}}/></div>
+      {semMeta?<div className="lv-sub" style={{marginTop:6,lineHeight:1.5}}>O desafio da semana começa quando sua ficha chegar.</div>
+      :<><div style={{fontWeight:700,fontSize:15,marginTop:6}}>Desafio da semana: {freq.done}/{freq.meta} {rotuloN(freq.meta,'treino')}</div>
+      <div className={'lv-freq'+(pct>=100?' cheia':'')} style={{marginTop:8}}><i style={{width:pct+'%'}}/></div></>}
     </div>
     <div className="lv-card">
       <div className="lv-kick" style={{marginBottom:10}}>Resumo da semana</div>
@@ -10577,7 +10645,9 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
         <div style={{flex:1}}><div style={{fontSize:22,fontWeight:900,color:'var(--lvrx)'}}><Conta valor={stats.prs}/></div><div className="lv-sub" style={{fontSize:11}}>{rotuloN(stats.prs,'recorde')}</div></div>
         <div style={{flex:1}}><div style={{fontSize:22,fontWeight:900,color:'var(--lvrx)'}}><Conta valor={stats.streak}/></div><div className="lv-sub" style={{fontSize:11}}>{rotuloN(stats.streak,'dia seguido','dias seguidos')}</div></div>
       </div>
-      <div className="lv-sub" style={{marginTop:10,lineHeight:1.5}}>{freq.done>=freq.meta?'Semana fechada com chave de ouro! Orgulho do seu compromisso.':(freq.meta-freq.done===1?'Falta 1 treino pra bater sua meta da semana. Bora!':`Faltam ${Math.max(0,freq.meta-freq.done)} treinos pra bater sua meta da semana. Bora!`)}</div>
+      {/* cobrar meta de quem ainda não tem ficha é cobrar o aluno por uma
+          coisa que não está na mão dele */}
+      <div className="lv-sub" style={{marginTop:10,lineHeight:1.5}}>{semMeta?'Assim que seu treinador montar a ficha, sua meta da semana aparece aqui.':freq.done>=freq.meta?'Semana fechada com chave de ouro! Orgulho do seu compromisso.':(freq.meta-freq.done===1?'Falta 1 treino pra bater sua meta da semana. Bora!':`Faltam ${Math.max(0,freq.meta-freq.done)} treinos pra bater sua meta da semana. Bora!`)}</div>
     </div>
     <div className="lv-kick" style={{margin:'18px 0 10px'}}>Meu dia</div>
     <div style={{display:'flex',gap:10,marginBottom:14}}>
@@ -10614,8 +10684,9 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
   const progTab=(<div className="lv-wrap">
     <div className="lv-title" style={{marginBottom:14}}>Meu progresso</div>
     <div className="lv-card"><div className="lv-kick">Frequência semanal</div>
-      <div style={{fontSize:24,fontWeight:800,marginTop:4}}>{freq.done} <span style={{color:'var(--lvt2)',fontSize:14,fontWeight:600}}>de {freq.meta} treinos</span></div>
-      <div className="lv-freq"><i style={{width:pct+'%'}}/></div>
+      {semMeta?<div className="lv-sub" style={{marginTop:6,lineHeight:1.5}}>Sua meta semanal sai da ficha. Assim que seu treinador montar, ela aparece aqui.</div>
+      :<><div style={{fontSize:24,fontWeight:800,marginTop:4}}>{freq.done} <span style={{color:'var(--lvt2)',fontSize:14,fontWeight:600}}>de {freq.meta} {rotuloN(freq.meta,'treino')}</span></div>
+      <div className="lv-freq"><i style={{width:pct+'%'}}/></div></>}
     </div>
     <div className="lv-stats">
       <div className="lv-stat"><b>{stats.total}</b><span>{rotuloN(stats.total,'Treino')}</span></div>

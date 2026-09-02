@@ -71,7 +71,7 @@ const semEsperar = q => {
     q.then(() => {}, () => {});
   } catch (e) {}
 };
-const APP_VERSION = '2026.10.02'; // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION = '2026.10.03'; // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA'); // YYYY-MM-DD no fuso LOCAL
 
@@ -27319,7 +27319,7 @@ function MetasScreen({
     style: {
       flex: 1
     }
-  }, "Minhas metas")), freq && /*#__PURE__*/React.createElement("div", {
+  }, "Minhas metas")), freq && freq.meta > 0 && /*#__PURE__*/React.createElement("div", {
     className: "lv-card lv-hero"
   }, /*#__PURE__*/React.createElement("div", {
     className: "lv-kick",
@@ -27332,7 +27332,7 @@ function MetasScreen({
       fontWeight: 800,
       margin: '4px 0 10px'
     }
-  }, "Complete ", freq.meta, " treinos"), /*#__PURE__*/React.createElement("div", {
+  }, "Complete ", freq.meta, " ", rotuloN(freq.meta, 'treino')), /*#__PURE__*/React.createElement("div", {
     className: "lv-freq",
     style: {
       background: 'rgba(255,255,255,.25)'
@@ -28125,6 +28125,78 @@ function DietaScreen({
   }));
 }
 
+/* ── Sem ficha, a única coisa na mão do aluno é cobrar o treinador ──
+   A tela dizia "seu treinador ainda não montou sua ficha" e parava ali. Quem
+   abre o app no primeiro dia e lê isso não tem o que fazer: fecha o app. Aqui
+   ele avisa com um toque, e o recado cai na conversa e no celular do treinador
+   como qualquer outra mensagem. Sem sinal, entra na fila e sobe depois. */
+function AvisarFicha({
+  demo,
+  somenteLeitura
+}) {
+  const [estado, setEstado] = useState('parado'); // parado | indo | avisado | fila | erro
+  const [erro, setErro] = useState(null);
+  const avisar = async () => {
+    if (estado === 'indo' || somenteLeitura) return;
+    setEstado('indo');
+    setErro(null);
+    const texto = 'Oi! Ainda não recebi minha ficha de treino no app. Quando der, dá uma olhada?';
+    try {
+      if (demo) throw new Error('Modo demonstração: a mensagem não é enviada.');
+      const {
+        data,
+        error
+      } = await comPrazo(sb.rpc('conversa_enviar', {
+        p_texto: texto
+      }));
+      if (error) throw error;
+      if (!data || !data.ok) throw new Error(data && data.erro === 'SEM_TREINADOR' ? 'Sua conta ainda não está ligada a um treinador.' : 'Não consegui enviar.');
+      semEsperar(avisarMensagem(data.id));
+      setEstado('avisado');
+    } catch (e) {
+      if (isNetErr(e) && !demo) {
+        await enfileirarAluno({
+          rpc: 'conversa_enviar',
+          args: {
+            p_texto: texto
+          }
+        });
+        setEstado('fila');
+      } else {
+        setErro(e.message || String(e));
+        setEstado('erro');
+      }
+    }
+  };
+  if (estado === 'avisado') return /*#__PURE__*/React.createElement("div", {
+    className: "lv-sub",
+    style: {
+      marginTop: 12,
+      color: 'var(--green)'
+    }
+  }, "Avisado. Seu treinador recebeu o recado.");
+  if (estado === 'fila') return /*#__PURE__*/React.createElement("div", {
+    className: "lv-sub",
+    style: {
+      marginTop: 12
+    }
+  }, "Sem sinal agora \u2014 o recado sobe assim que a internet voltar.");
+  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("button", {
+    className: "lv-btn",
+    style: {
+      marginTop: 14
+    },
+    disabled: estado === 'indo' || somenteLeitura,
+    onClick: avisar
+  }, estado === 'indo' ? 'Enviando…' : 'Avisar meu treinador'), erro && /*#__PURE__*/React.createElement("div", {
+    className: "lv-sub",
+    style: {
+      marginTop: 8,
+      color: '#fca5a5'
+    }
+  }, erro));
+}
+
 /* ── Anéis do dia: as 4 coisas que o aluno tem que fechar hoje ── */
 function Anel({
   pct,
@@ -28203,6 +28275,7 @@ function AneisDoDia({
   stu,
   profile,
   demo,
+  semFicha,
   onTreino,
   onDieta,
   onAgua,
@@ -28259,8 +28332,13 @@ function AneisDoDia({
     })();
   }, [stu && stu.id, demo]);
   if (h === undefined) return null;
+  // Sem ficha, treinar não está na mão do aluno: contar o anel de Treino
+  // deixava o dia fechado em "0 de 3" desde a primeira abertura, com uma
+  // pendência que só o treinador resolve. Quem registra treino de fora do app
+  // fecha o anel do mesmo jeito, e aí ele volta a contar.
+  const contaTreino = !semFicha || h.treinou;
   const feitos = [h.treinou, h.refTot > 0 && h.ref >= h.refTot, h.agua >= h.aguaMeta, !!h.checkin].filter(Boolean).length;
-  const total = h.refTot > 0 ? 4 : 3;
+  const total = (h.refTot > 0 ? 3 : 2) + (contaTreino ? 1 : 0);
   return /*#__PURE__*/React.createElement("div", {
     className: "lv-card"
   }, /*#__PURE__*/React.createElement("div", {
@@ -28288,7 +28366,7 @@ function AneisDoDia({
     cor: "var(--accent)",
     ic: "",
     lbl: "Treino",
-    val: h.treinou ? 'feito' : 'pendente',
+    val: h.treinou ? 'feito' : semFicha ? 'sem ficha' : 'pendente',
     onClick: onTreino
   }), h.refTot > 0 && /*#__PURE__*/React.createElement(Anel, {
     pct: h.refTot ? h.ref / h.refTot : 0,
@@ -29246,6 +29324,27 @@ function StudentApp({
   // Fica aqui em cima, junto dos outros hooks: mais abaixo já existem returns
   // condicionais, e hook depois de return quebra a tela na volta.
   const resumoMes = React.useMemo(() => resumoDoMes(hist, divs), [hist, divs]);
+  // A meta da semana era 4 para todo mundo — um número que ninguém escolheu e
+  // que aparecia até para quem ainda não tem ficha ("faltam 4 treinos"),
+  // cobrando o aluno por uma coisa que depende do treinador. Agora, quando o
+  // treinador marcou os dias das divisões, a meta é o que ele marcou. Sem dias
+  // marcados fica nos 4 de antes — contar as divisões seria pior, porque quem
+  // tem A e B costuma treinar ABAB. E sem ficha nenhuma não existe meta.
+  const metaSemana = React.useMemo(() => {
+    if (demo) return 4;
+    const lista = divs || [];
+    if (!lista.length) return 0;
+    const dias = new Set();
+    lista.forEach(d => (d.dias_semana || []).forEach(x => dias.add(String(x))));
+    return dias.size || 4;
+  }, [divs, demo]);
+  useEffect(() => {
+    setFreq(f => f.meta === metaSemana ? f : {
+      ...f,
+      meta: metaSemana
+    });
+  }, [metaSemana]);
+  const semMeta = !freq.meta;
   const naoLidos = avisos.filter(a => !a.lido).length;
   const computeStats = hi => {
     const dias = [...new Set((hi || []).map(h => h.data_treino))].sort();
@@ -29876,13 +29975,29 @@ function StudentApp({
     }
   }, /*#__PURE__*/React.createElement("div", {
     className: "spinner"
-  })) : /*#__PURE__*/React.createElement("div", {
+  }))
+  // É a informação mais importante da tela para quem acabou de entrar, e
+  // vinha em cinza, menor que o convite de instalar o app.
+  : /*#__PURE__*/React.createElement("div", {
     className: "lv-card",
     style: {
-      textAlign: 'center',
-      color: 'var(--lvt2)'
+      textAlign: 'center'
     }
-  }, "Seu treinador ainda n\xE3o montou sua ficha de treino.") : (() => {
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 800,
+      fontSize: 17,
+      marginBottom: 6
+    }
+  }, "Sua ficha ainda n\xE3o chegou"), /*#__PURE__*/React.createElement("div", {
+    className: "lv-sub",
+    style: {
+      lineHeight: 1.5
+    }
+  }, "Quem monta o treino \xE9 seu treinador. Assim que ele publicar, aparece aqui e o app avisa voc\xEA."), /*#__PURE__*/React.createElement(AvisarFicha, {
+    demo: demo,
+    somenteLeitura: espiando
+  })) : (() => {
     // Sugere a PRÓXIMA do rodízio, não sempre a primeira: quem fechou o A
     // ontem tem que abrir o app vendo o B.
     const prox = proxDiv,
@@ -30054,7 +30169,8 @@ function StudentApp({
     stu: stu,
     profile: profile,
     demo: demo,
-    onTreino: () => proxDiv && setExec(proxDiv),
+    semFicha: !list.length && divsFrescas,
+    onTreino: proxDiv ? () => setExec(proxDiv) : null,
     onDieta: () => goTab('dieta'),
     onAgua: () => setHydra(true),
     onCheckin: () => setChk(true)
@@ -30114,13 +30230,19 @@ function StudentApp({
     style: {
       color: 'var(--lvt3)'
     }
-  }, "\u203A")), /*#__PURE__*/React.createElement("div", {
+  }, "\u203A")), semMeta ? /*#__PURE__*/React.createElement("div", {
+    className: "lv-sub",
+    style: {
+      marginTop: 6,
+      lineHeight: 1.5
+    }
+  }, "O desafio da semana come\xE7a quando sua ficha chegar.") : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     style: {
       fontWeight: 700,
       fontSize: 15,
       marginTop: 6
     }
-  }, "Desafio da semana: ", freq.done, "/", freq.meta, " treinos"), /*#__PURE__*/React.createElement("div", {
+  }, "Desafio da semana: ", freq.done, "/", freq.meta, " ", rotuloN(freq.meta, 'treino')), /*#__PURE__*/React.createElement("div", {
     className: 'lv-freq' + (pct >= 100 ? ' cheia' : ''),
     style: {
       marginTop: 8
@@ -30129,7 +30251,7 @@ function StudentApp({
     style: {
       width: pct + '%'
     }
-  }))), /*#__PURE__*/React.createElement("div", {
+  })))), /*#__PURE__*/React.createElement("div", {
     className: "lv-card"
   }, /*#__PURE__*/React.createElement("div", {
     className: "lv-kick",
@@ -30199,7 +30321,7 @@ function StudentApp({
       marginTop: 10,
       lineHeight: 1.5
     }
-  }, freq.done >= freq.meta ? 'Semana fechada com chave de ouro! Orgulho do seu compromisso.' : freq.meta - freq.done === 1 ? 'Falta 1 treino pra bater sua meta da semana. Bora!' : `Faltam ${Math.max(0, freq.meta - freq.done)} treinos pra bater sua meta da semana. Bora!`)), /*#__PURE__*/React.createElement("div", {
+  }, semMeta ? 'Assim que seu treinador montar a ficha, sua meta da semana aparece aqui.' : freq.done >= freq.meta ? 'Semana fechada com chave de ouro! Orgulho do seu compromisso.' : freq.meta - freq.done === 1 ? 'Falta 1 treino pra bater sua meta da semana. Bora!' : `Faltam ${Math.max(0, freq.meta - freq.done)} treinos pra bater sua meta da semana. Bora!`)), /*#__PURE__*/React.createElement("div", {
     className: "lv-kick",
     style: {
       margin: '18px 0 10px'
@@ -30373,7 +30495,13 @@ function StudentApp({
     className: "lv-card"
   }, /*#__PURE__*/React.createElement("div", {
     className: "lv-kick"
-  }, "Frequ\xEAncia semanal"), /*#__PURE__*/React.createElement("div", {
+  }, "Frequ\xEAncia semanal"), semMeta ? /*#__PURE__*/React.createElement("div", {
+    className: "lv-sub",
+    style: {
+      marginTop: 6,
+      lineHeight: 1.5
+    }
+  }, "Sua meta semanal sai da ficha. Assim que seu treinador montar, ela aparece aqui.") : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 24,
       fontWeight: 800,
@@ -30385,13 +30513,13 @@ function StudentApp({
       fontSize: 14,
       fontWeight: 600
     }
-  }, "de ", freq.meta, " treinos")), /*#__PURE__*/React.createElement("div", {
+  }, "de ", freq.meta, " ", rotuloN(freq.meta, 'treino'))), /*#__PURE__*/React.createElement("div", {
     className: "lv-freq"
   }, /*#__PURE__*/React.createElement("i", {
     style: {
       width: pct + '%'
     }
-  }))), /*#__PURE__*/React.createElement("div", {
+  })))), /*#__PURE__*/React.createElement("div", {
     className: "lv-stats"
   }, /*#__PURE__*/React.createElement("div", {
     className: "lv-stat"
