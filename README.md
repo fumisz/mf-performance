@@ -313,6 +313,23 @@ coisas trabalhavam contra ele:
   registro daquele índice exato. Quem fez 4 séries hoje e registrou 1 na vez
   passada repete a carga mais próxima que existir.
 
+## O mês do treinador
+O painel do dia diz o que está pegando fogo hoje. Faltava a pergunta do fim do
+mês, e sem ela **o aluno que para de aparecer só é notado quando cancela**.
+
+"O mês" (no menu) põe todos os alunos numa tela só, agrupados por urgência de
+contato, não por número: **sem ficha** (abrem o app e não veem treino),
+**não treinaram no mês**, **treinaram menos que no mês passado**, e
+**mantiveram ou subiram**. Cada linha traz treinos, tonelagem, recordes e a
+variação contra o mês anterior; tocar no aluno abre a ficha dele. No topo, o
+mês inteiro somado — quantos dos alunos treinaram, treinos, peso movido e
+recordes.
+
+É uma consulta só (o histórico do mês e do anterior — a RLS já limita ao
+coach), e dá para andar para trás mês a mês. Como ela enxerga só dois meses, a
+tela **não diz "estreou"**: diz "nada no mês passado", que é o que o dado
+sustenta — quem voltou depois de uma pausa longa não é estreante.
+
 ## O primeiro dia do aluno
 Todo aluno começa sem ficha, sem histórico, sem foto, sem avaliação e sem
 dieta. É o estado em que ninguém testa, porque as fixtures vêm cheias — e era

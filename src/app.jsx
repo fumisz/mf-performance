@@ -36,7 +36,7 @@ if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABAS
    .catch. Chamar .catch direto estoura TypeError, e dentro de um useEffect isso
    derruba a tela inteira do aluno. */
 const semEsperar=q=>{try{q.then(()=>{},()=>{});}catch(e){}};
-const APP_VERSION='2026.10.03';   // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION='2026.10.04';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
 
@@ -5635,6 +5635,147 @@ function RecadosScreen({naoLidas,students,onAbrir,onBack}){
   </div>);
 }
 
+/* ── O mês do treinador: os alunos todos numa tela ──
+   O painel do dia diz o que está pegando fogo hoje. O que faltava era a
+   pergunta do fim do mês: quem treinou, quem caiu e quem sumiu. Sem isso, o
+   aluno que parou de aparecer só é notado quando cancela.
+   Uma consulta só (o histórico do mês e do anterior; a RLS já limita ao coach)
+   e a lista sai ordenada por quem precisa de um contato hoje. */
+function MesScreen({students,onBack,onSelect,demo}){
+  const hoje=new Date();
+  const [ref,setRef]=useState({a:hoje.getFullYear(),m:hoje.getMonth()});
+  const [hist,setHist]=useState(demo?[]:undefined);
+  const [comFicha,setComFicha]=useState(demo?new Set():null);
+  const [erro,setErro]=useState(false);
+
+  const chave=(a,m)=>a+'-'+String(m+1).padStart(2,'0');
+  const mesAtual=chave(ref.a,ref.m);
+  const ant=ref.m===0?{a:ref.a-1,m:11}:{a:ref.a,m:ref.m-1};
+  const mesAnterior=chave(ant.a,ant.m);
+  const eOMesCorrente=ref.a===hoje.getFullYear()&&ref.m===hoje.getMonth();
+
+  useEffect(()=>{if(demo)return;(async()=>{
+    setHist(undefined);setErro(false);
+    const de=mesAnterior+'-01';
+    const ate=chave(ref.m===11?ref.a+1:ref.a,ref.m===11?0:ref.m+1)+'-01';
+    try{
+      const [h,d]=await Promise.all([
+        sb.from('train_historico').select('student_id,data_treino,carga,reps,is_pr')
+          .gte('data_treino',de).lt('data_treino',ate),
+        sb.from('train_divisao').select('student_id'),
+      ]);
+      if(h.error)throw h.error;
+      setHist(h.data||[]);
+      setComFicha(new Set((d.data||[]).map(x=>x.student_id)));
+    }catch(e){setErro(true);setHist([]);setComFicha(new Set());}
+  })();},[mesAtual,demo]);
+
+  const linhas=React.useMemo(()=>{
+    const porAluno={};
+    const zero=()=>({treinos:new Set(),ton:0,prs:0});
+    (hist||[]).forEach(h=>{
+      const q=(h.data_treino||'').slice(0,7);
+      const alvo=q===mesAtual?'agora':q===mesAnterior?'antes':null;
+      if(!alvo)return;
+      const r=porAluno[h.student_id]||(porAluno[h.student_id]={agora:zero(),antes:zero(),ultimo:null});
+      r[alvo].treinos.add(h.data_treino);
+      r[alvo].ton+=(num(h.carga)||0)*(num(h.reps)||0);
+      if(h.is_pr)r[alvo].prs++;
+      if(!r.ultimo||h.data_treino>r.ultimo)r.ultimo=h.data_treino;
+    });
+    return (students||[]).map(s=>{
+      const r=porAluno[s.id]||{agora:zero(),antes:zero(),ultimo:null};
+      const n=r.agora.treinos.size, nAntes=r.antes.treinos.size;
+      const temFicha=comFicha?comFicha.has(s.id):true;
+      // a ordem é a da urgência de um contato, não a do número
+      let grupo;
+      if(!temFicha)grupo='semficha';
+      else if(n===0)grupo='sumiu';
+      else if(nAntes>0&&n<nAntes)grupo='caiu';
+      else grupo='firme';
+      return{s,n,nAntes,ton:r.agora.ton,prs:r.agora.prs,ultimo:r.ultimo,temFicha,grupo};
+    });
+  },[hist,students,comFicha,mesAtual,mesAnterior]);
+
+  const G=[['semficha','Sem ficha','Abrem o app e não veem treino nenhum.'],
+    ['sumiu','Não treinaram no mês','Um contato hoje costuma resolver — depois vira cancelamento.'],
+    ['caiu','Treinaram menos que no mês passado','Queda de ritmo antes de sumir de vez.'],
+    ['firme','Mantiveram ou subiram','']];
+  const grupos=G.map(([k,t,d])=>[k,t,d,linhas.filter(l=>l.grupo===k)
+    .sort((a,b)=>(b.n-a.n)||a.s.name.localeCompare(b.s.name))]).filter(g=>g[3].length);
+
+  const tot=linhas.reduce((a,l)=>({treinaram:a.treinaram+(l.n>0?1:0),treinos:a.treinos+l.n,
+    ton:a.ton+l.ton,prs:a.prs+l.prs}),{treinaram:0,treinos:0,ton:0,prs:0});
+
+  const mover=d=>{const m=ref.m+d;setRef(m<0?{a:ref.a-1,m:11}:m>11?{a:ref.a+1,m:0}:{a:ref.a,m});};
+  const naFrente=eOMesCorrente;
+
+  return(<div>
+    <div className="abar"><div><div className="breadcrumb" onClick={onBack}>← Painel</div>
+      <div className="ph-title">{MESES[ref.m]} de {ref.a}</div>
+      <div className="ph-sub">Quem treinou, quem caiu e quem sumiu — os {plural((students||[]).length,'aluno')} numa tela</div></div>
+      <div style={{display:'flex',gap:8}}>
+        <button className="btn btn-ghost btn-sm" onClick={()=>mover(-1)}>‹ Mês anterior</button>
+        <button className="btn btn-ghost btn-sm" disabled={naFrente} onClick={()=>mover(1)}>Próximo mês ›</button>
+      </div></div>
+
+    {erro&&<div className="alert alert-danger" style={{marginBottom:14}}>
+      Não consegui carregar o histórico. Confira a internet e abra de novo.</div>}
+
+    {hist===undefined?<div className="center-screen" style={{minHeight:200}}><div className="spinner"/></div>:<>
+      <div className="dash-panel" style={{marginBottom:16}}>
+        <div style={{display:'flex',gap:18,flexWrap:'wrap'}}>
+          {[[tot.treinaram+' de '+(students||[]).length,'alunos treinaram'],
+            [tot.treinos,rotuloN(tot.treinos,'treino')],
+            [fmtTon(tot.ton),'movidos'],
+            [tot.prs,rotuloN(tot.prs,'recorde')]].map(([v,l],i)=>(
+            <div key={i} style={{minWidth:110}}>
+              <div style={{fontSize:24,fontWeight:800}}>{v}</div>
+              <div className="s-meta" style={{margin:0}}>{l}</div></div>))}
+        </div>
+        {equivalePeso(tot.ton)&&<div className="s-meta" style={{marginTop:10,marginBottom:0}}>
+          Mais ou menos o peso de {equivalePeso(tot.ton)}, somando todo mundo.</div>}
+      </div>
+
+      {!grupos.length&&<div className="empty"><div className="empty-title">Nenhum aluno cadastrado</div></div>}
+
+      {grupos.map(([k,titulo,ajuda,lista])=>(
+        <div key={k} style={{marginBottom:18}}>
+          <div style={{display:'flex',alignItems:'baseline',gap:8,marginBottom:8}}>
+            <h4 style={{margin:0}}>{titulo}</h4>
+            <span className="s-meta" style={{margin:0}}>{lista.length}</span>
+          </div>
+          {ajuda&&<div className="s-meta" style={{marginTop:0,marginBottom:8}}>{ajuda}</div>}
+          {lista.map(l=>(
+            <div key={l.s.id} className="dash-panel"
+              style={{marginBottom:8,display:'flex',gap:12,alignItems:'center',cursor:onSelect?'pointer':'default'}}
+              onClick={()=>onSelect&&onSelect(l.s)}>
+              <div className="avatar" style={{width:36,height:36,fontSize:13}}>{initials(l.s.name)}</div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontWeight:600}}>{l.s.name}</div>
+                <div className="s-meta" style={{margin:0}}>
+                  {!l.temFicha?'sem ficha montada'
+                   :l.n===0?(l.ultimo?'último treino em '+fmtDate(l.ultimo):'nenhum treino registrado')
+                   :plural(l.n,'treino')+(l.ton?' · '+fmtTon(l.ton):'')
+                     +(l.prs?' · '+plural(l.prs,'recorde'):'')}
+                </div>
+              </div>
+              {l.temFicha&&(l.n>0||l.nAntes>0)&&<div style={{textAlign:'right',minWidth:74}}>
+                <div style={{fontSize:20,fontWeight:800}}>{l.n}</div>
+                <div className="s-meta" style={{margin:0,fontSize:11}}>
+                  {/* "estreou" seria afirmar que foi o primeiro mês dele, e a
+                      consulta só enxerga dois meses: quem voltou depois de uma
+                      pausa longa apareceria como estreante */}
+                  {l.nAntes===0?'nada no mês passado'
+                   :l.n===l.nAntes?'igual ao mês passado'
+                   :(l.n>l.nAntes?'+':'')+(l.n-l.nAntes)+' vs mês passado'}</div>
+              </div>}
+            </div>))}
+        </div>))}
+    </>}
+  </div>);
+}
+
 /* Aluno com conta e sem treino é aluno que abre o app e não vê nada. Esta tela
    junta todos eles numa lista e aplica uma ficha pronta em quantos ele marcar,
    de uma vez. O trabalho pesado é a RPC ficha_aplicar_modelo, que faz tudo
@@ -7626,6 +7767,7 @@ function App({profile,setProfile}){
         <button className={`nav-btn ${view==='intakes'?'active':''}`} onClick={()=>{setSelStudent(null);go('intakes');}}>Fichas online{intakeCount>0&&<span style={{marginLeft:6,background:'var(--gold)',color:'#1c0f16',borderRadius:10,padding:'0 7px',fontSize:11,fontWeight:700}}>{intakeCount}</span>}</button>
         <button className={`nav-btn ${view==='train'?'active':''}`} onClick={()=>{setSelStudent(null);go('train');}}>Treino</button>
         <button className={`nav-btn ${view==='recados'?'active':''}`} onClick={()=>{setSelStudent(null);go('recados');}}>Recados{naoLidas.length>0&&<span style={{marginLeft:6,background:'var(--red)',color:'#fff',borderRadius:10,padding:'0 7px',fontSize:11,fontWeight:700}}>{naoLidas.reduce((a,x)=>a+(x.quantas||0),0)}</span>}</button>
+        <button className={`nav-btn ${view==='mes'?'active':''}`} onClick={()=>{setSelStudent(null);go('mes');}}>O mês</button>
         <button className={`nav-btn ${view==='semtreino'?'active':''}`} onClick={()=>{setSelStudent(null);go('semtreino');}}>Alunos sem treino{semTreino>0&&<span style={{marginLeft:6,background:'var(--gold)',color:'#1c0f16',borderRadius:10,padding:'0 7px',fontSize:11,fontWeight:700}}>{semTreino}</span>}</button>
         <button className={`nav-btn ${view==='tech'?'active':''}`} onClick={()=>{setSelStudent(null);go('tech');}}>Avaliação técnica</button>
         <button className={`nav-btn ${view==='nutri'?'active':''}`} onClick={()=>{setSelStudent(null);go('nutri');}}>Nutrição</button>
@@ -7706,6 +7848,8 @@ function App({profile,setProfile}){
           {view==='intakes'&&<IntakeInbox coach={profile} students={students} onImport={importIntake} onBack={()=>go('dashboard')}/>}
           {view==='tech'&&<TechScreen coach={profile} students={students} preStudent={selStudent} onBack={()=>go('dashboard')}/>}
           {view==='train'&&<TrainScreen coach={profile} students={students} preStudent={selStudent} onBack={()=>go('dashboard')}/>}
+          {view==='mes'&&<MesScreen students={students} demo={profile._demo}
+            onBack={()=>go('dashboard')} onSelect={s=>{setSelStudent(s);go('detail');}}/>}
           {view==='semtreino'&&<SemTreinoScreen coach={profile} onBack={()=>go('dashboard')} onFeito={contarSemTreino}/>}
           {view==='recados'&&<RecadosScreen naoLidas={naoLidas} students={students}
             onAbrir={s=>{setSelStudent(s);go('detail');}} onBack={()=>go('dashboard')}/>}
