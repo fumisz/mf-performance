@@ -222,6 +222,30 @@ Concluir; quem subiu, corrige o número. O que está no campo é o que vai grava
 então nada fica escondido. As suítes `sempeso.js` e `umtoque.js` cobrem os dois,
 incluindo corrigir o número e limpar o campo.
 
+## Botão que não faz nada
+O defeito que fez uma aluna abandonar o app não foi uma tela feia: foi um botão
+que não respondia. `if(carga==null)return` saía calado, e para ela o app estava
+quebrado. Depois disso a mesma família apareceu em mais cinco lugares — handler
+que sai calado porque falta um campo:
+
+| Tela | Botão | Faltava |
+|---|---|---|
+| Diário de saúde | Registrar medição | glicemia |
+| Meu ciclo | Salvar | data |
+| Ficha do aluno | Adicionar (divisão) | nome |
+| Ficha do aluno | Adicionar (exercício) | nome |
+| Biblioteca | Adicionar | nome |
+
+Todos passaram a nascer **desabilitados**, e ligam quando o campo é preenchido.
+Desabilitado comunica sem precisar de mensagem e, principalmente, nunca deixa
+alguém batendo num controle morto sem entender por quê. "Adicionar meta" ficou
+como estava porque ele já responde com um alerta dizendo o que falta — botão que
+responde não é botão morto.
+
+A regra: **um controle visível ou faz o que promete, ou está desabilitado.** A
+suíte `botaomorto.js` cobre os quatro que dá para alcançar pela navegação (o do
+ciclo está corrigido no código, mas coberto por inspeção, não pela suíte).
+
 ## Treino interrompido
 Fechar o app no meio do treino, o celular matar o app, acabar a bateria, treinar
 no subsolo sem sinal — nada disso pode custar o treino do aluno. Três coisas

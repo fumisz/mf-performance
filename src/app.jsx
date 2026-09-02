@@ -36,7 +36,7 @@ if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABAS
    .catch. Chamar .catch direto estoura TypeError, e dentro de um useEffect isso
    derruba a tela inteira do aluno. */
 const semEsperar=q=>{try{q.then(()=>{},()=>{});}catch(e){}};
-const APP_VERSION='2026.09.30';   // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION='2026.10.01';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
 
@@ -5442,7 +5442,7 @@ function ExerciseLibrary({coach,onBack}){
         <div className="fg" style={{margin:0,flex:1,minWidth:150}}><label className="flbl">Nome</label><input className="fi" value={nf.nome} onChange={e=>setNf(p=>({...p,nome:e.target.value}))} placeholder="Ex.: Cadeira Extensora"/></div>
         <div className="fg" style={{margin:0}}><label className="flbl">Grupo</label><select className="fi" style={{width:150}} value={nf.grupo_muscular} onChange={e=>setNf(p=>({...p,grupo_muscular:e.target.value}))}>{TRAIN_GRUPOS.map(g=><option key={g}>{g}</option>)}</select></div>
         <div className="fg" style={{margin:0,flex:1,minWidth:150}}><label className="flbl">Vídeo (link, opcional)</label><input className="fi" value={nf.video_url} onChange={e=>setNf(p=>({...p,video_url:e.target.value}))} placeholder="https://youtube.com/..."/></div>
-        <button className="btn btn-primary" onClick={add}>Adicionar</button>
+        <button className="btn btn-primary" disabled={!(nf.nome||'').trim()} onClick={add}>Adicionar</button>
       </div>
     </div>
     <div style={{display:'flex',gap:10,flexWrap:'wrap',alignItems:'center',marginBottom:14}}>
@@ -6090,7 +6090,7 @@ function TrainScreen({coach,students,preStudent,onBack}){
               <input className="fi" style={{width:80}} value={ex.faixa_reps} onChange={e=>setEx(p=>({...p,faixa_reps:e.target.value}))}/></div>
             <div className="fg" style={{margin:0}}><label className="flbl">Descanso (s)</label>
               <input className="fi" type="number" style={{width:90}} value={ex.intervalo_seg_min} onChange={e=>setEx(p=>({...p,intervalo_seg_min:e.target.value}))}/></div>
-            <button className="btn btn-secondary" onClick={()=>addEx(dv.id)}>Adicionar</button>
+            <button className="btn btn-secondary" disabled={!(ex.nome||'').trim()} onClick={()=>addEx(dv.id)}>Adicionar</button>
             <div style={{flexBasis:'100%',display:'flex',gap:6,alignItems:'center',flexWrap:'wrap'}}>
               <span style={{fontSize:11,color:'var(--text3)',textTransform:'uppercase',letterSpacing:.5}}>Descanso rápido</span>
               {[30,45,60,90,120,180].map(v=>(
@@ -6120,7 +6120,7 @@ function TrainScreen({coach,students,preStudent,onBack}){
             <input className="fi" style={{flex:1,minWidth:180}} autoFocus placeholder="Ex.: A — Membros inferiores"
               value={nd} onChange={e=>setNd(e.target.value)}
               onKeyDown={e=>{if(e.key==='Enter')addDiv();}}/>
-            <button className="btn btn-primary" onClick={addDiv}>Adicionar</button>
+            <button className="btn btn-primary" disabled={!(nd||'').trim()} onClick={addDiv}>Adicionar</button>
             <button className="btn btn-ghost" onClick={()=>{setNovaDiv(false);setNd('');}}>Cancelar</button>
           </div>
         </div>
@@ -9313,7 +9313,7 @@ function CicloScreen({student,demo,onBack}){
         <div style={{flex:1}}><span className="lv-inlbl">Duração do ciclo</span><input className="lv-in" type="number" value={f.dur} onChange={e=>setF(p=>({...p,dur:e.target.value}))}/></div>
         <div style={{flex:1}}><span className="lv-inlbl">Dias de sangramento</span><input className="lv-in" type="number" value={f.sang} onChange={e=>setF(p=>({...p,sang:e.target.value}))}/></div>
       </div>
-      <button className="lv-btn" style={{marginTop:14}} disabled={busy} onClick={salvar}>{busy?'Salvando…':'Salvar'}</button>
+      <button className="lv-btn" style={{marginTop:14}} disabled={busy||!f.data} onClick={salvar}>{busy?'Salvando…':'Salvar'}</button>
     </div>
   </div>);
   const {dia,fase,restam}=cicloFase(cyc.data_ultima,cyc.duracao_ciclo,cyc.duracao_sangramento);
@@ -9523,7 +9523,7 @@ function DiarioScreen({student,demo,onBack}){
         </div>
         <span className="lv-inlbl" style={{marginTop:12}}>Momento</span>
         <select className="lv-in" value={gf.momento} onChange={e=>setGf(p=>({...p,momento:e.target.value}))}>{GLIC_MOMENTOS.map(([k,l])=><option key={k} value={k}>{l}</option>)}</select>
-        <button className="lv-btn" style={{marginTop:12}} onClick={regGlic}>Registrar medição</button>
+        <button className="lv-btn" style={{marginTop:12}} disabled={!gf.valor} onClick={regGlic}>Registrar medição</button>
       </div>
       {glic.length>0&&<div className="lv-card">
         <div className="lv-kick" style={{marginBottom:8}}>Últimas medições</div>
@@ -10383,7 +10383,7 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
     <p className="lv-sub" style={{textAlign:'center'}}>Digite o código de acesso que seu treinador te passou.</p>
     {linkErr&&<div className="alert alert-danger" style={{marginTop:10}}>{linkErr}</div>}
     <input className="lv-in" style={{textAlign:'center',letterSpacing:4,textTransform:'uppercase',marginTop:14,fontSize:22,fontWeight:800}} placeholder="CÓDIGO" value={code} onChange={e=>setCode(e.target.value.toUpperCase())} maxLength={8}/>
-    <button className="lv-btn" style={{marginTop:12}} disabled={linking} onClick={doLink}>{linking?'Ativando…':'Ativar treinos'}</button>
+    <button className="lv-btn" style={{marginTop:12}} disabled={linking||!code.trim()} onClick={doLink}>{linking?'Ativando…':'Ativar treinos'}</button>
   </div></div>);
   if(exec)return shell(<TrainExec student={stu} divisao={exec} demo={demo} somenteLeitura={espiando} best={best} onBack={()=>setExec(null)} onSaved={(exId,carga)=>setBest(b=>({...b,[exId]:Math.max(b[exId]||0,carga)}))} onFinish={refresh}/>);
   if(evol)return shell(<EvolScreen student={stu} demo={demo} onBack={()=>setEvol(false)}/>);
