@@ -71,7 +71,7 @@ const semEsperar = q => {
     q.then(() => {}, () => {});
   } catch (e) {}
 };
-const APP_VERSION = '2026.10.04'; // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION = '2026.10.05'; // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA'); // YYYY-MM-DD no fuso LOCAL
 
@@ -16346,6 +16346,34 @@ function RecadosScreen({
   }, "Toque no aluno para abrir a ficha dele e responder.")));
 }
 
+/* Treinador sem nenhum aluno caía numa busca sobre o vazio: Treino e
+   Periodização não diziam nada abaixo do campo, e a Nutrição dizia "nenhum
+   aluno encontrado", que é a frase de uma busca que falhou, não a de uma conta
+   que ainda não começou. Quem abre o app no primeiro dia precisa da mesma
+   coisa nas três: o que falta e o botão que resolve. */
+function SemAlunos({
+  oque,
+  onNovo
+}) {
+  return /*#__PURE__*/React.createElement("div", {
+    className: "empty"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "empty-title"
+  }, "Nenhum aluno cadastrado ainda"), /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: 13,
+      maxWidth: 420,
+      margin: '6px auto 0'
+    }
+  }, oque, " Cadastre o primeiro aluno e ele aparece aqui."), onNovo && /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-primary",
+    style: {
+      marginTop: 14
+    },
+    onClick: onNovo
+  }, "+ Novo aluno"));
+}
+
 /* ── O mês do treinador: os alunos todos numa tela ──
    O painel do dia diz o que está pegando fogo hoje. O que faltava era a
    pergunta do fim do mês: quem treinou, quem caiu e quem sumiu. Sem isso, o
@@ -16356,6 +16384,7 @@ function MesScreen({
   students,
   onBack,
   onSelect,
+  onNovoAluno,
   demo
 }) {
   const hoje = new Date();
@@ -16501,7 +16530,11 @@ function MesScreen({
     }
   }, /*#__PURE__*/React.createElement("div", {
     className: "spinner"
-  })) : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+  }))
+  /* "0 de 0 alunos treinaram" é conta feita em cima do vazio */ : !(students || []).length ? /*#__PURE__*/React.createElement(SemAlunos, {
+    oque: "O m\xEAs \xE9 o resumo do que seus alunos fizeram.",
+    onNovo: onNovoAluno
+  }) : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     className: "dash-panel",
     style: {
       marginBottom: 16
@@ -16980,7 +17013,8 @@ function TrainScreen({
   coach,
   students,
   preStudent,
-  onBack
+  onBack,
+  onNovoAluno
 }) {
   const demo = !!coach._demo;
   const [stu, setStu] = useState(preStudent || null);
@@ -17488,7 +17522,7 @@ function TrainScreen({
       onClick: () => setShowLib(true)
     }, "Biblioteca de exerc\xEDcios")), demo && /*#__PURE__*/React.createElement("div", {
       className: "alert alert-warn"
-    }, "Modo demonstra\xE7\xE3o: as fichas n\xE3o s\xE3o salvas."), /*#__PURE__*/React.createElement("div", {
+    }, "Modo demonstra\xE7\xE3o: as fichas n\xE3o s\xE3o salvas."), (students || []).length > 0 && /*#__PURE__*/React.createElement("div", {
       className: "search-wrap",
       style: {
         marginBottom: 16
@@ -17518,7 +17552,14 @@ function TrainScreen({
       className: "s-name"
     }, s.name), /*#__PURE__*/React.createElement("div", {
       className: "s-meta"
-    }, s.goal || 'Montar ficha de treino')))));
+    }, s.goal || 'Montar ficha de treino')))), students.length === 0 ? /*#__PURE__*/React.createElement(SemAlunos, {
+      oque: "A ficha de treino \xE9 sempre de algu\xE9m.",
+      onNovo: onNovoAluno
+    }) : list.length === 0 && /*#__PURE__*/React.createElement("div", {
+      className: "empty"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "empty-title"
+    }, "Nenhum aluno com esse nome")));
   }
   return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     className: "abar"
@@ -20439,7 +20480,8 @@ function NutriScreen({
   coach,
   students,
   preStudent,
-  onBack
+  onBack,
+  onNovoAluno
 }) {
   const demo = !!coach._demo;
   const [stu, setStu] = useState(preStudent || null);
@@ -20545,7 +20587,7 @@ function NutriScreen({
       className: "btn btn-secondary btn-sm",
       disabled: imp === p.id,
       onClick: () => importar(p)
-    }, imp === p.id ? '…' : 'Importar')))), /*#__PURE__*/React.createElement("div", {
+    }, imp === p.id ? '…' : 'Importar')))), (students || []).length > 0 && /*#__PURE__*/React.createElement("div", {
       className: "search-wrap",
       style: {
         marginBottom: 16
@@ -20575,11 +20617,14 @@ function NutriScreen({
         color: 'var(--text2)',
         marginTop: 2
       }
-    }, "Montar plano alimentar")))), list.length === 0 && /*#__PURE__*/React.createElement("div", {
+    }, "Montar plano alimentar")))), (students || []).length === 0 ? /*#__PURE__*/React.createElement(SemAlunos, {
+      oque: "O plano alimentar \xE9 sempre de algu\xE9m.",
+      onNovo: onNovoAluno
+    }) : list.length === 0 && /*#__PURE__*/React.createElement("div", {
       className: "empty"
     }, /*#__PURE__*/React.createElement("div", {
       className: "empty-title"
-    }, "Nenhum aluno encontrado")));
+    }, "Nenhum aluno com esse nome")));
   }
   return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     className: "abar"
@@ -20791,7 +20836,8 @@ function PeriodizacaoScreen({
   coach,
   students,
   preStudent,
-  onBack
+  onBack,
+  onNovoAluno
 }) {
   const demo = !!coach._demo;
   const [stu, setStu] = useState(preStudent || null);
@@ -21091,7 +21137,7 @@ function PeriodizacaoScreen({
       className: "ph-title"
     }, "Periodiza\xE7\xE3o"), /*#__PURE__*/React.createElement("div", {
       className: "ph-sub"
-    }, "Escolha o aluno para planejar macro, meso e microciclos"))), /*#__PURE__*/React.createElement("div", {
+    }, "Escolha o aluno para planejar macro, meso e microciclos"))), (students || []).length > 0 && /*#__PURE__*/React.createElement("div", {
       className: "search-wrap",
       style: {
         marginBottom: 16
@@ -21121,7 +21167,14 @@ function PeriodizacaoScreen({
         color: 'var(--text2)',
         marginTop: 2
       }
-    }, "Planejar temporada")))));
+    }, "Planejar temporada")))), (students || []).length === 0 ? /*#__PURE__*/React.createElement(SemAlunos, {
+      oque: "A temporada \xE9 planejada para um aluno.",
+      onNovo: onNovoAluno
+    }) : list.length === 0 && /*#__PURE__*/React.createElement("div", {
+      className: "empty"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "empty-title"
+    }, "Nenhum aluno com esse nome")));
   }
   return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     className: "abar"
@@ -22522,10 +22575,18 @@ function App({
     coach: profile,
     students: students,
     preStudent: selStudent,
+    onNovoAluno: () => {
+      setEditStu(null);
+      go('stu-form');
+    },
     onBack: () => go('dashboard')
   }), view === 'mes' && /*#__PURE__*/React.createElement(MesScreen, {
     students: students,
     demo: profile._demo,
+    onNovoAluno: () => {
+      setEditStu(null);
+      go('stu-form');
+    },
     onBack: () => go('dashboard'),
     onSelect: s => {
       setSelStudent(s);
@@ -22547,11 +22608,19 @@ function App({
     coach: profile,
     students: students,
     preStudent: selStudent,
+    onNovoAluno: () => {
+      setEditStu(null);
+      go('stu-form');
+    },
     onBack: () => go('dashboard')
   }), view === 'perio' && /*#__PURE__*/React.createElement(PeriodizacaoScreen, {
     coach: profile,
     students: students,
     preStudent: selStudent,
+    onNovoAluno: () => {
+      setEditStu(null);
+      go('stu-form');
+    },
     onBack: () => go('dashboard')
   }), view === 'stu-form' && /*#__PURE__*/React.createElement(StudentForm, {
     student: editStu,

@@ -313,6 +313,25 @@ coisas trabalhavam contra ele:
   registro daquele índice exato. Quem fez 4 séries hoje e registrou 1 na vez
   passada repete a carga mais próxima que existir.
 
+## O primeiro dia do treinador
+A conta recém-criada — nenhum aluno, nenhuma avaliação, nenhum modelo — é como
+todo treinador abre o app pela primeira vez, e era o outro estado que nenhuma
+suíte visitava. Quatro telas que pedem um aluno tratavam a conta vazia como uma
+busca que falhou, ou não diziam nada:
+
+- **Treino** e **Periodização** mostravam um campo de busca e, abaixo dele,
+  nada. Sem texto, sem saída;
+- **Nutrição** dizia "Nenhum aluno encontrado" — a frase de uma busca que não
+  achou, quando não houve busca nenhuma;
+- **O mês** somava "0 de 0 alunos treinaram", que é conta feita em cima do
+  vazio.
+
+As quatro passam a dizer a mesma coisa: **"Nenhum aluno cadastrado ainda"**, uma
+linha explicando por que aquela tela precisa de um aluno, e o botão **+ Novo
+aluno**. O campo de busca some enquanto não existe ninguém para buscar — buscar
+numa conta vazia não devolve nada nunca, e campo que não pode achar é da mesma
+família do botão que não faz nada.
+
 ## O mês do treinador
 O painel do dia diz o que está pegando fogo hoje. Faltava a pergunta do fim do
 mês, e sem ela **o aluno que para de aparecer só é notado quando cancela**.

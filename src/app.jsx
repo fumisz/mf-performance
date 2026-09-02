@@ -36,7 +36,7 @@ if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABAS
    .catch. Chamar .catch direto estoura TypeError, e dentro de um useEffect isso
    derruba a tela inteira do aluno. */
 const semEsperar=q=>{try{q.then(()=>{},()=>{});}catch(e){}};
-const APP_VERSION='2026.10.04';   // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION='2026.10.05';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
 
@@ -5635,13 +5635,27 @@ function RecadosScreen({naoLidas,students,onAbrir,onBack}){
   </div>);
 }
 
+/* Treinador sem nenhum aluno caía numa busca sobre o vazio: Treino e
+   Periodização não diziam nada abaixo do campo, e a Nutrição dizia "nenhum
+   aluno encontrado", que é a frase de uma busca que falhou, não a de uma conta
+   que ainda não começou. Quem abre o app no primeiro dia precisa da mesma
+   coisa nas três: o que falta e o botão que resolve. */
+function SemAlunos({oque,onNovo}){
+  return(<div className="empty">
+    <div className="empty-title">Nenhum aluno cadastrado ainda</div>
+    <p style={{fontSize:13,maxWidth:420,margin:'6px auto 0'}}>
+      {oque} Cadastre o primeiro aluno e ele aparece aqui.</p>
+    {onNovo&&<button className="btn btn-primary" style={{marginTop:14}} onClick={onNovo}>+ Novo aluno</button>}
+  </div>);
+}
+
 /* ── O mês do treinador: os alunos todos numa tela ──
    O painel do dia diz o que está pegando fogo hoje. O que faltava era a
    pergunta do fim do mês: quem treinou, quem caiu e quem sumiu. Sem isso, o
    aluno que parou de aparecer só é notado quando cancela.
    Uma consulta só (o histórico do mês e do anterior; a RLS já limita ao coach)
    e a lista sai ordenada por quem precisa de um contato hoje. */
-function MesScreen({students,onBack,onSelect,demo}){
+function MesScreen({students,onBack,onSelect,onNovoAluno,demo}){
   const hoje=new Date();
   const [ref,setRef]=useState({a:hoje.getFullYear(),m:hoje.getMonth()});
   const [hist,setHist]=useState(demo?[]:undefined);
@@ -5722,7 +5736,9 @@ function MesScreen({students,onBack,onSelect,demo}){
     {erro&&<div className="alert alert-danger" style={{marginBottom:14}}>
       Não consegui carregar o histórico. Confira a internet e abra de novo.</div>}
 
-    {hist===undefined?<div className="center-screen" style={{minHeight:200}}><div className="spinner"/></div>:<>
+    {hist===undefined?<div className="center-screen" style={{minHeight:200}}><div className="spinner"/></div>
+     /* "0 de 0 alunos treinaram" é conta feita em cima do vazio */
+     :!(students||[]).length?<SemAlunos oque="O mês é o resumo do que seus alunos fizeram." onNovo={onNovoAluno}/>:<>
       <div className="dash-panel" style={{marginBottom:16}}>
         <div style={{display:'flex',gap:18,flexWrap:'wrap'}}>
           {[[tot.treinaram+' de '+(students||[]).length,'alunos treinaram'],
@@ -5934,7 +5950,7 @@ function FichaImpressa({coach,stu,divs,onFechar}){
   </div>);
 }
 
-function TrainScreen({coach,students,preStudent,onBack}){
+function TrainScreen({coach,students,preStudent,onBack,onNovoAluno}){
   const demo=!!coach._demo;
   const [stu,setStu]=useState(preStudent||null);
   const [showLib,setShowLib]=useState(false);
@@ -6132,14 +6148,17 @@ function TrainScreen({coach,students,preStudent,onBack}){
         <div className="ph-title">Treino</div><div className="ph-sub">Escolha o aluno para montar a ficha</div></div>
         <button className="btn btn-secondary" onClick={()=>setShowLib(true)}>Biblioteca de exercícios</button></div>
       {demo&&<div className="alert alert-warn">Modo demonstração: as fichas não são salvas.</div>}
-      <div className="search-wrap" style={{marginBottom:16}}><span className="search-icon"><IconBusca/></span>
-        <input className="fi" placeholder="Buscar aluno..." value={q} onChange={e=>setQ(e.target.value)}/></div>
+      {(students||[]).length>0&&<div className="search-wrap" style={{marginBottom:16}}><span className="search-icon"><IconBusca/></span>
+        <input className="fi" placeholder="Buscar aluno..." value={q} onChange={e=>setQ(e.target.value)}/></div>}
       <div className="student-grid">{list.map(s=>(
         <div key={s.id} className="student-card" onClick={()=>setStu(s)}>
           <div className="avatar" style={{marginBottom:10}}>{s.photo?<img src={s.photo} alt=""/>:initials(s.name)}</div>
           <div className="s-name">{s.name}</div>
           <div className="s-meta">{s.goal||'Montar ficha de treino'}</div>
         </div>))}</div>
+      {students.length===0
+        ? <SemAlunos oque="A ficha de treino é sempre de alguém." onNovo={onNovoAluno}/>
+        : list.length===0&&<div className="empty"><div className="empty-title">Nenhum aluno com esse nome</div></div>}
     </div>);
   }
 
@@ -7164,7 +7183,7 @@ function NutriRegistros({fichaId,studentUid,demo}){
   </div>);
 }
 
-function NutriScreen({coach,students,preStudent,onBack}){
+function NutriScreen({coach,students,preStudent,onBack,onNovoAluno}){
   const demo=!!coach._demo;
   const [stu,setStu]=useState(preStudent||null);
   const [q,setQ]=useState('');
@@ -7208,14 +7227,16 @@ function NutriScreen({coach,students,preStudent,onBack}){
           <button className="btn btn-secondary btn-sm" disabled={imp===p.id} onClick={()=>importar(p)}>{imp===p.id?'…':'Importar'}</button>
         </div>))}
       </div>}
-      <div className="search-wrap" style={{marginBottom:16}}><span className="search-icon"><IconBusca/></span>
-        <input className="fi" placeholder="Buscar aluno..." value={q} onChange={e=>setQ(e.target.value)}/></div>
+      {(students||[]).length>0&&<div className="search-wrap" style={{marginBottom:16}}><span className="search-icon"><IconBusca/></span>
+        <input className="fi" placeholder="Buscar aluno..." value={q} onChange={e=>setQ(e.target.value)}/></div>}
       <div className="student-grid">{list.map(s=>(
         <div key={s.id} className="student-card" onClick={()=>setStu(s)}>
           <div style={{fontWeight:600,fontFamily:'var(--serif)',fontSize:16}}>{s.name}</div>
           <div style={{fontSize:12,color:'var(--text2)',marginTop:2}}>Montar plano alimentar</div>
         </div>))}</div>
-      {list.length===0&&<div className="empty"><div className="empty-title">Nenhum aluno encontrado</div></div>}
+      {(students||[]).length===0
+        ? <SemAlunos oque="O plano alimentar é sempre de alguém." onNovo={onNovoAluno}/>
+        : list.length===0&&<div className="empty"><div className="empty-title">Nenhum aluno com esse nome</div></div>}
     </div>);
   }
 
@@ -7272,7 +7293,7 @@ const MODELOS_PERIO=[
    ]},
 ];
 
-function PeriodizacaoScreen({coach,students,preStudent,onBack}){
+function PeriodizacaoScreen({coach,students,preStudent,onBack,onNovoAluno}){
   const demo=!!coach._demo;
   const [stu,setStu]=useState(preStudent||null);
   const [q,setQ]=useState('');
@@ -7406,13 +7427,16 @@ function PeriodizacaoScreen({coach,students,preStudent,onBack}){
       <div className="abar"><div><div className="breadcrumb" onClick={onBack}>← Painel</div>
         <div className="ph-title">Periodização</div>
         <div className="ph-sub">Escolha o aluno para planejar macro, meso e microciclos</div></div></div>
-      <div className="search-wrap" style={{marginBottom:16}}><span className="search-icon"><IconBusca/></span>
-        <input className="fi" placeholder="Buscar aluno..." value={q} onChange={e=>setQ(e.target.value)}/></div>
+      {(students||[]).length>0&&<div className="search-wrap" style={{marginBottom:16}}><span className="search-icon"><IconBusca/></span>
+        <input className="fi" placeholder="Buscar aluno..." value={q} onChange={e=>setQ(e.target.value)}/></div>}
       <div className="student-grid">{list.map(x=>(
         <div key={x.id} className="student-card" onClick={()=>setStu(x)}>
           <div style={{fontWeight:600,fontFamily:'var(--serif)',fontSize:16}}>{x.name}</div>
           <div style={{fontSize:12,color:'var(--text2)',marginTop:2}}>Planejar temporada</div>
         </div>))}</div>
+      {(students||[]).length===0
+        ? <SemAlunos oque="A temporada é planejada para um aluno." onNovo={onNovoAluno}/>
+        : list.length===0&&<div className="empty"><div className="empty-title">Nenhum aluno com esse nome</div></div>}
     </div>);
   }
 
@@ -7847,14 +7871,14 @@ function App({profile,setProfile}){
           {view==='agenda'&&<AgendaScreen coach={profile} students={students} preStudent={selStudent} onBack={()=>go('dashboard')}/>}
           {view==='intakes'&&<IntakeInbox coach={profile} students={students} onImport={importIntake} onBack={()=>go('dashboard')}/>}
           {view==='tech'&&<TechScreen coach={profile} students={students} preStudent={selStudent} onBack={()=>go('dashboard')}/>}
-          {view==='train'&&<TrainScreen coach={profile} students={students} preStudent={selStudent} onBack={()=>go('dashboard')}/>}
-          {view==='mes'&&<MesScreen students={students} demo={profile._demo}
+          {view==='train'&&<TrainScreen coach={profile} students={students} preStudent={selStudent} onNovoAluno={()=>{setEditStu(null);go('stu-form');}} onBack={()=>go('dashboard')}/>}
+          {view==='mes'&&<MesScreen students={students} demo={profile._demo} onNovoAluno={()=>{setEditStu(null);go('stu-form');}}
             onBack={()=>go('dashboard')} onSelect={s=>{setSelStudent(s);go('detail');}}/>}
           {view==='semtreino'&&<SemTreinoScreen coach={profile} onBack={()=>go('dashboard')} onFeito={contarSemTreino}/>}
           {view==='recados'&&<RecadosScreen naoLidas={naoLidas} students={students}
             onAbrir={s=>{setSelStudent(s);go('detail');}} onBack={()=>go('dashboard')}/>}
-          {view==='nutri'&&<NutriScreen coach={profile} students={students} preStudent={selStudent} onBack={()=>go('dashboard')}/>}
-          {view==='perio'&&<PeriodizacaoScreen coach={profile} students={students} preStudent={selStudent} onBack={()=>go('dashboard')}/>}
+          {view==='nutri'&&<NutriScreen coach={profile} students={students} preStudent={selStudent} onNovoAluno={()=>{setEditStu(null);go('stu-form');}} onBack={()=>go('dashboard')}/>}
+          {view==='perio'&&<PeriodizacaoScreen coach={profile} students={students} preStudent={selStudent} onNovoAluno={()=>{setEditStu(null);go('stu-form');}} onBack={()=>go('dashboard')}/>}
           {view==='stu-form'&&<StudentForm student={editStu} onSave={saveStu} onCancel={()=>go(selStudent?'detail':'dashboard')}/>}
           {view==='detail'&&selStudent&&<StudentDetail student={selStudent} evals={stuEvals}
             onNewEval={()=>{setEditEv(null);setReassess(false);go('ev-form');}}
