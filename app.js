@@ -71,7 +71,7 @@ const semEsperar = q => {
     q.then(() => {}, () => {});
   } catch (e) {}
 };
-const APP_VERSION = '2026.09.30'; // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION = '2026.10.01'; // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA'); // YYYY-MM-DD no fuso LOCAL
 
@@ -15802,6 +15802,7 @@ function ExerciseLibrary({
     placeholder: "https://youtube.com/..."
   })), /*#__PURE__*/React.createElement("button", {
     className: "btn btn-primary",
+    disabled: !(nf.nome || '').trim(),
     onClick: add
   }, "Adicionar"))), /*#__PURE__*/React.createElement("div", {
     style: {
@@ -17632,6 +17633,7 @@ function TrainScreen({
       }))
     })), /*#__PURE__*/React.createElement("button", {
       className: "btn btn-secondary",
+      disabled: !(ex.nome || '').trim(),
       onClick: () => addEx(dv.id)
     }, "Adicionar"), /*#__PURE__*/React.createElement("div", {
       style: {
@@ -17704,6 +17706,7 @@ function TrainScreen({
     }
   }), /*#__PURE__*/React.createElement("button", {
     className: "btn btn-primary",
+    disabled: !(nd || '').trim(),
     onClick: addDiv
   }, "Adicionar"), /*#__PURE__*/React.createElement("button", {
     className: "btn btn-ghost",
@@ -26189,7 +26192,7 @@ function CicloScreen({
     style: {
       marginTop: 14
     },
-    disabled: busy,
+    disabled: busy || !f.data,
     onClick: salvar
   }, busy ? 'Salvando…' : 'Salvar')));
   const {
@@ -27150,6 +27153,7 @@ function DiarioScreen({
     style: {
       marginTop: 12
     },
+    disabled: !gf.valor,
     onClick: regGlic
   }, "Registrar medi\xE7\xE3o")), glic.length > 0 && /*#__PURE__*/React.createElement("div", {
     className: "lv-card"
@@ -29649,7 +29653,7 @@ function StudentApp({
     style: {
       marginTop: 12
     },
-    disabled: linking,
+    disabled: linking || !code.trim(),
     onClick: doLink
   }, linking ? 'Ativando…' : 'Ativar treinos'))));
   if (exec) return shell(/*#__PURE__*/React.createElement(TrainExec, {
