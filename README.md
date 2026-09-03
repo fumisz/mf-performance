@@ -676,6 +676,47 @@ o cálculo pelo peso ficou como reserva para quem ainda não tem plano.
 A suíte `dieta.js` (24 conferências) fixa as três: ela reprovava no build
 publicado antes de passar neste.
 
+## Salvar o plano dizia que salvou quando não tinha salvado
+Do outro lado da nutrição está o editor onde o treinador monta o cardápio.
+Salvar um plano são seis idas ao servidor em sequência, sem transação. A ordem
+era: gravar o plano, gravar as refeições, **apagar as que saíram**, gravar os
+itens, apagar os que saíram, e assim por diante.
+
+Uma sonda derrubou a rede no meio da sequência — a conexão que morre com o
+salvar pela metade. O resultado, medido: a refeição foi apagada do servidor, os
+itens não foram gravados, **nenhum aviso apareceu na tela e o botão escreveu
+"✓ Plano salvo"**. As gravações não conferiam o `error` que o cliente devolve,
+então uma falha passava calada.
+
+E o dano não para no cardápio: no banco, `meals` tem cascata para `meal_items`
+**e para `checkins`**. Uma exclusão que vaza de um salvar que falhou leva junto
+o histórico de refeições que o aluno marcou.
+
+Agora grava tudo primeiro e só depois apaga, cada passo com prazo, e o erro é
+lido. Quebrando no meio, o pior que acontece é sobrar no plano algo que devia
+ter saído — visível, e o próximo salvar resolve. Nada que o treinador escreveu
+se perde, e nada do aluno é apagado. O aviso passou a dizer o que fazer:
+"parte pode ter sido gravada, confira o cardápio e salve de novo".
+
+A suíte `nutricoach.js` (34 conferências) cobre o editor inteiro — aluno sem
+conta ativa, montar o cardápio pela base de alimentos, salvar e reler, apagar
+refeição, lista de compras, criar plano do zero — e as quatro do salvar que
+falha reprovam no build anterior.
+
+Para isso o mock do servidor aprendeu a **guardar de verdade** o que foi
+gravado (`R.persistir(true)` em `run-rota.js`): sem devolver a linha criada,
+`.insert().select().single()` volta nulo e "criar plano" nunca sai da tela
+vazia. Fica desligado por padrão, porque as suítes antigas foram escritas com o
+mock engolindo as gravações.
+
+E a `treinosumiu` deixou de ser instável. A causa não era tempo: no passo da
+rede lenta o app guarda as divisões na cópia local, uma gravação que ninguém
+espera, e ela caía por cima da cópia vazia que o teste tinha acabado de
+escrever. O aparelho ficava com o treino guardado e a tela mostrava "Iniciar
+treino" — certíssimo, e o teste reprovava o app por isso. Agora ele confere que
+a cópia ficou vazia antes de seguir: seis rodadas seguidas verdes, contra
+metade antes.
+
 ## Números
 Tudo que aparece na tela usa vírgula decimal (24,3 e não 24.3), como se escreve
 em português. Só exibição: nenhum campo de entrada nem exportação passa pelo

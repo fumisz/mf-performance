@@ -36,7 +36,7 @@ if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABAS
    .catch. Chamar .catch direto estoura TypeError, e dentro de um useEffect isso
    derruba a tela inteira do aluno. */
 const semEsperar=q=>{try{q.then(()=>{},()=>{});}catch(e){}};
-const APP_VERSION='2026.10.09';   // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION='2026.10.10';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
 
@@ -6997,28 +6997,46 @@ function NutriPlanEditor({coach,studentUid,studentName,demo}){
     if(demo){setSaved(true);setTimeout(()=>setSaved(false),1600);return;}
     setBusy(true);
     try{
-      await sb.from('meal_plans').update({title:plan.title,notes:plan.notes,water_goal_ml:n0(plan.water_goal_ml),
+      /* Salvar são seis idas ao servidor em sequência e não existe transação
+         aqui. A ordem antiga apagava a refeição ANTES de gravar os itens: com a
+         internet caindo no meio (medido com sonda), o DELETE passava e o resto
+         não. A refeição sumia de vez — e no banco `meals` tem cascata para
+         `meal_items` E para `checkins`, então ia junto o histórico de refeições
+         que o aluno marcou. O treinador lia "erro ao salvar" e achava que nada
+         tinha acontecido.
+         Agora grava tudo primeiro e só depois apaga. Quebrando no meio, o pior
+         que acontece é sobrar no plano algo que devia ter saído — visível, e o
+         próximo salvar resolve. Nada que ele escreveu se perde. */
+      const passo=p=>comPrazo(p).then(r=>{if(r&&r.error)throw r.error;return r;});
+      await passo(sb.from('meal_plans').update({title:plan.title,notes:plan.notes,water_goal_ml:n0(plan.water_goal_ml),
         kcal_alvo:plan.kcal_alvo??null,prot_alvo:plan.prot_alvo??null,
-        carb_alvo:plan.carb_alvo??null,fat_alvo:plan.fat_alvo??null,calc:plan.calc??null}).eq('id',plan.id);
-      const mealsPayload=meals.map((m,i)=>({id:m.id,plan_id:plan.id,name:m.name,time:m.time,notes:m.notes,order_index:i}));
-      if(mealsPayload.length) await sb.from('meals').upsert(mealsPayload);
-      const curM=meals.map(m=>m.id), delM=orig.meals.filter(id=>!curM.includes(id));
-      if(delM.length) await sb.from('meals').delete().in('id',delM);
+        carb_alvo:plan.carb_alvo??null,fat_alvo:plan.fat_alvo??null,calc:plan.calc??null}).eq('id',plan.id));
 
+      const mealsPayload=meals.map((m,i)=>({id:m.id,plan_id:plan.id,name:m.name,time:m.time,notes:m.notes,order_index:i}));
+      if(mealsPayload.length) await passo(sb.from('meals').upsert(mealsPayload));
       const itemsPayload=[];meals.forEach(m=>m.items.forEach((it,i)=>itemsPayload.push(
         {id:it.id,meal_id:m.id,food:it.food,qty:it.qty,kcal:n0(it.kcal),protein:n0(it.protein),carb:n0(it.carb),fat:n0(it.fat),prep:it.prep||null,order_index:i})));
-      if(itemsPayload.length) await sb.from('meal_items').upsert(itemsPayload);
-      const curI=itemsPayload.map(i=>i.id), delI=orig.items.filter(id=>!curI.includes(id));
-      if(delI.length) await sb.from('meal_items').delete().in('id',delI);
-
+      if(itemsPayload.length) await passo(sb.from('meal_items').upsert(itemsPayload));
       const subsPayload=[];meals.forEach(m=>m.items.forEach(it=>(it.subs||[]).forEach(s=>subsPayload.push(
         {id:s.id,meal_item_id:it.id,food:s.food,qty:s.qty,kcal:n0(s.kcal),protein:n0(s.protein),carb:n0(s.carb),fat:n0(s.fat)}))));
-      if(subsPayload.length) await sb.from('substitutions').upsert(subsPayload);
+      if(subsPayload.length) await passo(sb.from('substitutions').upsert(subsPayload));
+
+      // agora sim, o que o treinador tirou do cardápio (de dentro para fora)
       const curS=subsPayload.map(s=>s.id), delS=orig.subs.filter(id=>!curS.includes(id));
-      if(delS.length) await sb.from('substitutions').delete().in('id',delS);
+      if(delS.length) await passo(sb.from('substitutions').delete().in('id',delS));
+      const curI=itemsPayload.map(i=>i.id), delI=orig.items.filter(id=>!curI.includes(id));
+      if(delI.length) await passo(sb.from('meal_items').delete().in('id',delI));
+      const curM=meals.map(m=>m.id), delM=orig.meals.filter(id=>!curM.includes(id));
+      if(delM.length) await passo(sb.from('meals').delete().in('id',delM));
 
       await load();setSaved(true);setTimeout(()=>setSaved(false),1600);
-    }catch(e){alert('Erro ao salvar: '+(e.message||e));}
+    }catch(e){
+      // "Erro ao salvar" sozinho faz o treinador achar que nada foi gravado, e
+      // parte pode ter ido. Melhor dizer o que ele precisa fazer.
+      alert('Não consegui salvar o plano inteiro'+(isNetErr(e)?' — a internet falhou no meio.':': '+(e.message||e))
+        +'\n\nParte pode ter sido gravada. Confira o cardápio e salve de novo.');
+      await load();
+    }
     setBusy(false);
   };
 
