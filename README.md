@@ -313,6 +313,32 @@ coisas trabalhavam contra ele:
   registro daquele índice exato. Quem fez 4 séries hoje e registrou 1 na vez
   passada repete a carga mais próxima que existir.
 
+## O repositório passa a reproduzir o banco
+Doze funções tinham sido aplicadas direto no Supabase, em sessões diferentes, e
+nunca entraram aqui: `painel_hoje`, `peso_situacao`, `alunos_duplicados`,
+`aluno_fundir`, `periodizacao_atual`, `ficha_criar_de_perfil` e mais seis. Duas
+consequências: **o repositório não reproduzia o banco do zero**, e a suíte
+`contrato` não conseguia conferir nenhuma delas. Foi um buraco desse tamanho
+que deixou o "Salvar diário de hoje" quebrado para todo aluno.
+
+`funcoes-do-banco.sql` traz as doze, extraídas com `pg_get_functiondef` e
+conferidas **byte a byte por md5** contra o que está rodando — não foram
+transcritas à mão. Com elas no lugar, a suíte `contrato` sai de 41 para 55
+confirmações e a lista de "sem .sql no repositório" fica vazia: toda RPC que o
+app chama tem assinatura declarada e conferida.
+
+## Séries gravadas duas vezes
+Nove linhas do histórico eram a mesma série gravada duas vezes — o insert que
+responde depois do prazo, o app achando que falhou e a fila regravando. Elas
+inflavam tonelagem e contagem de recordes. Foram removidas mantendo a mais
+antiga de cada par, com o conteúdo inteiro guardado antes em
+`train_historico_backup_dup` (uma coluna `jsonb` com a linha como estava).
+
+Outras treze colisões na mesma chave **não foram tocadas**: são séries com
+`reps` diferentes no mesmo índice — provavelmente uma segunda passada no
+exercício, não uma duplicata. Apagar qualquer uma das duas perderia registro
+real. A gravação idempotente da 2026.10.06 impede que novas apareçam.
+
 ## O cronômetro de descanso
 É o que os alunos mais elogiam — e era onde o **"Pular" ficava fora da tela**.
 Os quatro controles dividiam a linha com o cronômetro e não cabiam: em 390px o
