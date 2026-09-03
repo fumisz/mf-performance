@@ -829,11 +829,38 @@ afirmavam sucesso:
   relatório. A mensagem dizia "salva neste dispositivo", que era verdade e
   enganava: em outro aparelho não aparecia. Agora ela diz onde ficou.
 
+O `calado.js` **não entra na bateria como portão ainda**: com 22 pendentes ele
+reprovaria sempre e deixaria as outras 43 vermelhas por tabela. Rode
+`node calado.js` para ver a lista; ele vira portão quando a lista zerar.
+
 Sobram **22**, todas do lado do treinador e de menor gravidade — exclusões
 otimistas que voltam ao recarregar a tela, em vez de afirmar sucesso falso. Elas
 **continuam reprovando de propósito**: a lista de aceitos do `calado.js` só
 recebe o que foi olhado e ESTÁ certo, com o motivo escrito, e a chave é função +
 método, não a linha (linha muda a cada edição e silenciaria o site errado).
+
+## Os avisos presos atrás do convite de instalar
+O banco diz: **5 aparelhos com aviso ligado, de 22 contas de aluno.** Olhando um
+a um, o padrão não é "ninguém liga" — é outro:
+
+- os **4 alunos com aviso** criaram conta entre 31/08 e 02/09, nos últimos dias;
+- **Karen, Joyce, Vanessa e Jefferson treinaram ontem ou hoje e não têm aviso
+  nenhum.** São os mais ativos do app.
+
+A causa está no portão do convite. O cartão "Ligar os avisos no celular" só
+aparecia quando o convite de instalar já tinha saído de cena — instalar
+primeiro, avisos depois, para todo mundo.
+
+**No iPhone isso está certo:** o Safari só entrega push quando o app está na
+tela de início, então lá não há o que oferecer antes. **No Android não:** o push
+funciona na aba normal do navegador. Quem nunca instalou ficava vendo só o
+convite de instalar, para sempre, e nunca recebia a oferta de avisos — mesmo
+podendo ligar naquele instante.
+
+Agora o portão olha o aparelho: fora do iPhone, o convite de avisos vem primeiro,
+porque é o que tem retorno de verdade. Continua um convite de cada vez. A suíte
+`push.js` passou a cobrar a regra nos dois sistemas — inclusive abrindo o app
+com user-agent de iPhone para conferir que lá a ordem se mantém.
 
 ## Números
 Tudo que aparece na tela usa vírgula decimal (24,3 e não 24.3), como se escreve

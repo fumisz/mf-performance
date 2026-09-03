@@ -30805,6 +30805,17 @@ function StudentApp({
     });
     return achado;
   })();
+
+  /* Qual convite mostrar — um de cada vez.
+     O convite de avisos ficava atrás do de instalar para TODO MUNDO. No iPhone
+     isso está certo: o Safari só entrega push com o app na tela de início. No
+     Android o push funciona na aba normal, e a fila deixava gente ativa sem
+     nunca ver a oferta — Karen, Joyce, Vanessa e Jefferson treinam toda semana
+     e não têm aviso ligado; os quatro que têm criaram conta nos últimos dias.
+     Fora do iPhone, avisos vêm primeiro: é o convite com retorno de verdade. */
+  const querAvisos = !espiando && !demo && stu && pushChecado && !pushOn && !convAvisoOff;
+  const mostrarConvAvisos = querAvisos && (EH_IOS ? !conviteInstalarVisivel('aluno') : true);
+  const mostrarConvInstalar = !espiando && !mostrarConvAvisos;
   const blocoTreino = list.length === 0 ? falhouDivs ? /*#__PURE__*/React.createElement("div", {
     className: "lv-card",
     style: {
@@ -30976,11 +30987,11 @@ function StudentApp({
   })();
   const homeTab = /*#__PURE__*/React.createElement("div", {
     className: "lv-wrap"
-  }, header, !espiando && /*#__PURE__*/React.createElement(ConviteInstalar, {
+  }, header, mostrarConvInstalar && /*#__PURE__*/React.createElement(ConviteInstalar, {
     lv: true,
     fechavel: true,
     chave: "aluno"
-  }), !espiando && !demo && stu && pushChecado && !pushOn && !convAvisoOff && !conviteInstalarVisivel('aluno') && /*#__PURE__*/React.createElement("div", {
+  }), mostrarConvAvisos && /*#__PURE__*/React.createElement("div", {
     className: "lv-card",
     style: {
       marginBottom: 14,

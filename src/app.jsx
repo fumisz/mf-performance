@@ -11092,6 +11092,17 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
     return achado;
   })();
 
+  /* Qual convite mostrar — um de cada vez.
+     O convite de avisos ficava atrás do de instalar para TODO MUNDO. No iPhone
+     isso está certo: o Safari só entrega push com o app na tela de início. No
+     Android o push funciona na aba normal, e a fila deixava gente ativa sem
+     nunca ver a oferta — Karen, Joyce, Vanessa e Jefferson treinam toda semana
+     e não têm aviso ligado; os quatro que têm criaram conta nos últimos dias.
+     Fora do iPhone, avisos vêm primeiro: é o convite com retorno de verdade. */
+  const querAvisos=!espiando&&!demo&&stu&&pushChecado&&!pushOn&&!convAvisoOff;
+  const mostrarConvAvisos=querAvisos&&(EH_IOS?!conviteInstalarVisivel('aluno'):true);
+  const mostrarConvInstalar=!espiando&&!mostrarConvAvisos;
+
   const blocoTreino=list.length===0?(
     falhouDivs
       ? <div className="lv-card" style={{textAlign:'center'}}>
@@ -11151,10 +11162,10 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
 
   const homeTab=(<div className="lv-wrap">
     {header}
-    {!espiando&&<ConviteInstalar lv fechavel chave="aluno"/>}
+    {mostrarConvInstalar&&<ConviteInstalar lv fechavel chave="aluno"/>}
     {/* O interruptor existia so na aba Conta, onde ninguem entra: o banco tinha
         zero inscricoes. Aqui o aluno ve o convite onde ele de fato olha. */}
-    {!espiando&&!demo&&stu&&pushChecado&&!pushOn&&!convAvisoOff&&!conviteInstalarVisivel('aluno')&&(
+    {mostrarConvAvisos&&(
       <div className="lv-card" style={{marginBottom:14,borderColor:'var(--lvsel)'}}>
         <div style={{fontWeight:700,marginBottom:4}}>Ligar os avisos no celular</div>
         <div className="lv-sub" style={{lineHeight:1.55}}>
