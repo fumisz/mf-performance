@@ -15,6 +15,27 @@ const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 
 // Número para MOSTRAR na tela, em português: 24,3 e não 24.3. Só exibição —
 // nenhum campo de entrada nem exportação passa por aqui.
 const fmt = (n, d = 1) => n != null && n !== '' && !isNaN(parseFloat(n)) ? parseFloat(n).toFixed(d).replace('.', ',') : '—';
+/* Número que vem cru do banco e vai direto para o papel. Diferente do fmt: não
+   força casa decimal (165 continua 165, não vira 165,0) e põe separador de
+   milhar. Deixa passar sem tocar o que já veio formatado — assim serve numa
+   coluna onde alguns valores já passaram pelo fmt e outros não, que era
+   exatamente o caso do relatório: "22,1" e "60.1" na mesma tabela. */
+/* Lista dentro de uma frase: "força e performance", não "força, performance".
+   Vírgula no lugar do "e" é como uma máquina emenda itens — e o relatório é
+   assinado pelo treinador. */
+const listaE = arr => {
+  const l = (arr || []).filter(Boolean);
+  if (l.length <= 1) return l[0] || '';
+  return l.slice(0, -1).join(', ') + ' e ' + l[l.length - 1];
+};
+const numBR = v => {
+  if (v == null || v === '') return v;
+  const s = String(v);
+  if (!/^-?\d+(\.\d+)?$/.test(s)) return s;
+  return parseFloat(s).toLocaleString('pt-BR', {
+    maximumFractionDigits: 1
+  });
+};
 const fmtDate = d => d ? new Date(d + 'T00:00:00').toLocaleDateString('pt-BR') : '—';
 // data de um timestamp (created_at). fmtDate só serve para 'AAAA-MM-DD'.
 const fmtTime = t => {
@@ -71,7 +92,7 @@ const semEsperar = q => {
     q.then(() => {}, () => {});
   } catch (e) {}
 };
-const APP_VERSION = '2026.10.10'; // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION = '2026.10.11'; // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA'); // YYYY-MM-DD no fuso LOCAL
 
@@ -7639,13 +7660,13 @@ function CmpCard({
     className: "cmp-flow"
   }, p != null && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("span", {
     className: "cmp-from"
-  }, p, unit ? ` ${unit}` : ''), /*#__PURE__*/React.createElement("span", {
+  }, numBR(p), unit ? ` ${unit}` : ''), /*#__PURE__*/React.createElement("span", {
     className: "cmp-arrow"
   }, "\u2192")), /*#__PURE__*/React.createElement("span", {
     className: "cmp-to"
-  }, c, unit ? ` ${unit}` : '')), delta != null && /*#__PURE__*/React.createElement("div", {
+  }, numBR(c), unit ? ` ${unit}` : '')), delta != null && /*#__PURE__*/React.createElement("div", {
     className: `cmp-delta ${cls}`
-  }, delta > 0 ? '▲' : delta < 0 ? '▼' : '＝', " ", delta > 0 ? '+' : '', delta, unit ? ` ${unit}` : '', pct != null && delta !== 0 ? ` (${pct > 0 ? '+' : ''}${pct}%)` : ''));
+  }, delta > 0 ? '▲' : delta < 0 ? '▼' : '＝', " ", delta > 0 ? '+' : delta < 0 ? '−' : '', numBR(Math.abs(delta)), unit ? ` ${unit}` : '', pct != null && delta !== 0 ? ` (${pct > 0 ? '+' : '−'}${numBR(Math.abs(pct))}%)` : ''));
 }
 function buildHighlights(student, cur, prev) {
   if (!prev) return [];
@@ -7660,25 +7681,25 @@ function buildHighlights(student, cur, prev) {
   };
   if (dc.fatMass != null && dp.fatMass != null) {
     const dd = +(dc.fatMass - dp.fatMass).toFixed(1);
-    if (dd < 0) push(true, '', `Redução de ${Math.abs(dd)} kg de massa gorda.`);else if (dd > 0) push(true, '', `Aumento de ${dd} kg de massa gorda.`);
+    if (dd < 0) push(true, '', `Redução de ${numBR(Math.abs(dd))} kg de massa gorda.`);else if (dd > 0) push(true, '', `Aumento de ${numBR(dd)} kg de massa gorda.`);
   }
   if (dc.leanMass != null && dp.leanMass != null) {
     const dd = +(dc.leanMass - dp.leanMass).toFixed(1);
-    if (dd > 0) push(true, '', `Ganho de ${dd} kg de massa magra.`);else if (dd < 0) push(true, '', `Perda de ${Math.abs(dd)} kg de massa magra — atenção.`);
+    if (dd > 0) push(true, '', `Ganho de ${numBR(dd)} kg de massa magra.`);else if (dd < 0) push(true, '', `Perda de ${numBR(Math.abs(dd))} kg de massa magra — atenção.`);
   }
   if (dc.fatPct != null && dp.fatPct != null) {
     const dd = +(dc.fatPct - dp.fatPct).toFixed(1);
-    if (dd !== 0) push(true, dd < 0 ? '' : '', `% de gordura ${dd < 0 ? 'reduziu' : 'aumentou'} ${Math.abs(dd)} pontos (${fmt(dp.fatPct)}% → ${fmt(dc.fatPct)}%).`);
+    if (dd !== 0) push(true, dd < 0 ? '' : '', `% de gordura ${dd < 0 ? 'reduziu' : 'aumentou'} ${numBR(Math.abs(dd))} pontos (${fmt(dp.fatPct)}% → ${fmt(dc.fatPct)}%).`);
   }
   const wc = num(cur.circ_waist),
     wp = num(prev.circ_waist);
   if (wc && wp) {
     const dd = +(wc - wp).toFixed(1);
-    if (dd !== 0) push(true, dd < 0 ? '' : '', `Cintura ${dd < 0 ? 'reduziu' : 'aumentou'} ${Math.abs(dd)} cm.`);
+    if (dd !== 0) push(true, dd < 0 ? '' : '', `Cintura ${dd < 0 ? 'reduziu' : 'aumentou'} ${numBR(Math.abs(dd))} cm.`);
   }
   if (dc.dynAvg && dp.dynAvg) {
     const dd = +(dc.dynAvg - dp.dynAvg).toFixed(1);
-    if (dd > 0) push(true, '', `Força de preensão melhorou ${dd} kgf.`);
+    if (dd > 0) push(true, '', `Força de preensão melhorou ${numBR(dd)} kgf.`);
   }
   if (out.length === 0) push(true, '', 'Avaliação comparativa registrada. Mantenha a consistência.');
   return out;
@@ -7834,9 +7855,12 @@ function EvolutionSection({
     vals: asc.map(e => num(e.bio_metabage))
   }].filter(m => m.vals.filter(v => v != null && !isNaN(v)).length >= 2);
   if (metrics.length === 0) return null;
+  // "6/26" é jeito de planilha. Num relatório que o aluno leva para casa a data
+  // se lê: "jun/26".
+  const MES3 = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
   const dlab = asc.map(e => {
     const d = new Date(e.date + 'T00:00:00');
-    return d.getMonth() + 1 + '/' + String(d.getFullYear()).slice(2);
+    return MES3[d.getMonth()] + '/' + String(d.getFullYear()).slice(2);
   });
   const trendKeys = ['weight', 'fat', 'lean'];
   const trends = metrics.filter(m => trendKeys.includes(m.key)).map(m => ({
@@ -7885,9 +7909,9 @@ function EvolutionSection({
       className: "evo-vals"
     }, /*#__PURE__*/React.createElement("span", {
       className: "evo-start"
-    }, start, m.unit, " \u2192"), /*#__PURE__*/React.createElement("span", {
+    }, numBR(start), m.unit, " \u2192"), /*#__PURE__*/React.createElement("span", {
       className: "evo-end"
-    }, end, /*#__PURE__*/React.createElement("span", {
+    }, numBR(end), /*#__PURE__*/React.createElement("span", {
       style: {
         fontSize: 11,
         color: '#6b7280'
@@ -7897,7 +7921,7 @@ function EvolutionSection({
       style: {
         color: col
       }
-    }, delta > 0 ? '▲ +' : delta < 0 ? '▼ ' : '＝ ', delta !== 0 ? delta + ' ' + m.unit : 'sem variação'));
+    }, delta > 0 ? '▲ +' : delta < 0 ? '▼ −' : '＝ ', delta !== 0 ? numBR(Math.abs(delta)) + ' ' + m.unit : 'sem variação'));
   })));
 }
 
@@ -8061,9 +8085,10 @@ function fmtIdeal(ideal, min, max, unit) {
   if (!ideal) return null;
   const [lo, hi] = ideal;
   const u = unit ? ' ' + unit : '';
-  if (lo <= min) return 'até ' + hi + u;
-  if (hi >= max) return lo + u + ' ou mais';
-  return lo + '–' + hi + u;
+  // a faixa do IMC é 18,5–25, não 18.5–25
+  if (lo <= min) return 'até ' + numBR(hi) + u;
+  if (hi >= max) return numBR(lo) + u + ' ou mais';
+  return numBR(lo) + '–' + numBR(hi) + u;
 }
 /* Medidor semicircular clínico: arco fino segmentado + marca em ponto + valor em serifa */
 function Gauge({
@@ -8247,7 +8272,7 @@ function TrendChart({
     y: H - 8,
     fontSize: "8",
     fill: "#9ca3af",
-    textAnchor: "middle"
+    textAnchor: i === 0 ? 'start' : i === pts.length - 1 ? 'end' : 'middle'
   }, p.d), /*#__PURE__*/React.createElement("text", {
     x: x(i),
     y: y(p.v) - 6,
@@ -8696,7 +8721,7 @@ function buildExecutive(student, ev, d, prevEval) {
   const nivel = overall >= 80 ? 'excelente' : overall >= 65 ? 'bom' : overall >= 50 ? 'moderado' : 'a desenvolver';
   let syn = `${first()} apresenta condicionamento geral ${nivel} (${overall}/100)`;
   if (strengths.length) syn += `, com destaque para ${strengths.slice(0, 2).map(s => s.toLowerCase()).join(' e ')}`;
-  if (priorities.length) syn += `. A conduta deve priorizar ${priorities.map(p => p.toLowerCase()).join(', ')}`;
+  if (priorities.length) syn += `. A conduta deve priorizar ${listaE(priorities.map(p => p.toLowerCase()))}`;
   if (rl.length) syn += `, com atenção a ${rl[0].toLowerCase()}`;
   syn += '.';
   return {
@@ -8816,14 +8841,14 @@ function Report({
       style: strong ? {
         fontWeight: 700
       } : null
-    }, val, unit ? ` ${unit}` : '', badge && /*#__PURE__*/React.createElement("span", {
+    }, numBR(val), unit ? ` ${unit}` : '', badge && /*#__PURE__*/React.createElement("span", {
       className: `badge ${badge.c}`,
       style: {
         marginLeft: 7
       }
     }, badge.l)), prevEval && /*#__PURE__*/React.createElement("td", {
       className: `delta ${dlt == null ? 'd-neutral' : dlt > 0 ? 'd-bad' : dlt < 0 ? 'd-good' : 'd-neutral'}`
-    }, dlt == null ? '—' : (dlt > 0 ? '▲+' : dlt < 0 ? '▼' : '') + (dlt || 0)));
+    }, dlt == null || dlt === 0 ? '—' : (dlt > 0 ? '▲+' : '▼−') + numBR(Math.abs(dlt))));
   }
   const hasSF = ['sf_chest', 'sf_midaxillary', 'sf_triceps', 'sf_subscapular', 'sf_abdomen', 'sf_suprailiac', 'sf_thigh', 'sf_biceps', 'sf_calf'].some(k => num(evalData[k]));
   const hasCirc = ['circ_shoulders', 'circ_chest', 'circ_waist', 'circ_abdomen', 'circ_hip', 'circ_arm_r', 'circ_thigh_r', 'circ_calf_r'].some(k => num(evalData[k]));
@@ -9678,12 +9703,12 @@ function Report({
     className: "rpt-tbl"
   }, /*#__PURE__*/React.createElement("tbody", null, d.tmb && /*#__PURE__*/React.createElement(Row, {
     lbl: "Taxa metab\xF3lica basal",
-    val: d.tmb.toLocaleString('pt-BR'),
+    val: d.tmb,
     unit: "kcal",
     prev: dp?.tmb
   }), d.get && /*#__PURE__*/React.createElement(Row, {
     lbl: "Gasto energ\xE9tico total",
-    val: d.get.toLocaleString('pt-BR'),
+    val: d.get,
     unit: "kcal/dia",
     prev: dp?.get
   }), num(evalData.bio_metabage) && /*#__PURE__*/React.createElement(Row, {
@@ -10529,7 +10554,7 @@ function Report({
         lineHeight: 1.6
       }
     }, evalData.mq_obs));
-  })(), (student.health || student.meds || student.injuries || student.goal) && /*#__PURE__*/React.createElement("div", {
+  })(), (student.activity || student.train_time || student.health || student.meds || student.injuries || student.smoker && student.smoker !== 'Não') && /*#__PURE__*/React.createElement("div", {
     className: "rpt-sec"
   }, /*#__PURE__*/React.createElement("div", {
     className: "rpt-sec-title"

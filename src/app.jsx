@@ -9,6 +9,25 @@ const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,6
 // nenhum campo de entrada nem exportação passa por aqui.
 const fmt = (n,d=1)=>(n!=null&&n!==''&&!isNaN(parseFloat(n)))
   ? parseFloat(n).toFixed(d).replace('.',',') : '—';
+/* Número que vem cru do banco e vai direto para o papel. Diferente do fmt: não
+   força casa decimal (165 continua 165, não vira 165,0) e põe separador de
+   milhar. Deixa passar sem tocar o que já veio formatado — assim serve numa
+   coluna onde alguns valores já passaram pelo fmt e outros não, que era
+   exatamente o caso do relatório: "22,1" e "60.1" na mesma tabela. */
+/* Lista dentro de uma frase: "força e performance", não "força, performance".
+   Vírgula no lugar do "e" é como uma máquina emenda itens — e o relatório é
+   assinado pelo treinador. */
+const listaE = arr=>{
+  const l=(arr||[]).filter(Boolean);
+  if(l.length<=1)return l[0]||'';
+  return l.slice(0,-1).join(', ')+' e '+l[l.length-1];
+};
+const numBR = v=>{
+  if(v==null||v==='')return v;
+  const s=String(v);
+  if(!/^-?\d+(\.\d+)?$/.test(s))return s;
+  return parseFloat(s).toLocaleString('pt-BR',{maximumFractionDigits:1});
+};
 const fmtDate = d=>d?new Date(d+'T00:00:00').toLocaleDateString('pt-BR'):'—';
 // data de um timestamp (created_at). fmtDate só serve para 'AAAA-MM-DD'.
 const fmtTime = t=>{if(!t)return'—';const d=new Date(t);return isNaN(d)?'—':d.toLocaleDateString('pt-BR');};
@@ -36,7 +55,7 @@ if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABAS
    .catch. Chamar .catch direto estoura TypeError, e dentro de um useEffect isso
    derruba a tela inteira do aluno. */
 const semEsperar=q=>{try{q.then(()=>{},()=>{});}catch(e){}};
-const APP_VERSION='2026.10.10';   // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION='2026.10.11';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
 
@@ -2694,11 +2713,12 @@ function CmpCard({label,cur,prev,unit,dir}){
     <div className={`cmp-card ${cls}`}>
       <div className="cmp-lbl">{label}</div>
       <div className="cmp-flow">
-        {p!=null&&<><span className="cmp-from">{p}{unit?` ${unit}`:''}</span><span className="cmp-arrow">→</span></>}
-        <span className="cmp-to">{c}{unit?` ${unit}`:''}</span>
+        {p!=null&&<><span className="cmp-from">{numBR(p)}{unit?` ${unit}`:''}</span><span className="cmp-arrow">→</span></>}
+        <span className="cmp-to">{numBR(c)}{unit?` ${unit}`:''}</span>
       </div>
       {delta!=null&&<div className={`cmp-delta ${cls}`}>
-        {delta>0?'▲':delta<0?'▼':'＝'} {delta>0?'+':''}{delta}{unit?` ${unit}`:''}{pct!=null&&delta!==0?` (${pct>0?'+':''}${pct}%)`:''}
+        {delta>0?'▲':delta<0?'▼':'＝'} {delta>0?'+':delta<0?'−':''}{numBR(Math.abs(delta))}{unit?` ${unit}`:''}
+        {pct!=null&&delta!==0?` (${pct>0?'+':'−'}${numBR(Math.abs(pct))}%)`:''}
       </div>}
     </div>);
 }
@@ -2710,22 +2730,22 @@ function buildHighlights(student,cur,prev){
   const push=(cond,ico,txt)=>{if(cond)out.push({ico,txt});};
   if(dc.fatMass!=null&&dp.fatMass!=null){
     const dd=+(dc.fatMass-dp.fatMass).toFixed(1);
-    if(dd<0)push(true,'',`Redução de ${Math.abs(dd)} kg de massa gorda.`);
-    else if(dd>0)push(true,'',`Aumento de ${dd} kg de massa gorda.`);
+    if(dd<0)push(true,'',`Redução de ${numBR(Math.abs(dd))} kg de massa gorda.`);
+    else if(dd>0)push(true,'',`Aumento de ${numBR(dd)} kg de massa gorda.`);
   }
   if(dc.leanMass!=null&&dp.leanMass!=null){
     const dd=+(dc.leanMass-dp.leanMass).toFixed(1);
-    if(dd>0)push(true,'',`Ganho de ${dd} kg de massa magra.`);
-    else if(dd<0)push(true,'',`Perda de ${Math.abs(dd)} kg de massa magra — atenção.`);
+    if(dd>0)push(true,'',`Ganho de ${numBR(dd)} kg de massa magra.`);
+    else if(dd<0)push(true,'',`Perda de ${numBR(Math.abs(dd))} kg de massa magra — atenção.`);
   }
   if(dc.fatPct!=null&&dp.fatPct!=null){
     const dd=+(dc.fatPct-dp.fatPct).toFixed(1);
-    if(dd!==0)push(true,dd<0?'':'',`% de gordura ${dd<0?'reduziu':'aumentou'} ${Math.abs(dd)} pontos (${fmt(dp.fatPct)}% → ${fmt(dc.fatPct)}%).`);
+    if(dd!==0)push(true,dd<0?'':'',`% de gordura ${dd<0?'reduziu':'aumentou'} ${numBR(Math.abs(dd))} pontos (${fmt(dp.fatPct)}% → ${fmt(dc.fatPct)}%).`);
   }
   const wc=num(cur.circ_waist),wp=num(prev.circ_waist);
-  if(wc&&wp){const dd=+(wc-wp).toFixed(1);if(dd!==0)push(true,dd<0?'':'',`Cintura ${dd<0?'reduziu':'aumentou'} ${Math.abs(dd)} cm.`);}
+  if(wc&&wp){const dd=+(wc-wp).toFixed(1);if(dd!==0)push(true,dd<0?'':'',`Cintura ${dd<0?'reduziu':'aumentou'} ${numBR(Math.abs(dd))} cm.`);}
   if(dc.dynAvg&&dp.dynAvg){const dd=+(dc.dynAvg-dp.dynAvg).toFixed(1);
-    if(dd>0)push(true,'',`Força de preensão melhorou ${dd} kgf.`);}
+    if(dd>0)push(true,'',`Força de preensão melhorou ${numBR(dd)} kgf.`);}
   if(out.length===0)push(true,'','Avaliação comparativa registrada. Mantenha a consistência.');
   return out;
 }
@@ -2792,7 +2812,11 @@ function EvolutionSection({student,evals}){
     {key:'metab',label:'Idade metabólica',unit:'anos',color:'#b45309',dir:'down',vals:asc.map(e=>num(e.bio_metabage))}
   ].filter(m=>m.vals.filter(v=>v!=null&&!isNaN(v)).length>=2);
   if(metrics.length===0)return null;
-  const dlab=asc.map(e=>{const d=new Date(e.date+'T00:00:00');return (d.getMonth()+1)+'/'+String(d.getFullYear()).slice(2);});
+  // "6/26" é jeito de planilha. Num relatório que o aluno leva para casa a data
+  // se lê: "jun/26".
+  const MES3=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  const dlab=asc.map(e=>{const d=new Date(e.date+'T00:00:00');
+    return MES3[d.getMonth()]+'/'+String(d.getFullYear()).slice(2);});
   const trendKeys=['weight','fat','lean'];
   const trends=metrics.filter(m=>trendKeys.includes(m.key)).map(m=>({...m,pts:m.vals.map((v,i)=>({d:dlab[i],v})).filter(p=>p.v!=null&&!isNaN(p.v))}));
   return(
@@ -2813,11 +2837,11 @@ function EvolutionSection({student,evals}){
               <div className="evo-lbl">{m.label}</div>
               <Sparkline values={m.vals} color={m.color}/>
               <div className="evo-vals">
-                <span className="evo-start">{start}{m.unit} →</span>
-                <span className="evo-end">{end}<span style={{fontSize:11,color:'#6b7280'}}> {m.unit}</span></span>
+                <span className="evo-start">{numBR(start)}{m.unit} →</span>
+                <span className="evo-end">{numBR(end)}<span style={{fontSize:11,color:'#6b7280'}}> {m.unit}</span></span>
               </div>
               <div className="evo-delta" style={{color:col}}>
-                {delta>0?'▲ +':delta<0?'▼ ':'＝ '}{delta!==0?delta+' '+m.unit:'sem variação'}
+                {delta>0?'▲ +':delta<0?'▼ −':'＝ '}{delta!==0?numBR(Math.abs(delta))+' '+m.unit:'sem variação'}
               </div>
             </div>);
         })}
@@ -2865,9 +2889,10 @@ function arcPath(cx,cy,r,a1,a2){
 /* Faixa ideal em texto: [lo,hi] dentro da escala [min,max] */
 function fmtIdeal(ideal,min,max,unit){
   if(!ideal)return null;const[lo,hi]=ideal;const u=unit?' '+unit:'';
-  if(lo<=min)return 'até '+hi+u;
-  if(hi>=max)return lo+u+' ou mais';
-  return lo+'–'+hi+u;
+  // a faixa do IMC é 18,5–25, não 18.5–25
+  if(lo<=min)return 'até '+numBR(hi)+u;
+  if(hi>=max)return numBR(lo)+u+' ou mais';
+  return numBR(lo)+'–'+numBR(hi)+u;
 }
 /* Medidor semicircular clínico: arco fino segmentado + marca em ponto + valor em serifa */
 function Gauge({value,min,max,segments,label,unit,badge,decimals=1,ideal}){
@@ -2916,7 +2941,10 @@ function TrendChart({label,unit,color='#5a1e2e',points}){
         <path d={line} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round"/>
         {pts.map((p,i)=><g key={i}>
           <circle cx={x(i)} cy={y(p.v)} r="3" fill={color}/>
-          <text x={x(i)} y={H-8} fontSize="8" fill="#9ca3af" textAnchor="middle">{p.d}</text>
+          {/* o rótulo das pontas encosta na borda do desenho e sai cortado se
+              ficar centralizado nelas */}
+          <text x={x(i)} y={H-8} fontSize="8" fill="#9ca3af"
+            textAnchor={i===0?'start':i===pts.length-1?'end':'middle'}>{p.d}</text>
           <text x={x(i)} y={y(p.v)-6} fontSize="8.5" fontWeight="700" fill="#374151" textAnchor="middle">{fmt(p.v,1)}</text>
         </g>)}
       </svg>
@@ -3046,7 +3074,7 @@ function buildExecutive(student,ev,d,prevEval){
   const nivel=overall>=80?'excelente':overall>=65?'bom':overall>=50?'moderado':'a desenvolver';
   let syn=`${first()} apresenta condicionamento geral ${nivel} (${overall}/100)`;
   if(strengths.length)syn+=`, com destaque para ${strengths.slice(0,2).map(s=>s.toLowerCase()).join(' e ')}`;
-  if(priorities.length)syn+=`. A conduta deve priorizar ${priorities.map(p=>p.toLowerCase()).join(', ')}`;
+  if(priorities.length)syn+=`. A conduta deve priorizar ${listaE(priorities.map(p=>p.toLowerCase()))}`;
   if(rl.length)syn+=`, com atenção a ${rl[0].toLowerCase()}`;
   syn+='.';
   return {synthesis:syn,domains,overall,strengths,limitations,priorities,trainingRecs,mobilityRecs:mobilityRecs.slice(0,5),riskFlags:rl};
@@ -3095,8 +3123,12 @@ function Report({student,evalData,allEvals,onBack,coach}){
     const dlt=(prev!=null&&prev!==''&&!isNaN(parseFloat(prev)))?+(parseFloat(val)-parseFloat(prev)).toFixed(1):null;
     return(<tr>
       <td style={strong?{fontWeight:600,color:'var(--text)'}:null}>{lbl}</td>
-      <td style={strong?{fontWeight:700}:null}>{val}{unit?` ${unit}`:''}{badge&&<span className={`badge ${badge.c}`} style={{marginLeft:7}}>{badge.l}</span>}</td>
-      {prevEval&&<td className={`delta ${dlt==null?'d-neutral':dlt>0?'d-bad':dlt<0?'d-good':'d-neutral'}`}>{dlt==null?'—':(dlt>0?'▲+':dlt<0?'▼':'')+(dlt||0)}</td>}
+      <td style={strong?{fontWeight:700}:null}>{numBR(val)}{unit?` ${unit}`:''}{badge&&<span className={`badge ${badge.c}`} style={{marginLeft:7}}>{badge.l}</span>}</td>
+      {/* A diferença saía como número cru do JavaScript, sempre com ponto:
+          "▼-2.3" ao lado de "24,3". E sem mudança escrevia um "0" solto no meio
+          da coluna, que se lê como se o valor fosse zero. */}
+      {prevEval&&<td className={`delta ${dlt==null?'d-neutral':dlt>0?'d-bad':dlt<0?'d-good':'d-neutral'}`}>
+        {dlt==null||dlt===0?'—':(dlt>0?'▲+':'▼−')+numBR(Math.abs(dlt))}</td>}
     </tr>);
   }
   const hasSF=['sf_chest','sf_midaxillary','sf_triceps','sf_subscapular','sf_abdomen','sf_suprailiac','sf_thigh','sf_biceps','sf_calf'].some(k=>num(evalData[k]));
@@ -3339,8 +3371,11 @@ function Report({student,evalData,allEvals,onBack,coach}){
               {(d.tmb||d.hidr)&&(
                 <div className="rpt-sec"><div className="rpt-sec-title">Indicadores metabólicos</div>
                   <table className="rpt-tbl"><tbody>
-                    {d.tmb&&<Row lbl="Taxa metabólica basal" val={d.tmb.toLocaleString('pt-BR')} unit="kcal" prev={dp?.tmb}/>}
-                    {d.get&&<Row lbl="Gasto energético total" val={d.get.toLocaleString('pt-BR')} unit="kcal/dia" prev={dp?.get}/>}
+                    {/* O número vai cru: formatado, "1.353" chegava no cálculo
+                        da diferença e o parseFloat lia 1,353 — a linha saía
+                        "1.353 kcal ▼-1342.6". Quem formata agora é a Row. */}
+                    {d.tmb&&<Row lbl="Taxa metabólica basal" val={d.tmb} unit="kcal" prev={dp?.tmb}/>}
+                    {d.get&&<Row lbl="Gasto energético total" val={d.get} unit="kcal/dia" prev={dp?.get}/>}
                     {num(evalData.bio_metabage)&&<Row lbl="Idade metabólica" val={evalData.bio_metabage} unit="anos" prev={prevEval?.bio_metabage}/>}
                     {d.hidr&&<Row lbl="Hidratação recomendada" val={(d.hidr/1000).toFixed(1).replace('.',',')} unit={`L/dia · ~${Math.round(d.hidr/250)} copos`} strong prev={dp?.hidr?(dp.hidr/1000).toFixed(1).replace('.',','):null}/>}
                   </tbody></table>
@@ -3608,8 +3643,12 @@ function Report({student,evalData,allEvals,onBack,coach}){
             </div>);
           })()}
 
-          {/* Anamnese resumo */}
-          {(student.health||student.meds||student.injuries||student.goal)&&(
+          {/* Anamnese resumo. A condição tem de ser exatamente a das linhas
+              abaixo: com `goal` aqui dentro, um aluno que só tem objetivo
+              preenchido abria a seção e a tabela vinha vazia — título sozinho
+              no papel, que é a cara de documento montado por máquina. */}
+          {(student.activity||student.train_time||student.health||student.meds
+            ||student.injuries||(student.smoker&&student.smoker!=='Não'))&&(
             <div className="rpt-sec"><div className="rpt-sec-title">Perfil &amp; anamnese</div>
               <table className="rpt-tbl"><tbody>
                 {student.activity&&<tr><td>Nível de atividade</td><td style={{textAlign:'left',fontWeight:400}}>{student.activity}</td></tr>}

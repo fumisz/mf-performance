@@ -423,7 +423,12 @@ textarea.fi{resize:vertical;min-height:70px;line-height:1.5}
 
 /* ── Print ── */
 @media print{
-  @page{margin:11mm}
+  @page{margin:14mm}
+  /* A capa é escura e tem de ir até a borda do papel. Com a margem da folha
+     ela saía como um retângulo preto flutuando numa moldura branca — cara de
+     slide colado na página, não de capa de documento. Página nomeada: só a
+     capa perde a margem; o miolo mantém a dele, inclusive nas quebras. */
+  @page capa{margin:0}
   *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
   .no-print{display:none!important}
   .app{display:block}
@@ -433,7 +438,12 @@ textarea.fi{resize:vertical;min-height:70px;line-height:1.5}
   .rpt-page{border:none;border-radius:0}
   .rpt-body{padding:16px 4px}
   .rpt-runhead{background:#fbfaf7!important;border-bottom:1px solid #ece7de!important}
-  .rpt-cover{page-break-after:always;break-after:page;min-height:calc(100vh - 22mm);padding:52px 44px 40px}
+  /* A altura sai da própria folha, para valer em A4 e em carta. Os 6 mm a
+     menos são folga medida: com 100vh cheio a capa passava alguns milímetros
+     do fim da página e vazava uma faixa preta para a folha seguinte, criando
+     uma página a mais. */
+  .rpt-cover{page:capa;page-break-after:always;break-after:page;
+    height:calc(100vh - 6mm);min-height:0;margin:0;padding:30mm 24mm 24mm}
   .rpt-sec{break-inside:avoid}
   .evo-card,.cmp-card,.stat{break-inside:avoid}
 }
@@ -719,7 +729,7 @@ function _mfpAvisa(){try{window.MFP_INSTALL_OUVINTES.forEach(function(f){f();});
 window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.MFP_INSTALL=e;_mfpAvisa();});
 window.addEventListener('appinstalled',function(){window.MFP_INSTALL=null;_mfpAvisa();});
 </script>
-<script src="./app.js?v=2026.10.10"></script>
+<script src="./app.js?v=2026.10.11"></script>
 <script>
 /* Atualizacao automatica.
    O registro antigo so chamava register() uma vez: se o navegador ja tinha um

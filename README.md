@@ -717,6 +717,43 @@ treino" — certíssimo, e o teste reprovava o app por isso. Agora ele confere q
 a cópia ficou vazia antes de seguir: seis rodadas seguidas verdes, contra
 metade antes.
 
+## O relatório no papel
+O relatório de avaliação é o único documento que sai do app assinado pelo
+treinador e vai para a mão do aluno. Ele estava entregando que foi montado por
+máquina, de cinco jeitos:
+
+**A capa flutuava numa moldura branca.** A folha tinha margem de 11 mm e a capa
+é escura, então ela imprimia como um retângulo preto no meio de uma borda
+branca — cara de slide colado na página. Agora a capa usa uma página nomeada
+(`@page capa{margin:0}`) e sangra até a borda; o miolo mantém a margem dele,
+inclusive nas quebras. A altura sai da própria folha, com 6 mm de folga medida:
+com a folha cheia a capa passava alguns milímetros, vazava uma faixa preta para
+a página seguinte e nascia uma folha a mais.
+
+**Ponto decimal no meio do português.** E misturado: "IMC 22,1" e "Peso 60.1 kg"
+na mesma coluna, porque alguns valores passavam pelo `fmt()` e outros iam crus.
+Todas as diferenças saíam com ponto, sem exceção, porque eram número do
+JavaScript concatenado direto. Agora todo número da tabela passa pelo `numBR`.
+
+**Uma diferença absurda.** "Taxa metabólica basal 1.353 kcal ▼-1342.6". A conta
+recebia o valor **já formatado**: `parseFloat("1.353")` lê 1,353, e 1,353 menos
+1.344 dá −1.342,6. O número passou a ir cru para a `Row`, que formata depois —
+a linha virou "1.353 kcal ▲+9".
+
+**Um título de seção sem nada embaixo.** "Perfil & anamnese" aparecia sempre que
+o aluno tinha objetivo preenchido, mas objetivo não é uma das linhas da tabela.
+Aluno só com objetivo abria a seção e a tabela vinha vazia. A condição passou a
+ser exatamente a das linhas.
+
+**Frases emendadas com vírgula.** "A conduta deve priorizar força, performance."
+Virou "força e performance". Sem mudança, a coluna de diferença escrevia um "0"
+solto, que se lê como se o valor fosse zero; agora é "—".
+
+A suíte `relatorio.js` (10 conferências) cobre isso: varre o documento inteiro
+atrás de ponto decimal (respeitando o ponto de milhar, que é legítimo), cobra
+que nenhuma seção tenha título sem conteúdo, que nenhuma diferença seja maior
+que o próprio valor, e mede a capa contra a folha na mídia de impressão.
+
 ## Números
 Tudo que aparece na tela usa vírgula decimal (24,3 e não 24.3), como se escreve
 em português. Só exibição: nenhum campo de entrada nem exportação passa pelo
