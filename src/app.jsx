@@ -59,7 +59,7 @@ if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABAS
    .catch. Chamar .catch direto estoura TypeError, e dentro de um useEffect isso
    derruba a tela inteira do aluno. */
 const semEsperar=q=>{try{q.then(()=>{},()=>{});}catch(e){}};
-const APP_VERSION='2026.10.12';   // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION='2026.10.13';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
 
@@ -475,7 +475,23 @@ async function avisarMensagem(id){
   }catch(e){/* sem internet: a mensagem ja esta gravada, so o aviso nao sai */}
 }
 
-async function desativarPush(){try{const reg=await navigator.serviceWorker.ready;const sub=await reg.pushManager.getSubscription();if(sub){await sb.rpc('push_remover',{p_endpoint:sub.toJSON().endpoint}).catch(()=>{});await sub.unsubscribe();}}catch(e){}}
+/* Desligar avisos: devolve se conseguiu tirar a inscrição TAMBÉM do servidor.
+   Antes engolia o erro e a tela dizia "desligado" enquanto o servidor seguia
+   mandando push para aquele aparelho — a pessoa desliga, continua recebendo, e
+   conclui que o app não obedece. */
+async function desativarPush(){
+  try{
+    const reg=await navigator.serviceWorker.ready;
+    const sub=await reg.pushManager.getSubscription();
+    if(!sub)return {ok:true};
+    let noServidor=true;
+    try{await gravar(sb.rpc('push_remover',{p_endpoint:sub.toJSON().endpoint}));}
+    catch(e){noServidor=false;}
+    await sub.unsubscribe();
+    return {ok:noServidor,msg:noServidor?null:
+      'Desliguei neste aparelho, mas não consegui avisar o servidor. Pode ser que ainda chegue algum aviso — tente de novo com internet.'};
+  }catch(e){return {ok:false,msg:porQueFalhou(e)};}
+}
 
 /* ── Logo (letreiro LED + pulso) ── */
 /* Silhueta do levantador (deadlift) — desenhada em paths, estilo estêncil */
@@ -4107,7 +4123,7 @@ function AdminScreen({onBack}){
 
       <div className="card">
         <div className="sec-title" style={{marginBottom:14}}>Gerar código de acesso (venda)</div>
-        {msg&&<div className={`alert alert-${msg.t==='error'?'error':'success'}`}>{msg.x}</div>}
+        {msg&&<div className={`alert alert-${msg.t==='error'?'error':msg.t==='warn'?'warn':'success'}`}>{msg.x}</div>}
         <div className="fgrid">
           <div className="fg"><label className="flbl">Código</label>
             <div style={{display:'flex',gap:8}}>
@@ -4490,7 +4506,7 @@ function BrandScreen({profile,setProfile,onBack}){
   const alternarAviso=async()=>{
     if(profile._demo){setAvisoOn(v=>!v);return;}
     setAvisoBusy(true);setAvisoMsg(null);
-    if(avisoOn){await desativarPush();setAvisoOn(false);}
+    if(avisoOn){const r=await desativarPush();setAvisoOn(false);if(!r.ok&&r.msg)setMsg({t:'warn',x:r.msg});}
     else{const r=await ativarPushTreinador();if(r.ok)setAvisoOn(true);else setAvisoMsg(r.msg);}
     setAvisoBusy(false);
   };
@@ -4512,10 +4528,21 @@ function BrandScreen({profile,setProfile,onBack}){
     setBusy(true);
     const upd={brand_name:f.brand_name||null,name:f.name||null,cref:f.cref||null,phone:f.phone||null,instagram:f.instagram||null,logo_url:f.logo_url||null};
     try{localStorage.setItem('mfp_brand_'+profile.id,JSON.stringify(upd));}catch(e){}
-    if(sb&&!profile._demo){try{await sb.from('profiles').update(upd).eq('id',profile.id);}catch(e){}}
+    /* A gravação no servidor era calada, e a mensagem dizia "salva neste
+       dispositivo" — o que é verdade e engana ao mesmo tempo: a marca é o que
+       vai no cabeçalho e na assinatura do relatório, e precisa acompanhar o
+       treinador para outro aparelho. Agora a mensagem diz onde ela ficou. */
+    let noServidor=false;
+    if(sb&&!profile._demo){
+      try{await gravar(sb.from('profiles').update(upd).eq('id',profile.id));noServidor=true;}
+      catch(e){noServidor=false;}
+    }else noServidor=true;
     setProfile({...profile,...upd});
     setBusy(false);
-    setMsg({t:'success',x:'Marca salva neste dispositivo. Já aparece nos seus relatórios.'});
+    setMsg(noServidor
+      ?{t:'success',x:'Marca salva. Já aparece nos seus relatórios.'}
+      :{t:'warn',x:'Marca salva só neste aparelho — não consegui gravar no servidor. '
+        +'Em outro aparelho ela não vai aparecer; abra com internet e salve de novo.'});
   };
   return(
     <div>
@@ -4525,7 +4552,7 @@ function BrandScreen({profile,setProfile,onBack}){
         <div className="ph-sub">Aparece no cabeçalho e na assinatura dos seus relatórios</div></div>
         <button className="btn btn-primary" disabled={busy} onClick={save}>{busy?'…':' Salvar'}</button>
       </div>
-      {msg&&<div className={`alert alert-${msg.t==='error'?'error':'success'}`}>{msg.x}</div>}
+      {msg&&<div className={`alert alert-${msg.t==='error'?'error':msg.t==='warn'?'warn':'success'}`}>{msg.x}</div>}
 
       <div className="card" style={{marginBottom:16}}>
         <h4 style={{margin:'0 0 4px'}}>Aviso no celular</h4>
@@ -6421,6 +6448,17 @@ const comPrazo=(p,ms=PRAZO_MS)=>new Promise((ok,falha)=>{
   Promise.resolve(p).then(v=>{clearTimeout(t);ok(v);},e=>{clearTimeout(t);falha(e);});
 });
 const isNetErr=e=>!navigator.onLine||(e&&e.semRede)||(e&&/network|fetch|Failed to fetch|timeout|aborted|Load failed/i.test(e.message||''));
+/* Gravar conferindo o erro.
+   O cliente do Supabase NÃO lança quando o servidor recusa: devolve {error}.
+   Então `try{ await sb.from(x).insert(y) }catch(e){...}` não pega nada — o
+   catch nunca roda e a tela segue afirmando o que não aconteceu. Foi assim que
+   apareceram o "Plano salvo" e o "✓ Pago" sem nada ter sido gravado.
+   Aqui o erro do servidor vira exceção de verdade, e vai com prazo. */
+const gravar=async(q,ms)=>{const r=await comPrazo(Promise.resolve(q),ms);
+  if(r&&r.error)throw r.error;return r;};
+// Mensagem para o usuário a partir de um erro de gravação.
+const porQueFalhou=e=>isNetErr(e)?'A internet falhou. Não foi salvo — tente de novo.'
+  :'Não consegui salvar: '+((e&&e.message)||e);
 
 /* ── Ler com cópia no aparelho ───────────────────────────────
    Toda leitura que o app precisa mostrar offline passa por aqui: tenta a rede
@@ -9633,7 +9671,19 @@ function CheckinScreen({student,demo,onBack}){
   const [res,setRes]=useState(null);const [busy,setBusy]=useState(false);
   const total=Object.values(v).reduce((a,b)=>a+b,0);
   const sinal=total<=9?{l:'Verde',c:'var(--green)',t:'Prontidão ótima — pode ir com tudo hoje.'}:total<=14?{l:'Amarelo',c:'var(--gold)',t:'Prontidão média — mantenha, sem forçar demais.'}:{l:'Vermelho',c:'var(--red)',t:'Prontidão baixa — pegue leve e priorize recuperação.'};
-  const salvar=async()=>{setBusy(true);if(!demo){try{const {data}=await sb.rpc('checkin_salvar',{p_sono:v.sono,p_fadiga:v.fadiga,p_estresse:v.estresse,p_dor:v.dor,p_humor:v.humor});}catch(e){}}setBusy(false);setRes({total,sinal});};
+  const [erroChk,setErroChk]=useState(null);
+  /* O semáforo aparecia mesmo quando a gravação falhava: o aluno via "Verde",
+     ia treinar tranquilo, e o treinador não recebia sinal nenhum. O banco tem
+     4 check-ins no total — parte disso é gravação que morreu calada. */
+  const salvar=async()=>{
+    setBusy(true);setErroChk(null);
+    if(!demo){
+      try{await gravar(sb.rpc('checkin_salvar',
+        {p_sono:v.sono,p_fadiga:v.fadiga,p_estresse:v.estresse,p_dor:v.dor,p_humor:v.humor}));}
+      catch(e){setBusy(false);setErroChk(porQueFalhou(e));return;}
+    }
+    setBusy(false);setRes({total,sinal});
+  };
   if(res)return(<div className="lv-wrap"><div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14}}><button className="lv-ghost" onClick={onBack}>‹ Voltar</button><div className="lv-title" style={{flex:1}}>Check-in de hoje</div></div>
     <div className="lv-card" style={{textAlign:'center'}}>
       <div style={{width:96,height:96,borderRadius:'50%',margin:'6px auto 12px',background:res.sinal.c,boxShadow:`0 0 40px ${res.sinal.c}80`}}/>
@@ -9654,6 +9704,9 @@ function CheckinScreen({student,demo,onBack}){
       <div style={{width:16,height:16,borderRadius:'50%',background:sinal.c,boxShadow:`0 0 12px ${sinal.c}`}}/>
       <div style={{flex:1}}><div style={{fontWeight:700}}>Prévia: {sinal.l}</div><div className="lv-sub">{total}/25</div></div>
     </div>
+    {erroChk&&<div className="lv-card" style={{borderColor:'rgba(248,113,113,.5)',marginTop:10}}>
+      <div style={{fontWeight:700,fontSize:13.5,color:'#fca5a5'}}>Não enviei seu check-in</div>
+      <div className="lv-sub" style={{marginTop:3,lineHeight:1.45}}>{erroChk}</div></div>}
     <button className="lv-btn" disabled={busy} onClick={salvar}>{busy?'Salvando…':'Enviar check-in'}</button>
   </div>);
 }
@@ -9676,7 +9729,16 @@ function CicloScreen({student,demo,onBack}){
   const [cyc,setCyc]=useState(demo?{data_ultima:(()=>{const d=new Date();d.setDate(d.getDate()-8);return dayKey(d);})(),duracao_ciclo:28,duracao_sangramento:5}:undefined);
   const [edit,setEdit]=useState(false);const [f,setF]=useState({data:'',dur:28,sang:5});const [busy,setBusy]=useState(false);
   useEffect(()=>{if(demo)return;(async()=>{const {data}=await sb.from('train_ciclo').select('*').eq('student_id',student.id).limit(1);setCyc(data&&data[0]?data[0]:null);})();},[]);
-  const salvar=async()=>{if(!f.data)return;setBusy(true);if(!demo){try{await sb.rpc('ciclo_salvar',{p_data:f.data,p_dur:+f.dur,p_sang:+f.sang});}catch(e){}}setBusy(false);setCyc({data_ultima:f.data,duracao_ciclo:+f.dur,duracao_sangramento:+f.sang});setEdit(false);};
+  const [erroCiclo,setErroCiclo]=useState(null);
+  const salvar=async()=>{
+    if(!f.data)return;
+    setBusy(true);setErroCiclo(null);
+    if(!demo){
+      try{await gravar(sb.rpc('ciclo_salvar',{p_data:f.data,p_dur:+f.dur,p_sang:+f.sang}));}
+      catch(e){setBusy(false);setErroCiclo(porQueFalhou(e));return;}
+    }
+    setBusy(false);setCyc({data_ultima:f.data,duracao_ciclo:+f.dur,duracao_sangramento:+f.sang});setEdit(false);
+  };
   const openEdit=()=>{setF({data:cyc?.data_ultima||todayStr(),dur:cyc?.duracao_ciclo||28,sang:cyc?.duracao_sangramento||5});setEdit(true);};
   if(cyc===undefined)return(<div className="lv-wrap"><div className="center-screen"><div className="spinner"/></div></div>);
   const setup=!cyc||!cyc.data_ultima||edit;
@@ -9688,6 +9750,7 @@ function CicloScreen({student,demo,onBack}){
         <div style={{flex:1}}><span className="lv-inlbl">Duração do ciclo</span><input className="lv-in" type="number" value={f.dur} onChange={e=>setF(p=>({...p,dur:e.target.value}))}/></div>
         <div style={{flex:1}}><span className="lv-inlbl">Dias de sangramento</span><input className="lv-in" type="number" value={f.sang} onChange={e=>setF(p=>({...p,sang:e.target.value}))}/></div>
       </div>
+      {erroCiclo&&<div className="lv-sub" style={{marginTop:10,color:'#fca5a5'}}>{erroCiclo}</div>}
       <button className="lv-btn" style={{marginTop:14}} disabled={busy||!f.data} onClick={salvar}>{busy?'Salvando…':'Salvar'}</button>
     </div>
   </div>);
@@ -9843,6 +9906,7 @@ function DiarioScreen({student,demo,onBack}){
   const [chk,setChk]=useState(demo?{sinal:'Verde',total:8}:undefined);   // prontidao de hoje (vem do check-in)
   const [glic,setGlic]=useState(demo?[{id:'g1',valor:104,momento:'jejum',insulina_unid:6,registrado_em:new Date(Date.now()-3600e3).toISOString()},{id:'g2',valor:158,momento:'pos_refeicao',insulina_unid:4,registrado_em:new Date(Date.now()-6*3600e3).toISOString()}]:[]);
   const [gf,setGf]=useState({valor:'',momento:'jejum',insulina:''});
+  const [erroGlic,setErroGlic]=useState(null);
   const [busy,setBusy]=useState(false);const [okMsg,setOkMsg]=useState(null);
   useEffect(()=>{if(demo)return;(async()=>{
     try{const {data:sd}=await sb.from('train_saude').select('diabetico').eq('student_id',student.id).maybeSingle();if(sd)setDiab(!!sd.diabetico);}catch(e){}
@@ -9850,14 +9914,32 @@ function DiarioScreen({student,demo,onBack}){
     try{const key=student.id+'_'+todayStr();const {data:cc}=await sb.from('train_checkin').select('sinal,total').eq('id',key).maybeSingle();setChk(cc||null);}catch(e){setChk(null);}
     try{const {data:gg}=await sb.from('train_glicemia').select('*').eq('student_id',student.id).order('registrado_em',{ascending:false}).limit(8);setGlic(gg||[]);}catch(e){}
   })();},[]);
-  const toggleDiab=async(v)=>{setDiab(v);if(!demo)semEsperar(sb.rpc('saude_cfg',{p_diabetico:v,p_condicoes:null}));};
+  /* Este interruptor muda o que a tela pede depois (glicemia, insulina). Se a
+     gravação some, o aluno vê "ligado", registra medições, e o treinador não
+     sabe nem que ele é diabético. */
+  const toggleDiab=async(v)=>{
+    setDiab(v);setErroGlic(null);
+    if(demo)return;
+    try{await gravar(sb.rpc('saude_cfg',{p_diabetico:v,p_condicoes:null}));}
+    catch(e){setDiab(!v);setErroGlic(porQueFalhou(e));}};
   const salvar=async()=>{setBusy(true);let erro=null;
     if(!demo){try{const {error}=await sb.rpc('diario_salvar',{p_peso:num(d.peso),p_sono:num(d.sono),p_passos:d.passos?parseInt(d.passos):null,p_fome:d.fome,p_obs:d.obs||null});if(error)erro=error.message;}catch(e){erro=e.message||String(e);}}
     setBusy(false);
     if(erro){setOkMsg(null);alert('Não consegui salvar seu diário: '+erro);return;}
     setOkMsg('Diário de hoje salvo!');setTimeout(()=>setOkMsg(null),1800);};
   const regGlic=async()=>{if(!gf.valor)return;const novo={id:'t'+Date.now(),valor:parseInt(gf.valor),momento:gf.momento,insulina_unid:gf.insulina?num(gf.insulina):null,registrado_em:new Date().toISOString()};
-    setGlic(g=>[novo,...g]);if(!demo){try{await sb.rpc('glicemia_registrar',{p_valor:novo.valor,p_momento:gf.momento,p_insulina:novo.insulina_unid,p_obs:null});}catch(e){}}setGf({valor:'',momento:gf.momento,insulina:''});};
+    /* A leitura entrava na lista ANTES de gravar, e o erro morria calado: o
+       aluno via a glicemia registrada e o treinador nunca recebia. É dado de
+       saúde — a lista só recebe o valor depois que o servidor confirmou. */
+    if(demo){setGlic(g=>[novo,...g]);setGf({valor:'',momento:gf.momento,insulina:''});return;}
+    setErroGlic(null);
+    try{
+      await gravar(sb.rpc('glicemia_registrar',
+        {p_valor:novo.valor,p_momento:gf.momento,p_insulina:novo.insulina_unid,p_obs:null}));
+    }catch(e){setErroGlic(porQueFalhou(e));return;}
+    setGlic(g=>[novo,...g]);
+    setGf({valor:'',momento:gf.momento,insulina:''});
+  };
   const slider=(k,lbl,lo,hi)=>(<div className="lv-card">
     <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}><span style={{fontWeight:700}}>{lbl}</span><span style={{fontWeight:800,color:'var(--lvrx)'}}>{d[k]}</span></div>
     <input type="range" min="1" max="5" value={d[k]} onChange={e=>setD(p=>({...p,[k]:+e.target.value}))} style={{width:'100%'}}/>
@@ -9898,6 +9980,7 @@ function DiarioScreen({student,demo,onBack}){
         </div>
         <span className="lv-inlbl" style={{marginTop:12}}>Momento</span>
         <select className="lv-in" value={gf.momento} onChange={e=>setGf(p=>({...p,momento:e.target.value}))}>{GLIC_MOMENTOS.map(([k,l])=><option key={k} value={k}>{l}</option>)}</select>
+        {erroGlic&&<div className="lv-sub" style={{marginTop:10,color:'#fca5a5'}}>{erroGlic}</div>}
         <button className="lv-btn" style={{marginTop:12}} disabled={!gf.valor} onClick={regGlic}>Registrar medição</button>
       </div>
       {glic.length>0&&<div className="lv-card">
@@ -10118,7 +10201,9 @@ function DietaScreen({profile,demo,onBack,onHidra}){
     try{
       const blob=await resizeImage(file);
       const url=await uploadFotoAluno(profile.id,blob);
-      await sb.from('photos').insert({student_id:profile.id,coach_id:profile.coach_id,url,kind:'meal',caption:'Refeição'});
+      // sem conferir o erro, o insert falhava calado: a imagem subia para o
+      // armazenamento, a linha nunca era criada, e o aluno lia "Foto enviada!"
+      await gravar(sb.from('photos').insert({student_id:profile.id,coach_id:profile.coach_id,url,kind:'meal',caption:'Refeição'}));
       alert('Foto enviada ao seu treinador!');
     }catch(e){alert('Erro ao enviar: '+(e.message||e));}
     setUploading(false);
@@ -10862,7 +10947,8 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
       if(data){setAgua(!!data.agua_ativo);setLembTreino(!!data.treino_ativo);setPeriodo(data.treino_periodo||'noite');}}catch(e){}
   })();},[stu]);
   const togglePush=async()=>{if(espiando)return;if(demo){setPushOn(p=>!p);return;}setPushBusy(true);setPushMsg(null);
-    if(pushOn){await desativarPush();setPushOn(false);}else{const r=await ativarPush();if(r.ok)setPushOn(true);else setPushMsg(r.msg);}setPushBusy(false);};
+    if(pushOn){const r=await desativarPush();setPushOn(false);setPushMsg(r.ok?null:r.msg);}
+    else{const r=await ativarPush();if(r.ok)setPushOn(true);else setPushMsg(r.msg);}setPushBusy(false);};
   // Um lembrete so existe se houver para onde mandar. Antes dava para ligar o
   // lembrete de treino com os avisos desligados: a preferencia era guardada, o
   // servidor mandava o push e ele nao chegava em aparelho nenhum. Ligar o
@@ -10875,13 +10961,25 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
     if(r.ok){setPushOn(true);return true;}
     setPushMsg(r.msg);return false;
   };
+  /* Os dois interruptores de lembrete gravavam sem esperar resposta: a chave
+     virava "ligado" na tela e o servidor podia nunca ter sabido — o aluno acha
+     que vai ser lembrado e não é lembrado. É a mesma família do defeito que já
+     tinha aparecido aqui (a chave vindo do navegador em vez do servidor), e
+     ela casa com o número do banco: 5 aparelhos com aviso, de 22 contas.
+     Agora espera, confere, e devolve a chave se não gravou. */
   const toggleAgua=async(v)=>{if(espiando)return;
     if(v&&!(await garantirPush()))return;
-    setAgua(v);if(!demo)semEsperar(sb.rpc('lembrete_agua',{p_ativo:v}));};
+    setAgua(v);setPushMsg(null);
+    if(demo)return;
+    try{await gravar(sb.rpc('lembrete_agua',{p_ativo:v}));}
+    catch(e){setAgua(!v);setPushMsg(porQueFalhou(e));}};
   const salvarLembreteTreino=async(ativo,per)=>{if(espiando)return;
     if(ativo&&!(await garantirPush()))return;
-    setLembTreino(ativo);setPeriodo(per);
-    if(!demo)semEsperar(sb.rpc('lembrete_treino',{p_ativo:ativo,p_periodo:per}));};
+    const antes={a:lembTreino,p:periodo};
+    setLembTreino(ativo);setPeriodo(per);setPushMsg(null);
+    if(demo)return;
+    try{await gravar(sb.rpc('lembrete_treino',{p_ativo:ativo,p_periodo:per}));}
+    catch(e){setLembTreino(antes.a);setPeriodo(antes.p);setPushMsg(porQueFalhou(e));}};
   const hr=new Date().getHours();const saud=hr<12?'Bom dia':hr<18?'Boa tarde':'Boa noite';
 
   const goTab=t=>{if(t!==tab)vibrar(8);setExec(null);setEvol(false);setHydra(false);setChk(false);setCiclo(false);setAval(false);setDiario(false);setMetas(false);setTreinos(false);setEspiar(null);setTab(t);window.scrollTo(0,0);};

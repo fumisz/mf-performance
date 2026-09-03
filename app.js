@@ -99,7 +99,7 @@ const semEsperar = q => {
     q.then(() => {}, () => {});
   } catch (e) {}
 };
-const APP_VERSION = '2026.10.12'; // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION = '2026.10.13'; // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA'); // YYYY-MM-DD no fuso LOCAL
 
@@ -574,17 +574,37 @@ async function avisarMensagem(id) {
     }), 12000);
   } catch (e) {/* sem internet: a mensagem ja esta gravada, so o aviso nao sai */}
 }
+
+/* Desligar avisos: devolve se conseguiu tirar a inscrição TAMBÉM do servidor.
+   Antes engolia o erro e a tela dizia "desligado" enquanto o servidor seguia
+   mandando push para aquele aparelho — a pessoa desliga, continua recebendo, e
+   conclui que o app não obedece. */
 async function desativarPush() {
   try {
     const reg = await navigator.serviceWorker.ready;
     const sub = await reg.pushManager.getSubscription();
-    if (sub) {
-      await sb.rpc('push_remover', {
+    if (!sub) return {
+      ok: true
+    };
+    let noServidor = true;
+    try {
+      await gravar(sb.rpc('push_remover', {
         p_endpoint: sub.toJSON().endpoint
-      }).catch(() => {});
-      await sub.unsubscribe();
+      }));
+    } catch (e) {
+      noServidor = false;
     }
-  } catch (e) {}
+    await sub.unsubscribe();
+    return {
+      ok: noServidor,
+      msg: noServidor ? null : 'Desliguei neste aparelho, mas não consegui avisar o servidor. Pode ser que ainda chegue algum aviso — tente de novo com internet.'
+    };
+  } catch (e) {
+    return {
+      ok: false,
+      msg: porQueFalhou(e)
+    };
+  }
 }
 
 /* ── Logo (letreiro LED + pulso) ── */
@@ -11730,7 +11750,7 @@ function AdminScreen({
       marginBottom: 14
     }
   }, "Gerar c\xF3digo de acesso (venda)"), msg && /*#__PURE__*/React.createElement("div", {
-    className: `alert alert-${msg.t === 'error' ? 'error' : 'success'}`
+    className: `alert alert-${msg.t === 'error' ? 'error' : msg.t === 'warn' ? 'warn' : 'success'}`
   }, msg.x), /*#__PURE__*/React.createElement("div", {
     className: "fgrid"
   }, /*#__PURE__*/React.createElement("div", {
@@ -12393,8 +12413,12 @@ function BrandScreen({
     setAvisoBusy(true);
     setAvisoMsg(null);
     if (avisoOn) {
-      await desativarPush();
+      const r = await desativarPush();
       setAvisoOn(false);
+      if (!r.ok && r.msg) setMsg({
+        t: 'warn',
+        x: r.msg
+      });
     } else {
       const r = await ativarPushTreinador();
       if (r.ok) setAvisoOn(true);else setAvisoMsg(r.msg);
@@ -12451,19 +12475,30 @@ function BrandScreen({
     try {
       localStorage.setItem('mfp_brand_' + profile.id, JSON.stringify(upd));
     } catch (e) {}
+    /* A gravação no servidor era calada, e a mensagem dizia "salva neste
+       dispositivo" — o que é verdade e engana ao mesmo tempo: a marca é o que
+       vai no cabeçalho e na assinatura do relatório, e precisa acompanhar o
+       treinador para outro aparelho. Agora a mensagem diz onde ela ficou. */
+    let noServidor = false;
     if (sb && !profile._demo) {
       try {
-        await sb.from('profiles').update(upd).eq('id', profile.id);
-      } catch (e) {}
-    }
+        await gravar(sb.from('profiles').update(upd).eq('id', profile.id));
+        noServidor = true;
+      } catch (e) {
+        noServidor = false;
+      }
+    } else noServidor = true;
     setProfile({
       ...profile,
       ...upd
     });
     setBusy(false);
-    setMsg({
+    setMsg(noServidor ? {
       t: 'success',
-      x: 'Marca salva neste dispositivo. Já aparece nos seus relatórios.'
+      x: 'Marca salva. Já aparece nos seus relatórios.'
+    } : {
+      t: 'warn',
+      x: 'Marca salva só neste aparelho — não consegui gravar no servidor. ' + 'Em outro aparelho ela não vai aparecer; abra com internet e salve de novo.'
     });
   };
   return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
@@ -12480,7 +12515,7 @@ function BrandScreen({
     disabled: busy,
     onClick: save
   }, busy ? '…' : ' Salvar')), msg && /*#__PURE__*/React.createElement("div", {
-    className: `alert alert-${msg.t === 'error' ? 'error' : 'success'}`
+    className: `alert alert-${msg.t === 'error' ? 'error' : msg.t === 'warn' ? 'warn' : 'success'}`
   }, msg.x), /*#__PURE__*/React.createElement("div", {
     className: "card",
     style: {
@@ -18218,6 +18253,19 @@ const comPrazo = (p, ms = PRAZO_MS) => new Promise((ok, falha) => {
   });
 });
 const isNetErr = e => !navigator.onLine || e && e.semRede || e && /network|fetch|Failed to fetch|timeout|aborted|Load failed/i.test(e.message || '');
+/* Gravar conferindo o erro.
+   O cliente do Supabase NÃO lança quando o servidor recusa: devolve {error}.
+   Então `try{ await sb.from(x).insert(y) }catch(e){...}` não pega nada — o
+   catch nunca roda e a tela segue afirmando o que não aconteceu. Foi assim que
+   apareceram o "Plano salvo" e o "✓ Pago" sem nada ter sido gravado.
+   Aqui o erro do servidor vira exceção de verdade, e vai com prazo. */
+const gravar = async (q, ms) => {
+  const r = await comPrazo(Promise.resolve(q), ms);
+  if (r && r.error) throw r.error;
+  return r;
+};
+// Mensagem para o usuário a partir de um erro de gravação.
+const porQueFalhou = e => isNetErr(e) ? 'A internet falhou. Não foi salvo — tente de novo.' : 'Não consegui salvar: ' + (e && e.message || e);
 
 /* ── Ler com cópia no aparelho ───────────────────────────────
    Toda leitura que o app precisa mostrar offline passa por aqui: tenta a rede
@@ -26442,20 +26490,27 @@ function CheckinScreen({
     c: 'var(--red)',
     t: 'Prontidão baixa — pegue leve e priorize recuperação.'
   };
+  const [erroChk, setErroChk] = useState(null);
+  /* O semáforo aparecia mesmo quando a gravação falhava: o aluno via "Verde",
+     ia treinar tranquilo, e o treinador não recebia sinal nenhum. O banco tem
+     4 check-ins no total — parte disso é gravação que morreu calada. */
   const salvar = async () => {
     setBusy(true);
+    setErroChk(null);
     if (!demo) {
       try {
-        const {
-          data
-        } = await sb.rpc('checkin_salvar', {
+        await gravar(sb.rpc('checkin_salvar', {
           p_sono: v.sono,
           p_fadiga: v.fadiga,
           p_estresse: v.estresse,
           p_dor: v.dor,
           p_humor: v.humor
-        });
-      } catch (e) {}
+        }));
+      } catch (e) {
+        setBusy(false);
+        setErroChk(porQueFalhou(e));
+        return;
+      }
     }
     setBusy(false);
     setRes({
@@ -26600,7 +26655,25 @@ function CheckinScreen({
     }
   }, "Pr\xE9via: ", sinal.l), /*#__PURE__*/React.createElement("div", {
     className: "lv-sub"
-  }, total, "/25"))), /*#__PURE__*/React.createElement("button", {
+  }, total, "/25"))), erroChk && /*#__PURE__*/React.createElement("div", {
+    className: "lv-card",
+    style: {
+      borderColor: 'rgba(248,113,113,.5)',
+      marginTop: 10
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 700,
+      fontSize: 13.5,
+      color: '#fca5a5'
+    }
+  }, "N\xE3o enviei seu check-in"), /*#__PURE__*/React.createElement("div", {
+    className: "lv-sub",
+    style: {
+      marginTop: 3,
+      lineHeight: 1.45
+    }
+  }, erroChk)), /*#__PURE__*/React.createElement("button", {
     className: "lv-btn",
     disabled: busy,
     onClick: salvar
@@ -26665,17 +26738,23 @@ function CicloScreen({
       setCyc(data && data[0] ? data[0] : null);
     })();
   }, []);
+  const [erroCiclo, setErroCiclo] = useState(null);
   const salvar = async () => {
     if (!f.data) return;
     setBusy(true);
+    setErroCiclo(null);
     if (!demo) {
       try {
-        await sb.rpc('ciclo_salvar', {
+        await gravar(sb.rpc('ciclo_salvar', {
           p_data: f.data,
           p_dur: +f.dur,
           p_sang: +f.sang
-        });
-      } catch (e) {}
+        }));
+      } catch (e) {
+        setBusy(false);
+        setErroCiclo(porQueFalhou(e));
+        return;
+      }
     }
     setBusy(false);
     setCyc({
@@ -26770,7 +26849,13 @@ function CicloScreen({
       ...p,
       sang: e.target.value
     }))
-  }))), /*#__PURE__*/React.createElement("button", {
+  }))), erroCiclo && /*#__PURE__*/React.createElement("div", {
+    className: "lv-sub",
+    style: {
+      marginTop: 10,
+      color: '#fca5a5'
+    }
+  }, erroCiclo), /*#__PURE__*/React.createElement("button", {
     className: "lv-btn",
     style: {
       marginTop: 14
@@ -27356,6 +27441,7 @@ function DiarioScreen({
     momento: 'jejum',
     insulina: ''
   });
+  const [erroGlic, setErroGlic] = useState(null);
   const [busy, setBusy] = useState(false);
   const [okMsg, setOkMsg] = useState(null);
   useEffect(() => {
@@ -27399,12 +27485,22 @@ function DiarioScreen({
       } catch (e) {}
     })();
   }, []);
+  /* Este interruptor muda o que a tela pede depois (glicemia, insulina). Se a
+     gravação some, o aluno vê "ligado", registra medições, e o treinador não
+     sabe nem que ele é diabético. */
   const toggleDiab = async v => {
     setDiab(v);
-    if (!demo) semEsperar(sb.rpc('saude_cfg', {
-      p_diabetico: v,
-      p_condicoes: null
-    }));
+    setErroGlic(null);
+    if (demo) return;
+    try {
+      await gravar(sb.rpc('saude_cfg', {
+        p_diabetico: v,
+        p_condicoes: null
+      }));
+    } catch (e) {
+      setDiab(!v);
+      setErroGlic(porQueFalhou(e));
+    }
   };
   const salvar = async () => {
     setBusy(true);
@@ -27443,17 +27539,31 @@ function DiarioScreen({
       insulina_unid: gf.insulina ? num(gf.insulina) : null,
       registrado_em: new Date().toISOString()
     };
-    setGlic(g => [novo, ...g]);
-    if (!demo) {
-      try {
-        await sb.rpc('glicemia_registrar', {
-          p_valor: novo.valor,
-          p_momento: gf.momento,
-          p_insulina: novo.insulina_unid,
-          p_obs: null
-        });
-      } catch (e) {}
+    /* A leitura entrava na lista ANTES de gravar, e o erro morria calado: o
+       aluno via a glicemia registrada e o treinador nunca recebia. É dado de
+       saúde — a lista só recebe o valor depois que o servidor confirmou. */
+    if (demo) {
+      setGlic(g => [novo, ...g]);
+      setGf({
+        valor: '',
+        momento: gf.momento,
+        insulina: ''
+      });
+      return;
     }
+    setErroGlic(null);
+    try {
+      await gravar(sb.rpc('glicemia_registrar', {
+        p_valor: novo.valor,
+        p_momento: gf.momento,
+        p_insulina: novo.insulina_unid,
+        p_obs: null
+      }));
+    } catch (e) {
+      setErroGlic(porQueFalhou(e));
+      return;
+    }
+    setGlic(g => [novo, ...g]);
     setGf({
       valor: '',
       momento: gf.momento,
@@ -27731,7 +27841,13 @@ function DiarioScreen({
   }, GLIC_MOMENTOS.map(([k, l]) => /*#__PURE__*/React.createElement("option", {
     key: k,
     value: k
-  }, l))), /*#__PURE__*/React.createElement("button", {
+  }, l))), erroGlic && /*#__PURE__*/React.createElement("div", {
+    className: "lv-sub",
+    style: {
+      marginTop: 10,
+      color: '#fca5a5'
+    }
+  }, erroGlic), /*#__PURE__*/React.createElement("button", {
     className: "lv-btn",
     style: {
       marginTop: 12
@@ -28364,13 +28480,15 @@ function DietaScreen({
     try {
       const blob = await resizeImage(file);
       const url = await uploadFotoAluno(profile.id, blob);
-      await sb.from('photos').insert({
+      // sem conferir o erro, o insert falhava calado: a imagem subia para o
+      // armazenamento, a linha nunca era criada, e o aluno lia "Foto enviada!"
+      await gravar(sb.from('photos').insert({
         student_id: profile.id,
         coach_id: profile.coach_id,
         url,
         kind: 'meal',
         caption: 'Refeição'
-      });
+      }));
       alert('Foto enviada ao seu treinador!');
     } catch (e) {
       alert('Erro ao enviar: ' + (e.message || e));
@@ -30323,8 +30441,9 @@ function StudentApp({
     setPushBusy(true);
     setPushMsg(null);
     if (pushOn) {
-      await desativarPush();
+      const r = await desativarPush();
       setPushOn(false);
+      setPushMsg(r.ok ? null : r.msg);
     } else {
       const r = await ativarPush();
       if (r.ok) setPushOn(true);else setPushMsg(r.msg);
@@ -30348,23 +30467,48 @@ function StudentApp({
     setPushMsg(r.msg);
     return false;
   };
+  /* Os dois interruptores de lembrete gravavam sem esperar resposta: a chave
+     virava "ligado" na tela e o servidor podia nunca ter sabido — o aluno acha
+     que vai ser lembrado e não é lembrado. É a mesma família do defeito que já
+     tinha aparecido aqui (a chave vindo do navegador em vez do servidor), e
+     ela casa com o número do banco: 5 aparelhos com aviso, de 22 contas.
+     Agora espera, confere, e devolve a chave se não gravou. */
   const toggleAgua = async v => {
     if (espiando) return;
     if (v && !(await garantirPush())) return;
     setAgua(v);
-    if (!demo) semEsperar(sb.rpc('lembrete_agua', {
-      p_ativo: v
-    }));
+    setPushMsg(null);
+    if (demo) return;
+    try {
+      await gravar(sb.rpc('lembrete_agua', {
+        p_ativo: v
+      }));
+    } catch (e) {
+      setAgua(!v);
+      setPushMsg(porQueFalhou(e));
+    }
   };
   const salvarLembreteTreino = async (ativo, per) => {
     if (espiando) return;
     if (ativo && !(await garantirPush())) return;
+    const antes = {
+      a: lembTreino,
+      p: periodo
+    };
     setLembTreino(ativo);
     setPeriodo(per);
-    if (!demo) semEsperar(sb.rpc('lembrete_treino', {
-      p_ativo: ativo,
-      p_periodo: per
-    }));
+    setPushMsg(null);
+    if (demo) return;
+    try {
+      await gravar(sb.rpc('lembrete_treino', {
+        p_ativo: ativo,
+        p_periodo: per
+      }));
+    } catch (e) {
+      setLembTreino(antes.a);
+      setPeriodo(antes.p);
+      setPushMsg(porQueFalhou(e));
+    }
   };
   const hr = new Date().getHours();
   const saud = hr < 12 ? 'Bom dia' : hr < 18 ? 'Boa tarde' : 'Boa noite';

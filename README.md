@@ -785,6 +785,56 @@ linha nenhuma: quatro títulos flutuando sobre espaço vazio. Dava para ler, nã
 para escrever. Agora são células com risco à esquerda, linha embaixo e altura
 que cabe um número de caneta.
 
+## Toda gravação que falha em silêncio
+Quatro vezes nesta leva eu abri um `catch(e){}` em volta de uma gravação e achei
+defeito real dentro: a refeição marcada que sumia, a água que sumia, o "Plano
+salvo" e o "✓ Pago" que a tela escrevia sem nada ter sido gravado. Sempre a
+mesma forma.
+
+E a causa é uma armadilha do cliente: **o Supabase não lança quando o servidor
+recusa — devolve `{error}`.** Então um `try/catch` em volta não pega nada, o
+catch nunca roda, e a tela segue afirmando o que não aconteceu. Isso vale
+inclusive onde havia um `alert` pronto no catch, esperando por um erro que
+nunca chegava.
+
+O `calado.js` varre o AST do app (regex não serve: chamada aninhada engana) e
+separa três formas:
+
+- **catch vazio** em volta de uma gravação
+- **resposta descartada** — ninguém lê o `error`
+- **sem esperar resposta** — envolvida em `semEsperar`, escolha deliberada que
+  pode estar errada
+
+Leitura não entra: se uma leitura falha, a tela fica vazia e a pessoa vê. É a
+gravação que mente. RPC que só lê também não entra, por lista explícita — supor
+pelo nome erra.
+
+Foram **40 achados; 18 corrigidos nesta leva**, os do lado do aluno e os que
+afirmavam sucesso:
+
+- **check-in diário** — o semáforo aparecia mesmo sem gravar. O banco tem 4
+  check-ins no total.
+- **glicemia** — a medição entrava na lista *antes* de gravar, com o erro
+  engolido. É dado de saúde: agora só entra depois que o servidor confirma.
+- **ciclo menstrual** — mesma forma.
+- **foto da refeição** — a imagem subia para o armazenamento, o `insert` da
+  linha falhava calado, e o aluno lia "Foto enviada ao seu treinador!".
+- **os dois interruptores de lembrete** (água e treino) — a chave virava
+  "ligado" e o servidor podia nunca ter sabido. Casa com o número do banco:
+  **5 aparelhos com aviso, de 22 contas**.
+- **o interruptor "sou diabético"** — muda o que a tela pede depois.
+- **desligar avisos** — dizia "desligado" enquanto o servidor seguia mandando
+  push para aquele aparelho.
+- **a marca do treinador** — o que vai no cabeçalho e na assinatura do
+  relatório. A mensagem dizia "salva neste dispositivo", que era verdade e
+  enganava: em outro aparelho não aparecia. Agora ela diz onde ficou.
+
+Sobram **22**, todas do lado do treinador e de menor gravidade — exclusões
+otimistas que voltam ao recarregar a tela, em vez de afirmar sucesso falso. Elas
+**continuam reprovando de propósito**: a lista de aceitos do `calado.js` só
+recebe o que foi olhado e ESTÁ certo, com o motivo escrito, e a chave é função +
+método, não a linha (linha muda a cada edição e silenciaria o site errado).
+
 ## Números
 Tudo que aparece na tela usa vírgula decimal (24,3 e não 24.3), como se escreve
 em português. Só exibição: nenhum campo de entrada nem exportação passa pelo
