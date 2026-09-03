@@ -20,6 +20,13 @@ const fmt = (n, d = 1) => n != null && n !== '' && !isNaN(parseFloat(n)) ? parse
    milhar. Deixa passar sem tocar o que já veio formatado — assim serve numa
    coluna onde alguns valores já passaram pelo fmt e outros não, que era
    exatamente o caso do relatório: "22,1" e "60.1" na mesma tabela. */
+/* "setembro de 2026" -> "Setembro de 2026". O text-transform:capitalize do CSS
+   põe maiúscula em TODA palavra e escrevia "Setembro De 2026" — em português o
+   "de" fica minúsculo, e nome de mês também. */
+const maiusculaInicial = s => {
+  const t = String(s || '');
+  return t.charAt(0).toUpperCase() + t.slice(1);
+};
 /* Lista dentro de uma frase: "força e performance", não "força, performance".
    Vírgula no lugar do "e" é como uma máquina emenda itens — e o relatório é
    assinado pelo treinador. */
@@ -92,7 +99,7 @@ const semEsperar = q => {
     q.then(() => {}, () => {});
   } catch (e) {}
 };
-const APP_VERSION = '2026.10.11'; // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION = '2026.10.12'; // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA'); // YYYY-MM-DD no fuso LOCAL
 
@@ -2979,28 +2986,47 @@ function FinanceiroCard({
       setLoaded(true);
     })();
   }, []);
+  /* Esta é a única tela do app que fala de dinheiro, e as duas gravações
+     engoliam qualquer erro: o formulário fechava e o botão escrevia "✓ Pago"
+     mesmo sem nada ter saído do aparelho. Dizer que um mês está pago quando o
+     servidor não soube é o pior erro que este app pode cometer — o treinador
+     confia na tela e não cobra. */
+  const [erro, setErro] = useState(null);
   const salvar = async () => {
     setBusy(true);
+    setErro(null);
     try {
-      await sb.rpc('mensalidade_salvar', {
+      const {
+        error
+      } = await comPrazo(sb.rpc('mensalidade_salvar', {
         p_student: student.id,
         p_valor: num(valor),
         p_dia: dia ? parseInt(dia) : null
-      });
-    } catch (e) {}
+      }));
+      if (error) throw error;
+      setEdit(false);
+    } catch (e) {
+      setErro(isNetErr(e) ? 'A internet falhou. Nada foi salvo — tente de novo.' : 'Não consegui salvar: ' + (e.message || e));
+    }
     setBusy(false);
-    setEdit(false);
   };
   const togglePago = async () => {
     const nv = !pago;
     setPago(nv);
+    setErro(null);
     try {
-      await sb.rpc('pagamento_marcar', {
+      const {
+        error
+      } = await comPrazo(sb.rpc('pagamento_marcar', {
         p_student: student.id,
         p_competencia: comp,
         p_pago: nv
-      });
-    } catch (e) {}
+      }));
+      if (error) throw error;
+    } catch (e) {
+      setPago(!nv); // volta ao que era: a tela não pode afirmar o que não gravou
+      setErro(isNetErr(e) ? 'A internet falhou. O pagamento não foi registrado.' : 'Não consegui registrar: ' + (e.message || e));
+    }
   };
   const mesLbl = new Date(comp + '-01T00:00:00').toLocaleDateString('pt-BR', {
     month: 'long',
@@ -3028,7 +3054,12 @@ function FinanceiroCard({
   }, "Financeiro"), !edit && /*#__PURE__*/React.createElement("button", {
     className: "btn btn-ghost btn-sm",
     onClick: () => setEdit(true)
-  }, temValor ? 'Editar' : 'Definir mensalidade')), !loaded ? /*#__PURE__*/React.createElement("div", {
+  }, temValor ? 'Editar' : 'Definir mensalidade')), erro && /*#__PURE__*/React.createElement("div", {
+    className: "alert alert-danger",
+    style: {
+      marginBottom: 10
+    }
+  }, erro), !loaded ? /*#__PURE__*/React.createElement("div", {
     className: "s-meta"
   }, "Carregando\u2026") : edit ? /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     style: {
@@ -3095,11 +3126,7 @@ function FinanceiroCard({
     minimumFractionDigits: 2
   })), /*#__PURE__*/React.createElement("div", {
     className: "s-meta"
-  }, dia ? `vence dia ${dia}` : 'sem vencimento', " \xB7 ", /*#__PURE__*/React.createElement("span", {
-    style: {
-      textTransform: 'capitalize'
-    }
-  }, mesLbl))), /*#__PURE__*/React.createElement("span", {
+  }, dia ? `vence dia ${dia}` : 'sem vencimento', " \xB7 ", /*#__PURE__*/React.createElement("span", null, maiusculaInicial(mesLbl)))), /*#__PURE__*/React.createElement("span", {
     className: "sp",
     style: {
       flex: 1
@@ -12933,11 +12960,10 @@ function AgendaScreen({
     style: {
       fontSize: 12,
       fontWeight: 700,
-      textTransform: 'capitalize',
       color: 'var(--text2)',
       marginBottom: 8
     }
-  }, day), /*#__PURE__*/React.createElement("div", {
+  }, maiusculaInicial(day)), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       flexWrap: 'wrap',
@@ -13221,10 +13247,9 @@ function BookingPage({
     }
   }, /*#__PURE__*/React.createElement("span", {
     style: {
-      fontWeight: 600,
-      textTransform: 'capitalize'
+      fontWeight: 600
     }
-  }, fmtSlot(s.starts_at)), /*#__PURE__*/React.createElement("span", {
+  }, maiusculaInicial(fmtSlot(s.starts_at))), /*#__PURE__*/React.createElement("span", {
     className: "s-meta"
   }, s.duration_min, " min")))), err && /*#__PURE__*/React.createElement("div", {
     className: "alert alert-danger",
@@ -17021,18 +17046,22 @@ function FichaImpressa({
       textAlign: 'left'
     }
   }, "Exerc\xEDcio"), /*#__PURE__*/React.createElement("th", null, "S\xE9ries \xD7 reps"), /*#__PURE__*/React.createElement("th", null, "Descanso"), /*#__PURE__*/React.createElement("th", {
+    className: "sem",
     style: {
       width: '11%'
     }
   }, "Sem 1"), /*#__PURE__*/React.createElement("th", {
+    className: "sem",
     style: {
       width: '11%'
     }
   }, "Sem 2"), /*#__PURE__*/React.createElement("th", {
+    className: "sem",
     style: {
       width: '11%'
     }
   }, "Sem 3"), /*#__PURE__*/React.createElement("th", {
+    className: "sem",
     style: {
       width: '11%'
     }
@@ -17064,7 +17093,15 @@ function FichaImpressa({
         textAlign: 'center',
         whiteSpace: 'nowrap'
       }
-    }, Math.floor(iv / 60), ":", String(iv % 60).padStart(2, '0')), /*#__PURE__*/React.createElement("td", null), /*#__PURE__*/React.createElement("td", null), /*#__PURE__*/React.createElement("td", null), /*#__PURE__*/React.createElement("td", null));
+    }, Math.floor(iv / 60), ":", String(iv % 60).padStart(2, '0')), /*#__PURE__*/React.createElement("td", {
+      className: "sem"
+    }), /*#__PURE__*/React.createElement("td", {
+      className: "sem"
+    }), /*#__PURE__*/React.createElement("td", {
+      className: "sem"
+    }), /*#__PURE__*/React.createElement("td", {
+      className: "sem"
+    }));
   }))))), /*#__PURE__*/React.createElement("div", {
     style: {
       marginTop: 20,

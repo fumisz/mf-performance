@@ -322,6 +322,11 @@ textarea.fi{resize:vertical;min-height:70px;line-height:1.5}
 .rpt-runhead .rh-brand{font-size:13px;font-weight:800;letter-spacing:1px;color:var(--accent)}
 .rpt-runhead .rh-meta{font-size:10.5px;letter-spacing:1.2px;text-transform:uppercase;color:#9a9186}
 .rpt-page .rpt-tbl td{color:#1f2430;border-bottom:1px solid #eef0f2;font-size:13px;padding:9px 10px}
+/* Ficha impressa: as colunas de semana existem para o aluno escrever a carga à
+   mão. Sem uma linha separando, o papel saía com quatro títulos flutuando sobre
+   espaço vazio — dava para ler, mas não para saber onde anotar. */
+.rpt-tbl th.sem,.rpt-tbl td.sem{border-left:1px solid #d8d2c7;text-align:center}
+.rpt-tbl td.sem{height:26px;border-bottom:1px solid #c9c2b5}
 .rpt-page .rpt-tbl td:first-child{color:#6b7280}
 .rpt-page .rpt-tbl td:nth-child(2){color:#111827}
 .rpt-page .delta.d-good{color:#15803d}
@@ -729,7 +734,7 @@ function _mfpAvisa(){try{window.MFP_INSTALL_OUVINTES.forEach(function(f){f();});
 window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.MFP_INSTALL=e;_mfpAvisa();});
 window.addEventListener('appinstalled',function(){window.MFP_INSTALL=null;_mfpAvisa();});
 </script>
-<script src="./app.js?v=2026.10.11"></script>
+<script src="./app.js?v=2026.10.12"></script>
 <script>
 /* Atualizacao automatica.
    O registro antigo so chamava register() uma vez: se o navegador ja tinha um

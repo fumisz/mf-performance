@@ -754,6 +754,37 @@ atrás de ponto decimal (respeitando o ponto de milhar, que é legítimo), cobra
 que nenhuma seção tenha título sem conteúdo, que nenhuma diferença seja maior
 que o próprio valor, e mede a capa contra a folha na mídia de impressão.
 
+## O financeiro dizia que o aluno pagou
+O cartão Financeiro da ficha do aluno é a única tela do app que fala de
+dinheiro: mensalidade, dia do vencimento e o "marcar como pago" do mês. As duas
+gravações engoliam qualquer erro — `try{ await sb.rpc(...) }catch(e){}` e segue
+o baile. Medido com a rede derrubada:
+
+- **"Marcar como pago" virava "✓ Pago"** com nada tendo saído do aparelho. O
+  treinador confia na tela e não cobra.
+- **Salvar a mensalidade fechava o formulário** mostrando "R$ 300,00", como se
+  tivesse gravado.
+
+Agora as duas conferem o erro e têm prazo. O "pago" volta ao que era quando a
+gravação falha — a tela não pode afirmar o que não gravou — e o formulário
+continua aberto com o aviso do que houve. A Agenda, ao lado, já fazia isso
+certo desde sempre: confere o `error` de cada gravação e só mexe na tela quando
+deu certo. Era só o financeiro fora do padrão.
+
+De quebra, o mês saía **"Setembro De 2026"**: o `text-transform:capitalize` do
+CSS põe maiúscula em toda palavra, e em português o "de" fica minúsculo. Trocado
+por uma função que levanta só a primeira letra, aqui e nos dias da agenda.
+
+A suíte `dinheiro.js` (11 conferências) cobre definir, salvar, marcar pago, e as
+duas com a rede caída.
+
+## O papel de anotar a carga
+A ficha impressa sai com as colunas **Sem 1 a Sem 4** para o aluno anotar a carga
+de cada semana à mão — era a razão de existir dela. Só que as colunas não tinham
+linha nenhuma: quatro títulos flutuando sobre espaço vazio. Dava para ler, não
+para escrever. Agora são células com risco à esquerda, linha embaixo e altura
+que cabe um número de caneta.
+
 ## Números
 Tudo que aparece na tela usa vírgula decimal (24,3 e não 24.3), como se escreve
 em português. Só exibição: nenhum campo de entrada nem exportação passa pelo

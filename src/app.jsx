@@ -14,6 +14,10 @@ const fmt = (n,d=1)=>(n!=null&&n!==''&&!isNaN(parseFloat(n)))
    milhar. Deixa passar sem tocar o que já veio formatado — assim serve numa
    coluna onde alguns valores já passaram pelo fmt e outros não, que era
    exatamente o caso do relatório: "22,1" e "60.1" na mesma tabela. */
+/* "setembro de 2026" -> "Setembro de 2026". O text-transform:capitalize do CSS
+   põe maiúscula em TODA palavra e escrevia "Setembro De 2026" — em português o
+   "de" fica minúsculo, e nome de mês também. */
+const maiusculaInicial = s=>{const t=String(s||'');return t.charAt(0).toUpperCase()+t.slice(1);};
 /* Lista dentro de uma frase: "força e performance", não "força, performance".
    Vírgula no lugar do "e" é como uma máquina emenda itens — e o relatório é
    assinado pelo treinador. */
@@ -55,7 +59,7 @@ if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABAS
    .catch. Chamar .catch direto estoura TypeError, e dentro de um useEffect isso
    derruba a tela inteira do aluno. */
 const semEsperar=q=>{try{q.then(()=>{},()=>{});}catch(e){}};
-const APP_VERSION='2026.10.11';   // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION='2026.10.12';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
 
@@ -1091,8 +1095,37 @@ function FinanceiroCard({student}){
       setPago(!!(pp&&pp.pago));}catch(e){}
     setLoaded(true);
   })();},[]);
-  const salvar=async()=>{setBusy(true);try{await sb.rpc('mensalidade_salvar',{p_student:student.id,p_valor:num(valor),p_dia:dia?parseInt(dia):null});}catch(e){}setBusy(false);setEdit(false);};
-  const togglePago=async()=>{const nv=!pago;setPago(nv);try{await sb.rpc('pagamento_marcar',{p_student:student.id,p_competencia:comp,p_pago:nv});}catch(e){}};
+  /* Esta é a única tela do app que fala de dinheiro, e as duas gravações
+     engoliam qualquer erro: o formulário fechava e o botão escrevia "✓ Pago"
+     mesmo sem nada ter saído do aparelho. Dizer que um mês está pago quando o
+     servidor não soube é o pior erro que este app pode cometer — o treinador
+     confia na tela e não cobra. */
+  const [erro,setErro]=useState(null);
+  const salvar=async()=>{
+    setBusy(true);setErro(null);
+    try{
+      const {error}=await comPrazo(sb.rpc('mensalidade_salvar',
+        {p_student:student.id,p_valor:num(valor),p_dia:dia?parseInt(dia):null}));
+      if(error)throw error;
+      setEdit(false);
+    }catch(e){
+      setErro(isNetErr(e)?'A internet falhou. Nada foi salvo — tente de novo.'
+        :'Não consegui salvar: '+(e.message||e));
+    }
+    setBusy(false);
+  };
+  const togglePago=async()=>{
+    const nv=!pago;setPago(nv);setErro(null);
+    try{
+      const {error}=await comPrazo(sb.rpc('pagamento_marcar',
+        {p_student:student.id,p_competencia:comp,p_pago:nv}));
+      if(error)throw error;
+    }catch(e){
+      setPago(!nv);   // volta ao que era: a tela não pode afirmar o que não gravou
+      setErro(isNetErr(e)?'A internet falhou. O pagamento não foi registrado.'
+        :'Não consegui registrar: '+(e.message||e));
+    }
+  };
   const mesLbl=new Date(comp+'-01T00:00:00').toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
   const temValor=valor!=='' && valor!=null;
   return(<div className="card" style={{marginTop:14}}>
@@ -1100,6 +1133,7 @@ function FinanceiroCard({student}){
       <div style={{fontFamily:'var(--serif)',fontSize:16,fontWeight:600}}>Financeiro</div>
       {!edit&&<button className="btn btn-ghost btn-sm" onClick={()=>setEdit(true)}>{temValor?'Editar':'Definir mensalidade'}</button>}
     </div>
+    {erro&&<div className="alert alert-danger" style={{marginBottom:10}}>{erro}</div>}
     {!loaded?<div className="s-meta">Carregando…</div>:edit?<div>
       <div style={{display:'flex',gap:10}}>
         <div className="fg" style={{flex:1,margin:0}}><label className="flbl">Mensalidade (R$)</label><input className="fi" type="number" value={valor} onChange={e=>setValor(e.target.value)} placeholder="Ex.: 250"/></div>
@@ -1108,7 +1142,7 @@ function FinanceiroCard({student}){
       <div className="bgroup" style={{marginTop:10}}><button className="btn btn-primary btn-sm" disabled={busy} onClick={salvar}>{busy?'Salvando…':'Salvar'}</button><button className="btn btn-ghost btn-sm" onClick={()=>setEdit(false)}>Cancelar</button></div>
     </div>:!temValor?<div className="s-meta">Nenhuma mensalidade definida para este aluno.</div>:<div style={{display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}}>
       <div><div style={{fontSize:22,fontWeight:800}}>R$ {(+valor).toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
-        <div className="s-meta">{dia?`vence dia ${dia}`:'sem vencimento'} · <span style={{textTransform:'capitalize'}}>{mesLbl}</span></div></div>
+        <div className="s-meta">{dia?`vence dia ${dia}`:'sem vencimento'} · <span>{maiusculaInicial(mesLbl)}</span></div></div>
       <span className="sp" style={{flex:1}}/>
       <button className={`btn btn-sm ${pago?'btn-primary':'btn-ghost'}`} onClick={togglePago}>{pago?'✓ Pago':'Marcar como pago'}</button>
     </div>}
@@ -4646,7 +4680,7 @@ function AgendaScreen({coach,students,preStudent,onBack}){
          <p className="s-meta">Adicione horários livres acima para o aluno poder agendar.</p></div>:
        grouped.map(([day,ss])=>(
         <div key={day} style={{marginBottom:16}}>
-          <div style={{fontSize:12,fontWeight:700,textTransform:'capitalize',color:'var(--text2)',marginBottom:8}}>{day}</div>
+          <div style={{fontSize:12,fontWeight:700,color:'var(--text2)',marginBottom:8}}>{maiusculaInicial(day)}</div>
           <div style={{display:'flex',flexWrap:'wrap',gap:9}}>
             {ss.map(s=>(
               <div key={s.id} style={{border:'1px solid var(--border2)',borderRadius:10,padding:'9px 12px',background:s.status==='booked'?'var(--bg3)':'var(--bg2)',minWidth:150}}>
@@ -4749,7 +4783,7 @@ function BookingPage({coachId,studentId}){
               {data.slots.map(s=>(
                 <button key={s.id} type="button" onClick={()=>setPicked(s.id)}
                   style={{textAlign:'left',border:'1.5px solid '+(picked===s.id?'var(--accent)':'var(--border2)'),background:picked===s.id?'var(--bg3)':'var(--bg2)',borderRadius:10,padding:'11px 13px',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                  <span style={{fontWeight:600,textTransform:'capitalize'}}>{fmtSlot(s.starts_at)}</span>
+                  <span style={{fontWeight:600}}>{maiusculaInicial(fmtSlot(s.starts_at))}</span>
                   <span className="s-meta">{s.duration_min} min</span>
                 </button>))}
             </div>}
@@ -5997,8 +6031,8 @@ function FichaImpressa({coach,stu,divs,onFechar}){
             <thead><tr>
               <th style={{textAlign:'left'}}>Exercício</th>
               <th>Séries × reps</th><th>Descanso</th>
-              <th style={{width:'11%'}}>Sem 1</th><th style={{width:'11%'}}>Sem 2</th>
-              <th style={{width:'11%'}}>Sem 3</th><th style={{width:'11%'}}>Sem 4</th>
+              <th className="sem" style={{width:'11%'}}>Sem 1</th><th className="sem" style={{width:'11%'}}>Sem 2</th>
+              <th className="sem" style={{width:'11%'}}>Sem 3</th><th className="sem" style={{width:'11%'}}>Sem 4</th>
             </tr></thead>
             <tbody>
               {d.series.length===0
@@ -6010,7 +6044,7 @@ function FichaImpressa({coach,stu,divs,onFechar}){
                         <span style={{fontWeight:400,color:'#6b665e'}}> ({s.tipo_serie==='Preparatoria'?'preparatória':s.tipo_serie.toLowerCase()})</span>}</td>
                     <td style={{textAlign:'center',whiteSpace:'nowrap'}}>{s.qtd_series}×{s.faixa_reps}</td>
                     <td style={{textAlign:'center',whiteSpace:'nowrap'}}>{Math.floor(iv/60)}:{String(iv%60).padStart(2,'0')}</td>
-                    <td/><td/><td/><td/>
+                    <td className="sem"/><td className="sem"/><td className="sem"/><td className="sem"/>
                   </tr>);})}
             </tbody>
           </table>
