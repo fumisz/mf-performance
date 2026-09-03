@@ -59,7 +59,7 @@ if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABAS
    .catch. Chamar .catch direto estoura TypeError, e dentro de um useEffect isso
    derruba a tela inteira do aluno. */
 const semEsperar=q=>{try{q.then(()=>{},()=>{});}catch(e){}};
-const APP_VERSION='2026.10.13';   // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION='2026.10.14';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
 
@@ -1955,7 +1955,7 @@ function EvalForm({student,evalData,carryHeight,isReassess,onSave,onCancel}){
       {(d.bmi||bpCls||d.fatPct||d.dynAvg||d.hidr)&&(
         <div className="stat-grid">
           {d.bmi&&<Stat lbl="IMC" val={fmt(d.bmi)} unit="kg/m²" badge={bmiCls}/>}
-          {bpCls&&<Stat lbl="Pressão arterial" val={`${f.bp_sys}/${f.bp_dia}`} unit="mmHg" badge={bpCls}/>}
+          {bpCls&&<Stat lbl="Pressão arterial" val={`${numBR(f.bp_sys)}/${numBR(f.bp_dia)}`} unit="mmHg" badge={bpCls}/>}
           {d.fatPct!=null&&<Stat lbl="% Gordura" val={fmt(d.fatPct)} unit="%" badge={fatCls}/>}
           {d.dynAvg&&<Stat lbl="Preensão média" val={fmt(d.dynAvg)} unit="kgf"/>}
           {d.rcq&&<Stat lbl="Cintura/Quadril" val={fmt(d.rcq,2)}/>}
@@ -2709,7 +2709,7 @@ function StudentDetail({student,evals,onNewEval,onReassess,onEditEval,onDeleteEv
           {last.height&&<Stat lbl="Estatura" val={last.height} unit="cm"/>}
           {d.bmi&&<Stat lbl="IMC" val={fmt(d.bmi)} unit="kg/m²" badge={classifyBMI(d.bmi)}/>}
           {d.fatPct!=null&&<Stat lbl="% Gordura" val={fmt(d.fatPct)} unit="%" badge={classifyFat(student.gender,a||25,d.fatPct)}/>}
-          {last.bp_sys&&last.bp_dia&&<Stat lbl="Pressão" val={`${last.bp_sys}/${last.bp_dia}`} badge={classifyBP(last.bp_sys,last.bp_dia)}/>}
+          {last.bp_sys&&last.bp_dia&&<Stat lbl="Pressão" val={`${numBR(last.bp_sys)}/${numBR(last.bp_dia)}`} badge={classifyBP(last.bp_sys,last.bp_dia)}/>}
           <Stat lbl="Avaliações" val={evals.length}/>
         </div>)}
 
@@ -2736,7 +2736,7 @@ function StudentDetail({student,evals,onNewEval,onReassess,onEditEval,onDeleteEv
               <div className="eval-meta">
                 {ev.weight&&`${fmt(ev.weight)} kg · `}{dd.bmi&&`IMC ${fmt(dd.bmi)} · `}
                 {dd.fatPct!=null&&`Gordura ${fmt(dd.fatPct)}% · `}
-                {ev.bp_sys&&`PA ${ev.bp_sys}/${ev.bp_dia} · `}{dd.dynAvg&&`Preensão ${fmt(dd.dynAvg)} kgf`}</div>
+                {ev.bp_sys&&`PA ${numBR(ev.bp_sys)}/${numBR(ev.bp_dia)} · `}{dd.dynAvg&&`Preensão ${fmt(dd.dynAvg)} kgf`}</div>
             </div>
             <div className="bgroup">
               <button className="btn-icon" title="Editar" onClick={()=>onEditEval(ev)}>Editar</button>
@@ -2811,7 +2811,7 @@ function shareWhatsApp(student,evalData,prevEval){
   if(d.bmi)L.push(` IMC: ${fmt(d.bmi)} kg/m²${classifyBMI(d.bmi)?' ('+classifyBMI(d.bmi).l+')':''}`);
   if(d.fatPct!=null){const fc=classifyFat(student.gender,age(student.dob)||25,d.fatPct);L.push(` % Gordura: ${fmt(d.fatPct)}%${fc?' ('+fc.l+')':''}`);}
   if(d.leanMass!=null)L.push(` Massa magra: ${d.leanMass} kg`);
-  if(evalData.bp_sys&&evalData.bp_dia)L.push(` Pressão: ${evalData.bp_sys}/${evalData.bp_dia} mmHg`);
+  if(evalData.bp_sys&&evalData.bp_dia)L.push(` Pressão: ${numBR(evalData.bp_sys)}/${numBR(evalData.bp_dia)} mmHg`);
   if(d.dynAvg)L.push(` Preensão: ${d.dynAvg} kgf`);
   if(d.hidr)L.push(` Hidratação: ${(d.hidr/1000).toFixed(1).replace('.',',')} L/dia (~${Math.round(d.hidr/250)} copos)`);
   if(prevEval){
@@ -3313,12 +3313,12 @@ function Report({student,evalData,allEvals,onBack,coach}){
           <div className="stat-grid" style={{marginBottom:24}}>
             {d.bmi&&<Stat lbl="IMC" val={fmt(d.bmi)} unit="kg/m²" badge={bmiCls}/>}
             {d.fatPct!=null&&<Stat lbl="% Gordura" val={fmt(d.fatPct)} unit="%" badge={fatCls}/>}
-            {hasBP&&<Stat lbl="Pressão" val={`${evalData.bp_sys}/${evalData.bp_dia}`} badge={bpCls}/>}
+            {hasBP&&<Stat lbl="Pressão" val={`${numBR(evalData.bp_sys)}/${numBR(evalData.bp_dia)}`} badge={bpCls}/>}
             {d.leanMass!=null&&<Stat lbl="Massa magra" val={d.leanMass} unit="kg"/>}
             {d.fatMass!=null&&<Stat lbl="Massa gorda" val={d.fatMass} unit="kg"/>}
             {d.dynAvg&&<Stat lbl="Preensão" val={d.dynAvg} unit="kgf"/>}
             {num(evalData.bio_bmr)&&<Stat lbl="TMB" val={num(evalData.bio_bmr).toLocaleString('pt-BR')} unit="kcal"/>}
-            {num(evalData.bio_metabage)&&<Stat lbl="Idade metabólica" val={evalData.bio_metabage} unit="anos" badge={age(student.dob)?(num(evalData.bio_metabage)<=age(student.dob)?{l:`${age(student.dob)-num(evalData.bio_metabage)} anos abaixo`,c:'bg'}:{l:`${num(evalData.bio_metabage)-age(student.dob)} anos acima`,c:'ba'}):null}/>}
+            {num(evalData.bio_metabage)&&<Stat lbl="Idade metabólica" val={evalData.bio_metabage} unit="anos" badge={age(student.dob)?(num(evalData.bio_metabage)<=age(student.dob)?{l:`${numBR(+(age(student.dob)-num(evalData.bio_metabage)).toFixed(1))} anos abaixo`,c:'bg'}:{l:`${numBR(+(num(evalData.bio_metabage)-age(student.dob)).toFixed(1))} anos acima`,c:'ba'}):null}/>}
           </div>
 
           {/* Painel visual (medidores + anel) e radar do perfil */}
@@ -3558,9 +3558,9 @@ function Report({student,evalData,allEvals,onBack,coach}){
                     <table className="rpt-tbl"><tbody>
                       <tr><td></td><td style={{fontWeight:700,color:'#6b7280'}}>Direito</td><td style={{fontWeight:700,color:'#6b7280'}}>Esquerdo</td></tr>
                       {MOBN.map(([lbl,k,fn,u])=>(num(evalData[k+'_r'])||num(evalData[k+'_l']))?<tr key={k}><td>{lbl}</td>
-                        <td>{evalData[k+'_r']?`${evalData[k+'_r']} ${u}`:'—'}{bcell(fn(evalData[k+'_r']))}</td>
-                        <td>{evalData[k+'_l']?`${evalData[k+'_l']} ${u}`:'—'}{bcell(fn(evalData[k+'_l']))}</td></tr>:null)}
-                      {MOBS.map(([lbl,k])=>(evalData[k+'_r']||evalData[k+'_l'])?<tr key={k}><td>{lbl}</td><td>{evalData[k+'_r']||'—'}</td><td>{evalData[k+'_l']||'—'}</td></tr>:null)}
+                        <td>{evalData[k+'_r']?`${numBR(evalData[k+'_r'])} ${u}`:'—'}{bcell(fn(evalData[k+'_r']))}</td>
+                        <td>{evalData[k+'_l']?`${numBR(evalData[k+'_l'])} ${u}`:'—'}{bcell(fn(evalData[k+'_l']))}</td></tr>:null)}
+                      {MOBS.map(([lbl,k])=>(evalData[k+'_r']||evalData[k+'_l'])?<tr key={k}><td>{lbl}</td><td>{numBR(evalData[k+'_r'])||'—'}</td><td>{numBR(evalData[k+'_l'])||'—'}</td></tr>:null)}
                       {evalData.ohs&&<tr><td>Overhead squat</td><td colSpan="2" style={{textAlign:'left',fontWeight:400}}>{evalData.ohs}</td></tr>}
                     </tbody></table>
                     {(()=>{const a=asymmetry(evalData.kneewall_r,evalData.kneewall_l,null,1.5);return a&&a.badge.c==='br'?<p style={{fontSize:11.5,color:'#9a3540',marginTop:6}}>Assimetria de dorsiflexão de {a.diff} cm ({a.side} maior) — priorizar mobilidade do lado restrito.</p>:null;})()}
@@ -3577,9 +3577,9 @@ function Report({student,evalData,allEvals,onBack,coach}){
                   return(<div className="rpt-sec"><div className="rpt-sec-title">Equilíbrio</div>
                     <table className="rpt-tbl"><tbody>
                       <tr><td></td><td style={{fontWeight:700,color:'#6b7280'}}>Direito</td><td style={{fontWeight:700,color:'#6b7280'}}>Esquerdo</td></tr>
-                      {(num(evalData.bal_open_r)||num(evalData.bal_open_l))&&<tr><td>Unipodal olhos abertos</td><td>{evalData.bal_open_r?evalData.bal_open_r+' s':'—'}{bc(bo?.open)}</td><td>{evalData.bal_open_l?evalData.bal_open_l+' s':'—'}{bc(boL?.open)}</td></tr>}
-                      {(num(evalData.bal_closed_r)||num(evalData.bal_closed_l))&&<tr><td>Unipodal olhos fechados</td><td>{evalData.bal_closed_r?evalData.bal_closed_r+' s':'—'}{bc(bo?.closed)}</td><td>{evalData.bal_closed_l?evalData.bal_closed_l+' s':'—'}{bc(boL?.closed)}</td></tr>}
-                      {(ybR!=null||ybL!=null)&&<tr><td>Y-Balance (composto)</td><td style={{fontWeight:600}}>{ybR!=null?ybR+' cm':'—'}</td><td style={{fontWeight:600}}>{ybL!=null?ybL+' cm':'—'}</td></tr>}
+                      {(num(evalData.bal_open_r)||num(evalData.bal_open_l))&&<tr><td>Unipodal olhos abertos</td><td>{evalData.bal_open_r?numBR(evalData.bal_open_r)+' s':'—'}{bc(bo?.open)}</td><td>{evalData.bal_open_l?numBR(evalData.bal_open_l)+' s':'—'}{bc(boL?.open)}</td></tr>}
+                      {(num(evalData.bal_closed_r)||num(evalData.bal_closed_l))&&<tr><td>Unipodal olhos fechados</td><td>{evalData.bal_closed_r?numBR(evalData.bal_closed_r)+' s':'—'}{bc(bo?.closed)}</td><td>{evalData.bal_closed_l?numBR(evalData.bal_closed_l)+' s':'—'}{bc(boL?.closed)}</td></tr>}
+                      {(ybR!=null||ybL!=null)&&<tr><td>Y-Balance (composto)</td><td style={{fontWeight:600}}>{ybR!=null?numBR(ybR)+' cm':'—'}</td><td style={{fontWeight:600}}>{ybL!=null?numBR(ybL)+' cm':'—'}</td></tr>}
                     </tbody></table>
                     {antAsym&&antAsym.diff>4&&<p style={{fontSize:11.5,color:'#9a3540',marginTop:6}}>Assimetria anterior de {antAsym.diff} cm ({antAsym.side} maior) — risco de lesão aumentado; incluir trabalho proprioceptivo unilateral.</p>}
                     {evalData.bal_obs&&<p style={{fontSize:12,color:'var(--text2)',marginTop:6,lineHeight:1.6}}>{evalData.bal_obs}</p>}
@@ -3604,7 +3604,7 @@ function Report({student,evalData,allEvals,onBack,coach}){
                 {hasRM&&<div className="rpt-sec"><div className="rpt-sec-title">Força — 1‑RM estimado</div>
                   <table className="rpt-tbl"><tbody>
                     {RM.map(([lbl,k])=>{const e1=est1RM(evalData['rm_'+k+'_w'],evalData['rm_'+k+'_r']);
-                      return e1?<tr key={k}><td>{lbl}</td><td style={{fontWeight:600}}>{fmt(e1)} kg <span style={{color:'var(--text3)',fontWeight:400,fontSize:11}}>({evalData['rm_'+k+'_w']}kg × {evalData['rm_'+k+'_r']||1})</span></td>{prevEval&&<td/>}</tr>:null;})}
+                      return e1?<tr key={k}><td>{lbl}</td><td style={{fontWeight:600}}>{fmt(e1)} kg <span style={{color:'var(--text3)',fontWeight:400,fontSize:11}}>({numBR(evalData['rm_'+k+'_w'])} kg × {numBR(evalData['rm_'+k+'_r'])||1})</span></td>{prevEval&&<td/>}</tr>:null;})}
                   </tbody></table></div>}
                 {(()=>{const FUNC=[['Timed Up and Go','func_tug','s',classifyTUG],['5x Sit-to-Stand','func_sts5','s',classifySTS5],['30s Chair Stand','func_chair30','reps',classifyChair30],['Wall Sit','func_wallsit','s',classifyWallSit],['Prancha','func_plank','s',classifyPlank],['Dead Hang','func_deadhang','s',classifyDeadHang]];
                   if(!FUNC.some(([,k])=>num(evalData[k]))&&!num(evalData.func_slsts_r))return null;
@@ -3612,7 +3612,7 @@ function Report({student,evalData,allEvals,onBack,coach}){
                   return(<div className="rpt-sec"><div className="rpt-sec-title">Avaliação funcional</div>
                     <table className="rpt-tbl"><tbody>
                       {FUNC.map(([lbl,k,u,fn])=>num(evalData[k])?<Row key={k} lbl={lbl} val={evalData[k]} unit={u} badge={fn(evalData[k])} prev={prevEval?.[k]}/>:null)}
-                      {(num(evalData.func_slsts_r)||num(evalData.func_slsts_l))&&<tr><td>SL sit-to-stand (D / E)</td><td style={{fontWeight:600}}>{evalData.func_slsts_r||'—'} / {evalData.func_slsts_l||'—'} reps{as&&as.badge.c==='br'&&<span className="badge br" style={{marginLeft:6}}>Assimetria {as.pct}%</span>}</td>{prevEval&&<td/>}</tr>}
+                      {(num(evalData.func_slsts_r)||num(evalData.func_slsts_l))&&<tr><td>SL sit-to-stand (D / E)</td><td style={{fontWeight:600}}>{numBR(evalData.func_slsts_r)||'—'} / {numBR(evalData.func_slsts_l)||'—'} reps{as&&as.badge.c==='br'&&<span className="badge br" style={{marginLeft:6}}>Assimetria {as.pct}%</span>}</td>{prevEval&&<td/>}</tr>}
                     </tbody></table>
                     {evalData.func_obs&&<p style={{fontSize:12,color:'var(--text2)',marginTop:6,lineHeight:1.6}}>{evalData.func_obs}</p>}
                   </div>);
@@ -3624,7 +3624,7 @@ function Report({student,evalData,allEvals,onBack,coach}){
                     {jumpPower(evalData.pw_cmj,evalData.weight)&&<tr><td>Potência de pico (est.)</td><td style={{fontWeight:600}}>{jumpPower(evalData.pw_cmj,evalData.weight).toLocaleString('pt-BR')} W</td>{prevEval&&<td/>}</tr>}
                     <Row lbl="Squat Jump (SJ)" val={evalData.pw_sj} unit="cm" prev={prevEval?.pw_sj}/>
                     <Row lbl="Salto horizontal" val={evalData.pw_horizontal} unit="cm" prev={prevEval?.pw_horizontal}/>
-                    {rsiCalc(evalData.pw_dj_h,evalData.pw_dj_ct)&&<tr><td>RSI (Drop Jump)</td><td style={{fontWeight:600}}>{rsiCalc(evalData.pw_dj_h,evalData.pw_dj_ct)}<span className={`badge ${classifyRSI(rsiCalc(evalData.pw_dj_h,evalData.pw_dj_ct)).c}`} style={{marginLeft:6}}>{classifyRSI(rsiCalc(evalData.pw_dj_h,evalData.pw_dj_ct)).l}</span></td>{prevEval&&<td/>}</tr>}
+                    {rsiCalc(evalData.pw_dj_h,evalData.pw_dj_ct)&&<tr><td>RSI (Drop Jump)</td><td style={{fontWeight:600}}>{numBR(rsiCalc(evalData.pw_dj_h,evalData.pw_dj_ct))}<span className={`badge ${classifyRSI(rsiCalc(evalData.pw_dj_h,evalData.pw_dj_ct)).c}`} style={{marginLeft:6}}>{classifyRSI(rsiCalc(evalData.pw_dj_h,evalData.pw_dj_ct)).l}</span></td>{prevEval&&<td/>}</tr>}
                     <Row lbl="Arremesso medicine ball" val={evalData.pw_medball} unit="m" prev={prevEval?.pw_medball}/>
                     <Row lbl="Sprint 5 m" val={evalData.pw_sprint5} unit="s" prev={prevEval?.pw_sprint5}/>
                     <Row lbl="Sprint 10 m" val={evalData.pw_sprint10} unit="s" prev={prevEval?.pw_sprint10}/>
@@ -3632,10 +3632,10 @@ function Report({student,evalData,allEvals,onBack,coach}){
                     <Row lbl="Sprint 30 m" val={evalData.pw_sprint30} unit="s" prev={prevEval?.pw_sprint30}/>
                     <Row lbl="Agilidade (T-test)" val={evalData.pw_agility_t} unit="s" prev={prevEval?.pw_agility_t}/>
                     <Row lbl="Illinois" val={evalData.pw_illinois} unit="s" prev={prevEval?.pw_illinois}/>
-                    {(num(evalData.pw_505_r)||num(evalData.pw_505_l))&&<tr><td>505 (D / E)</td><td style={{fontWeight:600}}>{evalData.pw_505_r||'—'} / {evalData.pw_505_l||'—'} s</td>{prevEval&&<td/>}</tr>}
-                    {num(evalData.pw_rast_fi)&&<tr><td>RAST — índice de fadiga</td><td style={{fontWeight:600}}>{evalData.pw_rast_fi}%<span className={`badge ${classifyFatigueIndex(evalData.pw_rast_fi).c}`} style={{marginLeft:6}}>{classifyFatigueIndex(evalData.pw_rast_fi).l}</span></td>{prevEval&&<td/>}</tr>}
-                    {yoyoVO2(evalData.pw_yoyo)&&<tr><td>Yo-Yo IR1 ({evalData.pw_yoyo} m)</td><td style={{fontWeight:600}}>VO₂máx ≈ {yoyoVO2(evalData.pw_yoyo)} mL/kg/min</td>{prevEval&&<td/>}</tr>}
-                    {evalData.pw_beep&&<tr><td>Beep test</td><td style={{fontWeight:600}}>Nível {evalData.pw_beep}</td>{prevEval&&<td/>}</tr>}
+                    {(num(evalData.pw_505_r)||num(evalData.pw_505_l))&&<tr><td>505 (D / E)</td><td style={{fontWeight:600}}>{numBR(evalData.pw_505_r)||'—'} / {numBR(evalData.pw_505_l)||'—'} s</td>{prevEval&&<td/>}</tr>}
+                    {num(evalData.pw_rast_fi)&&<tr><td>RAST — índice de fadiga</td><td style={{fontWeight:600}}>{numBR(evalData.pw_rast_fi)}%<span className={`badge ${classifyFatigueIndex(evalData.pw_rast_fi).c}`} style={{marginLeft:6}}>{classifyFatigueIndex(evalData.pw_rast_fi).l}</span></td>{prevEval&&<td/>}</tr>}
+                    {yoyoVO2(evalData.pw_yoyo)&&<tr><td>Yo-Yo IR1 ({numBR(evalData.pw_yoyo)} m)</td><td style={{fontWeight:600}}>VO₂máx ≈ {numBR(yoyoVO2(evalData.pw_yoyo))} mL/kg/min</td>{prevEval&&<td/>}</tr>}
+                    {evalData.pw_beep&&<tr><td>Beep test</td><td style={{fontWeight:600}}>Nível {numBR(evalData.pw_beep)}</td>{prevEval&&<td/>}</tr>}
                   </tbody></table></div>}
               </div>
             </div>);
@@ -3674,8 +3674,8 @@ function Report({student,evalData,allEvals,onBack,coach}){
             return(<div className="rpt-sec"><div className="rpt-sec-title">Painel de assimetrias</div>
               <table className="rpt-tbl"><tbody>
                 <tr><td></td><td style={{fontWeight:700,color:'#6b7280'}}>D / E</td><td style={{fontWeight:700,color:'#6b7280'}}>Diferença</td></tr>
-                {rows.map((r,i)=><tr key={i}><td>{r.lbl}</td><td>{r.r||'—'} / {r.l||'—'}</td>
-                  <td style={{fontWeight:600}}>{r.pct}%<span className={`badge ${r.badge.c}`} style={{marginLeft:6}}>{r.badge.c==='br'?`${r.side} maior`:'OK'}</span></td></tr>)}
+                {rows.map((r,i)=><tr key={i}><td>{r.lbl}</td><td>{numBR(r.r)||'—'} / {numBR(r.l)||'—'}</td>
+                  <td style={{fontWeight:600}}>{numBR(r.pct)}%<span className={`badge ${r.badge.c}`} style={{marginLeft:6}}>{r.badge.c==='br'?`${r.side} maior`:'OK'}</span></td></tr>)}
               </tbody></table>
               {rows.some(r=>r.badge.c==='br')&&<p style={{fontSize:11.5,color:'#9a3540',marginTop:6,lineHeight:1.5}}>Assimetrias acima do limiar sugerem trabalho unilateral corretivo do lado deficitário e reavaliação em 6–8 semanas.</p>}
             </div>);
@@ -3687,7 +3687,7 @@ function Report({student,evalData,allEvals,onBack,coach}){
             if(!MOV.some(([,k])=>num(evalData[k])))return null;
             return(<div className="rpt-sec"><div className="rpt-sec-title">Qualidade do movimento</div>
               <table className="rpt-tbl"><tbody>
-                {MOV.map(([lbl,k])=>num(evalData[k])?<tr key={k}><td>{lbl}</td><td style={{fontWeight:600}}>{evalData[k]}/5<span className={`badge ${classifyMove(evalData[k]).c}`} style={{marginLeft:6}}>{classifyMove(evalData[k]).l}</span></td>{prevEval&&<td/>}</tr>:null)}
+                {MOV.map(([lbl,k])=>num(evalData[k])?<tr key={k}><td>{lbl}</td><td style={{fontWeight:600}}>{numBR(evalData[k])}/5<span className={`badge ${classifyMove(evalData[k]).c}`} style={{marginLeft:6}}>{classifyMove(evalData[k]).l}</span></td>{prevEval&&<td/>}</tr>:null)}
               </tbody></table>
               {evalData.mq_obs&&<p style={{fontSize:12,color:'var(--text2)',marginTop:6,lineHeight:1.6}}>{evalData.mq_obs}</p>}
             </div>);
@@ -3743,7 +3743,7 @@ function Report({student,evalData,allEvals,onBack,coach}){
                   <table className="rpt-tbl"><tbody>
                     {fz.zones.map((z,i)=><tr key={i}><td>{z.n}</td><td style={{fontWeight:600}}>{z.lo}–{z.hi} bpm</td></tr>)}
                   </tbody></table>
-                  <div style={{fontSize:10,color:'#9ca3af',marginTop:4}}>Método: {fz.method}{fz.rest?` · FC repouso ${fz.rest} bpm`:''}.</div>
+                  <div style={{fontSize:10,color:'#9ca3af',marginTop:4}}>Método: {fz.method}{fz.rest?` · FC repouso ${numBR(fz.rest)} bpm`:''}.</div>
                 </div>}
                 {lifts.length>0&&<div>
                   <div style={{fontSize:11,fontWeight:700,color:'var(--accent)',marginBottom:5}}>Cargas por objetivo (% do 1‑RM)</div>
@@ -3763,8 +3763,8 @@ function Report({student,evalData,allEvals,onBack,coach}){
             const proj=projectGoals(evalData,d);
             return(<div className="rpt-sec"><div className="rpt-sec-title">Definição de metas e alvos</div>
               <table className="rpt-tbl"><tbody>
-                {num(evalData.goal_weight)&&<tr><td>Peso alvo</td><td style={{fontWeight:600}}>{evalData.goal_weight} kg</td>{prevEval&&<td/>}</tr>}
-                {num(evalData.goal_fat)&&<tr><td>% Gordura alvo</td><td style={{fontWeight:600}}>{evalData.goal_fat}%</td>{prevEval&&<td/>}</tr>}
+                {num(evalData.goal_weight)&&<tr><td>Peso alvo</td><td style={{fontWeight:600}}>{numBR(evalData.goal_weight)} kg</td>{prevEval&&<td/>}</tr>}
+                {num(evalData.goal_fat)&&<tr><td>% Gordura alvo</td><td style={{fontWeight:600}}>{numBR(evalData.goal_fat)}%</td>{prevEval&&<td/>}</tr>}
                 {evalData.goal_next&&<tr><td>Próxima reavaliação</td><td style={{fontWeight:600}}>{fmtDate(evalData.goal_next)}</td>{prevEval&&<td/>}</tr>}
               </tbody></table>
               {proj&&<div style={{marginTop:10}}>

@@ -99,7 +99,7 @@ const semEsperar = q => {
     q.then(() => {}, () => {});
   } catch (e) {}
 };
-const APP_VERSION = '2026.10.13'; // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION = '2026.10.14'; // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA'); // YYYY-MM-DD no fuso LOCAL
 
@@ -5775,7 +5775,7 @@ function EvalForm({
     badge: bmiCls
   }), bpCls && /*#__PURE__*/React.createElement(Stat, {
     lbl: "Press\xE3o arterial",
-    val: `${f.bp_sys}/${f.bp_dia}`,
+    val: `${numBR(f.bp_sys)}/${numBR(f.bp_dia)}`,
     unit: "mmHg",
     badge: bpCls
   }), d.fatPct != null && /*#__PURE__*/React.createElement(Stat, {
@@ -7599,7 +7599,7 @@ function StudentDetail({
     badge: classifyFat(student.gender, a || 25, d.fatPct)
   }), last.bp_sys && last.bp_dia && /*#__PURE__*/React.createElement(Stat, {
     lbl: "Press\xE3o",
-    val: `${last.bp_sys}/${last.bp_dia}`,
+    val: `${numBR(last.bp_sys)}/${numBR(last.bp_dia)}`,
     badge: classifyBP(last.bp_sys, last.bp_dia)
   }), /*#__PURE__*/React.createElement(Stat, {
     lbl: "Avalia\xE7\xF5es",
@@ -7662,7 +7662,7 @@ function StudentDetail({
       }
     }, "n\xBA ", sorted.length - i)), /*#__PURE__*/React.createElement("div", {
       className: "eval-meta"
-    }, ev.weight && `${fmt(ev.weight)} kg · `, dd.bmi && `IMC ${fmt(dd.bmi)} · `, dd.fatPct != null && `Gordura ${fmt(dd.fatPct)}% · `, ev.bp_sys && `PA ${ev.bp_sys}/${ev.bp_dia} · `, dd.dynAvg && `Preensão ${fmt(dd.dynAvg)} kgf`)), /*#__PURE__*/React.createElement("div", {
+    }, ev.weight && `${fmt(ev.weight)} kg · `, dd.bmi && `IMC ${fmt(dd.bmi)} · `, dd.fatPct != null && `Gordura ${fmt(dd.fatPct)}% · `, ev.bp_sys && `PA ${numBR(ev.bp_sys)}/${numBR(ev.bp_dia)} · `, dd.dynAvg && `Preensão ${fmt(dd.dynAvg)} kgf`)), /*#__PURE__*/React.createElement("div", {
       className: "bgroup"
     }, /*#__PURE__*/React.createElement("button", {
       className: "btn-icon",
@@ -7766,7 +7766,7 @@ function shareWhatsApp(student, evalData, prevEval) {
     L.push(` % Gordura: ${fmt(d.fatPct)}%${fc ? ' (' + fc.l + ')' : ''}`);
   }
   if (d.leanMass != null) L.push(` Massa magra: ${d.leanMass} kg`);
-  if (evalData.bp_sys && evalData.bp_dia) L.push(` Pressão: ${evalData.bp_sys}/${evalData.bp_dia} mmHg`);
+  if (evalData.bp_sys && evalData.bp_dia) L.push(` Pressão: ${numBR(evalData.bp_sys)}/${numBR(evalData.bp_dia)} mmHg`);
   if (d.dynAvg) L.push(` Preensão: ${d.dynAvg} kgf`);
   if (d.hidr) L.push(` Hidratação: ${(d.hidr / 1000).toFixed(1).replace('.', ',')} L/dia (~${Math.round(d.hidr / 250)} copos)`);
   if (prevEval) {
@@ -9281,7 +9281,7 @@ function Report({
     badge: fatCls
   }), hasBP && /*#__PURE__*/React.createElement(Stat, {
     lbl: "Press\xE3o",
-    val: `${evalData.bp_sys}/${evalData.bp_dia}`,
+    val: `${numBR(evalData.bp_sys)}/${numBR(evalData.bp_dia)}`,
     badge: bpCls
   }), d.leanMass != null && /*#__PURE__*/React.createElement(Stat, {
     lbl: "Massa magra",
@@ -9304,10 +9304,10 @@ function Report({
     val: evalData.bio_metabage,
     unit: "anos",
     badge: age(student.dob) ? num(evalData.bio_metabage) <= age(student.dob) ? {
-      l: `${age(student.dob) - num(evalData.bio_metabage)} anos abaixo`,
+      l: `${numBR(+(age(student.dob) - num(evalData.bio_metabage)).toFixed(1))} anos abaixo`,
       c: 'bg'
     } : {
-      l: `${num(evalData.bio_metabage) - age(student.dob)} anos acima`,
+      l: `${numBR(+(num(evalData.bio_metabage) - age(student.dob)).toFixed(1))} anos acima`,
       c: 'ba'
     } : null
   })), (() => {
@@ -10154,9 +10154,9 @@ function Report({
         }
       }, "Esquerdo")), MOBN.map(([lbl, k, fn, u]) => num(evalData[k + '_r']) || num(evalData[k + '_l']) ? /*#__PURE__*/React.createElement("tr", {
         key: k
-      }, /*#__PURE__*/React.createElement("td", null, lbl), /*#__PURE__*/React.createElement("td", null, evalData[k + '_r'] ? `${evalData[k + '_r']} ${u}` : '—', bcell(fn(evalData[k + '_r']))), /*#__PURE__*/React.createElement("td", null, evalData[k + '_l'] ? `${evalData[k + '_l']} ${u}` : '—', bcell(fn(evalData[k + '_l'])))) : null), MOBS.map(([lbl, k]) => evalData[k + '_r'] || evalData[k + '_l'] ? /*#__PURE__*/React.createElement("tr", {
+      }, /*#__PURE__*/React.createElement("td", null, lbl), /*#__PURE__*/React.createElement("td", null, evalData[k + '_r'] ? `${numBR(evalData[k + '_r'])} ${u}` : '—', bcell(fn(evalData[k + '_r']))), /*#__PURE__*/React.createElement("td", null, evalData[k + '_l'] ? `${numBR(evalData[k + '_l'])} ${u}` : '—', bcell(fn(evalData[k + '_l'])))) : null), MOBS.map(([lbl, k]) => evalData[k + '_r'] || evalData[k + '_l'] ? /*#__PURE__*/React.createElement("tr", {
         key: k
-      }, /*#__PURE__*/React.createElement("td", null, lbl), /*#__PURE__*/React.createElement("td", null, evalData[k + '_r'] || '—'), /*#__PURE__*/React.createElement("td", null, evalData[k + '_l'] || '—')) : null), evalData.ohs && /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("td", null, "Overhead squat"), /*#__PURE__*/React.createElement("td", {
+      }, /*#__PURE__*/React.createElement("td", null, lbl), /*#__PURE__*/React.createElement("td", null, numBR(evalData[k + '_r']) || '—'), /*#__PURE__*/React.createElement("td", null, numBR(evalData[k + '_l']) || '—')) : null), evalData.ohs && /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("td", null, "Overhead squat"), /*#__PURE__*/React.createElement("td", {
         colSpan: "2",
         style: {
           textAlign: 'left',
@@ -10210,15 +10210,15 @@ function Report({
           fontWeight: 700,
           color: '#6b7280'
         }
-      }, "Esquerdo")), (num(evalData.bal_open_r) || num(evalData.bal_open_l)) && /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("td", null, "Unipodal olhos abertos"), /*#__PURE__*/React.createElement("td", null, evalData.bal_open_r ? evalData.bal_open_r + ' s' : '—', bc(bo?.open)), /*#__PURE__*/React.createElement("td", null, evalData.bal_open_l ? evalData.bal_open_l + ' s' : '—', bc(boL?.open))), (num(evalData.bal_closed_r) || num(evalData.bal_closed_l)) && /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("td", null, "Unipodal olhos fechados"), /*#__PURE__*/React.createElement("td", null, evalData.bal_closed_r ? evalData.bal_closed_r + ' s' : '—', bc(bo?.closed)), /*#__PURE__*/React.createElement("td", null, evalData.bal_closed_l ? evalData.bal_closed_l + ' s' : '—', bc(boL?.closed))), (ybR != null || ybL != null) && /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("td", null, "Y-Balance (composto)"), /*#__PURE__*/React.createElement("td", {
+      }, "Esquerdo")), (num(evalData.bal_open_r) || num(evalData.bal_open_l)) && /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("td", null, "Unipodal olhos abertos"), /*#__PURE__*/React.createElement("td", null, evalData.bal_open_r ? numBR(evalData.bal_open_r) + ' s' : '—', bc(bo?.open)), /*#__PURE__*/React.createElement("td", null, evalData.bal_open_l ? numBR(evalData.bal_open_l) + ' s' : '—', bc(boL?.open))), (num(evalData.bal_closed_r) || num(evalData.bal_closed_l)) && /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("td", null, "Unipodal olhos fechados"), /*#__PURE__*/React.createElement("td", null, evalData.bal_closed_r ? numBR(evalData.bal_closed_r) + ' s' : '—', bc(bo?.closed)), /*#__PURE__*/React.createElement("td", null, evalData.bal_closed_l ? numBR(evalData.bal_closed_l) + ' s' : '—', bc(boL?.closed))), (ybR != null || ybL != null) && /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("td", null, "Y-Balance (composto)"), /*#__PURE__*/React.createElement("td", {
         style: {
           fontWeight: 600
         }
-      }, ybR != null ? ybR + ' cm' : '—'), /*#__PURE__*/React.createElement("td", {
+      }, ybR != null ? numBR(ybR) + ' cm' : '—'), /*#__PURE__*/React.createElement("td", {
         style: {
           fontWeight: 600
         }
-      }, ybL != null ? ybL + ' cm' : '—')))), antAsym && antAsym.diff > 4 && /*#__PURE__*/React.createElement("p", {
+      }, ybL != null ? numBR(ybL) + ' cm' : '—')))), antAsym && antAsym.diff > 4 && /*#__PURE__*/React.createElement("p", {
         style: {
           fontSize: 11.5,
           color: '#9a3540',
@@ -10312,7 +10312,7 @@ function Report({
           fontWeight: 400,
           fontSize: 11
         }
-      }, "(", evalData['rm_' + k + '_w'], "kg \xD7 ", evalData['rm_' + k + '_r'] || 1, ")")), prevEval && /*#__PURE__*/React.createElement("td", null)) : null;
+      }, "(", numBR(evalData['rm_' + k + '_w']), " kg \xD7 ", numBR(evalData['rm_' + k + '_r']) || 1, ")")), prevEval && /*#__PURE__*/React.createElement("td", null)) : null;
     })))), (() => {
       const FUNC = [['Timed Up and Go', 'func_tug', 's', classifyTUG], ['5x Sit-to-Stand', 'func_sts5', 's', classifySTS5], ['30s Chair Stand', 'func_chair30', 'reps', classifyChair30], ['Wall Sit', 'func_wallsit', 's', classifyWallSit], ['Prancha', 'func_plank', 's', classifyPlank], ['Dead Hang', 'func_deadhang', 's', classifyDeadHang]];
       if (!FUNC.some(([, k]) => num(evalData[k])) && !num(evalData.func_slsts_r)) return null;
@@ -10334,7 +10334,7 @@ function Report({
         style: {
           fontWeight: 600
         }
-      }, evalData.func_slsts_r || '—', " / ", evalData.func_slsts_l || '—', " reps", as && as.badge.c === 'br' && /*#__PURE__*/React.createElement("span", {
+      }, numBR(evalData.func_slsts_r) || '—', " / ", numBR(evalData.func_slsts_l) || '—', " reps", as && as.badge.c === 'br' && /*#__PURE__*/React.createElement("span", {
         className: "badge br",
         style: {
           marginLeft: 6
@@ -10377,7 +10377,7 @@ function Report({
       style: {
         fontWeight: 600
       }
-    }, rsiCalc(evalData.pw_dj_h, evalData.pw_dj_ct), /*#__PURE__*/React.createElement("span", {
+    }, numBR(rsiCalc(evalData.pw_dj_h, evalData.pw_dj_ct)), /*#__PURE__*/React.createElement("span", {
       className: `badge ${classifyRSI(rsiCalc(evalData.pw_dj_h, evalData.pw_dj_ct)).c}`,
       style: {
         marginLeft: 6
@@ -10421,24 +10421,24 @@ function Report({
       style: {
         fontWeight: 600
       }
-    }, evalData.pw_505_r || '—', " / ", evalData.pw_505_l || '—', " s"), prevEval && /*#__PURE__*/React.createElement("td", null)), num(evalData.pw_rast_fi) && /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("td", null, "RAST \u2014 \xEDndice de fadiga"), /*#__PURE__*/React.createElement("td", {
+    }, numBR(evalData.pw_505_r) || '—', " / ", numBR(evalData.pw_505_l) || '—', " s"), prevEval && /*#__PURE__*/React.createElement("td", null)), num(evalData.pw_rast_fi) && /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("td", null, "RAST \u2014 \xEDndice de fadiga"), /*#__PURE__*/React.createElement("td", {
       style: {
         fontWeight: 600
       }
-    }, evalData.pw_rast_fi, "%", /*#__PURE__*/React.createElement("span", {
+    }, numBR(evalData.pw_rast_fi), "%", /*#__PURE__*/React.createElement("span", {
       className: `badge ${classifyFatigueIndex(evalData.pw_rast_fi).c}`,
       style: {
         marginLeft: 6
       }
-    }, classifyFatigueIndex(evalData.pw_rast_fi).l)), prevEval && /*#__PURE__*/React.createElement("td", null)), yoyoVO2(evalData.pw_yoyo) && /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("td", null, "Yo-Yo IR1 (", evalData.pw_yoyo, " m)"), /*#__PURE__*/React.createElement("td", {
+    }, classifyFatigueIndex(evalData.pw_rast_fi).l)), prevEval && /*#__PURE__*/React.createElement("td", null)), yoyoVO2(evalData.pw_yoyo) && /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("td", null, "Yo-Yo IR1 (", numBR(evalData.pw_yoyo), " m)"), /*#__PURE__*/React.createElement("td", {
       style: {
         fontWeight: 600
       }
-    }, "VO\u2082m\xE1x \u2248 ", yoyoVO2(evalData.pw_yoyo), " mL/kg/min"), prevEval && /*#__PURE__*/React.createElement("td", null)), evalData.pw_beep && /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("td", null, "Beep test"), /*#__PURE__*/React.createElement("td", {
+    }, "VO\u2082m\xE1x \u2248 ", numBR(yoyoVO2(evalData.pw_yoyo)), " mL/kg/min"), prevEval && /*#__PURE__*/React.createElement("td", null)), evalData.pw_beep && /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("td", null, "Beep test"), /*#__PURE__*/React.createElement("td", {
       style: {
         fontWeight: 600
       }
-    }, "N\xEDvel ", evalData.pw_beep), prevEval && /*#__PURE__*/React.createElement("td", null)))))));
+    }, "N\xEDvel ", numBR(evalData.pw_beep)), prevEval && /*#__PURE__*/React.createElement("td", null)))))));
   })(), (() => {
     const map = evalData.injury_map || {};
     const marks = Object.keys(map).length;
@@ -10556,11 +10556,11 @@ function Report({
       }
     }, "Diferen\xE7a")), rows.map((r, i) => /*#__PURE__*/React.createElement("tr", {
       key: i
-    }, /*#__PURE__*/React.createElement("td", null, r.lbl), /*#__PURE__*/React.createElement("td", null, r.r || '—', " / ", r.l || '—'), /*#__PURE__*/React.createElement("td", {
+    }, /*#__PURE__*/React.createElement("td", null, r.lbl), /*#__PURE__*/React.createElement("td", null, numBR(r.r) || '—', " / ", numBR(r.l) || '—'), /*#__PURE__*/React.createElement("td", {
       style: {
         fontWeight: 600
       }
-    }, r.pct, "%", /*#__PURE__*/React.createElement("span", {
+    }, numBR(r.pct), "%", /*#__PURE__*/React.createElement("span", {
       className: `badge ${r.badge.c}`,
       style: {
         marginLeft: 6
@@ -10588,7 +10588,7 @@ function Report({
       style: {
         fontWeight: 600
       }
-    }, evalData[k], "/5", /*#__PURE__*/React.createElement("span", {
+    }, numBR(evalData[k]), "/5", /*#__PURE__*/React.createElement("span", {
       className: `badge ${classifyMove(evalData[k]).c}`,
       style: {
         marginLeft: 6
@@ -10718,7 +10718,7 @@ function Report({
         color: '#9ca3af',
         marginTop: 4
       }
-    }, "M\xE9todo: ", fz.method, fz.rest ? ` · FC repouso ${fz.rest} bpm` : '', ".")), lifts.length > 0 && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    }, "M\xE9todo: ", fz.method, fz.rest ? ` · FC repouso ${numBR(fz.rest)} bpm` : '', ".")), lifts.length > 0 && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
       style: {
         fontSize: 11,
         fontWeight: 700,
@@ -10761,11 +10761,11 @@ function Report({
       style: {
         fontWeight: 600
       }
-    }, evalData.goal_weight, " kg"), prevEval && /*#__PURE__*/React.createElement("td", null)), num(evalData.goal_fat) && /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("td", null, "% Gordura alvo"), /*#__PURE__*/React.createElement("td", {
+    }, numBR(evalData.goal_weight), " kg"), prevEval && /*#__PURE__*/React.createElement("td", null)), num(evalData.goal_fat) && /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("td", null, "% Gordura alvo"), /*#__PURE__*/React.createElement("td", {
       style: {
         fontWeight: 600
       }
-    }, evalData.goal_fat, "%"), prevEval && /*#__PURE__*/React.createElement("td", null)), evalData.goal_next && /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("td", null, "Pr\xF3xima reavalia\xE7\xE3o"), /*#__PURE__*/React.createElement("td", {
+    }, numBR(evalData.goal_fat), "%"), prevEval && /*#__PURE__*/React.createElement("td", null)), evalData.goal_next && /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("td", null, "Pr\xF3xima reavalia\xE7\xE3o"), /*#__PURE__*/React.createElement("td", {
       style: {
         fontWeight: 600
       }

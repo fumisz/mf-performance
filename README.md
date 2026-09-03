@@ -862,6 +862,35 @@ porque é o que tem retorno de verdade. Continua um convite de cada vez. A suít
 `push.js` passou a cobrar a regra nos dois sistemas — inclusive abrindo o app
 com user-agent de iPhone para conferir que lá a ordem se mantém.
 
+## A tela de Nova avaliação, medida campo a campo
+É a maior superfície de digitação do app e era a única sem suíte própria. Tudo
+que sai no relatório assinado pelo treinador entra por ali, então a pergunta da
+suíte é uma só: **o que eu digito chega ao banco?**
+
+A `avaliacao.js` não usa amostra. Ela lê os **105 campos numéricos** do
+formulário completo, põe um valor único em cada um, salva e cobra que nenhum
+valor se perca. Não existe tabela rótulo→coluna: se um campo não chega, o número
+dele simplesmente não aparece no que subiu — a mesma ideia que teria pego a
+coluna `reps` esquecida. Depois reabre para editar e cobra que os 105 voltem
+iguais.
+
+Resultado: **nenhum campo se perde e todos voltam.** O formulário e o
+`saveEv` estão certos — o `saveEv` já lia o erro, distinguia falta de rede de
+falha real e caía no offline. Nada a consertar ali, e agora está preso por
+teste.
+
+O que a suíte achou foi no **relatório**, e só apareceu porque o formulário
+estava inteiro preenchido: onze lugares ainda imprimiam número cru com ponto
+decimal, todos em seções que a fixture anterior não exercitava — pressão
+arterial (montada como texto `"126/81"`, então o `Stat` não formatava), painel
+de assimetrias, mobilidade, equilíbrio, Y-Balance, qualidade do movimento,
+1‑RM estimado, RSI, RAST, Yo-Yo, beep test, metas, e o selo da idade metabólica
+("19.84 anos abaixo", uma subtração crua). Todos passam pelo `numBR` agora.
+
+A varredura anterior do relatório tinha dado verde porque a avaliação de teste
+só preenchia uma parte da ficha. Um teste que não preenche tudo não prova nada
+sobre o que ele não preencheu.
+
 ## Números
 Tudo que aparece na tela usa vírgula decimal (24,3 e não 24.3), como se escreve
 em português. Só exibição: nenhum campo de entrada nem exportação passa pelo
