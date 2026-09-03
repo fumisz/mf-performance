@@ -36,7 +36,7 @@ if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABAS
    .catch. Chamar .catch direto estoura TypeError, e dentro de um useEffect isso
    derruba a tela inteira do aluno. */
 const semEsperar=q=>{try{q.then(()=>{},()=>{});}catch(e){}};
-const APP_VERSION='2026.10.08';   // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION='2026.10.09';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
 
@@ -152,6 +152,23 @@ async function getActivePlanR(studentId){
       .order('created_at',{ascending:false}).limit(1).maybeSingle());
   return {plano:r.data||null, offline:semRede(r)};
 }
+function montarArvore(meals,items,subs){
+  return (meals||[]).map(m=>({...m,
+    items: (items||[]).filter(i=>i.meal_id===m.id)
+      .map(i=>({...i, subs: (subs||[]).filter(s=>s.meal_item_id===i.id)}))
+  }));
+}
+/* O cardápio vem em três níveis e um depende do outro: refeição -> item ->
+   troca. São três idas ao servidor EM FILA, cada uma com o prazo de 12 s. Num
+   sinal ruim isso é meio minuto de tela girando com o plano inteiro já guardado
+   no aparelho — foi o que a suíte mediu: 35 s. Aqui monta o cardápio direto da
+   cópia, sem tocar na rede. Devolve null quando não há cópia. */
+async function planTreeDaCopia(planId){
+  const [mc,ic,sc]=await Promise.all([IDB.get('ler-refeicoes-'+planId),
+    IDB.get('ler-itens-'+planId),IDB.get('ler-trocas-'+planId)]);
+  if(!mc||!Array.isArray(mc.dado))return null;
+  return montarArvore(mc.dado,ic&&ic.dado,sc&&sc.dado);
+}
 async function loadPlanTree(planId){
   const { data:meals } = await lerCopia('refeicoes-'+planId,
     sb.from('meals').select('*').eq('plan_id',planId).order('order_index'));
@@ -168,9 +185,7 @@ async function loadPlanTree(planId){
       subs=rs.data||[];
     }
   }
-  return (meals||[]).map(m=>({...m,
-    items: items.filter(i=>i.meal_id===m.id).map(i=>({...i, subs: subs.filter(s=>s.meal_item_id===i.id)}))
-  }));
+  return montarArvore(meals,items,subs);
 }
 function resizeImage(file, max=1000, quality=0.82){
   return new Promise((res,rej)=>{
@@ -6360,8 +6375,18 @@ async function escoarFilaAluno(){
     while(q.length){
       const it=q[0];
       try{
-        if(it.tabela)  {const {error}=await comPrazo(sb.from(it.tabela)
-          .upsert(it.linha,{onConflict:'id',ignoreDuplicates:true}));if(error)throw error;}
+        // Três formas de gravação cabem na fila:
+        //   {tabela,linha}            grava e ignora se já existe (série de treino:
+        //                             a política do aluno só permite INSERT)
+        //   {tabela,linha,conflito}   grava por cima da linha do dia (refeição marcada)
+        //   {tabela,apagar}           desfaz (refeição desmarcada)
+        if(it.tabela){
+          if(it.apagar){const {error}=await comPrazo(sb.from(it.tabela).delete().match(it.apagar));
+            if(error)throw error;}
+          else{const {error}=await comPrazo(sb.from(it.tabela).upsert(it.linha,
+            it.conflito?{onConflict:it.conflito}:{onConflict:'id',ignoreDuplicates:true}));
+            if(error)throw error;}
+        }
         else if(it.rpc){
           const {data,error}=await comPrazo(sb.rpc(it.rpc,it.args||{}));if(error)throw error;
           // feedback que estava na fila: se tinha dor alta, o treinador
@@ -9407,29 +9432,59 @@ function TreinosScreen({student,demo,onBack}){
   </div>);
 }
 
-function HydraScreen({student,demo,onBack}){
+function HydraScreen({student,profile,demo,onBack}){
   const BTL='M31 8 h28 v9 q17 6 17 25 v82 q0 12 -12 12 h-38 q-12 0 -12 -12 v-82 q0 -19 17 -25 z';
   const [meta,setMeta]=useState(2500);
   const [today,setToday]=useState(demo?1750:0);
   const [week,setWeek]=useState(demo?[['Seg',2400],['Ter',1800],['Qua',2600],['Qui',2200],['Sex',2500],['Sáb',1200],['Dom',1750]]:null);
   const [cel,setCel]=useState(false);const hitRef=useRef(false);
   const [splash,setSplash]=useState(0);
+  const [pend,setPend]=useState(0);   // ml tomados sem sinal, ainda na fila
   const cap=500;
   useEffect(()=>{if(demo)return;(async()=>{
-    let w=null;try{const {data:av}=await sb.from('assessments').select('data,date').order('date',{ascending:false}).limit(1);if(av&&av[0])w=av[0].data&&av[0].data.weight;}catch(e){}
-    const m=w?Math.round(num(w)*35/50)*50:2500;setMeta(m);
+    /* A meta é a que o TREINADOR escreveu no plano alimentar. Só quando não há
+       plano — ou ele não pôs meta — é que ela sai do peso da última avaliação.
+       Antes era sempre pelo peso: a garrafa dizia 2,1 L enquanto a tela da
+       dieta e o anel do dia diziam os 2,5 L do plano. Três telas, dois números,
+       e a comemoração de "meta batida" saindo na hora errada. */
+    let m=null;
+    try{const p=profile&&await getActivePlan(profile.id);if(p&&p.water_goal_ml)m=n0(p.water_goal_ml)||null;}catch(e){}
+    if(!m){let w=null;
+      try{const r=await lerCopia('aval-peso',sb.from('assessments').select('data,date').order('date',{ascending:false}).limit(1));
+        const av=r.data;if(av&&av[0])w=av[0].data&&av[0].data.weight;}catch(e){}
+      m=w?Math.round(num(w)*35/50)*50:2500;}
+    setMeta(m);
     const monday=new Date();monday.setDate(monday.getDate()-((monday.getDay()+6)%7));const mk=dayKey(monday);
-    const {data:hs}=await sb.from('train_hidratacao').select('data,total_ml').gte('data',mk).order('data');
-    const map={};(hs||[]).forEach(h=>map[h.data]=h.total_ml);
+    const r=await lerCopia('hidra-semana',sb.from('train_hidratacao').select('data,total_ml').gte('data',mk).order('data'));
+    const hs=r.data||[];
+    const map={};hs.forEach(h=>map[h.data]=h.total_ml);
+    // o que bebeu sem sinal está na fila e ainda não é do servidor — mas já é
+    // dele: sem somar aqui, quem bebeu offline reabre o app e vê a garrafa vazia
+    const naFila=(await filaAluno()).filter(i=>i.rpc==='hidratar')
+      .reduce((a,i)=>a+n0(i.args&&i.args.p_ml),0);
+    setPend(naFila);
     const labels=['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];const wk=[];
-    for(let i=0;i<7;i++){const d=new Date(monday);d.setDate(d.getDate()+i);const ds=dayKey(d);wk.push([labels[i],map[ds]||0]);}
-    setWeek(wk);setToday(map[todayStr()]||0);
+    for(let i=0;i<7;i++){const d=new Date(monday);d.setDate(d.getDate()+i);const ds=dayKey(d);
+      wk.push([labels[i],(map[ds]||0)+(ds===todayStr()?naFila:0)]);}
+    setWeek(wk);setToday((map[todayStr()]||0)+naFila);
   })();},[]);
   const add=async(ml)=>{const nt=today+ml;setToday(nt);
     setSplash(x=>x+1);setTimeout(()=>setSplash(x=>Math.max(0,x-1)),700);
     try{navigator.vibrate&&navigator.vibrate(15);}catch(e){}
     if(nt>=meta&&!hitRef.current){hitRef.current=true;setCel(true);try{navigator.vibrate&&navigator.vibrate([40,40,120]);}catch(e){}setTimeout(()=>setCel(false),2600);}
-    if(!demo){try{const {data}=await sb.rpc('hidratar',{p_ml:ml});if(data!=null)setToday(data);}catch(e){}}};
+    if(demo)return;
+    /* Sem prazo e sem fila, a água tomada sem sinal sumia calada: a garrafa
+       enchia na tela e o servidor nunca sabia. Agora entra na fila como a série
+       de treino. O hidratar SOMA ml, então uma resposta que se perde depois de
+       gravar pode contar 250 ml duas vezes — é um exagero num contador que
+       zera todo dia, e muito menos grave do que perder a água toda. */
+    try{
+      const {data,error}=await comPrazo(sb.rpc('hidratar',{p_ml:ml}));
+      if(error)throw error;
+      if(data!=null)setToday(n0(data)+pend);
+    }catch(e){
+      if(isNetErr(e)){await enfileirarAluno({rpc:'hidratar',args:{p_ml:ml}});setPend(p=>p+ml);}
+    }};
   const pct=Math.min(1,meta?today/meta:0);const full=today>=meta&&today>0;
   const fillY=118-pct*(118-8);
   const weekMax=Math.max(meta,...((week||[]).map(w=>w[1])),1);
@@ -9458,6 +9513,8 @@ function HydraScreen({student,demo,onBack}){
       <div style={{flex:1}}>
         <div style={{fontSize:26,fontWeight:800}}>{(today/1000).toFixed(2).replace('.',',')}<span style={{color:'var(--lvt2)',fontSize:15,fontWeight:600}}> / {(meta/1000).toFixed(2).replace('.',',')} L</span></div>
         <div className="lv-sub">{full?'meta do dia batida!':`faltam ${((meta-today)/1000).toFixed(2).replace('.',',')} L`}</div>
+        {pend>0&&<div className="lv-sub" style={{fontSize:11.5,marginTop:3}}>
+          {pend} ml guardados no aparelho — sobem quando o sinal voltar.</div>}
         <div className="lv-freq" style={{marginTop:10}}><i style={{width:(pct*100)+'%',background:full?'linear-gradient(90deg,var(--blue),var(--green))':'linear-gradient(90deg,var(--blue),#818cf8)'}}/></div>
       </div>
     </div>
@@ -9849,28 +9906,71 @@ function DietaScreen({profile,demo,onBack,onHidra}){
   const [sck,setSck]=useState({});
   const [uploading,setUploading]=useState(false);
   const [cel,setCel]=useState(false);
+  const [naFila,setNaFila]=useState(false);   // marcou sem sinal, ainda não subiu
+  const [erro,setErro]=useState(null);        // erro de verdade, não falta de rede
   const celRef=useRef(null);   // timeout da animacao de comemoracao
   const fileRef=useRef();
   const today=todayStr();
+  // a fila esvaziou sozinha: o aviso sai da tela sem o aluno fazer nada
+  useEffect(()=>{if(demo)return;
+    filaAluno().then(q=>setNaFila(q.some(i=>i.tabela==='checkins'||i.tabela==='supplement_checkins')));
+    const f=e=>{if(!e.detail)setNaFila(false);};
+    window.addEventListener('mfp-fila',f);
+    return()=>window.removeEventListener('mfp-fila',f);},[demo]);
 
   const load=useCallback(async()=>{
     if(demo){
       setPlan(_DEMO_DIETA);setMeals(_DEMO_DIETA.meals);
       setChecks({dm1:true,dm2:true});setSupps(_DEMO_SUPPS);setSck({dp1:true});return;
     }
+    // A cópia primeiro. O aluno que já abriu a dieta uma vez tem o cardápio
+    // inteiro no aparelho: mostrar isso na hora é o que faz a tela abrir com um
+    // toque, e é o que faz ela abrir sem sinal em vez de girar.
+    const copia=await IDB.get('ler-plano-'+profile.id);
+    if(copia&&copia.dado){
+      const arv=await planTreeDaCopia(copia.dado.id);
+      if(arv&&arv.length){
+        setPlan(copia.dado);setMeals(arv);
+        const ckc=await IDB.get('ler-refok-'+profile.id);
+        if(ckc)setChecks(Object.fromEntries((ckc.dado||[])
+          .filter(c=>c.day===today).map(c=>[c.meal_id,true])));
+        const spc0=await IDB.get('ler-supl-'+profile.id);
+        if(spc0)setSupps(spc0.dado||[]);
+      }
+    }
     const {plano:p,offline:semNet}=await getActivePlanR(profile.id);
     setOffline(semNet);
     if(!p){setPlan(null);return;}
     const tree=await loadPlanTree(p.id);
+    /* Estas três leituras iam direto para o servidor, sem prazo e sem cópia.
+       Sem sinal a biblioteca ainda tentava três vezes cada uma e a tela ficava
+       35 segundos girando — com o plano já guardado no aparelho o tempo todo.
+       Agora passam pelo lerCopia: prazo de 12 s e cópia local, igual ao resto. */
     const [ck,sp,spc]=await Promise.all([
-      sb.from('checkins').select('meal_id').eq('student_id',profile.id).eq('day',today),
-      sb.from('supplements').select('*').eq('student_id',profile.id).order('order_index'),
-      sb.from('supplement_checkins').select('supplement_id').eq('student_id',profile.id).eq('day',today),
+      lerCopia('refok-'+profile.id,
+        sb.from('checkins').select('meal_id,day').eq('student_id',profile.id).eq('day',today)),
+      lerCopia('supl-'+profile.id,
+        sb.from('supplements').select('*').eq('student_id',profile.id).order('order_index')),
+      lerCopia('suplok-'+profile.id,
+        sb.from('supplement_checkins').select('supplement_id,day').eq('student_id',profile.id).eq('day',today)),
     ]);
+    // A cópia pode ser de ontem. Cada linha traz o dia em que foi lida, e o que
+    // não é de hoje não vale como marcado — senão o aluno abre o app de manhã
+    // sem sinal e vê o almoço de ontem já comido.
+    const doHoje=(rows,campo)=>Object.fromEntries(
+      (rows||[]).filter(c=>!c.day||c.day===today).map(c=>[c[campo],true]));
+    // O que ainda está na fila do aparelho já vale: marcar e desmarcar entram
+    // na ordem em que ele tocou, por cima do que o servidor devolveu.
+    const marcadas=doHoje(ck.data,'meal_id');
+    (await filaAluno()).forEach(i=>{
+      if(i.tabela!=='checkins')return;
+      if(i.apagar)delete marcadas[i.apagar.meal_id];
+      else if(i.linha&&i.linha.day===today)marcadas[i.linha.meal_id]=true;
+    });
     setPlan(p);setMeals(tree);
-    setChecks(Object.fromEntries((ck.data||[]).map(c=>[c.meal_id,true])));
+    setChecks(marcadas);
     setSupps(sp.data||[]);
-    setSck(Object.fromEntries((spc.data||[]).map(c=>[c.supplement_id,true])));
+    setSck(doHoje(spc.data,'supplement_id'));
   },[profile.id,today,demo]);
   useEffect(()=>{load();},[load]);
 
@@ -9889,15 +9989,36 @@ function DietaScreen({profile,demo,onBack,onHidra}){
       celRef.current=setTimeout(()=>setCel(false),2600);
     }
     if(demo)return;
-    if(done) await sb.from('checkins').upsert({student_id:profile.id,meal_id:mealId,day:today,done:true},{onConflict:'meal_id,day'});
-    else await sb.from('checkins').delete().eq('student_id',profile.id).eq('meal_id',mealId).eq('day',today);
+    await gravarCheck('checkins',{student_id:profile.id,meal_id:mealId,day:today},done,
+      {done:true},()=>setChecks(c=>({...c,[mealId]:!done})));
   };
   const toggleSupp=async(id)=>{
     const done=!sck[id];
     setSck(c=>({...c,[id]:done}));
     if(demo)return;
-    if(done) await sb.from('supplement_checkins').upsert({student_id:profile.id,supplement_id:id,day:today},{onConflict:'supplement_id,day'});
-    else await sb.from('supplement_checkins').delete().eq('student_id',profile.id).eq('supplement_id',id).eq('day',today);
+    await gravarCheck('supplement_checkins',{student_id:profile.id,supplement_id:id,day:today},done,
+      {},()=>setSck(c=>({...c,[id]:!done})));
+  };
+  /* O aluno marca a refeição na mesa do restaurante, com uma barra de sinal.
+     Antes isto ia direto para o servidor, sem prazo e sem fila: o visto
+     aparecia na tela, a gravação morria calada e no dia seguinte o treinador
+     via "não marcou nenhuma refeição". Agora é o mesmo contrato da série de
+     treino — sem rede vai para a fila e sobe depois; erro de verdade desfaz o
+     visto e diz o que houve, em vez de mentir. */
+  const gravarCheck=async(tabela,chave,done,extra,desfazer)=>{
+    const conflito=tabela==='checkins'?'meal_id,day':'supplement_id,day';
+    try{
+      const {error}=done
+        ? await comPrazo(sb.from(tabela).upsert({...chave,...extra},{onConflict:conflito}))
+        : await comPrazo(sb.from(tabela).delete().match(chave));
+      if(error)throw error;
+      setErro(null);
+    }catch(e){
+      if(isNetErr(e)){
+        await enfileirarAluno(done?{tabela,linha:{...chave,...extra},conflito}:{tabela,apagar:chave});
+        setNaFila(true);
+      }else{desfazer();setErro(e.message||String(e));}
+    }
   };
   const sendPhoto=async(file)=>{
     if(!file)return;
@@ -9958,6 +10079,16 @@ function DietaScreen({profile,demo,onBack,onHidra}){
       </div>
       {plan.notes&&<div className="lv-sub" style={{marginTop:12,lineHeight:1.55,borderTop:'1px solid var(--lvbd)',paddingTop:10}}>{plan.notes}</div>}
     </div>
+
+    {naFila&&<div className="lv-card" style={{borderColor:'var(--lvsel)',padding:'10px 14px',marginBottom:14}}>
+      <div style={{fontWeight:700,fontSize:13.5}}>Marcado sem internet</div>
+      <div className="lv-sub" style={{marginTop:3,lineHeight:1.45}}>
+        Está guardado no aparelho e sobe sozinho quando o sinal voltar.</div>
+    </div>}
+    {erro&&<div className="lv-card" style={{borderColor:'rgba(248,113,113,.5)',padding:'10px 14px',marginBottom:14}}>
+      <div style={{fontWeight:700,fontSize:13.5,color:'#fca5a5'}}>Não consegui marcar</div>
+      <div className="lv-sub" style={{marginTop:3,lineHeight:1.45}}>{erro}</div>
+    </div>}
 
     {onHidra&&<div className="lv-treino" style={{marginBottom:14}} onClick={onHidra}>
       <span style={{width:3,height:30,borderRadius:2,background:'var(--lvrx)',flexShrink:0}}/>
@@ -10090,16 +10221,33 @@ function AneisDoDia({stu,profile,demo,semFicha,onTreino,onDieta,onAgua,onCheckin
     const r={treinou:false,ref:0,refTot:0,agua:0,aguaMeta:3000,checkin:null};
     try{const {data}=await sb.from('train_historico').select('id').eq('student_id',stu.id).eq('data_treino',hoje).limit(1);r.treinou=!!(data&&data.length);}catch(e){}
     try{const {data}=await sb.from('train_hidratacao').select('total_ml').eq('id',stu.id+'_'+hoje).maybeSingle();if(data)r.agua=data.total_ml||0;}catch(e){}
+    // água tomada sem sinal ainda está na fila do aparelho; sem somar aqui o
+    // anel diz 0 L para quem bebeu 1 L de manhã no metrô
+    try{r.agua+=(await filaAluno()).filter(i=>i.rpc==='hidratar')
+      .reduce((a,i)=>a+n0(i.args&&i.args.p_ml),0);}catch(e){}
     try{const {data}=await sb.from('train_checkin').select('sinal').eq('id',stu.id+'_'+hoje).maybeSingle();if(data)r.checkin=data.sinal;}catch(e){}
     try{
       const p=await getActivePlan(profile.id);
       if(p){
         if(p.water_goal_ml)r.aguaMeta=p.water_goal_ml;
+        // mesmas leituras da tela da dieta, pelo mesmo caminho: com prazo e com
+        // cópia. Cruas, sem sinal elas seguravam o cartão "Seu dia" inteiro e
+        // depois faziam o anel da dieta sumir da tela.
         const [ms,ck]=await Promise.all([
-          sb.from('meals').select('id').eq('plan_id',p.id),
-          sb.from('checkins').select('meal_id').eq('student_id',profile.id).eq('day',hoje),
+          // chave própria: 'refeicoes-<plano>' guarda a refeição inteira para a
+          // tela da dieta, e gravar aqui só o id apagaria nome e horário de lá
+          lerCopia('refcont-'+p.id,sb.from('meals').select('id').eq('plan_id',p.id)),
+          lerCopia('refok-'+profile.id,
+            sb.from('checkins').select('meal_id,day').eq('student_id',profile.id).eq('day',hoje)),
         ]);
-        r.refTot=(ms.data||[]).length;r.ref=(ck.data||[]).length;
+        const marcadas={};
+        (ck.data||[]).forEach(c=>{if(!c.day||c.day===hoje)marcadas[c.meal_id]=true;});
+        (await filaAluno()).forEach(i=>{
+          if(i.tabela!=='checkins')return;
+          if(i.apagar)delete marcadas[i.apagar.meal_id];
+          else if(i.linha&&i.linha.day===hoje)marcadas[i.linha.meal_id]=true;
+        });
+        r.refTot=(ms.data||[]).length;r.ref=Object.keys(marcadas).length;
       }
     }catch(e){}
     setH(r);
@@ -10675,7 +10823,7 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
   </div></div>);
   if(exec)return shell(<TrainExec student={stu} divisao={exec} demo={demo} somenteLeitura={espiando} best={best} onBack={()=>setExec(null)} onSaved={(exId,carga)=>setBest(b=>({...b,[exId]:Math.max(b[exId]||0,carga)}))} onFinish={refresh}/>);
   if(evol)return shell(<EvolScreen student={stu} demo={demo} onBack={()=>setEvol(false)}/>);
-  if(hydra)return shell(<HydraScreen student={stu} demo={demo} onBack={()=>setHydra(false)}/>);
+  if(hydra)return shell(<HydraScreen student={stu} profile={espiando?{...profile,id:contaAluno}:profile} demo={demo} onBack={()=>setHydra(false)}/>);
   if(chk)return shell(<CheckinScreen student={stu} demo={demo} onBack={()=>setChk(false)}/>);
   if(ciclo)return shell(<CicloScreen student={stu} demo={demo} onBack={()=>setCiclo(false)}/>);
   if(aval)return shell(<AvalScreen student={stu} demo={demo} onBack={()=>setAval(false)}/>);

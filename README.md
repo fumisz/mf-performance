@@ -644,6 +644,38 @@ animado do free-exercise-db e as 12 técnicas avançadas com a instrução escri
 Os modelos que vêm no app ficam com `coach_id` nulo (todo mundo enxerga, ninguém
 edita); os que o treinador salva ficam com o `coach_id` dele.
 
+## A dieta sem sinal, e a meta de água que ninguém via
+A dieta é um módulo inteiro do lado do aluno e era o único que nunca tinha tido
+uma varredura própria. Três coisas apareceram, todas medidas antes de mexer:
+
+**A tela levava 35 segundos para abrir sem sinal.** O cardápio vem em três
+níveis — refeição, item, troca — e cada um espera o anterior. São três idas ao
+servidor em fila, mais três leituras de check que iam cruas, sem prazo nenhum.
+Num sinal ruim a biblioteca ainda tenta três vezes cada uma. O aluno ficava
+olhando a roda girar com o plano inteiro já guardado no aparelho. Agora a tela
+monta o cardápio da cópia local antes de falar com a rede e atualiza por trás:
+**35 s viraram 1 s**, medido pela mesma sonda nos dois builds.
+
+**Marcar refeição sem sinal se perdia calada.** Ia direto para o servidor, sem
+prazo e sem fila: o visto aparecia na tela, a gravação morria, e no dia seguinte
+o painel do treinador dizia "não marcou nenhuma refeição". Agora é o mesmo
+contrato da série de treino — sem rede vai para a fila e sobe sozinho, e a tela
+diz que está guardado no aparelho. A fila passou a saber desfazer também, porque
+desmarcar é um `delete`, não uma gravação. Erro de verdade (que não é falta de
+rede) tira o visto de volta e diz o que houve, em vez de mentir. Mesma coisa
+para os suplementos e para a água.
+
+**A meta de água era outra na tela da garrafa.** A tela da dieta e o anel do dia
+liam a meta que o treinador escreveu no plano; a garrafa calculava a dela pelo
+peso da última avaliação. Os 12 alunos com plano ativo têm meta escrita — 3, 3,5,
+4 e até 4,5 L — e **nenhum deles estava vendo a sua**: onze caíam no padrão de
+2,5 L e um via 2,6 em vez de 3,5. Quem tinha 4,5 L prescritos lia 2,5 e ganhava
+"meta batida" com quase dois litros faltando. Agora a meta é uma só, a do plano;
+o cálculo pelo peso ficou como reserva para quem ainda não tem plano.
+
+A suíte `dieta.js` (24 conferências) fixa as três: ela reprovava no build
+publicado antes de passar neste.
+
 ## Números
 Tudo que aparece na tela usa vírgula decimal (24,3 e não 24.3), como se escreve
 em português. Só exibição: nenhum campo de entrada nem exportação passa pelo
