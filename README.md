@@ -313,6 +313,27 @@ coisas trabalhavam contra ele:
   registro daquele índice exato. Quem fez 4 séries hoje e registrou 1 na vez
   passada repete a carga mais próxima que existir.
 
+## O painel no celular
+Todas as varreduras do lado do treinador rodavam em 1280px — e ele usa o app no
+telefone, na academia. Foi assim que o "Pular" do descanso ficou meses fora da
+tela. A suíte `coachcelular` abre as oito telas do menu em **390px** e mede o
+que a régua pega: página que rola para o lado, botão fora da tela, elemento
+vazando pela borda. Nenhuma das oito tinha vazamento — o layout estava bom.
+
+O que a régua não pediu, o olho pegou: **tocar num aluno com a lista rolada
+abria a ficha no meio**. Medido: rolagem 900 → 243, com o nome do aluno em
+**-120px**, ou seja, acima da dobra e atrás da barra do topo.
+
+Duas causas, as duas corrigidas:
+
+- o app do aluno voltava ao topo ao trocar de aba (`goTab`), o do treinador
+  não. Agora volta — num efeito depois da renderização, não dentro do `go`,
+  porque o navegador reancora a rolagem quando o conteúdo novo entra;
+- e a **conversa puxava a página**. O `scrollIntoView` da última mensagem só faz
+  sentido quando a conversa É a tela, como na aba Recados do aluno. Na ficha do
+  treinador ela é um cartão no meio de uma página longa, e esse scroll levava a
+  página inteira até ela. Agora só desce quando a conversa é a tela.
+
 ## O repositório passa a reproduzir o banco
 Doze funções tinham sido aplicadas direto no Supabase, em sessões diferentes, e
 nunca entraram aqui: `painel_hoje`, `peso_situacao`, `alunos_duplicados`,

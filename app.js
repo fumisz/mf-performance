@@ -71,7 +71,7 @@ const semEsperar = q => {
     q.then(() => {}, () => {});
   } catch (e) {}
 };
-const APP_VERSION = '2026.10.07'; // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION = '2026.10.08'; // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA'); // YYYY-MM-DD no fuso LOCAL
 
@@ -21902,6 +21902,16 @@ function App({
     setView(v);
     setMenu(false);
   };
+  // Trocar de tela tem de levar para o topo dela. No celular, tocar num aluno
+  // com a lista rolada abria a ficha no meio: o nome dele e a primeira fileira
+  // de botões ficavam acima da dobra, escondidos atrás da barra do topo. Aqui
+  // e não dentro do `go` porque o navegador reancora a rolagem depois que o
+  // conteúdo novo entra — rolar antes da renderização não segura.
+  useEffect(() => {
+    try {
+      window.scrollTo(0, 0);
+    } catch (e) {}
+  }, [view, selStudent && selStudent.id]);
   const setPtype = (id, pt) => {
     try {
       if (pt) localStorage.setItem('mfp_ptype_' + id, pt);else localStorage.removeItem('mfp_ptype_' + id);
@@ -25522,7 +25532,13 @@ function Conversa({
     }));
     if (onLido) onLido();
   }, [msgs]);
+  // Descer até a última mensagem só faz sentido quando a conversa É a tela,
+  // como na aba Recados do aluno. Na ficha do treinador ela é um cartão no meio
+  // de uma página longa, e esse scroll arrastava a página inteira para o meio:
+  // abrir um aluno no celular caía direto na conversa, com o nome dele e os
+  // botões de ação já acima da dobra.
   useEffect(() => {
+    if (!souAluno && !compacto) return;
     try {
       fimRef.current && fimRef.current.scrollIntoView({
         block: 'nearest'
