@@ -59,7 +59,7 @@ if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABAS
    .catch. Chamar .catch direto estoura TypeError, e dentro de um useEffect isso
    derruba a tela inteira do aluno. */
 const semEsperar=q=>{try{q.then(()=>{},()=>{});}catch(e){}};
-const APP_VERSION='2026.10.15';   // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION='2026.10.16';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
 
@@ -4443,12 +4443,28 @@ function DuplicadosScreen({coach,onBack,onMudou}){
       if(!atual||peso>atual.peso)escolha[r.chave]={id:r.student_id,peso};
     });
     setPrincipal(Object.fromEntries(Object.entries(escolha).map(([k,v])=>[k,v.id])));
+    /* Já marca o que quase certamente é a mesma pessoa: cadastro SEM login.
+       Quem tem login próprio fica desmarcado — ele que decida, com o e-mail na
+       frente. É o caso do Jefferson: a ficha antiga sem conta, com as duas
+       avaliações, do lado da conta que ele usa para treinar. */
+    setMarcados(Object.fromEntries(rows.filter(r=>!r.vinculado).map(r=>[r.student_id,true])));
   };
   useEffect(()=>{carregar();},[]);
 
+  /* Quais cadastros do grupo vão ser juntados.
+     Antes o botão juntava o GRUPO INTEIRO de uma vez. Como o agrupamento é por
+     primeiro nome, isso significava oferecer "juntar em um só" para três Biancas
+     que são três pessoas diferentes, com três e-mails diferentes. Um clique
+     errado ali apaga o cadastro de uma aluna.
+     Agora ele marca um a um, e quem tem login próprio começa DESMARCADO — é o
+     sinal mais forte de que são pessoas diferentes. */
+  const [marcados,setMarcados]=useState({});   // {student_id: true}
+  const marcar=(id,v)=>setMarcados(m=>({...m,[id]:v}));
+  const vaiJuntar=(chave,grupo)=>grupo.filter(r=>r.student_id!==principal[chave]&&marcados[r.student_id]);
+
   const juntar=async(chave,grupo)=>{
     const alvo=principal[chave];
-    const outros=grupo.filter(r=>r.student_id!==alvo);
+    const outros=vaiJuntar(chave,grupo);
     if(!alvo||!outros.length)return;
     const rAlvo=grupo.find(r=>r.student_id===alvo)||{};
     const nomeAlvo=rAlvo.nome;
@@ -4496,10 +4512,13 @@ function DuplicadosScreen({coach,onBack,onMudou}){
        <p className="s-meta">Está tudo limpo por aqui.</p></div>:
      <>
       <div className="alert alert-info">
-        Agrupei por primeiro nome, então <b>a lista mostra homônimos também</b>. Confira o e-mail
-        de cada linha antes: duas alunas Bianca com contas diferentes são duas pessoas, não um
-        cadastro repetido. Marque qual <b>fica</b> — em geral o que tem as avaliações — e os
-        outros são juntados nele com histórico, treinos, avisos e a conta.
+        Agrupei por primeiro nome, então <b>a lista mostra xarás também</b> — e xará aqui é
+        pessoa de verdade, não cadastro repetido. Confira o e-mail de cada linha: duas alunas
+        Bianca com contas diferentes são duas pessoas.
+        <br/><br/>
+        Já deixei marcado o que quase certamente é a mesma pessoa: <b>cadastro sem login</b>,
+        normalmente a ficha antiga que ficou com as avaliações. Quem tem login próprio começa
+        desmarcado. Escolha qual <b>fica</b> e marque só quem entra nele.
       </div>
       {grupos.map(([chave,grupo])=>(
         <div className="card" key={chave} style={{marginBottom:14}}>
@@ -4508,16 +4527,19 @@ function DuplicadosScreen({coach,onBack,onMudou}){
             <span className="s-meta" style={{fontWeight:400}}> · {grupo.length} cadastros</span>
           </div>
           {grupo.map(r=>{
-            const marcado=principal[chave]===r.student_id;
+            const ehPrincipal=principal[chave]===r.student_id;
             const vazio=!r.avaliacoes&&!r.treinos&&!r.divisoes&&!r.avisos;
             return(
-              <label key={r.student_id} style={{display:'flex',gap:11,alignItems:'flex-start',padding:'10px 0',
-                borderBottom:'1px solid var(--border)',cursor:'pointer'}}>
-                <input type="radio" name={'g'+chave} checked={marcado} style={{marginTop:4}}
-                  onChange={()=>setPrincipal(p=>({...p,[chave]:r.student_id}))}/>
+              <div key={r.student_id} style={{display:'flex',gap:11,alignItems:'flex-start',padding:'10px 0',
+                borderBottom:'1px solid var(--border)'}}>
+                {/* o principal fica com tudo; os outros só entram se ele marcar */}
+                {ehPrincipal
+                  ? <input type="radio" name={'g'+chave} checked readOnly style={{marginTop:4}}/>
+                  : <input type="checkbox" checked={!!marcados[r.student_id]} style={{marginTop:4}}
+                      onChange={e=>marcar(r.student_id,e.target.checked)}/>}
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{fontWeight:600}}>{r.nome}
-                    {marcado&&<span className="badge" style={{marginLeft:8,background:'var(--accent-dim)',color:'var(--accent)'}}>fica este</span>}
+                    {ehPrincipal&&<span className="badge" style={{marginLeft:8,background:'var(--accent-dim)',color:'var(--accent)'}}>fica este</span>}
                     {r.vinculado&&<span className="badge" style={{marginLeft:6,background:'var(--green-dim)',color:'var(--green)'}}>tem conta</span>}
                   </div>
                   {/* o e-mail é o que separa duas pessoas de mesmo primeiro nome */}
@@ -4532,13 +4554,21 @@ function DuplicadosScreen({coach,onBack,onMudou}){
                     ].filter(Boolean).join(' · ')}
                     {' · criado em '+new Date(r.criado+'T00:00:00').toLocaleDateString('pt-BR')}
                   </div>
+                  {!ehPrincipal&&r.vinculado&&<div className="s-meta" style={{color:'var(--gold)',marginTop:3,lineHeight:1.45}}>
+                    Tem login próprio — quase sempre é outra pessoa. Só marque se conferiu o e-mail.
+                  </div>}
+                  {!ehPrincipal&&<button className="btn btn-ghost btn-sm" style={{marginTop:6,padding:'2px 8px',fontSize:11.5}}
+                    onClick={()=>setPrincipal(p=>({...p,[chave]:r.student_id}))}>Este é que fica</button>}
                 </div>
-              </label>);
+              </div>);
           })}
-          <button className="btn btn-primary btn-sm" style={{marginTop:12}}
-            disabled={busy===chave} onClick={()=>juntar(chave,grupo)}>
-            {busy===chave?'Juntando…':'Juntar em um só'}
-          </button>
+          {(()=>{const alvo=grupo.find(r=>r.student_id===principal[chave]);
+            const n=vaiJuntar(chave,grupo).length;
+            return(<button className="btn btn-primary btn-sm" style={{marginTop:12}}
+              disabled={busy===chave||!n} onClick={()=>juntar(chave,grupo)}>
+              {busy===chave?'Juntando…':!n?'Marque quem entra em cima'
+                :'Juntar '+plural(n,'cadastro')+' em “'+((alvo&&alvo.nome)||'')+'”'}
+            </button>);})()}
         </div>))}
      </>}
   </div>);
@@ -5851,6 +5881,103 @@ function SemAlunos({oque,onNovo}){
     <p style={{fontSize:13,maxWidth:420,margin:'6px auto 0'}}>
       {oque} Cadastre o primeiro aluno e ele aparece aqui.</p>
     {onNovo&&<button className="btn btn-primary" style={{marginTop:14}} onClick={onNovo}>+ Novo aluno</button>}
+  </div>);
+}
+
+/* ── Mensalidades: todo mundo numa tela ──
+   O card de financeiro existia dentro da ficha de cada aluno, no fim de uma
+   rolagem de 2,7 telas no celular. Para acertar 22 alunos eram 22 idas até o
+   fundo — e o banco mostra o resultado disso: ZERO mensalidades cadastradas,
+   nunca. Não era falta de vontade, era o caminho.
+   Aqui é uma tela só: o valor, o dia e o pago de cada um, e no topo o número
+   que faz valer a pena manter isso em dia — quanto entra no mês, quanto já
+   caiu e quanto está em aberto. */
+function MensalidadesScreen({students,demo,onBack,onSelect,onNovoAluno}){
+  const comp=todayStr().slice(0,7);
+  const [linhas,setLinhas]=useState(demo?{}:undefined);   // {student_id:{valor,dia,pago}}
+  const [erro,setErro]=useState(null);
+  const [salvando,setSalvando]=useState(null);
+  useEffect(()=>{if(demo)return;(async()=>{
+    try{
+      const [{data:mm,error:e1},{data:pp,error:e2}]=await Promise.all([
+        comPrazo(sb.from('train_mensalidade').select('student_id,valor,dia_venc')),
+        comPrazo(sb.from('train_pagamento').select('student_id,pago').eq('competencia',comp)),
+      ]);
+      if(e1)throw e1;if(e2)throw e2;
+      const m={};(mm||[]).forEach(r=>{m[r.student_id]={valor:r.valor??'',dia:r.dia_venc??'',pago:false};});
+      (pp||[]).forEach(r=>{m[r.student_id]={...(m[r.student_id]||{valor:'',dia:''}),pago:!!r.pago};});
+      setLinhas(m);
+    }catch(e){setErro(isNetErr(e)?'A internet falhou ao carregar.':'Não consegui carregar: '+((e&&e.message)||e));setLinhas({});}
+  })();},[]);
+  const de=id=>(linhas&&linhas[id])||{valor:'',dia:'',pago:false};
+  const mexer=(id,campo,v)=>setLinhas(l=>({...l,[id]:{...de(id),[campo]:v}}));
+  /* Grava ao sair do campo, não a cada tecla: digitar "250" mandaria 2, 25 e
+     250 para o servidor. E confere o erro — dinheiro é o último lugar do app
+     onde a tela pode afirmar o que não gravou. */
+  const gravarLinha=async(id)=>{
+    if(demo)return;
+    const r=de(id);setSalvando(id);setErro(null);
+    try{await gravar(sb.rpc('mensalidade_salvar',
+      {p_student:id,p_valor:r.valor===''?null:num(r.valor),p_dia:r.dia?parseInt(r.dia):null}));}
+    catch(e){setErro(porQueFalhou(e));}
+    setSalvando(null);
+  };
+  const marcarPago=async(id)=>{
+    const nv=!de(id).pago;mexer(id,'pago',nv);setErro(null);
+    if(demo)return;
+    try{await gravar(sb.rpc('pagamento_marcar',{p_student:id,p_competencia:comp,p_pago:nv}));}
+    catch(e){mexer(id,'pago',!nv);setErro(porQueFalhou(e));}
+  };
+  const lista=(students||[]).slice().sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));
+  const soma=lista.reduce((a,s)=>{const r=de(s.id);const v=num(r.valor)||0;
+    return {previsto:a.previsto+v,recebido:a.recebido+(r.pago?v:0),comValor:a.comValor+(v?1:0)};},
+    {previsto:0,recebido:0,comValor:0});
+  const reais=v=>'R$ '+(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const mesLbl=maiusculaInicial(new Date(comp+'-01T00:00:00').toLocaleDateString('pt-BR',{month:'long',year:'numeric'}));
+  return(<div>
+    <div className="abar"><div>
+      <div className="breadcrumb" onClick={onBack}>← Dashboard</div>
+      <div className="ph-title">Mensalidades</div>
+      <div className="ph-sub">{mesLbl} · o valor de cada aluno e quem já pagou</div></div>
+    </div>
+    {erro&&<div className="alert alert-danger">{erro}</div>}
+    {linhas===undefined?<div className="center-screen"><div className="spinner"/></div>
+     :!lista.length?<SemAlunos oque="A mensalidade é sempre de alguém." onNovo={onNovoAluno}/>:<>
+      <div className="dash-panel" style={{marginBottom:16,display:'flex',gap:22,flexWrap:'wrap'}}>
+        <div><div style={{fontSize:24,fontWeight:800}}>{reais(soma.previsto)}</div>
+          <div className="s-meta" style={{margin:0}}>previsto no mês</div></div>
+        <div><div style={{fontSize:24,fontWeight:800,color:'var(--green)'}}>{reais(soma.recebido)}</div>
+          <div className="s-meta" style={{margin:0}}>já recebido</div></div>
+        <div><div style={{fontSize:24,fontWeight:800,color:soma.previsto-soma.recebido>0?'var(--gold)':'var(--text3)'}}>
+          {reais(soma.previsto-soma.recebido)}</div>
+          <div className="s-meta" style={{margin:0}}>em aberto</div></div>
+        <div><div style={{fontSize:24,fontWeight:800}}>{soma.comValor}<span style={{fontSize:15,fontWeight:400,color:'var(--text3)'}}>/{lista.length}</span></div>
+          <div className="s-meta" style={{margin:0}}>com valor definido</div></div>
+      </div>
+      {lista.map(s=>{const r=de(s.id);const temValor=num(r.valor)>0;
+        const hojeDia=new Date().getDate();
+        const atrasado=temValor&&!r.pago&&r.dia&&parseInt(r.dia)<hojeDia;
+        return(
+        <div key={s.id} className="dash-panel" style={{marginBottom:8,display:'flex',gap:12,alignItems:'center',flexWrap:'wrap'}}>
+          <div className="avatar" style={{width:36,height:36,fontSize:13}}>{initials(s.name)}</div>
+          <div style={{flex:'1 1 150px',minWidth:0,cursor:onSelect?'pointer':'default'}}
+            onClick={()=>onSelect&&onSelect(s)}>
+            <div style={{fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{s.name}</div>
+            {atrasado&&<div className="s-meta" style={{margin:0,color:'var(--gold)'}}>venceu dia {r.dia}</div>}
+          </div>
+          <input className="fi" type="number" inputMode="decimal" style={{width:104}} placeholder="R$"
+            value={r.valor} onChange={e=>mexer(s.id,'valor',e.target.value)} onBlur={()=>gravarLinha(s.id)}/>
+          <input className="fi" type="number" min="1" max="31" style={{width:74}} placeholder="dia"
+            value={r.dia} onChange={e=>mexer(s.id,'dia',e.target.value)} onBlur={()=>gravarLinha(s.id)}/>
+          <button className={'btn btn-sm '+(r.pago?'btn-primary':'btn-ghost')}
+            disabled={!temValor||salvando===s.id} onClick={()=>marcarPago(s.id)}>
+            {r.pago?'✓ Pago':'Marcar pago'}</button>
+        </div>);})}
+      <p className="s-meta" style={{marginTop:14}}>
+        O valor e o dia ficam salvos quando você sai do campo. O “pago” vale só para este mês:
+        no mês que vem a lista recomeça em aberto, com os mesmos valores.
+      </p>
+     </>}
   </div>);
 }
 
@@ -7463,6 +7590,50 @@ function NutriRegistros({fichaId,studentUid,demo}){
   </div>);
 }
 
+/* A pergunta que faltava antes de criar um cadastro.
+   Mostra o que cada cadastro já carrega — avaliações, treinos, séries — porque
+   é isso que se perde quando o treinador cria um paralelo por engano. E deixa
+   "criar um novo" à mão, sem esconder: xará existe de verdade. */
+function CandidatosModal({dados,imp,onLigar,onNova,onFechar}){
+  const {perfil,lista}=dados;
+  const busy=imp===perfil.id;
+  const oQueTem=c=>{
+    const p=[];
+    if(c.avaliacoes)p.push(c.avaliacoes+(c.avaliacoes>1?' avaliações':' avaliação'));
+    if(c.divisoes)p.push(c.divisoes+' treino'+(c.divisoes>1?'s':'')+' na ficha');
+    if(c.treinos)p.push(c.treinos+' série'+(c.treinos>1?'s':'')+' no histórico');
+    return p.length?p.join(' · '):'sem histórico ainda';
+  };
+  return(<div style={{position:'fixed',inset:0,zIndex:120,background:'rgba(10,8,10,.8)',display:'flex',alignItems:'center',justifyContent:'center',padding:16,overflow:'auto'}} onClick={onFechar}>
+    <div className="card" style={{maxWidth:500,width:'100%'}} onClick={e=>e.stopPropagation()}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}}>
+        <div style={{fontFamily:'var(--serif)',fontSize:18,fontWeight:600}}>Você já tem esta pessoa?</div>
+        <button className="btn-icon btn-sm" onClick={onFechar}>×</button>
+      </div>
+      <p className="s-meta" style={{marginBottom:12,lineHeight:1.5}}>
+        <b>{perfil.name||'Este aluno'}</b> vem do Nutrition. Achei {lista.length===1?'um cadastro seu':lista.length+' cadastros seus'} com
+        o mesmo primeiro nome e sem conta ligada. Se for a mesma pessoa, ligue a conta nele — o
+        histórico continua onde está. Se for outra pessoa, crie um cadastro novo.
+      </p>
+      {lista.map(c=>(
+        <div key={c.student_id} style={{display:'flex',gap:10,alignItems:'center',padding:'10px 0',borderTop:'1px solid var(--border)'}}>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontWeight:600}}>{c.nome}</div>
+            <div className="s-meta">{oQueTem(c)}</div>
+            <div className="s-meta">
+              {[c.nascimento?'nasc. '+new Date(c.nascimento+'T00:00:00').toLocaleDateString('pt-BR'):null,
+                c.telefone||null,
+                'criado em '+new Date(c.criado+'T00:00:00').toLocaleDateString('pt-BR')].filter(Boolean).join(' · ')}
+            </div>
+          </div>
+          <button className="btn btn-primary btn-sm" disabled={busy} onClick={()=>onLigar(c)}>É esta</button>
+        </div>))}
+      <button className="btn btn-ghost btn-sm" style={{width:'100%',marginTop:14}} disabled={busy} onClick={onNova}>
+        {busy?'…':'Nenhuma delas — criar um cadastro novo'}
+      </button>
+    </div>
+  </div>);
+}
 function NutriScreen({coach,students,preStudent,onBack,onNovoAluno}){
   const demo=!!coach._demo;
   const [stu,setStu]=useState(preStudent||null);
@@ -7481,15 +7652,44 @@ function NutriScreen({coach,students,preStudent,onBack,onNovoAluno}){
     sb.from('assess_students').select('user_id').eq('id',stu.id).maybeSingle()
       .then(({data})=>setUid(data&&data.user_id?data.user_id:null)).catch(()=>setUid(null));},[stu&&stu.id]);
 
+  /* Trazer um aluno da Nutrição para o Performance.
+     Isto aqui criava cadastro novo SEMPRE. Só conferia se já existia cadastro
+     com aquele login — nunca se o treinador já tinha aquela pessoa cadastrada
+     sem conta ligada. Em 12/08 foi assim que nasceram onze cadastros paralelos:
+     o Jefferson ganhou uma segunda ficha, e as duas avaliações dele ficaram na
+     primeira, invisíveis na tela de Evolução dele.
+     Agora pergunta antes, com o histórico de cada candidato à vista. Quem
+     decide é ele; o app não adivinha — xará existe (há três Biancas). */
+  const [candidatos,setCandidatos]=useState(null);   // {perfil, lista}
+  const criarNova=async(p)=>{
+    setImp(p.id);setCandidatos(null);
+    try{
+      await gravar(sb.rpc('ficha_criar_de_perfil',{p_uid:p.id}));
+      setSemFicha(l=>l.filter(x=>x.id!==p.id));
+      alert('Ficha de '+(p.name||'aluno')+' criada! Ela aparece na lista de alunos do Performance.');
+    }catch(e){alert('Erro ao importar: '+porQueFalhou(e));}
+    setImp(null);
+  };
+  const ligarNoExistente=async(p,c)=>{
+    setImp(p.id);
+    try{
+      const {data}=await gravar(sb.rpc('ficha_ligar_perfil',{p_uid:p.id,p_student:c.student_id}));
+      if(data&&data.ok===false)throw new Error(data.erro||'não deu');
+      setCandidatos(null);
+      setSemFicha(l=>l.filter(x=>x.id!==p.id));
+      alert('Pronto: a conta de '+(p.name||'aluno')+' foi ligada ao cadastro "'+c.nome+'". '+
+        'O histórico que já estava lá continua no lugar.');
+    }catch(e){alert('Não consegui ligar: '+porQueFalhou(e));}
+    setImp(null);
+  };
   const importar=async(p)=>{
     setImp(p.id);
     try{
-      const {error}=await sb.rpc('ficha_criar_de_perfil',{p_uid:p.id});
-      if(error) throw error;
-      setSemFicha(l=>l.filter(x=>x.id!==p.id));
-      alert('Ficha de '+(p.name||'aluno')+' criada! Ela aparece na lista de alunos do Performance.');
-    }catch(e){alert('Erro ao importar: '+(e.message||e));}
-    setImp(null);
+      const {data}=await gravar(sb.rpc('ficha_perfil_candidatos',{p_uid:p.id}));
+      setImp(null);
+      if(data&&data.length){setCandidatos({perfil:p,lista:data});return;}
+    }catch(e){setImp(null);/* não achei candidato: segue e cria, como antes */}
+    await criarNova(p);
   };
 
   if(!stu){
@@ -7507,6 +7707,10 @@ function NutriScreen({coach,students,preStudent,onBack,onNovoAluno}){
           <button className="btn btn-secondary btn-sm" disabled={imp===p.id} onClick={()=>importar(p)}>{imp===p.id?'…':'Importar'}</button>
         </div>))}
       </div>}
+      {candidatos&&<CandidatosModal dados={candidatos} imp={imp}
+        onLigar={c=>ligarNoExistente(candidatos.perfil,c)}
+        onNova={()=>criarNova(candidatos.perfil)}
+        onFechar={()=>setCandidatos(null)}/>}
       {(students||[]).length>0&&<div className="search-wrap" style={{marginBottom:16}}><span className="search-icon"><IconBusca/></span>
         <input className="fi" placeholder="Buscar aluno..." value={q} onChange={e=>setQ(e.target.value)}/></div>}
       <div className="student-grid">{list.map(s=>(
@@ -8097,6 +8301,7 @@ function App({profile,setProfile}){
         <button className={`nav-btn ${view==='train'?'active':''}`} onClick={()=>{setSelStudent(null);go('train');}}>Treino</button>
         <button className={`nav-btn ${view==='recados'?'active':''}`} onClick={()=>{setSelStudent(null);go('recados');}}>Recados{naoLidas.length>0&&<span style={{marginLeft:6,background:'var(--red)',color:'#fff',borderRadius:10,padding:'0 7px',fontSize:11,fontWeight:700}}>{naoLidas.reduce((a,x)=>a+(x.quantas||0),0)}</span>}</button>
         <button className={`nav-btn ${view==='mes'?'active':''}`} onClick={()=>{setSelStudent(null);go('mes');}}>O mês</button>
+        <button className={`nav-btn ${view==='dinheiro'?'active':''}`} onClick={()=>{setSelStudent(null);go('dinheiro');}}>Mensalidades</button>
         <button className={`nav-btn ${view==='semtreino'?'active':''}`} onClick={()=>{setSelStudent(null);go('semtreino');}}>Alunos sem treino{semTreino>0&&<span style={{marginLeft:6,background:'var(--gold)',color:'#1c0f16',borderRadius:10,padding:'0 7px',fontSize:11,fontWeight:700}}>{semTreino}</span>}</button>
         <button className={`nav-btn ${view==='tech'?'active':''}`} onClick={()=>{setSelStudent(null);go('tech');}}>Avaliação técnica</button>
         <button className={`nav-btn ${view==='nutri'?'active':''}`} onClick={()=>{setSelStudent(null);go('nutri');}}>Nutrição</button>
@@ -8178,6 +8383,9 @@ function App({profile,setProfile}){
           {view==='tech'&&<TechScreen coach={profile} students={students} preStudent={selStudent} onBack={()=>go('dashboard')}/>}
           {view==='train'&&<TrainScreen coach={profile} students={students} preStudent={selStudent} onNovoAluno={()=>{setEditStu(null);go('stu-form');}} onBack={()=>go('dashboard')}/>}
           {view==='mes'&&<MesScreen students={students} demo={profile._demo} onNovoAluno={()=>{setEditStu(null);go('stu-form');}}
+            onBack={()=>go('dashboard')} onSelect={s=>{setSelStudent(s);go('detail');}}/>}
+          {view==='dinheiro'&&<MensalidadesScreen students={students} demo={profile._demo}
+            onNovoAluno={()=>{setEditStu(null);go('stu-form');}}
             onBack={()=>go('dashboard')} onSelect={s=>{setSelStudent(s);go('detail');}}/>}
           {view==='semtreino'&&<SemTreinoScreen coach={profile} onBack={()=>go('dashboard')} onFeito={contarSemTreino}/>}
           {view==='recados'&&<RecadosScreen naoLidas={naoLidas} students={students}
