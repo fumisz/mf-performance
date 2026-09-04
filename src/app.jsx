@@ -59,7 +59,7 @@ if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABAS
    .catch. Chamar .catch direto estoura TypeError, e dentro de um useEffect isso
    derruba a tela inteira do aluno. */
 const semEsperar=q=>{try{q.then(()=>{},()=>{});}catch(e){}};
-const APP_VERSION='2026.10.18';   // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION='2026.10.19';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
 
@@ -1985,8 +1985,13 @@ const DEMO_EVALS=[
   {id:'de2',studentId:'ds1',post_photo_front:_demoPhoto('#5a8a63','Jul/2026'),post_photo_side:_demoPhoto('#5a8a63','Jul'),..._dev('2026-07-09',78,16,37,56,6,1760,29,3.3,124,86)}
 ];
 
-function EvalForm({student,evalData,carryHeight,isReassess,onSave,onCancel}){
-  const [f,setF]=useState(evalData||{...BLANK_EVAL,height:carryHeight||'',_mods:PROFILE_PRESET[student.profile_type]||undefined});
+function EvalForm({student,evalData,carryHeight,isReassess,modsDaUltima,onSave,onCancel}){
+  /* O tipo de perfil vem antes porque é escolha explícita dele; depois o que
+     ele usou da última vez, que é o que os números mostram que ele faz. */
+  const [f,setF]=useState(evalData||{...BLANK_EVAL,height:carryHeight||'',
+    _mods:PROFILE_PRESET[student.profile_type]||(modsDaUltima&&modsDaUltima.mods)||undefined});
+  const veioDaUltima=!evalData&&!PROFILE_PRESET[student.profile_type]&&!!modsDaUltima;
+  const temAnterior=!!(modsDaUltima&&modsDaUltima.doAluno);
   const upd=(k,v)=>setF(p=>({...p,[k]:v}));
   const N=(label,key,unit,ph)=>(
     <div className="fg"><label className="flbl">{label}{unit&&<span style={{color:'var(--text3)',marginLeft:3}}>({unit})</span>}</label>
@@ -2030,6 +2035,10 @@ function EvalForm({student,evalData,carryHeight,isReassess,onSave,onCancel}){
               {has(k)?' ':''}{lbl}</button>))}
         </div>
         <div style={{fontSize:11.5,color:'var(--text3)',marginTop:10}}>Só os protocolos marcados aparecem abaixo e no relatório. (Data, peso e estatura estão sempre presentes.)</div>
+        {/* Sem isto ele abriria a tela achando que sumiu protocolo. */}
+        {veioDaUltima&&<div style={{fontSize:11.5,color:'var(--text3)',marginTop:6}}>
+          Marquei os mesmos da última avaliação {temAnterior?'deste aluno':'que você fez'} — assim a comparação
+          não fica com buraco. Ligue ou desligue o que quiser.</div>}
       </div>
       <div className="card">
         <div className="sec"><div className="sec-title">Data e medidas básicas</div>
@@ -8190,6 +8199,24 @@ function App({profile,setProfile}){
   const stuEvals=selStudent?evals.filter(e=>e.studentId===selStudent.id):[];
   const sortedStuEvals=[...stuEvals].sort((a,b)=>new Date(b.date)-new Date(a.date));
   const lastHeight=sortedStuEvals[0]?.height||'';
+  /* Com quais módulos a Nova avaliação abre.
+     Abria com os DEZENOVE ligados, porque o padrão vinha de um tipo de perfil
+     guardado no localStorage de um aparelho só — que quase nunca está definido.
+     Só que o banco mostra que ele escolhe os módulos toda vez: nas últimas oito
+     avaliações, bioimpedância e circunferências aparecem em 8 de 8, e o resto
+     varia. Ou seja, ele desligava o que não usa 22 vezes em 60 dias.
+     Agora o padrão é o que ele mesmo usou na última avaliação DESTE aluno —
+     e isso não é só conforto: uma reavaliação que mede coisas diferentes da
+     anterior deixa buracos na comparação. Sem avaliação anterior, cai na mais
+     recente que ele fez com qualquer aluno. Sem nenhuma, segue como antes. */
+  const modsDaUltima=(()=>{
+    const temMods=e=>e&&Array.isArray(e._mods)&&e._mods.length;
+    const desteAluno=sortedStuEvals.find(temMods);
+    if(desteAluno)return {mods:desteAluno._mods,doAluno:true};
+    const qualquer=[...(evals||[])]
+      .sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))).find(temMods);
+    return qualquer?{mods:qualquer._mods,doAluno:false}:null;
+  })();
   const go=v=>{setView(v);setMenu(false);};
   // Trocar de tela tem de levar para o topo dela. No celular, tocar num aluno
   // com a lista rolada abria a ficha no meio: o nome dele e a primeira fileira
@@ -8465,6 +8492,7 @@ function App({profile,setProfile}){
             onPreview={()=>go('aluno-view')}/>}
           {view==='ev-form'&&selStudent&&<EvalForm student={selStudent} evalData={editEv}
             carryHeight={reassess?lastHeight:''} isReassess={reassess&&!editEv}
+            modsDaUltima={modsDaUltima}
             onSave={saveEv} onCancel={()=>go('detail')}/>}
           {view==='report'&&selStudent&&selEval&&<Report student={selStudent} evalData={selEval} coach={profile}
             allEvals={stuEvals} onBack={()=>go('detail')}/>}

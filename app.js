@@ -99,7 +99,7 @@ const semEsperar = q => {
     q.then(() => {}, () => {});
   } catch (e) {}
 };
-const APP_VERSION = '2026.10.18'; // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION = '2026.10.19'; // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA'); // YYYY-MM-DD no fuso LOCAL
 
@@ -5781,14 +5781,19 @@ function EvalForm({
   evalData,
   carryHeight,
   isReassess,
+  modsDaUltima,
   onSave,
   onCancel
 }) {
+  /* O tipo de perfil vem antes porque é escolha explícita dele; depois o que
+     ele usou da última vez, que é o que os números mostram que ele faz. */
   const [f, setF] = useState(evalData || {
     ...BLANK_EVAL,
     height: carryHeight || '',
-    _mods: PROFILE_PRESET[student.profile_type] || undefined
+    _mods: PROFILE_PRESET[student.profile_type] || modsDaUltima && modsDaUltima.mods || undefined
   });
+  const veioDaUltima = !evalData && !PROFILE_PRESET[student.profile_type] && !!modsDaUltima;
+  const temAnterior = !!(modsDaUltima && modsDaUltima.doAluno);
   const upd = (k, v) => setF(p => ({
     ...p,
     [k]: v
@@ -5914,7 +5919,13 @@ function EvalForm({
       color: 'var(--text3)',
       marginTop: 10
     }
-  }, "S\xF3 os protocolos marcados aparecem abaixo e no relat\xF3rio. (Data, peso e estatura est\xE3o sempre presentes.)")), /*#__PURE__*/React.createElement("div", {
+  }, "S\xF3 os protocolos marcados aparecem abaixo e no relat\xF3rio. (Data, peso e estatura est\xE3o sempre presentes.)"), veioDaUltima && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11.5,
+      color: 'var(--text3)',
+      marginTop: 6
+    }
+  }, "Marquei os mesmos da \xFAltima avalia\xE7\xE3o ", temAnterior ? 'deste aluno' : 'que você fez', " \u2014 assim a compara\xE7\xE3o n\xE3o fica com buraco. Ligue ou desligue o que quiser.")), /*#__PURE__*/React.createElement("div", {
     className: "card"
   }, /*#__PURE__*/React.createElement("div", {
     className: "sec"
@@ -22714,6 +22725,29 @@ function App({
   const stuEvals = selStudent ? evals.filter(e => e.studentId === selStudent.id) : [];
   const sortedStuEvals = [...stuEvals].sort((a, b) => new Date(b.date) - new Date(a.date));
   const lastHeight = sortedStuEvals[0]?.height || '';
+  /* Com quais módulos a Nova avaliação abre.
+     Abria com os DEZENOVE ligados, porque o padrão vinha de um tipo de perfil
+     guardado no localStorage de um aparelho só — que quase nunca está definido.
+     Só que o banco mostra que ele escolhe os módulos toda vez: nas últimas oito
+     avaliações, bioimpedância e circunferências aparecem em 8 de 8, e o resto
+     varia. Ou seja, ele desligava o que não usa 22 vezes em 60 dias.
+     Agora o padrão é o que ele mesmo usou na última avaliação DESTE aluno —
+     e isso não é só conforto: uma reavaliação que mede coisas diferentes da
+     anterior deixa buracos na comparação. Sem avaliação anterior, cai na mais
+     recente que ele fez com qualquer aluno. Sem nenhuma, segue como antes. */
+  const modsDaUltima = (() => {
+    const temMods = e => e && Array.isArray(e._mods) && e._mods.length;
+    const desteAluno = sortedStuEvals.find(temMods);
+    if (desteAluno) return {
+      mods: desteAluno._mods,
+      doAluno: true
+    };
+    const qualquer = [...(evals || [])].sort((a, b) => String(b.date || '').localeCompare(String(a.date || ''))).find(temMods);
+    return qualquer ? {
+      mods: qualquer._mods,
+      doAluno: false
+    } : null;
+  })();
   const go = v => {
     setView(v);
     setMenu(false);
@@ -23597,6 +23631,7 @@ function App({
     evalData: editEv,
     carryHeight: reassess ? lastHeight : '',
     isReassess: reassess && !editEv,
+    modsDaUltima: modsDaUltima,
     onSave: saveEv,
     onCancel: () => go('detail')
   }), view === 'report' && selStudent && selEval && /*#__PURE__*/React.createElement(Report, {
