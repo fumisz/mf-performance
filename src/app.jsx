@@ -59,7 +59,7 @@ if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABAS
    .catch. Chamar .catch direto estoura TypeError, e dentro de um useEffect isso
    derruba a tela inteira do aluno. */
 const semEsperar=q=>{try{q.then(()=>{},()=>{});}catch(e){}};
-const APP_VERSION='2026.10.14';   // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION='2026.10.15';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
 
@@ -975,26 +975,77 @@ function NotifyModal({target,students,onClose}){
   const [titulo,setTitulo]=useState(reativar?'Senti sua falta nos treinos':'');
   const [texto,setTexto]=useState(reativar?'Bora retomar? Guardei um lugar pra você. Me conta como posso te ajudar a voltar pra rotina — dá um passo hoje!':'');
   const [busy,setBusy]=useState(false);const [okMsg,setOkMsg]=useState(null);
+  /* Quem realmente é alcançado no celular.
+     O aviso sempre entra na aba Avisos do app — isso é o banco e não falha. O
+     que NÃO chega em todo mundo é a notificação na tela bloqueada: ela depende
+     do aluno ter ligado os avisos. Eram 4 aparelhos para 19 contas, e a tela
+     dizia "Aviso enviado para 22 alunos" sem distinguir uma coisa da outra.
+     Quem manda o recado precisa saber ANTES de escrever se ele vai vibrar no
+     bolso da pessoa ou só esperar ela abrir o app. */
+  const [comAviso,setComAviso]=useState(null);   // null = ainda perguntando
+  useEffect(()=>{(async()=>{
+    try{const {data,error}=await sb.from('train_push').select('student_id').eq('papel','aluno');
+      if(error)throw error;
+      setComAviso(new Set((data||[]).map(r=>r.student_id).filter(Boolean)));
+    }catch(e){setComAviso(false);}   // false = não consegui saber; não invento
+  })();},[]);
   const usar=m=>{setTipo(m.tipo);setTitulo(m.titulo);setTexto(m.texto);};
   const enviar=async()=>{
     if(!titulo.trim()||!texto.trim()){alert('Preencha título e mensagem.');return;}
     setBusy(true);
     try{
+      /* A função devolve em quantos aparelhos a notificação entrou (`sent`).
+         Esse número era jogado fora: o treinador mandava para todos, chegava em
+         quatro celulares, e a tela dizia o mesmo de sempre. */
+      const empurrar=async corpo=>{
+        try{const {data,error}=await sb.functions.invoke('push',{body:corpo});
+          if(error)return null;
+          return data&&typeof data.sent==='number'?data.sent:null;
+        }catch(e){return null;}
+      };
       if(all){const {data,error}=await sb.rpc('aviso_enviar_todos',{p_titulo:titulo,p_texto:texto,p_tipo:tipo});if(error)throw error;
-        try{await sb.functions.invoke('push',{body:{all:true,titulo,texto,tipo}});}catch(e){}
-        setOkMsg('Aviso enviado para '+plural(data??students.length,'aluno')+'.');}
+        const n=await empurrar({all:true,titulo,texto,tipo});
+        setOkMsg('Aviso enviado para '+plural(data??students.length,'aluno')+'.'+
+          (n==null?'':n===0?' Nenhum tem notificação ligada — vão ver quando abrirem o app.'
+            :' Vibrou em '+plural(n,'celular','celulares')+' agora; os outros veem ao abrir o app.'));}
       else{const {error}=await sb.rpc('aviso_enviar',{p_student:stu.id,p_titulo:titulo,p_texto:texto,p_tipo:tipo});if(error)throw error;
-        try{await sb.functions.invoke('push',{body:{student_id:stu.id,titulo,texto,tipo}});}catch(e){}
-        setOkMsg('Aviso enviado para '+stu.name+'.');}
-      setTimeout(onClose,1100);
+        const n=await empurrar({student_id:stu.id,titulo,texto,tipo});
+        setOkMsg('Aviso enviado para '+stu.name+'.'+
+          (n==null?'':n===0?' Sem notificação ligada — vai ver ao abrir o app.':' Chegou no celular agora.'));}
+      setTimeout(onClose,all?2600:2200);
     }catch(e){alert('Erro ao enviar: '+e.message);setBusy(false);}
   };
+  /* O aviso do alcance, escrito antes de ele começar a digitar. */
+  const alcance=(()=>{
+    if(comAviso===null||comAviso===false)return null;
+    if(all){
+      const contas=(students||[]).filter(s=>s.user_id);
+      const n=contas.filter(s=>comAviso.has(s.id)).length;
+      if(!contas.length)return null;
+      /* Frases separadas por caso em vez de uma montada com plural(): com um
+         aluno só saía "Os 1 alunos", e o treinador desconfia da tela toda
+         quando ela erra o português na frente dele. */
+      if(n===contas.length)return {bom:true,txt:'Todos com conta no app recebem a notificação no celular.'};
+      if(n===0)return {bom:false,txt:'Nenhum aluno tem notificação ligada. O recado fica na aba Avisos até cada um abrir o app.'};
+      return {bom:false,txt:n+' de '+contas.length+' alunos com conta têm notificação ligada. '+
+        'Os outros só veem o recado quando abrirem o app.'};
+    }
+    /* Sempre pelo primeiro nome. "Ela(e)" na tela do treinador fica com cara de
+       formulário, e o app já sabe o nome da pessoa. */
+    const nome=stu&&stu.name?stu.name.split(' ')[0]:'Este aluno';
+    if(!stu||!stu.user_id)return {bom:false,txt:nome+' ainda não ativou a conta no app: o recado fica guardado até a primeira entrada.'};
+    return comAviso.has(stu.id)
+      ? {bom:true,txt:'Chega como notificação no celular.'}
+      : {bom:false,txt:nome+' não tem notificação ligada. O recado aparece na aba Avisos quando abrir o app.'};
+  })();
   return(<div style={{position:'fixed',inset:0,zIndex:120,background:'rgba(10,8,10,.8)',display:'flex',alignItems:'center',justifyContent:'center',padding:16,overflow:'auto'}} onClick={onClose}><div className="card" style={{maxWidth:460,width:'100%'}} onClick={e=>e.stopPropagation()}>
     <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}}>
       <div style={{fontFamily:'var(--serif)',fontSize:18,fontWeight:600}}>{all?'Aviso para todos os alunos':'Aviso para '+stu.name}</div>
       <button className="btn-icon btn-sm" onClick={onClose}>×</button>
     </div>
-    <p className="s-meta" style={{marginBottom:12}}>Aparece na aba <b>Avisos</b> do app do aluno.</p>
+    <p className="s-meta" style={{marginBottom:alcance?6:12}}>Aparece na aba <b>Avisos</b> do app do aluno.</p>
+    {alcance&&<div className="s-meta" style={{marginBottom:12,lineHeight:1.5,
+      color:alcance.bom?'var(--text2)':'var(--gold)'}}>{alcance.txt}</div>}
     {okMsg?<div className="alert alert-success">{okMsg}</div>:<>
       <div className="fg"><label className="flbl">Tipo</label>
         <select className="fi" value={tipo} onChange={e=>setTipo(e.target.value)}>
