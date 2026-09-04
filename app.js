@@ -99,7 +99,7 @@ const semEsperar = q => {
     q.then(() => {}, () => {});
   } catch (e) {}
 };
-const APP_VERSION = '2026.10.16'; // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION = '2026.10.17'; // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA'); // YYYY-MM-DD no fuso LOCAL
 
@@ -27142,7 +27142,11 @@ function HydraScreen({
 }
 
 /* ── Check-in diário (semáforo) ── */
-const CHK_ITENS = [['sono', 'Sono', 'Dormi muito bem', 'Dormi mal'], ['fadiga', 'Fadiga', 'Descansada', 'Exausta'], ['estresse', 'Estresse', 'Tranquila', 'Muito estressada'], ['dor', 'Dor muscular', 'Sem dor', 'Muita dor'], ['humor', 'Humor', 'Ótimo', 'Ruim']];
+/* "Sono" virou "Qualidade do sono": com o check-in dentro do diário, a tela
+   passou a ter "Sono (horas)" em cima e "Sono" no controle — a mesma palavra
+   duas vezes, perguntando coisas diferentes. Uma é quanto tempo, a outra é
+   como foi. */
+const CHK_ITENS = [['sono', 'Qualidade do sono', 'Dormi muito bem', 'Dormi mal'], ['fadiga', 'Fadiga', 'Descansada', 'Exausta'], ['estresse', 'Estresse', 'Tranquila', 'Muito estressada'], ['dor', 'Dor muscular', 'Sem dor', 'Muita dor'], ['humor', 'Humor', 'Ótimo', 'Ruim']];
 function CheckinScreen({
   student,
   demo,
@@ -28104,6 +28108,22 @@ function DiarioScreen({
     sinal: 'Verde',
     total: 8
   } : undefined); // prontidao de hoje (vem do check-in)
+  /* O check-in mora aqui dentro agora.
+     Eram duas telas para o mesmo ato — e a própria tela admitia, com um card
+     escrito "Falta o check-in de hoje". O banco mostra o preço: em 30 dias,
+     145 séries de treino registradas, 7 feedbacks de fim de treino (que o app
+     mostra sozinho quando o aluno termina), 4 check-ins e UM diário. O que o
+     app põe na frente é respondido; o que exige ir até outra aba, não.
+     Então os cinco controles de prontidão entram aqui, e um botão só grava as
+     duas coisas. A tela de check-in continua existindo para quem chega por
+     ela. */
+  const [pron, setPron] = useState({
+    sono: 2,
+    fadiga: 2,
+    estresse: 2,
+    dor: 2,
+    humor: 2
+  });
   const [glic, setGlic] = useState(demo ? [{
     id: 'g1',
     valor: 104,
@@ -28183,32 +28203,67 @@ function DiarioScreen({
       setErroGlic(porQueFalhou(e));
     }
   };
+  const totalPron = Object.values(pron).reduce((a, b) => a + b, 0);
+  const sinalDe = t => t <= 9 ? {
+    l: 'Verde',
+    c: 'var(--green)',
+    t: 'Prontidão ótima — pode ir com tudo hoje.'
+  } : t <= 14 ? {
+    l: 'Amarelo',
+    c: 'var(--gold)',
+    t: 'Prontidão média — mantenha, sem forçar demais.'
+  } : {
+    l: 'Vermelho',
+    c: 'var(--red)',
+    t: 'Prontidão baixa — pegue leve e priorize recuperação.'
+  };
   const salvar = async () => {
     setBusy(true);
     let erro = null;
+    const faltaChk = chk === null || chk === undefined;
     if (!demo) {
+      /* Duas gravações, um botão. Se a prontidão falhar, o diário já gravado
+         continua gravado — mas o aluno tem de saber qual das duas não subiu,
+         em vez de ver "salvo!" e o treinador não receber o semáforo. */
       try {
-        const {
-          error
-        } = await sb.rpc('diario_salvar', {
+        await gravar(sb.rpc('diario_salvar', {
           p_peso: num(d.peso),
           p_sono: num(d.sono),
           p_passos: d.passos ? parseInt(d.passos) : null,
           p_fome: d.fome,
           p_obs: d.obs || null
-        });
-        if (error) erro = error.message;
+        }));
       } catch (e) {
-        erro = e.message || String(e);
+        erro = 'Não consegui salvar seu diário: ' + porQueFalhou(e);
       }
-    }
+      if (!erro && faltaChk) {
+        try {
+          await gravar(sb.rpc('checkin_salvar', {
+            p_sono: pron.sono,
+            p_fadiga: pron.fadiga,
+            p_estresse: pron.estresse,
+            p_dor: pron.dor,
+            p_humor: pron.humor
+          }));
+          setChk({
+            sinal: sinalDe(totalPron).l,
+            total: totalPron
+          });
+        } catch (e) {
+          erro = 'Salvei o diário, mas a prontidão de hoje não subiu: ' + porQueFalhou(e);
+        }
+      }
+    } else if (faltaChk) setChk({
+      sinal: sinalDe(totalPron).l,
+      total: totalPron
+    });
     setBusy(false);
     if (erro) {
       setOkMsg(null);
-      alert('Não consegui salvar seu diário: ' + erro);
+      alert(erro);
       return;
     }
-    setOkMsg('Diário de hoje salvo!');
+    setOkMsg(faltaChk ? 'Dia de hoje registrado!' : 'Diário de hoje salvo!');
     setTimeout(() => setOkMsg(null), 1800);
   };
   const regGlic = async () => {
@@ -28397,26 +28452,80 @@ function DiarioScreen({
     }
   }, "Prontid\xE3o de hoje: ", chk.sinal), /*#__PURE__*/React.createElement("div", {
     className: "lv-sub"
-  }, "Sono, fadiga, estresse, dor e humor voc\xEA j\xE1 respondeu no Check-in."))) : /*#__PURE__*/React.createElement("div", {
+  }, "Sono, fadiga, estresse, dor e humor voc\xEA j\xE1 respondeu no Check-in."))) :
+  /*#__PURE__*/
+  /* Era um card avisando que faltava responder noutra tela. Agora é a
+     própria pergunta, aqui. */
+  React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    className: "lv-kick",
+    style: {
+      margin: '16px 2px 10px'
+    }
+  }, "Como voc\xEA est\xE1 hoje"), CHK_ITENS.map(([k, lbl, lo, hi]) => /*#__PURE__*/React.createElement("div", {
+    key: k,
+    className: "lv-card"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      marginBottom: 8
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontWeight: 700
+    }
+  }, lbl), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontWeight: 800,
+      color: 'var(--lvrx)'
+    }
+  }, pron[k])), /*#__PURE__*/React.createElement("input", {
+    type: "range",
+    min: "1",
+    max: "5",
+    value: pron[k],
+    style: {
+      width: '100%'
+    },
+    onChange: e => setPron(p => ({
+      ...p,
+      [k]: +e.target.value
+    }))
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'space-between'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "lv-sub"
+  }, lo), /*#__PURE__*/React.createElement("span", {
+    className: "lv-sub"
+  }, hi)))), /*#__PURE__*/React.createElement("div", {
     className: "lv-card",
     style: {
       display: 'flex',
       alignItems: 'center',
-      gap: 12,
-      borderColor: 'rgba(245,158,11,.45)'
+      gap: 12
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
-      flex: 1,
-      minWidth: 0
+      width: 16,
+      height: 16,
+      borderRadius: '50%',
+      background: sinalDe(totalPron).c,
+      boxShadow: `0 0 12px ${sinalDe(totalPron).c}`
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
       fontWeight: 700
     }
-  }, "Falta o check-in de hoje"), /*#__PURE__*/React.createElement("div", {
+  }, "Prontid\xE3o: ", sinalDe(totalPron).l), /*#__PURE__*/React.createElement("div", {
     className: "lv-sub"
-  }, "\xC9 l\xE1 que entram sono, fadiga, estresse, dor e humor.")))), /*#__PURE__*/React.createElement("div", {
+  }, sinalDe(totalPron).t))))), /*#__PURE__*/React.createElement("div", {
     className: "lv-card"
   }, /*#__PURE__*/React.createElement("span", {
     className: "lv-inlbl"
@@ -28440,7 +28549,7 @@ function DiarioScreen({
     className: "lv-btn",
     disabled: busy,
     onClick: salvar
-  }, busy ? 'Salvando…' : 'Salvar diário de hoje'), /*#__PURE__*/React.createElement("div", {
+  }, busy ? 'Salvando…' : chk ? 'Salvar diário de hoje' : 'Salvar meu dia'), /*#__PURE__*/React.createElement("div", {
     className: "lv-card",
     style: {
       marginTop: 18,

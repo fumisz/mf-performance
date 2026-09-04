@@ -59,7 +59,7 @@ if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABAS
    .catch. Chamar .catch direto estoura TypeError, e dentro de um useEffect isso
    derruba a tela inteira do aluno. */
 const semEsperar=q=>{try{q.then(()=>{},()=>{});}catch(e){}};
-const APP_VERSION='2026.10.16';   // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION='2026.10.17';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
 
@@ -9998,7 +9998,11 @@ function HydraScreen({student,profile,demo,onBack}){
 }
 
 /* ── Check-in diário (semáforo) ── */
-const CHK_ITENS=[['sono','Sono','Dormi muito bem','Dormi mal'],['fadiga','Fadiga','Descansada','Exausta'],['estresse','Estresse','Tranquila','Muito estressada'],['dor','Dor muscular','Sem dor','Muita dor'],['humor','Humor','Ótimo','Ruim']];
+/* "Sono" virou "Qualidade do sono": com o check-in dentro do diário, a tela
+   passou a ter "Sono (horas)" em cima e "Sono" no controle — a mesma palavra
+   duas vezes, perguntando coisas diferentes. Uma é quanto tempo, a outra é
+   como foi. */
+const CHK_ITENS=[['sono','Qualidade do sono','Dormi muito bem','Dormi mal'],['fadiga','Fadiga','Descansada','Exausta'],['estresse','Estresse','Tranquila','Muito estressada'],['dor','Dor muscular','Sem dor','Muita dor'],['humor','Humor','Ótimo','Ruim']];
 function CheckinScreen({student,demo,onBack}){
   const [v,setV]=useState({sono:2,fadiga:2,estresse:2,dor:2,humor:2});
   const [res,setRes]=useState(null);const [busy,setBusy]=useState(false);
@@ -10237,6 +10241,16 @@ function DiarioScreen({student,demo,onBack}){
   const [diab,setDiab]=useState(demo?true:false);
   const [d,setD]=useState({peso:'',sono:'',passos:'',fome:3,obs:''});
   const [chk,setChk]=useState(demo?{sinal:'Verde',total:8}:undefined);   // prontidao de hoje (vem do check-in)
+  /* O check-in mora aqui dentro agora.
+     Eram duas telas para o mesmo ato — e a própria tela admitia, com um card
+     escrito "Falta o check-in de hoje". O banco mostra o preço: em 30 dias,
+     145 séries de treino registradas, 7 feedbacks de fim de treino (que o app
+     mostra sozinho quando o aluno termina), 4 check-ins e UM diário. O que o
+     app põe na frente é respondido; o que exige ir até outra aba, não.
+     Então os cinco controles de prontidão entram aqui, e um botão só grava as
+     duas coisas. A tela de check-in continua existindo para quem chega por
+     ela. */
+  const [pron,setPron]=useState({sono:2,fadiga:2,estresse:2,dor:2,humor:2});
   const [glic,setGlic]=useState(demo?[{id:'g1',valor:104,momento:'jejum',insulina_unid:6,registrado_em:new Date(Date.now()-3600e3).toISOString()},{id:'g2',valor:158,momento:'pos_refeicao',insulina_unid:4,registrado_em:new Date(Date.now()-6*3600e3).toISOString()}]:[]);
   const [gf,setGf]=useState({valor:'',momento:'jejum',insulina:''});
   const [erroGlic,setErroGlic]=useState(null);
@@ -10255,11 +10269,30 @@ function DiarioScreen({student,demo,onBack}){
     if(demo)return;
     try{await gravar(sb.rpc('saude_cfg',{p_diabetico:v,p_condicoes:null}));}
     catch(e){setDiab(!v);setErroGlic(porQueFalhou(e));}};
+  const totalPron=Object.values(pron).reduce((a,b)=>a+b,0);
+  const sinalDe=t=>t<=9?{l:'Verde',c:'var(--green)',t:'Prontidão ótima — pode ir com tudo hoje.'}
+    :t<=14?{l:'Amarelo',c:'var(--gold)',t:'Prontidão média — mantenha, sem forçar demais.'}
+    :{l:'Vermelho',c:'var(--red)',t:'Prontidão baixa — pegue leve e priorize recuperação.'};
   const salvar=async()=>{setBusy(true);let erro=null;
-    if(!demo){try{const {error}=await sb.rpc('diario_salvar',{p_peso:num(d.peso),p_sono:num(d.sono),p_passos:d.passos?parseInt(d.passos):null,p_fome:d.fome,p_obs:d.obs||null});if(error)erro=error.message;}catch(e){erro=e.message||String(e);}}
+    const faltaChk=chk===null||chk===undefined;
+    if(!demo){
+      /* Duas gravações, um botão. Se a prontidão falhar, o diário já gravado
+         continua gravado — mas o aluno tem de saber qual das duas não subiu,
+         em vez de ver "salvo!" e o treinador não receber o semáforo. */
+      try{await gravar(sb.rpc('diario_salvar',{p_peso:num(d.peso),p_sono:num(d.sono),
+        p_passos:d.passos?parseInt(d.passos):null,p_fome:d.fome,p_obs:d.obs||null}));}
+      catch(e){erro='Não consegui salvar seu diário: '+porQueFalhou(e);}
+      if(!erro&&faltaChk){
+        try{await gravar(sb.rpc('checkin_salvar',{p_sono:pron.sono,p_fadiga:pron.fadiga,
+          p_estresse:pron.estresse,p_dor:pron.dor,p_humor:pron.humor}));
+          setChk({sinal:sinalDe(totalPron).l,total:totalPron});}
+        catch(e){erro='Salvei o diário, mas a prontidão de hoje não subiu: '+porQueFalhou(e);}
+      }
+    }else if(faltaChk)setChk({sinal:sinalDe(totalPron).l,total:totalPron});
     setBusy(false);
-    if(erro){setOkMsg(null);alert('Não consegui salvar seu diário: '+erro);return;}
-    setOkMsg('Diário de hoje salvo!');setTimeout(()=>setOkMsg(null),1800);};
+    if(erro){setOkMsg(null);alert(erro);return;}
+    setOkMsg(faltaChk?'Dia de hoje registrado!':'Diário de hoje salvo!');
+    setTimeout(()=>setOkMsg(null),1800);};
   const regGlic=async()=>{if(!gf.valor)return;const novo={id:'t'+Date.now(),valor:parseInt(gf.valor),momento:gf.momento,insulina_unid:gf.insulina?num(gf.insulina):null,registrado_em:new Date().toISOString()};
     /* A leitura entrava na lista ANTES de gravar, e o erro morria calado: o
        aluno via a glicemia registrada e o treinador nunca recebia. É dado de
@@ -10292,13 +10325,30 @@ function DiarioScreen({student,demo,onBack}){
         <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700}}>Prontidão de hoje: {chk.sinal}</div>
           <div className="lv-sub">Sono, fadiga, estresse, dor e humor você já respondeu no Check-in.</div></div>
       </div>:
-      <div className="lv-card" style={{display:'flex',alignItems:'center',gap:12,borderColor:'rgba(245,158,11,.45)'}}>
-        <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700}}>Falta o check-in de hoje</div>
-          <div className="lv-sub">É lá que entram sono, fadiga, estresse, dor e humor.</div></div>
-      </div>)}
+      /* Era um card avisando que faltava responder noutra tela. Agora é a
+         própria pergunta, aqui. */
+      <>
+        <div className="lv-kick" style={{margin:'16px 2px 10px'}}>Como você está hoje</div>
+        {CHK_ITENS.map(([k,lbl,lo,hi])=>(<div key={k} className="lv-card">
+          <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}>
+            <span style={{fontWeight:700}}>{lbl}</span>
+            <span style={{fontWeight:800,color:'var(--lvrx)'}}>{pron[k]}</span></div>
+          <input type="range" min="1" max="5" value={pron[k]} style={{width:'100%'}}
+            onChange={e=>setPron(p=>({...p,[k]:+e.target.value}))}/>
+          <div style={{display:'flex',justifyContent:'space-between'}}>
+            <span className="lv-sub">{lo}</span><span className="lv-sub">{hi}</span></div>
+        </div>))}
+        <div className="lv-card" style={{display:'flex',alignItems:'center',gap:12}}>
+          <div style={{width:16,height:16,borderRadius:'50%',background:sinalDe(totalPron).c,
+            boxShadow:`0 0 12px ${sinalDe(totalPron).c}`}}/>
+          <div style={{flex:1}}><div style={{fontWeight:700}}>Prontidão: {sinalDe(totalPron).l}</div>
+            <div className="lv-sub">{sinalDe(totalPron).t}</div></div>
+        </div>
+      </>)}
     <div className="lv-card"><span className="lv-inlbl">Observações</span><textarea className="lv-in" rows={2} value={d.obs} onChange={e=>setD(p=>({...p,obs:e.target.value}))} placeholder="Como foi seu dia? Algo importante?"/></div>
     {okMsg&&<div className="lv-pill" style={{background:'rgba(74,222,128,.15)',color:'var(--green)',marginBottom:10}}>✓ {okMsg}</div>}
-    <button className="lv-btn" disabled={busy} onClick={salvar}>{busy?'Salvando…':'Salvar diário de hoje'}</button>
+    <button className="lv-btn" disabled={busy} onClick={salvar}>
+      {busy?'Salvando…':(chk?'Salvar diário de hoje':'Salvar meu dia')}</button>
 
     <div className="lv-card" style={{marginTop:18,display:'flex',alignItems:'center',gap:12}}>
       <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700}}>Sou diabético(a)</div><div className="lv-sub">Ativa o controle de glicemia e insulina</div></div>
