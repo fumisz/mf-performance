@@ -59,7 +59,7 @@ if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABAS
    .catch. Chamar .catch direto estoura TypeError, e dentro de um useEffect isso
    derruba a tela inteira do aluno. */
 const semEsperar=q=>{try{q.then(()=>{},()=>{});}catch(e){}};
-const APP_VERSION='2026.10.17';   // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION='2026.10.18';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
 
@@ -8270,11 +8270,73 @@ function App({profile,setProfile}){
       'A ficha remota foi importada, mas não consegui tirá-la da fila');
     return stu;
   };
-  const exportData=()=>{
-    const data={app:'MF Performance',v:2,exportedAt:new Date().toISOString(),coach:profile.name,students,evals};
-    const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  /* ── Exportar backup ──
+     Isto gravava DUAS tabelas: os cadastros e as avaliações. No banco de hoje
+     são 72 linhas de umas 2.900 — 2,5% do trabalho. Ficavam de fora as 53
+     divisões de treino montadas, os 341 exercícios prescritos, os 164 treinos
+     registrados pelos alunos, os 14 planos alimentares, os 46 modelos de ficha,
+     os 86 cronogramas com 1.254 itens e a biblioteca de 216 exercícios.
+     Um arquivo chamado "backup" que deixa isso de fora é pior do que não ter
+     botão nenhum: ele dá a sensação de estar guardado.
+
+     A RLS já limita cada consulta ao que é dele, então "tudo que ele enxerga"
+     é exatamente o que o backup tem de levar. E se alguma tabela falhar na
+     leitura, o arquivo NÃO sai fingindo estar completo — é a mesma família do
+     defeito que apareceu a sessão inteira, e aqui ela seria a pior de todas:
+     descobrir no dia em que precisa restaurar. */
+  const BACKUP_TABELAS=[
+    // quem são e o que você mediu
+    'assess_students','assessments','assess_tech','assess_intakes',
+    // o treino que você montou, e o que o aluno fez com ele
+    'train_divisao','train_serie_prescrita','train_historico','train_exercicios',
+    'train_macro','train_meso','train_micro','train_periodizacao',
+    // o que você guardou para reaproveitar
+    'train_ficha_modelo','train_perio_modelo','plan_templates','template_meals',
+    'template_items','template_subs',
+    // a nutrição
+    'meal_plans','meals','meal_items','substitutions','supplements','foods',
+    // o acompanhamento do dia a dia
+    'train_meta','train_saude','train_diario','train_checkin','train_feedback',
+    'train_glicemia','train_hidratacao','train_peso_meta','train_ciclo',
+    'checkins','photos',
+    // conversa, avisos e dinheiro
+    'train_avisos','train_conversa','train_mensalidade','train_pagamento',
+  ];
+  const [exportando,setExportando]=useState(false);
+  const exportData=async()=>{
+    if(exportando)return;
+    setExportando(true);
+    const dados={},contagem={},falhas=[];
+    for(const t of BACKUP_TABELAS){
+      try{
+        const {data,error}=await comPrazo(sb.from(t).select('*'),25000);
+        if(error)throw error;
+        dados[t]=data||[];contagem[t]=(data||[]).length;
+      }catch(e){falhas.push(t+' ('+((e&&e.message)||e)+')');}
+    }
+    setExportando(false);
+    if(falhas.length){
+      // sair com um arquivo incompleto e o nome "backup" é o erro que não dá
+      // para cometer aqui: ele só é descoberto no dia da restauração
+      alert('Não consegui ler '+plural(falhas.length,'tabela','tabelas')+', então NÃO gerei o arquivo — '+
+        'um backup pela metade é pior que nenhum, porque parece completo.\n\n'+
+        falhas.slice(0,6).join('\n')+
+        '\n\nTente de novo com internet estável.');
+      return;
+    }
+    const total=Object.values(contagem).reduce((a,b)=>a+b,0);
+    const arquivo={
+      app:'MF Performance',v:3,exportadoEm:new Date().toISOString(),
+      treinador:profile.name,total_de_linhas:total,linhas_por_tabela:contagem,
+      dados,
+    };
+    const blob=new Blob([JSON.stringify(arquivo,null,2)],{type:'application/json'});
     const u=URL.createObjectURL(blob);const a=document.createElement('a');
-    a.href=u;a.download='mf-performance-backup-'+todayStr()+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);
+    a.href=u;a.download='mf-performance-backup-'+todayStr()+'.json';a.click();
+    setTimeout(()=>URL.revokeObjectURL(u),1000);
+    alert('Backup salvo: '+total.toLocaleString('pt-BR')+' linhas de '+
+      BACKUP_TABELAS.length+' tabelas.\n\nGuarde o arquivo fora do celular — '+
+      'de nada adianta o backup morrer junto com o aparelho.');
   };
 
   const subUntil=profile.perf_until;
@@ -8317,7 +8379,8 @@ function App({profile,setProfile}){
         <hr className="nav-divider"/>
         <button className={`nav-btn ${view==='brand'?'active':''}`} onClick={()=>go('brand')}>Meu perfil / marca</button>
         {profile.is_admin&&<button className={`nav-btn ${view==='admin'?'active':''}`} onClick={()=>go('admin')}>Administração</button>}
-        <button className="nav-btn" onClick={exportData}>Exportar backup</button>
+        <button className="nav-btn" disabled={exportando} onClick={exportData}>
+          {exportando?'Montando backup…':'Exportar backup'}</button>
         <button className="nav-btn" onClick={toggleTheme}>{theme==='dark'?'Tema claro':'Tema escuro'}</button>
         <div className="sidebar-footer">
           <div style={{display:'flex',alignItems:'center',gap:9,marginBottom:10}}>
