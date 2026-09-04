@@ -2852,35 +2852,33 @@ function MetasCoach({
       alert('Preencha o título e o valor da meta.');
       return;
     }
+    /* O catch aqui nunca rodava: o supabase-js devolve {error}, não lança. A
+       meta não era gravada, o formulário limpava, e a lista recarregava sem
+       ela — como se o treinador nunca tivesse digitado. */
     setBusy(true);
-    try {
-      await sb.from('train_meta').insert({
-        coach_id: coachId,
-        student_id: student.id,
-        tipo: f.tipo,
-        titulo: f.titulo,
-        unidade: f.unidade || null,
-        valor_inicial: num(f.valor_inicial),
-        valor_alvo: num(f.valor_alvo),
-        prazo: f.prazo || null
-      });
-      setF({
-        tipo: 'peso',
-        titulo: '',
-        unidade: 'kg',
-        valor_inicial: '',
-        valor_alvo: '',
-        prazo: ''
-      });
-      await load();
-    } catch (e) {
-      alert('Erro: ' + e.message);
-    }
+    if (await gravarAvisando(sb.from('train_meta').insert({
+      coach_id: coachId,
+      student_id: student.id,
+      tipo: f.tipo,
+      titulo: f.titulo,
+      unidade: f.unidade || null,
+      valor_inicial: num(f.valor_inicial),
+      valor_alvo: num(f.valor_alvo),
+      prazo: f.prazo || null
+    }), 'A meta')) setF({
+      tipo: 'peso',
+      titulo: '',
+      unidade: 'kg',
+      valor_inicial: '',
+      valor_alvo: '',
+      prazo: ''
+    });
+    await load();
     setBusy(false);
   };
   const del = async id => {
     if (!confirm('Excluir esta meta?')) return;
-    await sb.from('train_meta').delete().eq('id', id);
+    await gravarAvisando(sb.from('train_meta').delete().eq('id', id), 'A meta');
     await load();
   };
   return /*#__PURE__*/React.createElement("div", {
@@ -11743,28 +11741,32 @@ function AdminScreen({
     setLabel('');
     reload();
   };
+  /* Painel de administração: liberar e bloquear acesso de treinador. Aqui a
+     gravação calada é a pior de todas — "bloqueei o acesso dele" é o tipo de
+     coisa que ninguém confere depois. O reload() em seguida mostrava o estado
+     antigo e parecia que a tela só não tinha atualizado. */
   const setApp_ = async (c, ap, d) => {
-    await sb.rpc('admin_set_app', {
+    await gravarAvisando(sb.rpc('admin_set_app', {
       p_coach: c.id,
       p_app: ap,
       p_days: d
-    });
+    }), 'O acesso');
     reload();
   };
   const blockApp = async (c, ap) => {
     if (confirm(`Bloquear ${ap === 'perf' ? 'Performance' : 'Nutrition'} de ${c.name || c.email}?`)) {
-      await sb.rpc('admin_block_app', {
+      await gravarAvisando(sb.rpc('admin_block_app', {
         p_coach: c.id,
         p_app: ap
-      });
+      }), 'O bloqueio');
       reload();
     }
   };
   const toggleInvite = async iv => {
-    await sb.rpc('admin_set_invite_active', {
+    await gravarAvisando(sb.rpc('admin_set_invite_active', {
       p_code: iv.code,
       p_active: !iv.active
-    });
+    }), 'O convite');
     reload();
   };
   const dleft = d => d ? Math.ceil((new Date(d + 'T00:00:00') - new Date(todayStr() + 'T00:00:00')) / 86400000) : null;
@@ -15199,11 +15201,13 @@ function TechScreen({
       if (error) throw error;
     }
   };
+  /* Some da lista na hora, mas se o servidor recusar volta: a tela não pode
+     ficar mostrando uma avaliação a menos do que o banco tem. */
   const del = async id => {
     setList(p => p.filter(x => x.id !== id));
-    if (!demo) await sb.from('assess_tech').delete().eq('id', id);
     setMode('list');
     setSelId(null);
+    if (!demo && !(await gravarAvisando(sb.from('assess_tech').delete().eq('id', id), 'A avaliação técnica'))) await load();
   };
   const filtered = (list || []).filter(a => !stuFilter || a.student_id === stuFilter);
   const sel = (list || []).find(a => a.id === selId);
@@ -15901,7 +15905,7 @@ function ExerciseLibrary({
     if (ex.coach_id !== coach.id) return;
     if (!confirm('Remover "' + ex.nome + '"?')) return;
     setLib(p => p.filter(x => x.id !== ex.id));
-    if (!demo) await sb.from('train_exercicios').delete().eq('id', ex.id);
+    if (!demo && !(await gravarAvisando(sb.from('train_exercicios').delete().eq('id', ex.id), 'O exercício'))) await load();
   };
   const list = (lib || []).filter(e => e.nome.toLowerCase().includes(q.toLowerCase())).filter(e => grupoFiltro === 'Todos' || (e.grupo_muscular || 'Outros') === grupoFiltro);
   const gruposDisponiveis = ['Todos', ...[...new Set((lib || []).map(e => e.grupo_muscular || 'Outros'))].sort()];
@@ -16294,7 +16298,8 @@ function FichaModeloPicker({
     ev.stopPropagation();
     if (!confirm('Apagar o modelo "' + m.nome + '"? As fichas já montadas não mudam.')) return;
     setMods(p => p.filter(x => x.id !== m.id));
-    await sb.from('train_ficha_modelo').delete().eq('id', m.id);
+    // se o servidor recusar, o modelo volta para a lista em vez de "sumir"
+    if (!(await gravarAvisando(sb.from('train_ficha_modelo').delete().eq('id', m.id), 'O modelo'))) setMods(p => [...p, m].sort((a, b) => String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR')));
   };
   const contaEx = m => (m.divisoes || []).reduce((a, d) => a + (d.exercicios || []).length, 0);
   return /*#__PURE__*/React.createElement("div", {
@@ -17409,7 +17414,21 @@ function TrainScreen({
       delete c[id];
       return c;
     });
-    if (!demo) await sb.from('train_divisao').delete().eq('id', id);
+    if (demo) return;
+    /* A divisão saía da tela antes de o servidor confirmar. Se ele recusasse,
+       o treinador continuava montando a ficha em cima de uma divisão que ainda
+       existia no banco — e ela reaparecia na próxima abertura, com exercícios
+       dentro. Aqui: falhou, avisa e traz a lista de volta do servidor. */
+    const {
+      error
+    } = await comPrazo(sb.from('train_divisao').delete().eq('id', id));
+    if (error) {
+      setMsg({
+        t: 'err',
+        m: 'Não consegui excluir a divisão: ' + error.message
+      });
+      await loadDivs(stu);
+    }
   };
   const addEx = async divId => {
     const nome = (ex.nome || '').trim();
@@ -17501,7 +17520,18 @@ function TrainScreen({
       ...p,
       [divId]: (p[divId] || []).filter(s => s.id !== id)
     }));
-    if (!demo) await sb.from('train_serie_prescrita').delete().eq('id', id);
+    if (demo) return;
+    // mesma regra da divisão: o exercício só some de verdade se o banco deixou
+    const {
+      error
+    } = await comPrazo(sb.from('train_serie_prescrita').delete().eq('id', id));
+    if (error) {
+      setMsg({
+        t: 'err',
+        m: 'Não consegui remover o exercício: ' + error.message
+      });
+      await loadSeries(divId);
+    }
   };
   // dá para ajustar séries, reps e descanso sem apagar e cadastrar de novo
   const updEx = async (divId, id, campos) => {
@@ -18342,6 +18372,23 @@ const gravar = async (q, ms) => {
 };
 // Mensagem para o usuário a partir de um erro de gravação.
 const porQueFalhou = e => isNetErr(e) ? 'A internet falhou. Não foi salvo — tente de novo.' : 'Não consegui salvar: ' + (e && e.message || e);
+/* Gravação do lado do treinador que não tinha para onde levar o erro.
+   São as telas de bastidor — modelos, periodização, suplementos, metas — onde
+   a tela pinta o resultado na hora e nunca mais confere. Quando o servidor
+   recusava, o treinador via a mudança acontecer e ela sumia na próxima vez que
+   abrisse a tela; pior, um modelo de cardápio podia ser salvo VAZIO e ele só
+   descobrir na hora de usar com o aluno.
+   Não invento um canto na tela para cada uma dessas: aviso na cara e devolvo
+   se deu certo, para quem chamou desfazer o que já tinha pintado. */
+const gravarAvisando = async (q, oQue) => {
+  try {
+    await gravar(q);
+    return true;
+  } catch (e) {
+    alert(oQue + ': ' + porQueFalhou(e));
+    return false;
+  }
+};
 
 /* ── Ler com cópia no aparelho ───────────────────────────────
    Toda leitura que o app precisa mostrar offline passa por aqui: tenta a rede
@@ -20104,9 +20151,20 @@ function NutriPlanEditor({
         itemsP,
         subsP
       } = buildTemplatePayload(meals, t.id);
-      if (mealsP.length) await sb.from('template_meals').insert(mealsP);
-      if (itemsP.length) await sb.from('template_items').insert(itemsP);
-      if (subsP.length) await sb.from('template_subs').insert(subsP);
+      /* Só a linha de cima conferia o erro. As três de baixo — que são o
+         cronograma inteiro: refeições, alimentos e substituições — gravavam
+         sem ninguém ler a resposta. Se uma falhasse, sobrava um cronograma
+         VAZIO no banco e a tela dizia "salvo!". O treinador só descobria na
+         hora de aplicar num aluno, dias depois. Agora, se qualquer parte
+         falhar, o cabeçalho órfão é desfeito e ele fica sabendo na hora. */
+      try {
+        if (mealsP.length) await gravar(sb.from('template_meals').insert(mealsP));
+        if (itemsP.length) await gravar(sb.from('template_items').insert(itemsP));
+        if (subsP.length) await gravar(sb.from('template_subs').insert(subsP));
+      } catch (e) {
+        await comPrazo(sb.from('plan_templates').delete().eq('id', t.id)).catch(() => {});
+        throw e;
+      }
       alert('Cronograma “' + title + '” salvo! Já pode aplicar em outros alunos.');
     } catch (e) {
       alert('Erro ao salvar cronograma: ' + (e.message || e));
@@ -20498,10 +20556,12 @@ function NutriSuplementos({
         notes: i.notes || null,
         order_index: idx
       }));
-      if (payload.length) await sb.from('supplements').upsert(payload);
+      /* Gravar primeiro, apagar depois — e conferindo as duas. Do jeito que
+         estava, o catch não pegava nada e o "✓ Salvo" aparecia igual. */
+      if (payload.length) await gravar(sb.from('supplements').upsert(payload));
       const cur = payload.map(x => x.id),
         rm = orig.filter(id => !cur.includes(id));
-      if (rm.length) await sb.from('supplements').delete().in('id', rm);
+      if (rm.length) await gravar(sb.from('supplements').delete().in('id', rm));
       await load();
       setSaved(true);
       setTimeout(() => setSaved(false), 1500);
@@ -21192,12 +21252,29 @@ function PeriodizacaoScreen({
     setMesos([]);
     setMicros({});
   };
+  /* A periodização inteira gravava sem ler a resposta: nome do macrociclo,
+     fases, microciclos, tudo. O treinador montava o ciclo com o aluno na
+     frente, via cada campo mudar na tela, e o banco podia não ter recebido
+     nada. Na volta, ciclo em branco. Aqui todas conferem e recarregam do
+     servidor quando falham — a tela passa a mostrar o que existe. */
+  const recarregar = async () => {
+    try {
+      if (stu) await load(stu.id);
+    } catch (e) {}
+  };
   const salvarMacro = async campos => {
     setMacro(m => ({
       ...m,
       ...campos
     }));
-    if (!demo) await sb.from('train_macro').update(campos).eq('id', macro.id);
+    if (demo) return;
+    const {
+      error
+    } = await comPrazo(sb.from('train_macro').update(campos).eq('id', macro.id));
+    if (error) {
+      erro(error);
+      await recarregar();
+    }
   };
 
   // Cria o macrociclo já com as fases e os microciclos do modelo escolhido.
@@ -21278,12 +21355,24 @@ function PeriodizacaoScreen({
       ...x,
       ...campos
     } : x));
-    await sb.from('train_meso').update(campos).eq('id', id);
+    const {
+      error
+    } = await comPrazo(sb.from('train_meso').update(campos).eq('id', id));
+    if (error) {
+      erro(error);
+      await recarregar();
+    }
   };
   const delMeso = async id => {
     if (!confirm('Excluir esta fase e os microciclos dela?')) return;
     setMesos(l => l.filter(x => x.id !== id));
-    await sb.from('train_meso').delete().eq('id', id);
+    const {
+      error
+    } = await comPrazo(sb.from('train_meso').delete().eq('id', id));
+    if (error) {
+      erro(error);
+      await recarregar();
+    }
   };
   const addMicro = async mesoId => {
     const atuais = micros[mesoId] || [];
@@ -21315,14 +21404,26 @@ function PeriodizacaoScreen({
         ...campos
       } : x)
     }));
-    await sb.from('train_micro').update(campos).eq('id', id);
+    const {
+      error
+    } = await comPrazo(sb.from('train_micro').update(campos).eq('id', id));
+    if (error) {
+      erro(error);
+      await recarregar();
+    }
   };
   const delMicro = async (mesoId, id) => {
     setMicros(m => ({
       ...m,
       [mesoId]: (m[mesoId] || []).filter(x => x.id !== id)
     }));
-    await sb.from('train_micro').delete().eq('id', id);
+    const {
+      error
+    } = await comPrazo(sb.from('train_micro').delete().eq('id', id));
+    if (error) {
+      erro(error);
+      await recarregar();
+    }
   };
 
   // Guarda o ciclo montado para reaproveitar em outros alunos.
@@ -21380,7 +21481,14 @@ function PeriodizacaoScreen({
     ev.stopPropagation();
     if (!confirm('Apagar o modelo "' + m.nome + '"? Os ciclos já montados não mudam.')) return;
     setMeus(l => l.filter(x => x.id !== m.id));
-    await sb.from('train_perio_modelo').delete().eq('id', m.id);
+    // falhou: o modelo volta para a lista, senão some da tela e fica no banco
+    const {
+      error
+    } = await comPrazo(sb.from('train_perio_modelo').delete().eq('id', m.id));
+    if (error) {
+      erro(error);
+      setMeus(l => [m, ...l]);
+    }
   };
   const totalSemanas = mesos.reduce((a, me) => a + (micros[me.id] || []).reduce((b, mi) => b + (mi.semanas || 0), 0), 0);
   const fim = (() => {
@@ -22395,9 +22503,12 @@ function App({
       return null;
     }
     setEvals(p => [...p, rowToEval(er)]);
-    await sb.from('assess_intakes').update({
+    /* Marcar a ficha remota como importada. Se falhar, o aluno e a avaliação
+       já entraram — o que fica errado é a ficha continuar na fila de pendentes
+       e ele importar duas vezes. Por isso avisa, em vez de sumir com o erro. */
+    await gravarAvisando(sb.from('assess_intakes').update({
       status: 'imported'
-    }).eq('id', it.id);
+    }).eq('id', it.id), 'A ficha remota foi importada, mas não consegui tirá-la da fila');
     return stu;
   };
   const exportData = () => {
