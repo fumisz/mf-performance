@@ -59,7 +59,7 @@ if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABAS
    .catch. Chamar .catch direto estoura TypeError, e dentro de um useEffect isso
    derruba a tela inteira do aluno. */
 const semEsperar=q=>{try{q.then(()=>{},()=>{});}catch(e){}};
-const APP_VERSION='2026.10.19';   // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION='2026.10.20';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
 
@@ -9496,12 +9496,30 @@ function TrainExec({student,divisao,demo,somenteLeitura,best,onBack,onSaved,onFi
   const tierDoneCount=s=>{let c=0;for(let i=0;i<s.qtd_series;i++)if(done[s.id+'_'+i])c++;return c;};
   const fmtT=x=>String(Math.floor(x/60)).padStart(2,'0')+':'+String(x%60).padStart(2,'0');
   const celebrate=carga=>{setCel({carga});try{navigator.vibrate&&navigator.vibrate([35,45,90]);}catch(e){}setTimeout(()=>setCel(null),2200);};
+  // qual série já avisei que está sem repetição (ver o comentário em concluir)
+  const [faltaReps,setFaltaReps]=useState(null);
   const concluir=async(s,i)=>{
     // Exercício sem peso existe: elástico, peso do corpo, prancha, alongamento.
     // Exigir carga fazia o botão não responder a nada — sem aviso, sem erro. Uma
     // aluna abandonou o app por isso: a primeira coisa da ficha dela era uma
     // abdução com elástico. Peso em branco agora vale "sem carga".
     const k=s.id+'_'+i;const v=vals[k]||{};const carga=num(v.carga),reps=num(v.reps);
+    /* Série sem repetição nenhuma.
+       No banco: 45 das 166 séries entraram com reps nula, e 39 sem carga NEM
+       reps — em exercício de força (Puxada Frente, Remada Máquina, Supino
+       Inclinado com Halteres), não só em esteira. O app aceitava os dois campos
+       vazios e escrevia "Válidas 1/3" como se estivesse tudo certo.
+       Custa nos dois lados: a tonelagem do treinador é carga × reps, então um
+       quarto do volume entra como zero; e na sessão seguinte o "da última vez"
+       aparece vazio, o aluno fica sem referência e grava vazio de novo.
+       NÃO bloqueio: exigir carga já foi tentado aqui e o botão virava um botão
+       morto — uma aluna abandonou o app por isso. Aqui é só um aviso, e só uma
+       vez: se ele tocar de novo, é porque quis mesmo (esteira, prancha,
+       alongamento não têm repetição). E só pergunto quando a ficha prescreve
+       uma faixa de repetições, que é o que separa força de tempo. */
+    const pedeRepeticao=reps==null&&!!String(s.faixa_reps||'').trim();
+    if(pedeRepeticao&&faltaReps!==k){setFaltaReps(k);return;}
+    setFaltaReps(null);
     const isPr=s.tipo_serie==='Valida'&&carga!=null&&carga>(best[s.exercicio_id]||0);
     setDone(p=>({...p,[k]:{carga,reps,isPr}}));
     let nx=i+1;while(nx<s.qtd_series&&done[s.id+'_'+nx])nx++;setActive(p=>({...p,[s.id]:nx}));
@@ -9612,9 +9630,15 @@ function TrainExec({student,divisao,demo,somenteLeitura,best,onBack,onSaved,onFi
               {!complete&&ai<t.qtd_series&&<div>
                 <div style={{display:'flex',gap:10,marginBottom:10}}>
                   <div style={{flex:1}}><span className="lv-inlbl">Peso (kg)</span><input className="lv-in" type="number" inputMode="decimal" placeholder="sem peso" value={(vals[t.id+'_'+ai]||{}).carga||''} onChange={ev=>setV(t.id+'_'+ai,'carga',ev.target.value)}/></div>
-                  <div style={{flex:1}}><span className="lv-inlbl">Reps feitas</span><input className="lv-in" type="number" inputMode="numeric" placeholder="reps" value={(vals[t.id+'_'+ai]||{}).reps||''} onChange={ev=>setV(t.id+'_'+ai,'reps',ev.target.value)}/></div>
+                  <div style={{flex:1}}><span className="lv-inlbl">Reps feitas</span><input className="lv-in" type="number" inputMode="numeric" placeholder="reps"
+                    style={faltaReps===t.id+'_'+ai?{borderColor:'var(--gold)'}:null}
+                    value={(vals[t.id+'_'+ai]||{}).reps||''} onChange={ev=>setV(t.id+'_'+ai,'reps',ev.target.value)}/></div>
                 </div>
-                <button className="lv-btn" onClick={()=>concluir(t,ai)}>✓ Concluir série</button>
+                {faltaReps===t.id+'_'+ai&&<div className="lv-sub" style={{color:'var(--gold)',marginBottom:10,lineHeight:1.45}}>
+                  Quantas repetições você fez? Sem isso o treino não entra no seu volume.
+                  Se este exercício é por tempo, toque de novo em concluir.</div>}
+                <button className="lv-btn" onClick={()=>concluir(t,ai)}>
+                  {faltaReps===t.id+'_'+ai?'✓ Concluir mesmo assim':'✓ Concluir série'}</button>
               </div>}
             </div>);})}
         </div>}
