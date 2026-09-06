@@ -99,7 +99,7 @@ const semEsperar = q => {
     q.then(() => {}, () => {});
   } catch (e) {}
 };
-const APP_VERSION = '2026.10.20'; // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION = '2026.10.21'; // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA'); // YYYY-MM-DD no fuso LOCAL
 
@@ -25484,6 +25484,13 @@ function TrainExec({
   };
   // qual série já avisei que está sem repetição (ver o comentário em concluir)
   const [faltaReps, setFaltaReps] = useState(null);
+  /* E se ele já respondeu "concluir mesmo assim" uma vez neste treino, paro de
+     perguntar. Uma aluna gravou 30 séries seguidas sem número nenhum, uma a
+     cada 1-3 minutos, num treino de 53 minutos: ela usa o botão como caixinha
+     de marcar, e isso é uma escolha, não um engano. Perguntar 30 vezes seria
+     castigar justamente quem mais treina. O aviso serve para quem esqueceu —
+     uma vez basta para saber que existe o campo. */
+  const [jaAvisouReps, setJaAvisouReps] = useState(false);
   const concluir = async (s, i) => {
     // Exercício sem peso existe: elástico, peso do corpo, prancha, alongamento.
     // Exigir carga fazia o botão não responder a nada — sem aviso, sem erro. Uma
@@ -25507,10 +25514,11 @@ function TrainExec({
        alongamento não têm repetição). E só pergunto quando a ficha prescreve
        uma faixa de repetições, que é o que separa força de tempo. */
     const pedeRepeticao = reps == null && !!String(s.faixa_reps || '').trim();
-    if (pedeRepeticao && faltaReps !== k) {
+    if (pedeRepeticao && !jaAvisouReps && faltaReps !== k) {
       setFaltaReps(k);
       return;
     }
+    if (faltaReps === k) setJaAvisouReps(true); // ele decidiu: não pergunto mais hoje
     setFaltaReps(null);
     const isPr = s.tipo_serie === 'Valida' && carga != null && carga > (best[s.exercicio_id] || 0);
     setDone(p => ({
