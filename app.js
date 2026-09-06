@@ -99,7 +99,7 @@ const semEsperar = q => {
     q.then(() => {}, () => {});
   } catch (e) {}
 };
-const APP_VERSION = '2026.10.23'; // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION = '2026.10.24'; // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA'); // YYYY-MM-DD no fuso LOCAL
 
@@ -23097,6 +23097,37 @@ function App({
     contarSemTreino();
   }, [coachId, view]); // volta ao painel, reconta
 
+  /* Quantos GRUPOS de cadastro repetido ainda existem — não quantas linhas.
+     Duas linhas do mesmo Jefferson são UM cadastro para juntar, e é isso que a
+     tela mostra. Este número é o que tira "Cadastros repetidos" de dentro do
+     "Mais": enquanto sobrar coisa para juntar, o item fica na lista de cima com
+     o número do lado; quando zerar, ele desce e para de pedir atenção. */
+  const [temRepetidos, setTemRepetidos] = useState(0);
+  useEffect(() => {
+    if (profile._demo || !sb) return;
+    let alive = true;
+    (async () => {
+      try {
+        const {
+          data
+        } = await sb.rpc('alunos_duplicados');
+        const grupos = new Set((data || []).map(r => r.chave));
+        if (alive) setTemRepetidos(grupos.size);
+      } catch (e) {}
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [coachId, view]);
+
+  /* O menu abre enxuto e lembra a escolha dele neste aparelho. */
+  const [mais, setMais] = useState(() => {
+    try {
+      return localStorage.getItem('mfp-menu-mais') === '1';
+    } catch (e) {
+      return false;
+    }
+  });
   const stuEvals = selStudent ? evals.filter(e => e.studentId === selStudent.id) : [];
   const sortedStuEvals = [...stuEvals].sort((a, b) => new Date(b.date) - new Date(a.date));
   const lastHeight = sortedStuEvals[0]?.height || '';
@@ -23521,34 +23552,6 @@ function App({
       go('stu-form');
     }
   }, "Novo aluno"), /*#__PURE__*/React.createElement("button", {
-    className: `nav-btn ${view === 'duplicados' ? 'active' : ''}`,
-    onClick: () => {
-      setSelStudent(null);
-      go('duplicados');
-    }
-  }, "Cadastros repetidos"), /*#__PURE__*/React.createElement("button", {
-    className: `nav-btn ${view === 'agenda' ? 'active' : ''}`,
-    onClick: () => {
-      setSelStudent(null);
-      go('agenda');
-    }
-  }, "Agenda"), /*#__PURE__*/React.createElement("button", {
-    className: `nav-btn ${view === 'intakes' ? 'active' : ''}`,
-    onClick: () => {
-      setSelStudent(null);
-      go('intakes');
-    }
-  }, "Fichas online", intakeCount > 0 && /*#__PURE__*/React.createElement("span", {
-    style: {
-      marginLeft: 6,
-      background: 'var(--gold)',
-      color: '#1c0f16',
-      borderRadius: 10,
-      padding: '0 7px',
-      fontSize: 11,
-      fontWeight: 700
-    }
-  }, intakeCount)), /*#__PURE__*/React.createElement("button", {
     className: `nav-btn ${view === 'train' ? 'active' : ''}`,
     onClick: () => {
       setSelStudent(null);
@@ -23599,18 +23602,79 @@ function App({
       fontWeight: 700
     }
   }, semTreino)), /*#__PURE__*/React.createElement("button", {
+    className: `nav-btn ${view === 'nutri' ? 'active' : ''}`,
+    onClick: () => {
+      setSelStudent(null);
+      go('nutri');
+    }
+  }, "Nutri\xE7\xE3o"), intakeCount > 0 && /*#__PURE__*/React.createElement("button", {
+    className: `nav-btn ${view === 'intakes' ? 'active' : ''}`,
+    onClick: () => {
+      setSelStudent(null);
+      go('intakes');
+    }
+  }, "Fichas online", /*#__PURE__*/React.createElement("span", {
+    style: {
+      marginLeft: 6,
+      background: 'var(--gold)',
+      color: '#1c0f16',
+      borderRadius: 10,
+      padding: '0 7px',
+      fontSize: 11,
+      fontWeight: 700
+    }
+  }, intakeCount)), temRepetidos > 0 && /*#__PURE__*/React.createElement("button", {
+    className: `nav-btn ${view === 'duplicados' ? 'active' : ''}`,
+    onClick: () => {
+      setSelStudent(null);
+      go('duplicados');
+    }
+  }, "Cadastros repetidos", /*#__PURE__*/React.createElement("span", {
+    style: {
+      marginLeft: 6,
+      background: 'var(--gold)',
+      color: '#1c0f16',
+      borderRadius: 10,
+      padding: '0 7px',
+      fontSize: 11,
+      fontWeight: 700
+    }
+  }, temRepetidos)), /*#__PURE__*/React.createElement("button", {
+    className: "nav-btn",
+    style: {
+      opacity: .72
+    },
+    onClick: () => setMais(v => {
+      try {
+        localStorage.setItem('mfp-menu-mais', v ? '0' : '1');
+      } catch (e) {}
+      return !v;
+    })
+  }, mais ? 'Menos ▴' : 'Mais ▾'), mais && /*#__PURE__*/React.createElement(React.Fragment, null, intakeCount === 0 && /*#__PURE__*/React.createElement("button", {
+    className: `nav-btn ${view === 'intakes' ? 'active' : ''}`,
+    onClick: () => {
+      setSelStudent(null);
+      go('intakes');
+    }
+  }, "Fichas online"), temRepetidos === 0 && /*#__PURE__*/React.createElement("button", {
+    className: `nav-btn ${view === 'duplicados' ? 'active' : ''}`,
+    onClick: () => {
+      setSelStudent(null);
+      go('duplicados');
+    }
+  }, "Cadastros repetidos"), /*#__PURE__*/React.createElement("button", {
+    className: `nav-btn ${view === 'agenda' ? 'active' : ''}`,
+    onClick: () => {
+      setSelStudent(null);
+      go('agenda');
+    }
+  }, "Agenda"), /*#__PURE__*/React.createElement("button", {
     className: `nav-btn ${view === 'tech' ? 'active' : ''}`,
     onClick: () => {
       setSelStudent(null);
       go('tech');
     }
   }, "Avalia\xE7\xE3o t\xE9cnica"), /*#__PURE__*/React.createElement("button", {
-    className: `nav-btn ${view === 'nutri' ? 'active' : ''}`,
-    onClick: () => {
-      setSelStudent(null);
-      go('nutri');
-    }
-  }, "Nutri\xE7\xE3o"), /*#__PURE__*/React.createElement("button", {
     className: `nav-btn ${view === 'perio' ? 'active' : ''}`,
     onClick: () => {
       setSelStudent(null);
@@ -23619,7 +23683,7 @@ function App({
   }, "Periodiza\xE7\xE3o"), /*#__PURE__*/React.createElement("button", {
     className: `nav-btn ${view === 'protocols' ? 'active' : ''}`,
     onClick: () => go('protocols')
-  }, "Protocolos"), selStudent && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("hr", {
+  }, "Protocolos")), selStudent && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("hr", {
     className: "nav-divider"
   }), /*#__PURE__*/React.createElement("div", {
     className: "nav-section"

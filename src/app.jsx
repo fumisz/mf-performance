@@ -59,7 +59,7 @@ if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABAS
    .catch. Chamar .catch direto estoura TypeError, e dentro de um useEffect isso
    derruba a tela inteira do aluno. */
 const semEsperar=q=>{try{q.then(()=>{},()=>{});}catch(e){}};
-const APP_VERSION='2026.10.23';   // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION='2026.10.24';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
 
@@ -8390,6 +8390,22 @@ function App({profile,setProfile}){
   },[profile._demo]);
   useEffect(()=>{contarSemTreino();},[coachId,view]);   // volta ao painel, reconta
 
+  /* Quantos GRUPOS de cadastro repetido ainda existem — não quantas linhas.
+     Duas linhas do mesmo Jefferson são UM cadastro para juntar, e é isso que a
+     tela mostra. Este número é o que tira "Cadastros repetidos" de dentro do
+     "Mais": enquanto sobrar coisa para juntar, o item fica na lista de cima com
+     o número do lado; quando zerar, ele desce e para de pedir atenção. */
+  const [temRepetidos,setTemRepetidos]=useState(0);
+  useEffect(()=>{if(profile._demo||!sb)return;let alive=true;(async()=>{
+    try{const {data}=await sb.rpc('alunos_duplicados');
+      const grupos=new Set((data||[]).map(r=>r.chave));
+      if(alive)setTemRepetidos(grupos.size);
+    }catch(e){}
+  })();return()=>{alive=false;};},[coachId,view]);
+
+  /* O menu abre enxuto e lembra a escolha dele neste aparelho. */
+  const [mais,setMais]=useState(()=>{try{return localStorage.getItem('mfp-menu-mais')==='1';}catch(e){return false;}});
+
   const stuEvals=selStudent?evals.filter(e=>e.studentId===selStudent.id):[];
   const sortedStuEvals=[...stuEvals].sort((a,b)=>new Date(b.date)-new Date(a.date));
   const lastHeight=sortedStuEvals[0]?.height||'';
@@ -8578,18 +8594,33 @@ function App({profile,setProfile}){
           <div><div className="logo-name">MF Performance</div><div className="logo-sub">Saúde & Performance</div></div></div>
         <button className={`nav-btn ${view==='dashboard'?'active':''}`} onClick={()=>go('dashboard')}>Dashboard</button>
         <button className="nav-btn" onClick={()=>{setEditStu(null);go('stu-form');}}>Novo aluno</button>
-        <button className={`nav-btn ${view==='duplicados'?'active':''}`} onClick={()=>{setSelStudent(null);go('duplicados');}}>Cadastros repetidos</button>
-        <button className={`nav-btn ${view==='agenda'?'active':''}`} onClick={()=>{setSelStudent(null);go('agenda');}}>Agenda</button>
-        <button className={`nav-btn ${view==='intakes'?'active':''}`} onClick={()=>{setSelStudent(null);go('intakes');}}>Fichas online{intakeCount>0&&<span style={{marginLeft:6,background:'var(--gold)',color:'#1c0f16',borderRadius:10,padding:'0 7px',fontSize:11,fontWeight:700}}>{intakeCount}</span>}</button>
         <button className={`nav-btn ${view==='train'?'active':''}`} onClick={()=>{setSelStudent(null);go('train');}}>Treino</button>
         <button className={`nav-btn ${view==='recados'?'active':''}`} onClick={()=>{setSelStudent(null);go('recados');}}>Recados{naoLidas.length>0&&<span style={{marginLeft:6,background:'var(--red)',color:'#fff',borderRadius:10,padding:'0 7px',fontSize:11,fontWeight:700}}>{naoLidas.reduce((a,x)=>a+(x.quantas||0),0)}</span>}</button>
         <button className={`nav-btn ${view==='mes'?'active':''}`} onClick={()=>{setSelStudent(null);go('mes');}}>O mês</button>
         <button className={`nav-btn ${view==='dinheiro'?'active':''}`} onClick={()=>{setSelStudent(null);go('dinheiro');}}>Mensalidades</button>
         <button className={`nav-btn ${view==='semtreino'?'active':''}`} onClick={()=>{setSelStudent(null);go('semtreino');}}>Alunos sem treino{semTreino>0&&<span style={{marginLeft:6,background:'var(--gold)',color:'#1c0f16',borderRadius:10,padding:'0 7px',fontSize:11,fontWeight:700}}>{semTreino}</span>}</button>
-        <button className={`nav-btn ${view==='tech'?'active':''}`} onClick={()=>{setSelStudent(null);go('tech');}}>Avaliação técnica</button>
         <button className={`nav-btn ${view==='nutri'?'active':''}`} onClick={()=>{setSelStudent(null);go('nutri');}}>Nutrição</button>
-        <button className={`nav-btn ${view==='perio'?'active':''}`} onClick={()=>{setSelStudent(null);go('perio');}}>Periodização</button>
-        <button className={`nav-btn ${view==='protocols'?'active':''}`} onClick={()=>go('protocols')}>Protocolos</button>
+        {/* ── O resto, recolhido ──
+            Eram catorze itens de menu, e o banco mostra que vários levam a tela
+            com ZERO linha: Agenda 0, Metas 0, Glicemia 0. Cada um custa atenção
+            toda vez que ele abre o app, e o que ele usa de verdade fica no meio
+            de coisa que nunca abriu.
+            Recolhido, não apagado: tudo continua a um toque. E a regra que faz
+            isto valer a pena — se algum item PRECISA de atenção (ficha online
+            nova, cadastro repetido para juntar), ele sai daqui e sobe para a
+            lista de cima sozinho. Esconder não pode esconder o que chegou. */}
+        {(intakeCount>0)&&<button className={`nav-btn ${view==='intakes'?'active':''}`} onClick={()=>{setSelStudent(null);go('intakes');}}>Fichas online<span style={{marginLeft:6,background:'var(--gold)',color:'#1c0f16',borderRadius:10,padding:'0 7px',fontSize:11,fontWeight:700}}>{intakeCount}</span></button>}
+        {temRepetidos>0&&<button className={`nav-btn ${view==='duplicados'?'active':''}`} onClick={()=>{setSelStudent(null);go('duplicados');}}>Cadastros repetidos<span style={{marginLeft:6,background:'var(--gold)',color:'#1c0f16',borderRadius:10,padding:'0 7px',fontSize:11,fontWeight:700}}>{temRepetidos}</span></button>}
+        <button className="nav-btn" style={{opacity:.72}} onClick={()=>setMais(v=>{try{localStorage.setItem('mfp-menu-mais',v?'0':'1');}catch(e){}return !v;})}>
+          {mais?'Menos ▴':'Mais ▾'}</button>
+        {mais&&<>
+          {intakeCount===0&&<button className={`nav-btn ${view==='intakes'?'active':''}`} onClick={()=>{setSelStudent(null);go('intakes');}}>Fichas online</button>}
+          {temRepetidos===0&&<button className={`nav-btn ${view==='duplicados'?'active':''}`} onClick={()=>{setSelStudent(null);go('duplicados');}}>Cadastros repetidos</button>}
+          <button className={`nav-btn ${view==='agenda'?'active':''}`} onClick={()=>{setSelStudent(null);go('agenda');}}>Agenda</button>
+          <button className={`nav-btn ${view==='tech'?'active':''}`} onClick={()=>{setSelStudent(null);go('tech');}}>Avaliação técnica</button>
+          <button className={`nav-btn ${view==='perio'?'active':''}`} onClick={()=>{setSelStudent(null);go('perio');}}>Periodização</button>
+          <button className={`nav-btn ${view==='protocols'?'active':''}`} onClick={()=>go('protocols')}>Protocolos</button>
+        </>}
         {selStudent&&<>
           <hr className="nav-divider"/>
           <div className="nav-section">Aluno ativo</div>
