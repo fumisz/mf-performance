@@ -99,7 +99,7 @@ const semEsperar = q => {
     q.then(() => {}, () => {});
   } catch (e) {}
 };
-const APP_VERSION = '2026.10.21'; // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION = '2026.10.22'; // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA'); // YYYY-MM-DD no fuso LOCAL
 
@@ -335,8 +335,13 @@ function resizeImage(file, max = 1000, quality = 0.82) {
     r.readAsDataURL(file);
   });
 }
-// Foto do aluno (refeição ou progresso). Vai sempre para a pasta dele —
-// é o que a política do bucket usa para ninguém ver a foto de ninguém.
+/* Foto do aluno (refeição ou progresso). Vai sempre para a pasta dele.
+   ATENÇÃO — o comentário que estava aqui dizia que a política do bucket fazia
+   "ninguém ver a foto de ninguém". A política existe, mas o bucket `photos` é
+   PÚBLICO, e em bucket público ela não vale para leitura pela URL. Foto de
+   progresso é foto de corpo: quem recebe o link abre sem login, para sempre.
+   Varrer o bucket não dá (o papel anônimo não tem permissão de listagem e o
+   nome do arquivo é aleatório), mas isso é obscuridade, não fechadura. */
 async function uploadFotoAluno(userId, blob) {
   const path = `${userId}/${uid()}.jpg`;
   const {
@@ -346,6 +351,33 @@ async function uploadFotoAluno(userId, blob) {
   });
   if (error) throw error;
   return sb.storage.from('photos').getPublicUrl(path).data.publicUrl;
+}
+/* Link temporário para exibir a foto.
+   Funciona com o bucket público (hoje) e com ele fechado (depois): o endereço
+   guardado no banco continua o mesmo, e aqui ele é trocado por um link
+   assinado que expira. Se a assinatura falhar por qualquer motivo, devolve o
+   endereço original — nenhuma foto pode sumir da tela por causa disto.
+   É o mesmo desenho que os vídeos da avaliação técnica já usam. */
+const CAMINHO_FOTO = /\/storage\/v1\/object\/public\/photos\/(.+)$/;
+async function fotoAssinada(url) {
+  const m = CAMINHO_FOTO.exec(url || '');
+  if (!m) return url;
+  try {
+    const {
+      data,
+      error
+    } = await sb.storage.from('photos').createSignedUrl(decodeURIComponent(m[1]), 3600);
+    return !error && data && data.signedUrl ? data.signedUrl : url;
+  } catch (e) {
+    return url;
+  }
+}
+// assina a lista inteira de uma vez, mantendo o resto de cada linha
+async function fotosAssinadas(lista) {
+  return Promise.all((lista || []).map(async f => ({
+    ...f,
+    url: await fotoAssinada(f.url)
+  })));
 }
 
 /* ── Base nativa de alimentos (espelha a do MF Nutrition) ── */
@@ -7305,7 +7337,7 @@ function FotosProgressoCoach({
       ascending: false
     }).limit(24).then(({
       data
-    }) => setFotos(data || []), () => {});
+    }) => fotosAssinadas(data).then(setFotos), () => {});
   }, [student.user_id]);
   if (!fotos.length) return null;
   const dias = Math.round((new Date(fotos[0].created_at) - new Date(fotos[fotos.length - 1].created_at)) / 86400000);
@@ -21015,7 +21047,7 @@ function NutriRegistros({
         ascending: false
       }).limit(60)]);
       setD({
-        photos: ph.data || [],
+        photos: await fotosAssinadas(ph.data),
         cardio: cd.data || [],
         peso: pe.data || [],
         checks: ck.data || []
@@ -30592,7 +30624,9 @@ function FotosProgresso({
       ascending: false
     }).limit(60));
     setOffline(semRede(r));
-    setFotos(r.data || []);
+    /* Sem rede a cópia guardada vale como está: assinar exige servidor, e uma
+       foto que já veio para o aparelho não pode sumir por falta de sinal. */
+    setFotos(semRede(r) ? r.data || [] : await fotosAssinadas(r.data));
   };
   useEffect(() => {
     carregar();
