@@ -99,7 +99,7 @@ const semEsperar = q => {
     q.then(() => {}, () => {});
   } catch (e) {}
 };
-const APP_VERSION = '2026.10.22'; // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION = '2026.10.23'; // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA'); // YYYY-MM-DD no fuso LOCAL
 
@@ -7902,6 +7902,181 @@ function shareWhatsApp(student, evalData, prevEval) {
   window.open(target, '_blank');
 }
 
+/* ── Card da evolução da avaliação ────────────────────────────
+   Ele faz 22 avaliações em 60 dias — é a atividade mais frequente dele, e o
+   momento em que o aluno vê resultado. Mas o que saía dali era texto de
+   WhatsApp e um PDF de imprimir. Nenhum dos dois é coisa que alguém mostra.
+   Aqui o mesmo número vira imagem, no padrão dos cards que o aluno já tem —
+   só que com a marca DELE, porque quem manda é o treinador. */
+function metricasDaEvolucao(student, cur, prev) {
+  const dc = derive(student, cur),
+    dp = derive(student, prev);
+  const bruto = [{
+    rot: '% de gordura',
+    de: dp.fatPct,
+    para: dc.fatPct,
+    un: '%',
+    menorMelhor: true
+  }, {
+    rot: 'Massa magra',
+    de: dp.leanMass,
+    para: dc.leanMass,
+    un: 'kg',
+    menorMelhor: false
+  }, {
+    rot: 'Peso',
+    de: num(prev.weight),
+    para: num(cur.weight),
+    un: 'kg',
+    menorMelhor: null
+  }, {
+    rot: 'Cintura',
+    de: num(prev.circ_waist),
+    para: num(cur.circ_waist),
+    un: 'cm',
+    menorMelhor: true
+  }, {
+    rot: 'Massa muscular',
+    de: num(prev.bio_muscle),
+    para: num(cur.bio_muscle),
+    un: 'kg',
+    menorMelhor: false
+  }, {
+    rot: 'Gordura visceral',
+    de: num(prev.bio_visceral),
+    para: num(cur.bio_visceral),
+    un: '',
+    menorMelhor: true
+  }];
+  return bruto.filter(m => m.de != null && m.para != null && !isNaN(m.de) && !isNaN(m.para)).map(m => {
+    const d = +(m.para - m.de).toFixed(1);
+    return {
+      ...m,
+      delta: d,
+      // sem "melhor" definido (peso), fica neutro: emagrecer nem sempre é a meta
+      bom: m.menorMelhor == null ? null : m.menorMelhor ? d < 0 : d > 0
+    };
+  }).filter(m => m.delta !== 0).slice(0, 4);
+}
+function desenharEvolucao(ctx, {
+  nome,
+  de,
+  ate,
+  dias,
+  metricas,
+  marca,
+  cref,
+  arroba,
+  logo
+}) {
+  const W = 1080,
+    H = 1920;
+  const serif = '"Playfair Display",Georgia,serif';
+  const sans = 'Inter,-apple-system,"Segoe UI",Roboto,sans-serif';
+  const creme = '#f5efe6',
+    vinho = '#7d1f35',
+    vinhoC = '#b8455f',
+    ouro = '#c9a227';
+  const fundo = ctx.createLinearGradient(0, 0, W * 0.3, H);
+  fundo.addColorStop(0, '#1a1315');
+  fundo.addColorStop(0.5, '#120e10');
+  fundo.addColorStop(1, '#1c1418');
+  ctx.fillStyle = fundo;
+  ctx.fillRect(0, 0, W, H);
+  const halo = ctx.createRadialGradient(W * 0.5, H * 0.26, 0, W * 0.5, H * 0.26, W * 0.9);
+  halo.addColorStop(0, 'rgba(125,31,53,.42)');
+  halo.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = halo;
+  ctx.fillRect(0, 0, W, H);
+  const centro = (txt, y, font, cor, esp) => {
+    ctx.font = font;
+    ctx.fillStyle = cor;
+    ctx.textAlign = 'center';
+    if (!esp) {
+      ctx.fillText(txt, W / 2, y);
+      return;
+    }
+    const ls = [...txt],
+      larg = ls.reduce((a, c) => a + ctx.measureText(c).width + esp, 0) - esp;
+    let px = W / 2 - larg / 2;
+    ls.forEach(c => {
+      ctx.fillText(c, px + ctx.measureText(c).width / 2, y);
+      px += ctx.measureText(c).width + esp;
+    });
+  };
+  const cantos = (x, y, w, h, r) => {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  };
+  centro((marca || 'MF PERFORMANCE').toUpperCase(), 168, '700 30px ' + sans, 'rgba(245,239,230,.62)', 7);
+  centro('Avaliação física', 236, '400 40px ' + serif, ouro);
+  centro(nome, 372, '700 92px ' + serif, creme);
+  centro(de + '  →  ' + ate, 436, '500 31px ' + sans, 'rgba(245,239,230,.5)');
+  if (dias > 0) centro(dias === 1 ? '1 dia de trabalho' : dias + ' dias de trabalho', 486, '600 30px ' + sans, 'rgba(245,239,230,.42)');
+
+  /* Um bloco por métrica. O número grande é a DIFERENÇA, porque é ela que
+     conta a história; o "de → para" fica embaixo, menor, para provar. */
+  /* Centraliza os blocos no espaço que sobra. Com três métricas, começar num
+     ponto fixo deixava meio card vazio embaixo — e é justamente esse pedaço
+     que aparece cortado na pré-visualização do story. */
+  const alturaBloco = 232;
+  const areaTopo = 580,
+    areaBase = H - 330;
+  const alturaTotal = metricas.length * alturaBloco - 26;
+  const topo = areaTopo + Math.max(0, (areaBase - areaTopo - alturaTotal) / 2);
+  // "27,8 %" com espaço fica errado em português; kg e cm levam espaço.
+  const comUn = (v, un) => numBR(v) + (un === '%' ? '%' : un ? ' ' + un : '');
+  metricas.forEach((m, i) => {
+    const y = topo + i * alturaBloco;
+    ctx.fillStyle = 'rgba(245,239,230,.045)';
+    cantos(80, y, W - 160, alturaBloco - 26, 26);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(245,239,230,.10)';
+    ctx.lineWidth = 2;
+    cantos(80, y, W - 160, alturaBloco - 26, 26);
+    ctx.stroke();
+    ctx.textAlign = 'left';
+    ctx.font = '600 31px ' + sans;
+    ctx.fillStyle = 'rgba(245,239,230,.55)';
+    ctx.fillText(m.rot.toUpperCase(), 124, y + 62);
+    ctx.font = '500 33px ' + sans;
+    ctx.fillStyle = 'rgba(245,239,230,.72)';
+    ctx.fillText(comUn(m.de, m.un) + '   →   ' + comUn(m.para, m.un), 124, y + 142);
+    ctx.textAlign = 'right';
+    const cor = m.bom === null ? creme : m.bom ? '#5fbf7a' : vinhoC;
+    const sinal = m.delta > 0 ? '+' : '−';
+    ctx.font = '800 84px ' + sans;
+    ctx.fillStyle = cor;
+    ctx.fillText(sinal + numBR(Math.abs(m.delta)) + (m.un ? m.un : ''), W - 124, y + 124);
+  });
+  const yRodape = H - 190;
+  ctx.textAlign = 'center';
+  if (logo) {
+    try {
+      const s = 104;
+      ctx.save();
+      cantos(W / 2 - s / 2, yRodape - 160, s, s, 26);
+      ctx.clip();
+      ctx.drawImage(logo, W / 2 - s / 2, yRodape - 160, s, s);
+      ctx.restore();
+    } catch (e) {}
+  }
+  centro(marca || 'MF Performance', yRodape, '600 36px ' + serif, creme);
+  const linha = [cref, arroba].filter(Boolean).join('  ·  ');
+  if (linha) centro(linha, yRodape + 48, '500 29px ' + sans, 'rgba(245,239,230,.45)');
+  ctx.fillStyle = 'rgba(125,31,53,.9)';
+  ctx.fillRect(W / 2 - 60, yRodape + 86, 120, 4);
+}
+
 /* ── Sparkline (SVG, sem libs) ── */
 function Sparkline({
   values,
@@ -8969,6 +9144,164 @@ function GoalBar({
 }
 
 /* ── Report ── */
+/* A janela do card: monta a imagem uma vez e oferece compartilhar ou baixar.
+   Mesmo caminho dos cards do aluno — no celular abre a folha de compartilhar
+   do sistema; no computador (que não tem) cai no download, que é o que ele
+   consegue fazer ali. */
+function CardEvolucao({
+  student,
+  evalData,
+  prevEval,
+  coach,
+  onFechar
+}) {
+  const [url, setUrl] = useState(null);
+  const [arquivo, setArquivo] = useState(null);
+  const [erro, setErro] = useState(null);
+  const [salvo, setSalvo] = useState(false);
+  useEffect(() => {
+    let vivo = true;
+    (async () => {
+      try {
+        const metricas = metricasDaEvolucao(student, evalData, prevEval);
+        if (!metricas.length) {
+          if (vivo) setErro('As duas avaliações têm os mesmos números — não há evolução para mostrar ainda.');
+          return;
+        }
+        let logo = null;
+        if (coach && coach.logo_url) {
+          logo = await new Promise(r => {
+            const i = new Image();
+            i.crossOrigin = 'anonymous';
+            i.onload = () => r(i);
+            i.onerror = () => r(null);
+            i.src = coach.logo_url;
+          });
+        }
+        const c = document.createElement('canvas');
+        c.width = 1080;
+        c.height = 1920;
+        const dia = d => new Date(d + 'T00:00:00').toLocaleDateString('pt-BR', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric'
+        });
+        desenharEvolucao(c.getContext('2d'), {
+          nome: (student.name || '').split(' ')[0],
+          de: dia(prevEval.date),
+          ate: dia(evalData.date),
+          dias: Math.round((new Date(evalData.date + 'T00:00:00') - new Date(prevEval.date + 'T00:00:00')) / 86400000),
+          metricas,
+          marca: coach && (coach.brand_name || coach.name) || 'MF Performance',
+          cref: coach && coach.cref ? 'CREF ' + coach.cref : '',
+          arroba: coach && coach.instagram,
+          logo
+        });
+        const blob = await new Promise(r => c.toBlob(r, 'image/png'));
+        if (!vivo || !blob) return;
+        setUrl(URL.createObjectURL(blob));
+        setArquivo(new File([blob], 'evolucao.png', {
+          type: 'image/png'
+        }));
+      } catch (e) {
+        if (vivo) setErro('Não deu para montar a imagem neste aparelho.');
+      }
+    })();
+    return () => {
+      vivo = false;
+    };
+  }, []);
+  const baixar = () => {
+    if (!url) return;
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'evolucao-' + (student.name || 'aluno').split(' ')[0].toLowerCase() + '.png';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setSalvo(true);
+  };
+  const compartilhar = async () => {
+    try {
+      if (arquivo && navigator.canShare && navigator.canShare({
+        files: [arquivo]
+      })) {
+        await navigator.share({
+          files: [arquivo],
+          title: 'Evolução'
+        });
+        return;
+      }
+    } catch (e) {
+      if (e && e.name === 'AbortError') return;
+    }
+    baixar();
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'fixed',
+      inset: 0,
+      zIndex: 130,
+      background: 'rgba(10,8,10,.86)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 16,
+      overflow: 'auto'
+    },
+    onClick: onFechar
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      maxWidth: 330,
+      width: '100%'
+    },
+    onClick: e => e.stopPropagation()
+  }, erro ? /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      lineHeight: 1.5
+    }
+  }, erro) : url ? /*#__PURE__*/React.createElement("img", {
+    src: url,
+    alt: "Card de evolu\xE7\xE3o",
+    style: {
+      width: '100%',
+      borderRadius: 16,
+      display: 'block'
+    }
+  }) : /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      textAlign: 'center',
+      padding: '52px 0'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "spinner"
+  })), !erro && /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-primary",
+    style: {
+      width: '100%',
+      marginTop: 12
+    },
+    disabled: !url,
+    onClick: compartilhar
+  }, "Compartilhar"), salvo && /*#__PURE__*/React.createElement("div", {
+    className: "s-meta",
+    style: {
+      marginTop: 8,
+      textAlign: 'center',
+      lineHeight: 1.45,
+      color: 'var(--cream)'
+    }
+  }, "Imagem salva. Manda no WhatsApp dela ou p\xF5e no story."), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-ghost",
+    style: {
+      width: '100%',
+      marginTop: 10
+    },
+    onClick: onFechar
+  }, "Fechar")));
+}
 function Report({
   student,
   evalData,
@@ -8979,6 +9312,7 @@ function Report({
   const others = allEvals.filter(e => e.id !== evalData.id && new Date(e.date) <= new Date(evalData.date)).sort((a, b) => new Date(b.date) - new Date(a.date));
   const [baseId, setBaseId] = useState(others[0]?.id || '');
   const prevEval = others.find(e => e.id === baseId) || null;
+  const [cardEvo, setCardEvo] = useState(false);
   const a = age(student.dob) || 25;
   const d = derive(student, evalData);
   const dp = prevEval ? derive(student, prevEval) : null;
@@ -9047,10 +9381,19 @@ function Report({
   }, "Comparar com ", fmtDate(e.date)))), /*#__PURE__*/React.createElement("button", {
     className: "btn btn-secondary",
     onClick: () => shareWhatsApp(student, evalData, prevEval)
-  }, "WhatsApp"), /*#__PURE__*/React.createElement("button", {
+  }, "WhatsApp"), prevEval && /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-secondary",
+    onClick: () => setCardEvo(true)
+  }, "Card de evolu\xE7\xE3o"), /*#__PURE__*/React.createElement("button", {
     className: "btn btn-primary",
     onClick: () => window.print()
-  }, "Imprimir / PDF"))), /*#__PURE__*/React.createElement("div", {
+  }, "Imprimir / PDF"))), cardEvo && prevEval && /*#__PURE__*/React.createElement(CardEvolucao, {
+    student: student,
+    evalData: evalData,
+    prevEval: prevEval,
+    coach: coach,
+    onFechar: () => setCardEvo(false)
+  }), /*#__PURE__*/React.createElement("div", {
     className: "rpt-page",
     id: "rpt"
   }, (() => {
