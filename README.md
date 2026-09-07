@@ -313,6 +313,25 @@ coisas trabalhavam contra ele:
   registro daquele índice exato. Quem fez 4 séries hoje e registrou 1 na vez
   passada repete a carga mais próxima que existir.
 
+## As fotos que o aluno manda
+No celular do treinador elas chegavam fora do layout. Medido a 390px: cada foto
+renderizava com **2400px de largura**, borda direita em 2439, e a ficha do aluno
+virava uma tira de **24.304px de altura**.
+
+A causa não estava no JavaScript: `.photo-grid`, `.photo-thumb` e `.photo-cap`
+são usadas no código e **não existiam no CSS**. Sem regra nenhuma, a `<img>`
+vinha no tamanho do arquivo que sai da câmera, dentro de um `<a>` em linha.
+
+E o motivo de nenhuma suíte ter pego: a única dessas classes que existia era
+`.photo-ph`, o quadrinho de "não carregou". Com o servidor de mentira a foto
+**nunca carrega** — o mock devolve o UMD do Supabase para qualquer endereço do
+jsdelivr — então o que renderizava nos testes era sempre o placeholder, que
+tinha estilo. A suíte `fotolayout` serve um PNG de 2400×3200, do tamanho de uma
+foto de celular, mede a largura de verdade e cobra que nada passe da borda.
+
+Vale para os dois lugares onde ele vê foto de aluno: a ficha (Fotos de
+progresso) e o diário de saúde (Fotos enviadas).
+
 ## Inativar aluno
 A única saída para quem parava de treinar era o `×` do painel — e ele **exclui**
 o cadastro, levando junto avaliações, fotos, ficha, histórico de séries e

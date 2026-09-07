@@ -247,6 +247,32 @@ textarea.fi{resize:vertical;min-height:70px;line-height:1.5}
 .photo-ph{text-align:center;color:var(--text3);font-size:11px;padding:8px}
 .photo-ph-icon{font-size:24px;display:block;margin-bottom:3px}
 
+/* ── Fotos que o aluno manda ──
+   .photo-grid, .photo-thumb e .photo-cap eram usadas no codigo e NAO EXISTIAM
+   aqui. Sem regra nenhuma, a <img> vinha no tamanho do arquivo que sai da
+   camera do celular: medido a 390px, cada foto renderizava com 2400px de
+   largura, borda direita em 2439, e a ficha do aluno virava uma tira de 24 mil
+   pixels de altura. E o defeito passava despercebido nos testes porque a UNICA
+   dessas classes que existia era a .photo-ph, o quadrinho de "nao carregou" —
+   com o servidor de mentira a foto nunca carrega, entao o que renderizava era
+   sempre o placeholder, que tinha estilo.
+   Vale para os dois lugares onde ele ve foto de aluno: a ficha (Fotos de
+   progresso) e o diario de saude (Fotos enviadas).
+   auto-fill com minmax resolve os dois tamanhos sem media query: duas colunas
+   no telefone, tres ou mais no computador. */
+.photo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:10px}
+.photo-thumb{display:block;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--bg3);text-decoration:none;color:inherit}
+/* altura fixa e o mesmo recurso que o resto do app ja usa (.photo-up, .avatar);
+   onde o navegador aceita aspect-ratio, o quadro acompanha a largura da coluna.
+   Recorta pelo centro de proposito: foto de progresso e de corpo inteiro, e o
+   que importa esta no meio do quadro. A foto inteira abre num toque, no link. */
+.photo-thumb img{display:block;width:100%;height:150px;object-fit:cover}
+.photo-thumb .photo-ph{height:150px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+@supports (aspect-ratio:3/4){
+  .photo-thumb img,.photo-thumb .photo-ph{height:auto;aspect-ratio:3/4}
+}
+.photo-cap{font-size:11px;color:var(--text3);text-align:center;padding:5px 5px 7px;line-height:1.35}
+
 /* ── Report ── */
 .rpt-page{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
 .rpt-header{background:linear-gradient(135deg,#2a1620 0%,#160c11 100%);padding:30px 34px;border-bottom:3px solid var(--gold);position:relative}
@@ -734,7 +760,7 @@ function _mfpAvisa(){try{window.MFP_INSTALL_OUVINTES.forEach(function(f){f();});
 window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.MFP_INSTALL=e;_mfpAvisa();});
 window.addEventListener('appinstalled',function(){window.MFP_INSTALL=null;_mfpAvisa();});
 </script>
-<script src="./app.js?v=2026.10.26"></script>
+<script src="./app.js?v=2026.10.27"></script>
 <script>
 /* Atualizacao automatica.
    O registro antigo so chamava register() uma vez: se o navegador ja tinha um
