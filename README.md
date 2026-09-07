@@ -313,6 +313,48 @@ coisas trabalhavam contra ele:
   registro daquele índice exato. Quem fez 4 séries hoje e registrou 1 na vez
   passada repete a carga mais próxima que existir.
 
+## O recorde que acontecia sempre
+A regra era `carga > (melhor_do_exercicio || 0)`. Exercício que a pessoa nunca
+tinha feito não tinha melhor, virava zero, e qualquer peso acima de zero entrava
+como recorde. Medido no banco em 07/09/2026: **112 séries válidas com carga, 65
+marcadas como recorde — 58% — e nenhuma delas é recorde.** 39 são a primeira
+série que a pessoa fez daquele exercício, 25 são a rampa do mesmo dia de estreia
+(20 kg e depois 30 kg), 1 caiu em dia posterior e nem assim superou a marca. Uma
+aluna tem 7 recordes gravados e os 7 são estreia. Só uma pessoa, num exercício,
+chegou a repetir o mesmo movimento em outro dia — sem segundo dia não existe
+marca anterior, e sem marca anterior não existe recorde.
+
+Recorde que acontece o tempo todo não é recorde: vira enfeite, e quando vier o
+de verdade não vai valer nada. A regra agora:
+
+- **sem marca anterior não é recorde.** É a *primeira marca*, e a tela diz isso
+  com essas palavras — selo `1ª`, sem confete, vibração curta. Vale uma vez por
+  exercício por sessão, para não repetir a cada série;
+- **a régua é a melhor carga dos dias anteriores**, não a de hoje. Subir de 20
+  para 25 kg entre a série 1 e a 2 é aquecer;
+- **depois de bater, a régua sobe** para o que ele acabou de fazer. Quem faz 45
+  e depois 20 kg no mesmo dia não ganha dois recordes pelo mesmo feito;
+- aquecimento e preparatória não contam: recorde é de série válida com carga.
+
+As linhas erradas continuam no banco, e são elas que alimentam o "N recordes" de
+toda tela. Consertar só a gravação arrumaria daqui para a frente. Então quem lê
+o histórico **reconta** (`recontarRecordes`) em vez de acreditar no `is_pr`
+gravado: tela do aluno, retrospectiva do mês, evolução, card de treino e a lista
+de sessões que o treinador abre por aluno. A exceção é o painel **O mês**, que
+carrega só a janela de dois meses — sem o histórico inteiro não dá para saber se
+uma série é estreia, então ele continua lendo o que está gravado e mostra um
+número maior. `recorde-recontar.sql` corrige as linhas antigas com a mesma regra
+(passo 1 mostra o que mudaria, passo 2 faz cópia, passo 3 altera só o `is_pr`) e
+faz as duas telas dizerem a mesma coisa. **Não foi aplicado** — ao contrário dos
+outros `.sql` da raiz, é uma alteração nos dados dos alunos e a decisão é do
+treinador.
+
+A suíte `recorde` cobre os cinco casos: estreia não anuncia recorde e vai com
+`is_pr` falso para o banco; subir a carga no mesmo treino não vira recorde;
+superar uma sessão anterior vira, com confete; depois de bater, só bate de novo
+quem supera o que acabou de fazer; e a contagem na tela do aluno mostra zero
+onde o banco diz três.
+
 ## O painel no celular
 Todas as varreduras do lado do treinador rodavam em 1280px — e ele usa o app no
 telefone, na academia. Foi assim que o "Pular" do descanso ficou meses fora da
@@ -901,4 +943,7 @@ nova, ela acusa.
 ## Banco de dados
 Os arquivos `.sql` da raiz são as migrações, na ordem em que foram aplicadas no
 Supabase. `correcoes.sql` traz as últimas correções e `modelos-treino.sql` cria
-as tabelas de modelos de ficha e de periodização.
+as tabelas de modelos de ficha e de periodização. A única exceção é
+`recorde-recontar.sql`, que **não foi aplicado**: ele altera dados de aluno (a
+coluna `is_pr`) e a decisão de rodar é do treinador — ver "O recorde que
+acontecia sempre".

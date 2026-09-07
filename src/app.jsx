@@ -59,7 +59,7 @@ if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABAS
    .catch. Chamar .catch direto estoura TypeError, e dentro de um useEffect isso
    derruba a tela inteira do aluno. */
 const semEsperar=q=>{try{q.then(()=>{},()=>{});}catch(e){}};
-const APP_VERSION='2026.10.24';   // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION='2026.10.25';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
 
@@ -67,7 +67,9 @@ const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
    porque é lido em dois lugares e uma coluna esquecida some sem barulho: a
    tonelagem já ficou zerada em produção por faltar reps aqui, e o teste não
    pegou porque o servidor de mentira devolvia a linha inteira. */
-const COLUNAS_HIST='exercicio_id,exercicio_nome,carga,reps,data_treino,tipo_serie,is_pr,divisao_id';
+// indice_serie entra por causa do recontarRecordes: dentro do mesmo dia a ordem
+// das séries é o que diz qual delas bateu a marca primeiro
+const COLUNAS_HIST='exercicio_id,exercicio_nome,carga,reps,data_treino,tipo_serie,is_pr,divisao_id,indice_serie';
 
 /* ── Sessões de treino ──
    O train_historico guarda uma linha POR SÉRIE. Para olhar o treino como ele
@@ -104,6 +106,56 @@ function agruparSessoes(hist){
       tonelagem:Math.round(s.tonelagem),
       soExterno:s.series===0&&s.externos.length>0};
   }).sort((a,b)=>a.data<b.data?1:-1);   // mais recente primeiro
+}
+
+/* ── recontar os recordes ──
+   O `is_pr` gravado no banco não é confiável. A regra antiga era
+   `carga > (melhor[exercicio] || 0)`: exercício que a pessoa nunca tinha feito
+   valia zero, e qualquer peso acima de zero virava "recorde". Das 112 séries
+   válidas gravadas até hoje, 65 estão marcadas como recorde — 58% — e nenhuma
+   delas é recorde: 39 são a primeira série que a pessoa fez daquele exercício,
+   25 são a rampa do mesmo dia de estreia, 1 caiu em dia posterior e nem assim
+   superou a marca. Uma aluna tem 7 recordes e os 7 são estreia.
+   Consertar a gravação (ver "a marca a bater", na tela de execução) só arruma
+   daqui para a frente. As linhas erradas continuam no banco e aparecem em toda
+   tela que diz "recordes" — inclusive na retrospectiva do mês, que anuncia um
+   número que nunca aconteceu. Então quem lê o histórico reconta do zero, com a
+   mesma regra da tela de execução:
+     · sem marca anterior não é recorde, é a primeira marca;
+     · a régua é a melhor carga dos dias ANTERIORES, e só sobe dentro do dia
+       quando ele de fato bate — subir de 20 para 25 kg entre a série 1 e a 2 é
+       aquecimento;
+     · aquecimento e preparatória não entram: recorde é de série válida.
+   Precisa do histórico INTEIRO do aluno. Com um recorte (dois meses, por
+   exemplo) a marca anterior fica de fora e a primeira série do recorte passa
+   por estreia — por isso o painel do mês, que só carrega a janela, continua
+   lendo o que está gravado. */
+function recontarRecordes(hist){
+  const porEx=new Map();
+  (hist||[]).forEach(h=>{
+    if(h.tipo_serie!=='Valida')return;
+    const k=h.exercicio_id||h.exercicio_nome;if(!k)return;
+    if(num(h.carga)==null)return;
+    if(!porEx.has(k))porEx.set(k,[]);
+    porEx.get(k).push(h);
+  });
+  const recorde=new Set();
+  porEx.forEach(linhas=>{
+    linhas.sort((a,b)=>a.data_treino<b.data_treino?-1:a.data_treino>b.data_treino?1
+      :(a.indice_serie||0)-(b.indice_serie||0));
+    let marca=null;      // melhor carga até o dia anterior; null = nunca fez
+    let dia=null,doDia=null;
+    linhas.forEach(h=>{
+      if(h.data_treino!==dia){                       // virou o dia: fecha a régua
+        if(doDia!=null&&(marca==null||doDia>marca))marca=doDia;
+        dia=h.data_treino;doDia=null;
+      }
+      const c=num(h.carga);
+      if(marca!=null&&c>marca){recorde.add(h);marca=c;}
+      if(doDia==null||c>doDia)doDia=c;
+    });
+  });
+  return (hist||[]).map(h=>({...h,is_pr:recorde.has(h)}));
 }
 const fmtTon = kg=>kg>=1000?(kg/1000).toFixed(1).replace('.',',')+' t':Math.round(kg)+' kg';
 // "47 toneladas" não diz nada; "o peso de 39 carros" é post. Os pesos são
@@ -2569,7 +2621,7 @@ function TreinosCoach({student,demo}){
         .eq('student_id',student.id).order('data_treino',{ascending:false}).order('registrado_em').limit(1200),
       sb.from('train_divisao').select('id,nome').eq('student_id',student.id),
     ]);
-    setHist(h.data||[]);
+    setHist(recontarRecordes(h.data));   // o is_pr gravado mente; ver recontarRecordes
     const m={};(d.data||[]).forEach(x=>m[x.id]=x.nome);setNomes(m);
   },[student.id,demo]);
   useEffect(()=>{carregar().catch(()=>setHist([]));},[carregar]);
@@ -9555,13 +9607,18 @@ function TrocarExercicio({ex,biblio,vid,onEscolher,onDesfazer,onFechar}){
   </div>);
 }
 
-function TrainExec({student,divisao,demo,somenteLeitura,best,onBack,onSaved,onFinish}){
+function TrainExec({student,divisao,demo,somenteLeitura,onBack,onFinish}){
   const [series,setSeries]=useState(demo?(_DEMO_ALUNO_SERIES[divisao.id]||[]):null);
   const [vals,setVals]=useState({});const [done,setDone]=useState({});const [active,setActive]=useState({});
   const [openEx,setOpenEx]=useState(0);const [rest,setRest]=useState(0);const [restName,setRestName]=useState('');
   const [paused,setPaused]=useState(false);const [tot,setTot]=useState(0);
   const [restTotal,setRestTotal]=useState(60);
-  const audioRef=useRef(null);const [cel,setCel]=useState(null);const [vid,setVid]=useState({});const [demoOn,setDemoOn]=useState({});const [finished,setFinished]=useState(null);const [fbAberto,setFbAberto]=useState(false);
+  const audioRef=useRef(null);const [cel,setCel]=useState(null);const [vid,setVid]=useState({});
+  /* melhor carga por exercício ANTES de hoje — a régua do recorde. Fica em ref
+     porque não pode mudar no meio do treino: ver comentário em "a marca a
+     bater". `estreouRef` guarda quais exercícios já mostraram a primeira marca
+     hoje, para o aviso sair uma vez por exercício e não a cada série. */
+  const marcaRef=useRef({});const estreouRef=useRef({});const [demoOn,setDemoOn]=useState({});const [finished,setFinished]=useState(null);const [fbAberto,setFbAberto]=useState(false);
   const [ultima,setUltima]=useState({});        // o que ele fez da última vez, por exercício
   const [biblio,setBiblio]=useState([]);        // biblioteca, para trocar exercício
   const [trocas,setTrocas]=useState({});        // exercício trocado na hora
@@ -9605,6 +9662,33 @@ function TrainExec({student,divisao,demo,somenteLeitura,best,onBack,onSaved,onFi
     Object.values(porEx).forEach(v=>v.series.sort((a,b)=>(a.i||0)-(b.i||0)));
     setUltima(porEx);
 
+    /* ── a marca a bater ──────────────────────────────────────────
+       A regra era `carga > (best[exercicio]||0)`: exercício que a pessoa nunca
+       fez virava zero, e QUALQUER peso acima de zero era "recorde".
+       No banco isso deu no que tinha de dar — 65 séries marcadas como recorde
+       e nenhuma delas é recorde: 39 são a primeira série que a pessoa fez
+       daquele exercício e 25 são a rampa do mesmo dia de estreia. Não havia o
+       que superar. O app soltava confete série após série e depois anunciava no
+       resumo do mês que ela bateu 7 recordes.
+       Recorde que acontece o tempo todo não é recorde: vira enfeite, e quando
+       vier o recorde de verdade ele não vai valer nada.
+       Duas correções aqui:
+       1) sem marca anterior não é recorde — é a primeira marca, e o app diz
+          isso com essas palavras, sem confete;
+       2) a base é sempre a de ANTES de hoje e não muda durante o treino: subir
+          de 20 para 25 kg entre a série 1 e a 2 é aquecer, não é recorde.
+       Por isso ela sai daqui e não do `best` que vinha de fora — aquele somava
+       o dia de hoje junto. */
+    const marca={};
+    (hi||[]).forEach(h=>{
+      if(h.data_treino>=hoje)return;
+      if(h.tipo_serie!=='Valida')return;
+      const k=h.exercicio_id||h.exercicio_nome;if(!k)return;
+      const c=num(h.carga);if(c==null)return;
+      if(marca[k]==null||c>marca[k])marca[k]=c;
+    });
+    marcaRef.current=marca;
+
     // ── o campo já vem com o que ele fez da última vez ──────────
     // O quadro "Da última vez" existia, mas os campos nasciam vazios: o aluno
     // lia o número e digitava o mesmo de novo, série após série. Agora vem
@@ -9641,13 +9725,22 @@ function TrainExec({student,divisao,demo,somenteLeitura,best,onBack,onSaved,onFi
     const deHoje=[...(hi||[]).filter(h=>h.data_treino===hoje&&h.divisao_id===divisao.id),...daFila];
     if(deHoje.length){
       const feito={};
-      deHoje.forEach(h=>{
+      /* O selo de recorde das séries retomadas é recalculado aqui em vez de vir
+         do is_pr gravado: quem começou o treino antes desta versão tem no banco
+         o recorde da regra velha (qualquer peso acima de zero). A régua é a
+         mesma da série ao vivo — a marca de antes de hoje, subindo quando ele
+         de fato bate. */
+      const regua={...marcaRef.current};
+      [...deHoje].sort((a,b)=>(a.indice_serie||0)-(b.indice_serie||0)).forEach(h=>{
         const s=(data||[]).find(x=>x.tipo_serie===h.tipo_serie&&
           ((h.exercicio_id&&x.exercicio_id===h.exercicio_id)||x.exercicio_nome===h.exercicio_nome));
         if(!s)return;                                   // exercício trocado na hora: não dá para casar
         const i=(h.indice_serie||1)-1;
         if(i<0||i>=s.qtd_series)return;
-        feito[s.id+'_'+i]={carga:num(h.carga),reps:num(h.reps),isPr:!!h.is_pr};
+        const c=num(h.carga),kx=h.exercicio_id||h.exercicio_nome;
+        const pr=h.tipo_serie==='Valida'&&c!=null&&regua[kx]!=null&&c>regua[kx];
+        if(pr)regua[kx]=c;
+        feito[s.id+'_'+i]={carga:c,reps:num(h.reps),isPr:pr};
       });
       if(Object.keys(feito).length)setDone(p=>({...feito,...p}));
     }
@@ -9720,7 +9813,13 @@ function TrainExec({student,divisao,demo,somenteLeitura,best,onBack,onSaved,onFi
   const activeIdx=s=>active[s.id]!=null?active[s.id]:firstUndone(s);
   const tierDoneCount=s=>{let c=0;for(let i=0;i<s.qtd_series;i++)if(done[s.id+'_'+i])c++;return c;};
   const fmtT=x=>String(Math.floor(x/60)).padStart(2,'0')+':'+String(x%60).padStart(2,'0');
-  const celebrate=carga=>{setCel({carga});try{navigator.vibrate&&navigator.vibrate([35,45,90]);}catch(e){}setTimeout(()=>setCel(null),2200);};
+  /* Duas coisas diferentes, e a diferença é o ponto: recorde é peso batido,
+     estreia é peso anotado pela primeira vez. A estreia avisa mais curto, sem
+     confete e sem vibrar forte — ela existe para o aluno entender que o número
+     dele ficou guardado, não para comemorar o que ele ainda não fez. */
+  const celebrate=(carga,primeira)=>{setCel({carga,primeira});
+    try{navigator.vibrate&&navigator.vibrate(primeira?[18]:[35,45,90]);}catch(e){}
+    setTimeout(()=>setCel(null),primeira?1500:2200);};
   // qual série já avisei que está sem repetição (ver o comentário em concluir)
   const [faltaReps,setFaltaReps]=useState(null);
   /* E se ele já respondeu "concluir mesmo assim" uma vez neste treino, paro de
@@ -9753,7 +9852,20 @@ function TrainExec({student,divisao,demo,somenteLeitura,best,onBack,onSaved,onFi
     if(pedeRepeticao&&!jaAvisouReps&&faltaReps!==k){setFaltaReps(k);return;}
     if(faltaReps===k)setJaAvisouReps(true);   // ele decidiu: não pergunto mais hoje
     setFaltaReps(null);
-    const isPr=s.tipo_serie==='Valida'&&carga!=null&&carga>(best[s.exercicio_id]||0);
+    // a chave é o exercício que vai para o histórico: se ele trocou na hora, a
+    // marca a bater é a do exercício trocado, não a do que estava na ficha
+    const troca=trocas[s.exercicio_id||s.exercicio_nome];
+    const chaveEx=troca?troca.id:(s.exercicio_id||s.exercicio_nome);
+    const marcaAnterior=marcaRef.current[chaveEx];
+    const valida=s.tipo_serie==='Valida'&&carga!=null;
+    const isPr=valida&&marcaAnterior!=null&&carga>marcaAnterior;
+    const estreia=valida&&marcaAnterior==null&&!estreouRef.current[chaveEx];
+    if(estreia)estreouRef.current[chaveEx]=true;
+    /* Bateu: a régua sobe. Sem isso, quem faz 45 e depois 50 kg no mesmo dia
+       ganha dois recordes pelo mesmo feito — e o resumo do mês conta os dois.
+       A estreia NÃO sobe a régua: se subisse, a segunda série do primeiro dia
+       já viraria recorde e a estreia voltaria a valer como marca batida. */
+    if(isPr)marcaRef.current[chaveEx]=carga;
     setDone(p=>({...p,[k]:{carga,reps,isPr}}));
     let nx=i+1;while(nx<s.qtd_series&&done[s.id+'_'+nx])nx++;setActive(p=>({...p,[s.id]:nx}));
     try{
@@ -9765,8 +9877,8 @@ function TrainExec({student,divisao,demo,somenteLeitura,best,onBack,onSaved,onFi
     const nomeEx=(trocas[s.exercicio_id||s.exercicio_nome]||{}).nome||s.exercicio_nome;
     setRestTotal(desc);setRest(desc);setRestName(nomeEx);setPaused(false);
     ajustarFim(desc,nomeEx);
-    if(onSaved&&carga!=null)onSaved(s.exercicio_id,carga);
     if(isPr)celebrate(carga);
+    else if(estreia)celebrate(carga,true);
     if(!demo&&!somenteLeitura){
       // se o aluno trocou o exercício, é o trocado que vai para o histórico —
       // assim o treinador vê o que foi feito de verdade
@@ -9792,9 +9904,13 @@ function TrainExec({student,divisao,demo,somenteLeitura,best,onBack,onSaved,onFi
   const tlabel=t=>t==='Aquecimento'?'Aquec':t==='Preparatoria'?'Prep':'Válidas';
 
   return(<div className="lv-wrap">
-    {cel&&<><div className="lv-cel"><div className="lv-selo">PR</div><h2>Novo recorde</h2>
-      <div style={{fontSize:24,fontWeight:900,color:'var(--lvclaro)'}}><Conta valor={cel.carga} dec={String(cel.carga).includes('.')?1:0}/> kg</div>
-      <div className="lv-sub" style={{marginTop:6}}>Você superou sua melhor carga neste exercício.</div></div><Confete n={22}/></>}
+    {cel&&(cel.primeira
+      ? <div className="lv-cel"><div className="lv-selo">1ª</div><h2>Primeira marca</h2>
+          <div style={{fontSize:24,fontWeight:900,color:'var(--lvclaro)'}}><Conta valor={cel.carga} dec={String(cel.carga).includes('.')?1:0}/> kg</div>
+          <div className="lv-sub" style={{marginTop:6}}>Guardado. Agora tem de onde subir.</div></div>
+      : <><div className="lv-cel"><div className="lv-selo">PR</div><h2>Novo recorde</h2>
+          <div style={{fontSize:24,fontWeight:900,color:'var(--lvclaro)'}}><Conta valor={cel.carga} dec={String(cel.carga).includes('.')?1:0}/> kg</div>
+          <div className="lv-sub" style={{marginTop:6}}>Você superou sua melhor carga neste exercício.</div></div><Confete n={22}/></>)}
 
     <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
       <button className="lv-ghost" onClick={onBack}>‹ Voltar</button>
@@ -9982,7 +10098,8 @@ function EvolScreen({student,demo,onBack}){
   const [hist,setHist]=useState(demo?_DEMO_HIST:null);
   const [sel,setSel]=useState(null);
   useEffect(()=>{if(demo)return;(async()=>{const {data}=await lerCopia('evol-'+student.id,
-    sb.from('train_historico').select('exercicio_id,exercicio_nome,data_treino,tipo_serie,carga,reps,is_pr').eq('student_id',student.id).eq('tipo_serie','Valida').order('data_treino'));setHist(data||[]);})();},[]);
+    sb.from('train_historico').select('exercicio_id,exercicio_nome,data_treino,tipo_serie,carga,reps,indice_serie,is_pr').eq('student_id',student.id).eq('tipo_serie','Valida').order('data_treino'));
+    setHist(recontarRecordes(data));})();},[]);   // o is_pr gravado mente; ver recontarRecordes
   const exs=React.useMemo(()=>{const m=new Map();(hist||[]).forEach(h=>{const k=h.exercicio_id||h.exercicio_nome;if(!m.has(k))m.set(k,{key:k,nome:h.exercicio_nome,rows:[]});m.get(k).rows.push(h);});
     return [...m.values()].map(e=>{const byd=new Map();e.rows.forEach(r=>{const d=r.data_treino;if(!byd.has(d))byd.set(d,{date:d,carga:0,vol:0,pr:false});const o=byd.get(d);o.carga=Math.max(o.carga,num(r.carga)||0);o.vol+=(num(r.carga)||0)*(num(r.reps)||0);if(r.is_pr)o.pr=true;});
       return {...e,sessions:[...byd.values()].sort((a,b)=>a.date<b.date?-1:1)};});},[hist]);
@@ -10178,7 +10295,7 @@ function TreinosScreen({student,demo,onBack}){
       sb.from('train_historico')
         .select('divisao_id,exercicio_id,exercicio_nome,data_treino,tipo_serie,carga,reps,indice_serie,is_pr,observacao,registrado_em')
         .eq('student_id',student.id).order('data_treino',{ascending:false}).order('registrado_em').limit(1200));
-    setHist(r.data||[]);setOffline(semRede(r));
+    setHist(recontarRecordes(r.data));setOffline(semRede(r));   // ver recontarRecordes
     const {data:dv}=await lerCopia('divs-'+student.id,
       sb.from('train_divisao').select('*').eq('student_id',student.id).order('ordem'));
     const m={};(dv||[]).forEach(d=>m[d.id]=d.nome);setNomes(m);
@@ -11501,7 +11618,7 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
   const contaAluno=espiando?(verComoAluno.user_id||null):profile.id;
   const [stu,setStu]=useState(espiando?verComoAluno:demo?{id:'ds1',name:'Laryssa Araujo',gender:'F',coach_id:'demo'}:undefined);
   const [divs,setDivs]=useState(demo?_DEMO_ALUNO_DIVS:null);
-  const [best,setBest]=useState({});const [exec,setExec]=useState(null);const [evol,setEvol]=useState(false);const [hydra,setHydra]=useState(false);const [chk,setChk]=useState(false);const [ciclo,setCiclo]=useState(false);const [aval,setAval]=useState(false);const [freq,setFreq]=useState({done:0,meta:4});
+  const [exec,setExec]=useState(null);const [evol,setEvol]=useState(false);const [hydra,setHydra]=useState(false);const [chk,setChk]=useState(false);const [ciclo,setCiclo]=useState(false);const [aval,setAval]=useState(false);const [freq,setFreq]=useState({done:0,meta:4});
   const [diario,setDiario]=useState(false);const [metas,setMetas]=useState(false);
   const [treinos,setTreinos]=useState(false);   // diário de sessões
   const [espiar,setEspiar]=useState(null);      // divisão que ele quer só olhar
@@ -11586,9 +11703,9 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
     if(data&&data.linked){try{localStorage.removeItem('mfp_aluno_code');}catch(e){}location.reload();}
     else setLinkErr('Código inválido ou já usado. Confira com seu treinador.');};
   const refresh=async()=>{if(demo||!stu)return;
-    const {data:hi}=await lerCopia('hist-'+stu.id,
+    const {data:bruto}=await lerCopia('hist-'+stu.id,
       sb.from('train_historico').select(COLUNAS_HIST).eq('student_id',stu.id));
-    const b={};(hi||[]).forEach(h=>{if(h.tipo_serie==='Valida'&&h.exercicio_id&&(b[h.exercicio_id]==null||h.carga>b[h.exercicio_id]))b[h.exercicio_id]=h.carga;});setBest(b);
+    const hi=recontarRecordes(bruto);   // o is_pr gravado mente; ver recontarRecordes
     const md=new Date();md.setDate(md.getDate()-((md.getDay()+6)%7));const mk=dayKey(md);
     const days=new Set((hi||[]).filter(h=>h.data_treino>=mk).map(h=>h.data_treino));setFreq(f=>({...f,done:days.size}));
     setStats(computeStats(hi));setHist(hi||[]);setUltimaDiv(divisaoMaisRecente(hi));loadAvisos(stu.id);};
@@ -11625,13 +11742,15 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
         if(dado===null)setFalhouDivs(true); else setDivsFrescas(true);
       })
       .catch(()=>{setDivs(d=>d||[]);setFalhouDivs(true);});
-    // histórico: alimenta recordes, frequência, sequência e o rodízio. Entra
-    // pela cópia primeiro — nenhuma dessas coisas precisa travar a abertura.
+    // histórico: alimenta frequência, sequência, o rodízio e a contagem de
+    // recordes. A régua do recorde do treino de hoje NÃO sai daqui — ela é a de
+    // antes de hoje e a tela de execução monta a sua (ver "a marca a bater"); o
+    // que sai daqui é a recontagem do que já passou. Entra pela cópia primeiro
+    // — nenhuma dessas coisas precisa travar a abertura.
     lerJa('hist-'+s.id,
       sb.from('train_historico').select(COLUNAS_HIST).eq('student_id',s.id),
-      hi=>{
-        const b={};(hi||[]).forEach(h=>{if(h.tipo_serie==='Valida'&&h.exercicio_id&&(b[h.exercicio_id]==null||h.carga>b[h.exercicio_id]))b[h.exercicio_id]=h.carga;});
-        setBest(b);
+      bruto=>{
+        const hi=recontarRecordes(bruto);
         const md=new Date();md.setDate(md.getDate()-((md.getDay()+6)%7));const mk=dayKey(md);
         const days=new Set((hi||[]).filter(h=>h.data_treino>=mk).map(h=>h.data_treino));
         setFreq(f=>({...f,done:days.size}));
@@ -11743,7 +11862,7 @@ function StudentApp({profile,verComoAluno,onSairDaVisao}){
     <input className="lv-in" style={{textAlign:'center',letterSpacing:4,textTransform:'uppercase',marginTop:14,fontSize:22,fontWeight:800}} placeholder="CÓDIGO" value={code} onChange={e=>setCode(e.target.value.toUpperCase())} maxLength={8}/>
     <button className="lv-btn" style={{marginTop:12}} disabled={linking||!code.trim()} onClick={doLink}>{linking?'Ativando…':'Ativar treinos'}</button>
   </div></div>);
-  if(exec)return shell(<TrainExec student={stu} divisao={exec} demo={demo} somenteLeitura={espiando} best={best} onBack={()=>setExec(null)} onSaved={(exId,carga)=>setBest(b=>({...b,[exId]:Math.max(b[exId]||0,carga)}))} onFinish={refresh}/>);
+  if(exec)return shell(<TrainExec student={stu} divisao={exec} demo={demo} somenteLeitura={espiando} onBack={()=>setExec(null)} onFinish={refresh}/>);
   if(evol)return shell(<EvolScreen student={stu} demo={demo} onBack={()=>setEvol(false)}/>);
   if(hydra)return shell(<HydraScreen student={stu} profile={espiando?{...profile,id:contaAluno}:profile} demo={demo} onBack={()=>setHydra(false)}/>);
   if(chk)return shell(<CheckinScreen student={stu} demo={demo} onBack={()=>setChk(false)}/>);
