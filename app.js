@@ -99,7 +99,7 @@ const semEsperar = q => {
     q.then(() => {}, () => {});
   } catch (e) {}
 };
-const APP_VERSION = '2026.10.25'; // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION = '2026.10.26'; // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA'); // YYYY-MM-DD no fuso LOCAL
 
@@ -4180,6 +4180,7 @@ function Dashboard({
   onSelect,
   onNew,
   onDelete,
+  onInativar,
   onReassess,
   onSchedule,
   onTrain,
@@ -4223,6 +4224,9 @@ function Dashboard({
       rank: 5
     };
     const active = daysSince != null && daysSince <= 90;
+    /* `parado` é a decisão DELE (o botão Inativar); `active` é um palpite do
+       app pela data da última avaliação. Coisas diferentes: alguém pode estar
+       treinando toda semana e com a reavaliação atrasada. */
     return {
       s,
       se,
@@ -4233,22 +4237,28 @@ function Dashboard({
       ri,
       daysSince,
       status,
-      active
+      active,
+      parado: !!s.inativo_em
     };
   }), [students, evals]);
   const kpi = React.useMemo(() => {
-    const withEval = rows.filter(r => r.se.length > 0);
-    const active = rows.filter(r => r.active).length;
-    const inactive = rows.filter(r => !r.active && r.se.length > 0).length;
-    const noEval = rows.filter(r => r.se.length === 0).length;
-    const overdue = rows.filter(r => r.ri && r.ri.days < 0).length;
-    const week = rows.filter(r => r.ri && r.ri.days >= 0 && r.ri.days <= 7).length;
-    const month = rows.filter(r => r.ri && r.ri.days > 7 && r.ri.days <= 30).length;
+    /* Todas as contas do painel são sobre quem está treinando. Quem foi
+       inativado só aparece no próprio filtro — senão o "38 alunos" do topo
+       continuaria contando gente que parou em agosto. */
+    const parados = rows.filter(r => r.parado).length;
+    const emCasa = rows.filter(r => !r.parado);
+    const withEval = emCasa.filter(r => r.se.length > 0);
+    const active = emCasa.filter(r => r.active).length;
+    const inactive = emCasa.filter(r => !r.active && r.se.length > 0).length;
+    const noEval = emCasa.filter(r => r.se.length === 0).length;
+    const overdue = emCasa.filter(r => r.ri && r.ri.days < 0).length;
+    const week = emCasa.filter(r => r.ri && r.ri.days >= 0 && r.ri.days <= 7).length;
+    const month = emCasa.filter(r => r.ri && r.ri.days > 7 && r.ri.days <= 30).length;
     const ym = todayStr().slice(0, 7);
     const evalsMonth = evals.filter(e => e.date && e.date.slice(0, 7) === ym).length;
     const scores = withEval.map(r => r.lastScore).filter(v => v != null);
     const avg = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null;
-    const deltas = rows.map(r => r.scoreDelta).filter(v => v != null);
+    const deltas = emCasa.map(r => r.scoreDelta).filter(v => v != null);
     const avgDelta = deltas.length ? Math.round(deltas.reduce((a, b) => a + b, 0) / deltas.length) : null;
     return {
       active,
@@ -4260,14 +4270,16 @@ function Dashboard({
       evalsMonth,
       avg,
       avgDelta,
-      total: rows.length
+      parados,
+      total: emCasa.length
     };
   }, [rows, evals]);
-  const filtered = rows.filter(r => r.s.name.toLowerCase().includes(q.toLowerCase())).filter(r => {
+  const filtered = rows.filter(r => r.s.name.toLowerCase().includes(q.toLowerCase()))
+  /* Inativo só aparece no filtro dele. Em qualquer outro, sai da frente —
+     é isso que o botão promete. */.filter(r => filter === 'parados' ? r.parado : !r.parado).filter(r => {
     if (filter === 'reavaliar') return r.ri && r.ri.days <= 7;
     if (filter === 'sem') return r.se.length === 0;
     if (filter === 'ativos') return r.active;
-    if (filter === 'inativos') return !r.active && r.se.length > 0;
     return true;
   }).sort((a, b) => {
     if (sortBy === 'nome') return a.s.name.localeCompare(b.s.name);
@@ -4275,7 +4287,13 @@ function Dashboard({
     if (sortBy === 'score') return (b.lastScore ?? -1) - (a.lastScore ?? -1);
     return a.status.rank - b.status.rank || (a.ri?.days ?? 999) - (b.ri?.days ?? 999) || a.s.name.localeCompare(b.s.name);
   });
-  const chips = [['todos', 'Todos', kpi.total], ['ativos', 'Ativos', kpi.active], ['inativos', 'Inativos', kpi.inactive], ['reavaliar', 'Reavaliar', kpi.overdue + kpi.week], ['sem', 'Sem avaliação', kpi.noEval]];
+
+  /* O chip "Inativos" antigo era derivado da data da última avaliação e
+     dividia a palavra com a decisão do treinador — duas coisas diferentes com
+     o mesmo nome na mesma tela. Quem quer ver quem está com avaliação velha
+     tem "Reavaliar" e "Sem avaliação"; "Inativos" agora é só quem ele
+     inativou, e o chip só aparece quando existe alguém assim. */
+  const chips = [['todos', 'Todos', kpi.total], ['ativos', 'Ativos', kpi.active], ['reavaliar', 'Reavaliar', kpi.overdue + kpi.week], ['sem', 'Sem avaliação', kpi.noEval], ...(kpi.parados > 0 ? [['parados', 'Inativos', kpi.parados]] : [])];
   return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     className: "abar"
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
@@ -4381,7 +4399,7 @@ function Dashboard({
     })
   }, "Avisar todos")), notify && /*#__PURE__*/React.createElement(NotifyModal, {
     target: notify,
-    students: students,
+    students: students.filter(s => !s.inativo_em),
     onClose: () => setNotify(null)
   }), (() => {
     const Row = ({
@@ -4390,10 +4408,14 @@ function Dashboard({
       last,
       lastScore,
       ri,
-      active
+      active,
+      parado
     }) => {
       let pill;
-      if (se.length === 0) pill = {
+      if (parado) pill = {
+        c: 'b',
+        t: 'Inativo'
+      };else if (se.length === 0) pill = {
         c: 'b',
         t: 'Sem avaliação'
       };else if (ri && ri.days < 0) pill = {
@@ -4432,7 +4454,7 @@ function Dashboard({
         className: "dr-name"
       }, s.name), /*#__PURE__*/React.createElement("div", {
         className: "dr-meta"
-      }, s.goal || (se.length > 0 ? `${se.length} avaliaç${se.length > 1 ? 'ões' : 'ão'} · ${fmtDate(last.date)}` : 'Sem avaliações'))), /*#__PURE__*/React.createElement("div", {
+      }, parado ? `Inativo desde ${fmtDate(String(s.inativo_em).slice(0, 10))}` : s.goal || (se.length > 0 ? `${se.length} avaliaç${se.length > 1 ? 'ões' : 'ão'} · ${fmtDate(last.date)}` : 'Sem avaliações'))), /*#__PURE__*/React.createElement("div", {
         className: "dr-right"
       }, lastScore != null && /*#__PURE__*/React.createElement("span", {
         className: "dscore",
@@ -4441,9 +4463,16 @@ function Dashboard({
         }
       }, lastScore), /*#__PURE__*/React.createElement("span", {
         className: `dstat-pill dstat-${pill.c}`
-      }, /*#__PURE__*/React.createElement("i", null), pill.t), !active && se.length > 0 && /*#__PURE__*/React.createElement("button", {
+      }, /*#__PURE__*/React.createElement("i", null), pill.t), parado ? /*#__PURE__*/React.createElement(React.Fragment, null, onInativar && /*#__PURE__*/React.createElement("button", {
         className: "dr-act",
-        title: "Reativar aluno",
+        title: "Voltar a acompanhar",
+        onClick: e => {
+          e.stopPropagation();
+          onInativar(s.id, false);
+        }
+      }, "Reativar")) : /*#__PURE__*/React.createElement(React.Fragment, null, !active && se.length > 0 && /*#__PURE__*/React.createElement("button", {
+        className: "dr-act",
+        title: "Mandar mensagem de retorno",
         onClick: e => {
           e.stopPropagation();
           setNotify({
@@ -4451,7 +4480,7 @@ function Dashboard({
             reativar: true
           });
         }
-      }, "Reativar"), /*#__PURE__*/React.createElement("button", {
+      }, "Chamar de volta"), /*#__PURE__*/React.createElement("button", {
         className: "dr-act",
         title: "Enviar aviso",
         onClick: e => {
@@ -4467,7 +4496,7 @@ function Dashboard({
           e.stopPropagation();
           onTrain(s);
         }
-      }, "Treino"), /*#__PURE__*/React.createElement("button", {
+      }, "Treino")), /*#__PURE__*/React.createElement("button", {
         className: "dr-act",
         title: "Excluir",
         onClick: e => {
@@ -4499,18 +4528,21 @@ function Dashboard({
       className: "cn"
     }, n));
     if (filter === 'todos') {
-      const ativos = filtered.filter(r => r.active);
-      const inativos = filtered.filter(r => !r.active);
-      return /*#__PURE__*/React.createElement("div", null, ativos.length > 0 && /*#__PURE__*/React.createElement(React.Fragment, null, groupHead('Ativos', ativos.length, 'var(--green,#2f8f4e)'), /*#__PURE__*/React.createElement("div", {
+      const emDia = filtered.filter(r => r.active);
+      /* Estes são os que estão sem avaliação recente — não os que ele
+         inativou. Antes o título dizia "Inativos" e disputava a palavra
+         com o botão. */
+      const atrasados = filtered.filter(r => !r.active);
+      return /*#__PURE__*/React.createElement("div", null, emDia.length > 0 && /*#__PURE__*/React.createElement(React.Fragment, null, groupHead('Ativos', emDia.length, 'var(--green,#2f8f4e)'), /*#__PURE__*/React.createElement("div", {
         className: "dash-list"
-      }, ativos.map(r => /*#__PURE__*/React.createElement(Row, _extends({
+      }, emDia.map(r => /*#__PURE__*/React.createElement(Row, _extends({
         key: r.s.id
-      }, r))))), inativos.length > 0 && /*#__PURE__*/React.createElement(React.Fragment, null, groupHead('Inativos e sem avaliação', inativos.length, '#c98a3a'), /*#__PURE__*/React.createElement("div", {
+      }, r))))), atrasados.length > 0 && /*#__PURE__*/React.createElement(React.Fragment, null, groupHead('Sem avaliação recente', atrasados.length, '#c98a3a'), /*#__PURE__*/React.createElement("div", {
         className: "dash-list",
         style: {
           opacity: .9
         }
-      }, inativos.map(r => /*#__PURE__*/React.createElement(Row, _extends({
+      }, atrasados.map(r => /*#__PURE__*/React.createElement(Row, _extends({
         key: r.s.id
       }, r))))));
     }
@@ -7524,6 +7556,7 @@ function StudentDetail({
   onTech,
   onTrain,
   onNutri,
+  onInativar,
   onPreview
 }) {
   const [cmp, setCmp] = useState(false);
@@ -7728,13 +7761,35 @@ function StudentDetail({
   }, "Comparar fotos"), evals.length >= 2 && /*#__PURE__*/React.createElement("button", {
     className: "btn btn-ghost btn-sm",
     onClick: () => setCmpNum(true)
-  }, "Comparar n\xFAmeros"), sorted.length > 0 && /*#__PURE__*/React.createElement("button", {
+  }, "Comparar n\xFAmeros"), onInativar && !student._demo && !student.inativo_em && /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-ghost btn-sm",
+    onClick: () => {
+      if (confirm('Inativar ' + student.name + '?\n\nEle sai do painel, do mês, da cobrança e da lista de quem recebe aviso, e para de receber lembrete no celular.\n\nNada é apagado: ficha, avaliações, fotos e histórico ficam guardados, e dá para reativar quando ele voltar.')) onInativar(student.id, true);
+    }
+  }, "Inativar aluno"), sorted.length > 0 && /*#__PURE__*/React.createElement("button", {
     className: "btn btn-secondary",
     onClick: onReassess
   }, "Reavalia\xE7\xE3o"), /*#__PURE__*/React.createElement("button", {
     className: "btn btn-primary",
     onClick: onNewEval
-  }, "+ Nova avalia\xE7\xE3o"))), /*#__PURE__*/React.createElement("div", {
+  }, "+ Nova avalia\xE7\xE3o"))), student.inativo_em && /*#__PURE__*/React.createElement("div", {
+    className: "alert alert-info",
+    style: {
+      marginBottom: 16,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      flex: 1,
+      minWidth: 200
+    }
+  }, "Aluno inativo desde ", fmtDate(String(student.inativo_em).slice(0, 10)), ". Est\xE1 guardado inteiro \u2014 ficha, avalia\xE7\xF5es, fotos e hist\xF3rico."), onInativar && /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-secondary btn-sm",
+    onClick: () => onInativar(student.id, false)
+  }, "Reativar")), /*#__PURE__*/React.createElement("div", {
     style: {
       marginBottom: 20,
       display: 'flex',
@@ -11417,13 +11472,18 @@ function stuToRow(s, coachId) {
   r.photo_url = s.photo || null;
   return r;
 }
+/* `inativo_em` entra aqui e NÃO em STU_COLS de propósito: quem liga e desliga é
+   o botão de inativar, com uma gravação só dessa coluna. Se entrasse na lista,
+   toda edição de ficha reescreveria o estado junto — e um "Salvar" numa tela de
+   anamnese acabaria reativando alguém sem querer. */
 function rowToStu(r) {
   const s = {
     id: r.id,
     photo: r.photo_url || '',
     created_at: r.created_at || null,
     user_id: r.user_id || null,
-    coach_id: r.coach_id || null
+    coach_id: r.coach_id || null,
+    inativo_em: r.inativo_em || null
   };
   STU_COLS.forEach(k => s[k] = r[k] ?? '');
   if (!s.gender) s.gender = 'M';
@@ -22886,6 +22946,12 @@ function App({
 }) {
   const coachId = profile.id;
   const [students, setStudents] = useState(null);
+  /* Quem está treinando. É esta lista que vai para as telas do dia a dia — o
+     mês, a cobrança, e as telas de escolher aluno para montar treino, dieta ou
+     periodização. `students` continua inteiro para o painel (que precisa
+     mostrar os inativos num filtro), para os Recados (o nome de quem escreveu
+     tem de aparecer mesmo depois de inativado) e para o backup. */
+  const ativos = React.useMemo(() => (students || []).filter(s => !s.inativo_em), [students]);
   const [evals, setEvals] = useState([]);
   const [view, setView] = useState('dashboard');
   const [selStudent, setSelStudent] = useState(null);
@@ -23334,6 +23400,65 @@ function App({
         setSelStudent(null);
         go('dashboard');
       } else alert('Erro ao excluir: ' + e.message);
+    }
+  };
+  /* ── inativar / reativar ──────────────────────────────────────
+     Quem parou de treinar só tinha o "×", que EXCLUI o cadastro e leva junto
+     avaliações, fotos, ficha, histórico de séries e mensalidade. Quem some em
+     setembro e volta em janeiro perdia tudo — e enquanto não some, continua
+     ocupando o painel, o "O mês", a lista de sem treino e a cobrança.
+     Inativar é a saída sem perda: some das listas do dia a dia, o cadastro
+     inteiro fica no lugar, e um botão traz de volta.
+     Grava SÓ a coluna inativo_em. Se passasse pelo salvar da ficha, reescreveria
+     as outras dezoito colunas com o que estivesse na tela. */
+  const marcarInativo = async (id, inativo) => {
+    const antes = ((students || []).find(s => s.id === id) || {}).inativo_em || null;
+    const quando = inativo ? new Date().toISOString() : null;
+    const pintar = v => {
+      setStudents(p => p.map(s => s.id === id ? {
+        ...s,
+        inativo_em: v
+      } : s));
+      setSelStudent(s => s && s.id === id ? {
+        ...s,
+        inativo_em: v
+      } : s);
+    };
+    pintar(quando);
+    if (!navigator.onLine || isLocalId(id)) {
+      await enqueue({
+        op: 'stu-update',
+        id,
+        row: {
+          inativo_em: quando
+        }
+      });
+      return;
+    }
+    try {
+      const {
+        error
+      } = await comPrazo(sb.from('assess_students').update({
+        inativo_em: quando
+      }).eq('id', id));
+      if (error) throw error;
+    } catch (e) {
+      if (isNetErr(e)) {
+        await enqueue({
+          op: 'stu-update',
+          id,
+          row: {
+            inativo_em: quando
+          }
+        });
+        return;
+      }
+      /* Não gravou: a tela volta ao que era. Botão que parece não ter
+         funcionado é ruim; botão que finge ter funcionado é pior — ele
+         some da lista, o treinador acredita, e no dia seguinte a pessoa
+         está lá de novo. */
+      pintar(antes);
+      alert('Não consegui ' + (inativo ? 'inativar' : 'reativar') + ': ' + e.message);
     }
   };
   const applyEvOffline = async (ev, exists) => {
@@ -23988,6 +24113,7 @@ function App({
   }), view === 'dashboard' && /*#__PURE__*/React.createElement(Dashboard, {
     students: students,
     evals: evals,
+    onInativar: marcarInativo,
     onSelect: s => {
       setSelStudent(s);
       go('detail');
@@ -24014,7 +24140,7 @@ function App({
     demo: !!profile._demo
   }), view === 'agenda' && /*#__PURE__*/React.createElement(AgendaScreen, {
     coach: profile,
-    students: students,
+    students: ativos,
     preStudent: selStudent,
     onBack: () => go('dashboard')
   }), view === 'intakes' && /*#__PURE__*/React.createElement(IntakeInbox, {
@@ -24024,12 +24150,12 @@ function App({
     onBack: () => go('dashboard')
   }), view === 'tech' && /*#__PURE__*/React.createElement(TechScreen, {
     coach: profile,
-    students: students,
+    students: ativos,
     preStudent: selStudent,
     onBack: () => go('dashboard')
   }), view === 'train' && /*#__PURE__*/React.createElement(TrainScreen, {
     coach: profile,
-    students: students,
+    students: ativos,
     preStudent: selStudent,
     onNovoAluno: () => {
       setEditStu(null);
@@ -24037,7 +24163,7 @@ function App({
     },
     onBack: () => go('dashboard')
   }), view === 'mes' && /*#__PURE__*/React.createElement(MesScreen, {
-    students: students,
+    students: ativos,
     demo: profile._demo,
     onNovoAluno: () => {
       setEditStu(null);
@@ -24049,7 +24175,7 @@ function App({
       go('detail');
     }
   }), view === 'dinheiro' && /*#__PURE__*/React.createElement(MensalidadesScreen, {
-    students: students,
+    students: ativos,
     demo: profile._demo,
     onNovoAluno: () => {
       setEditStu(null);
@@ -24074,7 +24200,7 @@ function App({
     onBack: () => go('dashboard')
   }), view === 'nutri' && /*#__PURE__*/React.createElement(NutriScreen, {
     coach: profile,
-    students: students,
+    students: ativos,
     preStudent: selStudent,
     onNovoAluno: () => {
       setEditStu(null);
@@ -24083,7 +24209,7 @@ function App({
     onBack: () => go('dashboard')
   }), view === 'perio' && /*#__PURE__*/React.createElement(PeriodizacaoScreen, {
     coach: profile,
-    students: students,
+    students: ativos,
     preStudent: selStudent,
     onNovoAluno: () => {
       setEditStu(null);
@@ -24125,6 +24251,7 @@ function App({
     onTech: () => go('tech'),
     onTrain: () => go('train'),
     onNutri: () => go('nutri'),
+    onInativar: marcarInativo,
     onPreview: () => go('aluno-view')
   }), view === 'ev-form' && selStudent && /*#__PURE__*/React.createElement(EvalForm, {
     student: selStudent,

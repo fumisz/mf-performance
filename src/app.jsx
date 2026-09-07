@@ -59,7 +59,7 @@ if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABAS
    .catch. Chamar .catch direto estoura TypeError, e dentro de um useEffect isso
    derruba a tela inteira do aluno. */
 const semEsperar=q=>{try{q.then(()=>{},()=>{});}catch(e){}};
-const APP_VERSION='2026.10.25';   // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION='2026.10.26';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
 
@@ -1600,7 +1600,7 @@ function PainelEvolucao({rows,onSelect}){
   </div>);
 }
 
-function Dashboard({students,evals,onSelect,onNew,onDelete,onReassess,onSchedule,onTrain,demo}){
+function Dashboard({students,evals,onSelect,onNew,onDelete,onInativar,onReassess,onSchedule,onTrain,demo}){
   const [q,setQ]=useState('');
   const [filter,setFilter]=useState('todos');
   const [sortBy,setSortBy]=useState('urgencia');
@@ -1623,29 +1623,40 @@ function Dashboard({students,evals,onSelect,onNew,onDelete,onReassess,onSchedule
     else if(daysSince!=null&&daysSince>120)status={l:'Inativo',c:'ba',rank:3};
     else status={l:'Em dia',c:'bg',rank:5};
     const active=daysSince!=null&&daysSince<=90;
-    return{s,se,last,scoreHist:scoreHist.filter(v=>v!=null),lastScore,scoreDelta,ri,daysSince,status,active};
+    /* `parado` é a decisão DELE (o botão Inativar); `active` é um palpite do
+       app pela data da última avaliação. Coisas diferentes: alguém pode estar
+       treinando toda semana e com a reavaliação atrasada. */
+    return{s,se,last,scoreHist:scoreHist.filter(v=>v!=null),lastScore,scoreDelta,ri,daysSince,status,active,parado:!!s.inativo_em};
   }),[students,evals]);
 
   const kpi=React.useMemo(()=>{
-    const withEval=rows.filter(r=>r.se.length>0);
-    const active=rows.filter(r=>r.active).length;
-    const inactive=rows.filter(r=>!r.active&&r.se.length>0).length;
-    const noEval=rows.filter(r=>r.se.length===0).length;
-    const overdue=rows.filter(r=>r.ri&&r.ri.days<0).length;
-    const week=rows.filter(r=>r.ri&&r.ri.days>=0&&r.ri.days<=7).length;
-    const month=rows.filter(r=>r.ri&&r.ri.days>7&&r.ri.days<=30).length;
+    /* Todas as contas do painel são sobre quem está treinando. Quem foi
+       inativado só aparece no próprio filtro — senão o "38 alunos" do topo
+       continuaria contando gente que parou em agosto. */
+    const parados=rows.filter(r=>r.parado).length;
+    const emCasa=rows.filter(r=>!r.parado);
+    const withEval=emCasa.filter(r=>r.se.length>0);
+    const active=emCasa.filter(r=>r.active).length;
+    const inactive=emCasa.filter(r=>!r.active&&r.se.length>0).length;
+    const noEval=emCasa.filter(r=>r.se.length===0).length;
+    const overdue=emCasa.filter(r=>r.ri&&r.ri.days<0).length;
+    const week=emCasa.filter(r=>r.ri&&r.ri.days>=0&&r.ri.days<=7).length;
+    const month=emCasa.filter(r=>r.ri&&r.ri.days>7&&r.ri.days<=30).length;
     const ym=todayStr().slice(0,7);
     const evalsMonth=evals.filter(e=>e.date&&e.date.slice(0,7)===ym).length;
     const scores=withEval.map(r=>r.lastScore).filter(v=>v!=null);
     const avg=scores.length?Math.round(scores.reduce((a,b)=>a+b,0)/scores.length):null;
-    const deltas=rows.map(r=>r.scoreDelta).filter(v=>v!=null);
+    const deltas=emCasa.map(r=>r.scoreDelta).filter(v=>v!=null);
     const avgDelta=deltas.length?Math.round(deltas.reduce((a,b)=>a+b,0)/deltas.length):null;
-    return{active,inactive,noEval,overdue,week,month,evalsMonth,avg,avgDelta,total:rows.length};
+    return{active,inactive,noEval,overdue,week,month,evalsMonth,avg,avgDelta,parados,total:emCasa.length};
   },[rows,evals]);
 
 
   const filtered=rows.filter(r=>r.s.name.toLowerCase().includes(q.toLowerCase()))
-    .filter(r=>{if(filter==='reavaliar')return r.ri&&r.ri.days<=7;if(filter==='sem')return r.se.length===0;if(filter==='ativos')return r.active;if(filter==='inativos')return !r.active&&r.se.length>0;return true;})
+    /* Inativo só aparece no filtro dele. Em qualquer outro, sai da frente —
+       é isso que o botão promete. */
+    .filter(r=>filter==='parados'?r.parado:!r.parado)
+    .filter(r=>{if(filter==='reavaliar')return r.ri&&r.ri.days<=7;if(filter==='sem')return r.se.length===0;if(filter==='ativos')return r.active;return true;})
     .sort((a,b)=>{
       if(sortBy==='nome')return a.s.name.localeCompare(b.s.name);
       if(sortBy==='recente')return new Date(b.last?.date||0)-new Date(a.last?.date||0);
@@ -1653,7 +1664,13 @@ function Dashboard({students,evals,onSelect,onNew,onDelete,onReassess,onSchedule
       return a.status.rank-b.status.rank||(a.ri?.days??999)-(b.ri?.days??999)||a.s.name.localeCompare(b.s.name);
     });
 
-  const chips=[['todos','Todos',kpi.total],['ativos','Ativos',kpi.active],['inativos','Inativos',kpi.inactive],['reavaliar','Reavaliar',kpi.overdue+kpi.week],['sem','Sem avaliação',kpi.noEval]];
+  /* O chip "Inativos" antigo era derivado da data da última avaliação e
+     dividia a palavra com a decisão do treinador — duas coisas diferentes com
+     o mesmo nome na mesma tela. Quem quer ver quem está com avaliação velha
+     tem "Reavaliar" e "Sem avaliação"; "Inativos" agora é só quem ele
+     inativou, e o chip só aparece quando existe alguém assim. */
+  const chips=[['todos','Todos',kpi.total],['ativos','Ativos',kpi.active],['reavaliar','Reavaliar',kpi.overdue+kpi.week],['sem','Sem avaliação',kpi.noEval],
+    ...(kpi.parados>0?[['parados','Inativos',kpi.parados]]:[])];
 
   return(
     <div>
@@ -1696,11 +1713,14 @@ function Dashboard({students,evals,onSelect,onNew,onDelete,onReassess,onSchedule
         <div className="kpi-lbl">Acompanhamento de alunos</div>
         <button className="btn btn-ghost btn-sm" onClick={()=>setNotify({all:true})}>Avisar todos</button>
       </div>}
-      {notify&&<NotifyModal target={notify} students={students} onClose={()=>setNotify(null)}/>}
+      {/* "Avisar todos" é a turma que está treinando: quem foi inativado não
+          entra na conta nem recebe. O servidor filtra igual (aviso_enviar_todos). */}
+      {notify&&<NotifyModal target={notify} students={students.filter(s=>!s.inativo_em)} onClose={()=>setNotify(null)}/>}
       {(()=>{
-        const Row=({s,se,last,lastScore,ri,active})=>{
+        const Row=({s,se,last,lastScore,ri,active,parado})=>{
           let pill;
-          if(se.length===0)pill={c:'b',t:'Sem avaliação'};
+          if(parado)pill={c:'b',t:'Inativo'};
+          else if(se.length===0)pill={c:'b',t:'Sem avaliação'};
           else if(ri&&ri.days<0)pill={c:'r',t:`Vencida · ${Math.abs(ri.days)}d`};
           else if(ri&&ri.days<=7)pill={c:'a',t:`Atenção · ${ri.days}d`};
           else if(ri)pill={c:'g',t:`Em dia · ${ri.days}d`};
@@ -1711,14 +1731,25 @@ function Dashboard({students,evals,onSelect,onNew,onDelete,onReassess,onSchedule
               <div className="avatar" style={{width:42,height:42,fontSize:14}}>{s.photo?<img src={s.photo} alt=""/>:initials(s.name)}</div>
               <div style={{minWidth:0}}>
                 <div className="dr-name">{s.name}</div>
-                <div className="dr-meta">{s.goal||(se.length>0?`${se.length} avaliaç${se.length>1?'ões':'ão'} · ${fmtDate(last.date)}`:'Sem avaliações')}</div>
+                <div className="dr-meta">{parado
+                  ?`Inativo desde ${fmtDate(String(s.inativo_em).slice(0,10))}`
+                  :(s.goal||(se.length>0?`${se.length} avaliaç${se.length>1?'ões':'ão'} · ${fmtDate(last.date)}`:'Sem avaliações'))}</div>
               </div>
               <div className="dr-right">
                 {lastScore!=null&&<span className="dscore" style={{color:scoreColor(lastScore)}}>{lastScore}</span>}
                 <span className={`dstat-pill dstat-${pill.c}`}><i/>{pill.t}</span>
-                {!active&&se.length>0&&<button className="dr-act" title="Reativar aluno" onClick={e=>{e.stopPropagation();setNotify({student:s,reativar:true});}}>Reativar</button>}
-                <button className="dr-act" title="Enviar aviso" onClick={e=>{e.stopPropagation();setNotify({student:s});}}>Avisar</button>
-                <button className="dr-act" title="Treino" onClick={e=>{e.stopPropagation();onTrain(s);}}>Treino</button>
+                {/* Quem está inativo não recebe aviso nem ganha treino novo:
+                    as duas coisas que sobram são trazer de volta e apagar. */}
+                {parado
+                  ?<>{onInativar&&<button className="dr-act" title="Voltar a acompanhar" onClick={e=>{e.stopPropagation();onInativar(s.id,false);}}>Reativar</button>}</>
+                  :<>
+                    {/* Este mandava mensagem de saudade e se chamava "Reativar";
+                        com o botão de inativar na tela, dois botões diferentes
+                        passariam a dizer a mesma palavra. */}
+                    {!active&&se.length>0&&<button className="dr-act" title="Mandar mensagem de retorno" onClick={e=>{e.stopPropagation();setNotify({student:s,reativar:true});}}>Chamar de volta</button>}
+                    <button className="dr-act" title="Enviar aviso" onClick={e=>{e.stopPropagation();setNotify({student:s});}}>Avisar</button>
+                    <button className="dr-act" title="Treino" onClick={e=>{e.stopPropagation();onTrain(s);}}>Treino</button>
+                  </>}
                 <button className="dr-act" title="Excluir" onClick={e=>{e.stopPropagation();if(confirm(`Excluir ${s.name} e todas as avaliações?`))onDelete(s.id);}}>×</button>
               </div>
             </div>);
@@ -1727,13 +1758,16 @@ function Dashboard({students,evals,onSelect,onNew,onDelete,onReassess,onSchedule
           <span style={{width:8,height:8,borderRadius:'50%',background:cor}}/>
           <span className="kpi-lbl" style={{margin:0}}>{txt}</span><span className="cn">{n}</span></div>);
         if(filter==='todos'){
-          const ativos=filtered.filter(r=>r.active);
-          const inativos=filtered.filter(r=>!r.active);
+          const emDia=filtered.filter(r=>r.active);
+          /* Estes são os que estão sem avaliação recente — não os que ele
+             inativou. Antes o título dizia "Inativos" e disputava a palavra
+             com o botão. */
+          const atrasados=filtered.filter(r=>!r.active);
           return(<div>
-            {ativos.length>0&&<>{groupHead('Ativos',ativos.length,'var(--green,#2f8f4e)')}
-              <div className="dash-list">{ativos.map(r=><Row key={r.s.id} {...r}/>)}</div></>}
-            {inativos.length>0&&<>{groupHead('Inativos e sem avaliação',inativos.length,'#c98a3a')}
-              <div className="dash-list" style={{opacity:.9}}>{inativos.map(r=><Row key={r.s.id} {...r}/>)}</div></>}
+            {emDia.length>0&&<>{groupHead('Ativos',emDia.length,'var(--green,#2f8f4e)')}
+              <div className="dash-list">{emDia.map(r=><Row key={r.s.id} {...r}/>)}</div></>}
+            {atrasados.length>0&&<>{groupHead('Sem avaliação recente',atrasados.length,'#c98a3a')}
+              <div className="dash-list" style={{opacity:.9}}>{atrasados.map(r=><Row key={r.s.id} {...r}/>)}</div></>}
           </div>);
         }
         return <div className="dash-list">{filtered.map(r=><Row key={r.s.id} {...r}/>)}</div>;
@@ -2764,7 +2798,7 @@ function FeedbacksAluno({student,demo}){
 
 const TXT_PASSO_INSTALAR='3. Depois de entrar, adicione o app à tela de início do celular: no iPhone é Compartilhar → “Adicionar à Tela de Início”; no Android é o menu dos três pontinhos → “Instalar aplicativo”. É assim que os avisos chegam.';
 
-function StudentDetail({student,evals,onNewEval,onReassess,onEditEval,onDeleteEval,onReport,onBack,onEdit,onTech,onTrain,onNutri,onPreview}){
+function StudentDetail({student,evals,onNewEval,onReassess,onEditEval,onDeleteEval,onReport,onBack,onEdit,onTech,onTrain,onNutri,onInativar,onPreview}){
   const [cmp,setCmp]=useState(false);
   const [cmpNum,setCmpNum]=useState(false);   // comparar os números, não as fotos
   const [diarioOpen,setDiarioOpen]=useState(false);
@@ -2833,10 +2867,25 @@ function StudentDetail({student,evals,onNewEval,onReassess,onEditEval,onDeleteEv
           {onPreview&&<button className="btn btn-ghost btn-sm" onClick={onPreview}>Visão do aluno</button>}
           {photoEvals>=2&&<button className="btn btn-ghost btn-sm" onClick={()=>setCmp(true)}>Comparar fotos</button>}
           {evals.length>=2&&<button className="btn btn-ghost btn-sm" onClick={()=>setCmpNum(true)}>Comparar números</button>}
+          {/* Fica entre os botões neutros e longe do primário: inativar não é
+              acidente de dedo, mas também não é operação de risco — nada é
+              apagado e o Reativar está a um toque. */}
+          {onInativar&&!student._demo&&!student.inativo_em&&
+            <button className="btn btn-ghost btn-sm" onClick={()=>{
+              if(confirm('Inativar '+student.name+'?\n\nEle sai do painel, do mês, da cobrança e da lista de quem recebe aviso, e para de receber lembrete no celular.\n\nNada é apagado: ficha, avaliações, fotos e histórico ficam guardados, e dá para reativar quando ele voltar.'))
+                onInativar(student.id,true);
+            }}>Inativar aluno</button>}
           {sorted.length>0&&<button className="btn btn-secondary" onClick={onReassess}>Reavaliação</button>}
           <button className="btn btn-primary" onClick={onNewEval}>+ Nova avaliação</button>
         </div>
       </div>
+
+      {/* A tarja existe para o treinador não montar treino para quem ele mesmo
+          tirou da lista — e para o caminho de volta estar onde ele já está. */}
+      {student.inativo_em&&<div className="alert alert-info" style={{marginBottom:16,display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}}>
+        <span style={{flex:1,minWidth:200}}>Aluno inativo desde {fmtDate(String(student.inativo_em).slice(0,10))}. Está guardado inteiro — ficha, avaliações, fotos e histórico.</span>
+        {onInativar&&<button className="btn btn-secondary btn-sm" onClick={()=>onInativar(student.id,false)}>Reativar</button>}
+      </div>}
 
       <div style={{marginBottom:20,display:'flex',flexWrap:'wrap',gap:0}}>
         {student.goal&&<span className="info-pill">{student.goal}</span>}
@@ -4118,7 +4167,11 @@ function Report({student,evalData,allEvals,onBack,coach}){
 /* ── Mapeamento DB <-> objetos do app ── */
 const STU_COLS=['name','dob','gender','phone','email','profession','goal','activity','schedule','train_time','health','meds','family_hist','injuries','smoker','alcohol','sleep','obs'];
 function stuToRow(s,coachId){const r={coach_id:coachId};STU_COLS.forEach(k=>r[k]=(s[k]===''?null:s[k])??null);r.photo_url=s.photo||null;return r;}
-function rowToStu(r){const s={id:r.id,photo:r.photo_url||'',created_at:r.created_at||null,user_id:r.user_id||null,coach_id:r.coach_id||null};STU_COLS.forEach(k=>s[k]=r[k]??'');if(!s.gender)s.gender='M';try{s.profile_type=localStorage.getItem('mfp_ptype_'+r.id)||'';}catch(e){s.profile_type='';}return s;}
+/* `inativo_em` entra aqui e NÃO em STU_COLS de propósito: quem liga e desliga é
+   o botão de inativar, com uma gravação só dessa coluna. Se entrasse na lista,
+   toda edição de ficha reescreveria o estado junto — e um "Salvar" numa tela de
+   anamnese acabaria reativando alguém sem querer. */
+function rowToStu(r){const s={id:r.id,photo:r.photo_url||'',created_at:r.created_at||null,user_id:r.user_id||null,coach_id:r.coach_id||null,inativo_em:r.inativo_em||null};STU_COLS.forEach(k=>s[k]=r[k]??'');if(!s.gender)s.gender='M';try{s.profile_type=localStorage.getItem('mfp_ptype_'+r.id)||'';}catch(e){s.profile_type='';}return s;}
 const EVAL_META=['id','studentId','date','obs'];
 function evalToRow(e,coachId){const data={};Object.keys(e).forEach(k=>{if(!EVAL_META.includes(k))data[k]=e[k];});return{student_id:e.studentId,coach_id:coachId,date:e.date,obs:e.obs||null,data};}
 function rowToEval(r){return{id:r.id,studentId:r.student_id,date:r.date,obs:r.obs||'',...(r.data||{})};}
@@ -8324,6 +8377,12 @@ function PeriodizacaoAluno({demo}){
 function App({profile,setProfile}){
   const coachId=profile.id;
   const [students,setStudents]=useState(null);
+  /* Quem está treinando. É esta lista que vai para as telas do dia a dia — o
+     mês, a cobrança, e as telas de escolher aluno para montar treino, dieta ou
+     periodização. `students` continua inteiro para o painel (que precisa
+     mostrar os inativos num filtro), para os Recados (o nome de quem escreveu
+     tem de aparecer mesmo depois de inativado) e para o backup. */
+  const ativos=React.useMemo(()=>(students||[]).filter(s=>!s.inativo_em),[students]);
   const [evals,setEvals]=useState([]);
   const [view,setView]=useState('dashboard');
   const [selStudent,setSelStudent]=useState(null);
@@ -8511,6 +8570,33 @@ function App({profile,setProfile}){
     try{const {error}=await comPrazo(sb.from('assess_students').delete().eq('id',id));if(error)throw error;
       setStudents(p=>p.filter(s=>s.id!==id));setEvals(p=>p.filter(e=>e.studentId!==id));setSelStudent(null);go('dashboard');
     }catch(e){if(isNetErr(e)){setStudents(p=>p.filter(s=>s.id!==id));setEvals(p=>p.filter(x=>x.studentId!==id));await enqueue({op:'stu-delete',id});setSelStudent(null);go('dashboard');}else alert('Erro ao excluir: '+e.message);}
+  };
+  /* ── inativar / reativar ──────────────────────────────────────
+     Quem parou de treinar só tinha o "×", que EXCLUI o cadastro e leva junto
+     avaliações, fotos, ficha, histórico de séries e mensalidade. Quem some em
+     setembro e volta em janeiro perdia tudo — e enquanto não some, continua
+     ocupando o painel, o "O mês", a lista de sem treino e a cobrança.
+     Inativar é a saída sem perda: some das listas do dia a dia, o cadastro
+     inteiro fica no lugar, e um botão traz de volta.
+     Grava SÓ a coluna inativo_em. Se passasse pelo salvar da ficha, reescreveria
+     as outras dezoito colunas com o que estivesse na tela. */
+  const marcarInativo=async(id,inativo)=>{
+    const antes=((students||[]).find(s=>s.id===id)||{}).inativo_em||null;
+    const quando=inativo?new Date().toISOString():null;
+    const pintar=v=>{setStudents(p=>p.map(s=>s.id===id?{...s,inativo_em:v}:s));
+      setSelStudent(s=>(s&&s.id===id)?{...s,inativo_em:v}:s);};
+    pintar(quando);
+    if(!navigator.onLine||isLocalId(id)){await enqueue({op:'stu-update',id,row:{inativo_em:quando}});return;}
+    try{const {error}=await comPrazo(sb.from('assess_students').update({inativo_em:quando}).eq('id',id));if(error)throw error;}
+    catch(e){
+      if(isNetErr(e)){await enqueue({op:'stu-update',id,row:{inativo_em:quando}});return;}
+      /* Não gravou: a tela volta ao que era. Botão que parece não ter
+         funcionado é ruim; botão que finge ter funcionado é pior — ele
+         some da lista, o treinador acredita, e no dia seguinte a pessoa
+         está lá de novo. */
+      pintar(antes);
+      alert('Não consegui '+(inativo?'inativar':'reativar')+': '+e.message);
+    }
   };
   const applyEvOffline=async(ev,exists)=>{
     if(exists){setEvals(p=>p.map(x=>x.id===ev.id?ev:x));await enqueue({op:'ev-update',id:ev.id,row:evalToRow(ev,coachId)});}
@@ -8740,25 +8826,25 @@ function App({profile,setProfile}){
           {view==='protocols'&&<ProtocolsScreen onBack={()=>go('dashboard')}/>}
           {view==='duplicados'&&<DuplicadosScreen coach={profile} onBack={()=>go('dashboard')} onMudou={()=>reloadFromServer().catch(()=>{})}/>}
           {view==='brand'&&<BrandScreen profile={profile} setProfile={setProfile} onBack={()=>go('dashboard')}/>}
-          {view==='dashboard'&&<Dashboard students={students} evals={evals}
+          {view==='dashboard'&&<Dashboard students={students} evals={evals} onInativar={marcarInativo}
             onSelect={s=>{setSelStudent(s);go('detail');}} onNew={()=>{setEditStu(null);go('stu-form');}} onDelete={delStu}
             onReassess={s=>{setSelStudent(s);setEditEv(null);setReassess(true);go('ev-form');}}
             onSchedule={s=>{setSelStudent(s);go('agenda');}} onTrain={s=>{setSelStudent(s);go('train');}}
             demo={!!profile._demo}/>}
-          {view==='agenda'&&<AgendaScreen coach={profile} students={students} preStudent={selStudent} onBack={()=>go('dashboard')}/>}
+          {view==='agenda'&&<AgendaScreen coach={profile} students={ativos} preStudent={selStudent} onBack={()=>go('dashboard')}/>}
           {view==='intakes'&&<IntakeInbox coach={profile} students={students} onImport={importIntake} onBack={()=>go('dashboard')}/>}
-          {view==='tech'&&<TechScreen coach={profile} students={students} preStudent={selStudent} onBack={()=>go('dashboard')}/>}
-          {view==='train'&&<TrainScreen coach={profile} students={students} preStudent={selStudent} onNovoAluno={()=>{setEditStu(null);go('stu-form');}} onBack={()=>go('dashboard')}/>}
-          {view==='mes'&&<MesScreen students={students} demo={profile._demo} onNovoAluno={()=>{setEditStu(null);go('stu-form');}}
+          {view==='tech'&&<TechScreen coach={profile} students={ativos} preStudent={selStudent} onBack={()=>go('dashboard')}/>}
+          {view==='train'&&<TrainScreen coach={profile} students={ativos} preStudent={selStudent} onNovoAluno={()=>{setEditStu(null);go('stu-form');}} onBack={()=>go('dashboard')}/>}
+          {view==='mes'&&<MesScreen students={ativos} demo={profile._demo} onNovoAluno={()=>{setEditStu(null);go('stu-form');}}
             onBack={()=>go('dashboard')} onSelect={s=>{setSelStudent(s);go('detail');}}/>}
-          {view==='dinheiro'&&<MensalidadesScreen students={students} demo={profile._demo}
+          {view==='dinheiro'&&<MensalidadesScreen students={ativos} demo={profile._demo}
             onNovoAluno={()=>{setEditStu(null);go('stu-form');}}
             onBack={()=>go('dashboard')} onSelect={s=>{setSelStudent(s);go('detail');}}/>}
           {view==='semtreino'&&<SemTreinoScreen coach={profile} onBack={()=>go('dashboard')} onFeito={contarSemTreino}/>}
           {view==='recados'&&<RecadosScreen naoLidas={naoLidas} students={students}
             onAbrir={s=>{setSelStudent(s);go('detail');}} onBack={()=>go('dashboard')}/>}
-          {view==='nutri'&&<NutriScreen coach={profile} students={students} preStudent={selStudent} onNovoAluno={()=>{setEditStu(null);go('stu-form');}} onBack={()=>go('dashboard')}/>}
-          {view==='perio'&&<PeriodizacaoScreen coach={profile} students={students} preStudent={selStudent} onNovoAluno={()=>{setEditStu(null);go('stu-form');}} onBack={()=>go('dashboard')}/>}
+          {view==='nutri'&&<NutriScreen coach={profile} students={ativos} preStudent={selStudent} onNovoAluno={()=>{setEditStu(null);go('stu-form');}} onBack={()=>go('dashboard')}/>}
+          {view==='perio'&&<PeriodizacaoScreen coach={profile} students={ativos} preStudent={selStudent} onNovoAluno={()=>{setEditStu(null);go('stu-form');}} onBack={()=>go('dashboard')}/>}
           {view==='stu-form'&&<StudentForm student={editStu} onSave={saveStu} onCancel={()=>go(selStudent?'detail':'dashboard')}/>}
           {view==='detail'&&selStudent&&<StudentDetail student={selStudent} evals={stuEvals}
             onNewEval={()=>{setEditEv(null);setReassess(false);go('ev-form');}}
@@ -8766,7 +8852,7 @@ function App({profile,setProfile}){
             onEditEval={ev=>{setEditEv(ev);setReassess(false);go('ev-form');}}
             onDeleteEval={delEv} onReport={ev=>{setSelEval(ev);go('report');}}
             onBack={()=>go('dashboard')} onEdit={()=>{setEditStu(selStudent);go('stu-form');}} onTech={()=>go('tech')} onTrain={()=>go('train')} onNutri={()=>go('nutri')}
-            onPreview={()=>go('aluno-view')}/>}
+            onInativar={marcarInativo} onPreview={()=>go('aluno-view')}/>}
           {view==='ev-form'&&selStudent&&<EvalForm student={selStudent} evalData={editEv}
             carryHeight={reassess?lastHeight:''} isReassess={reassess&&!editEv}
             modsDaUltima={modsDaUltima}

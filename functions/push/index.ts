@@ -60,6 +60,18 @@ async function enviar(subs: any[], payload: any) {
   return ok;
 }
 
+/* Aluno inativado não recebe lembrete. O treinador aperta "Inativar" porque a
+   pessoa parou; se o celular dela continuar cobrando água e treino todo dia, o
+   botão não cumpriu o que prometeu — e quem desinstala o app por causa disso
+   não volta. Vale para os lembretes e para o "avisar todos"; recado de uma
+   pessoa só continua chegando, porque aí é o treinador escolhendo. */
+async function somenteAtivos(ids: string[]) {
+  if (!ids.length) return ids;
+  const { data } = await admin.from("assess_students")
+    .select("id").in("id", ids).is("inativo_em", null);
+  return (data || []).map((a: any) => a.id);
+}
+
 // O agendador do banco não faz login: ele prova quem é com o token combinado.
 function doCron(req: Request, body: any, authHeader: string) {
   const token = req.headers.get("x-cron-token") || body.token || "";
@@ -77,7 +89,7 @@ Deno.serve(async (req) => {
       if (!doCron(req, body, authHeader)) return json({ error: "forbidden" }, 403);
       const { data: prefs } = await admin.from("train_lembrete")
         .select("student_id").eq("agua_ativo", true);
-      const ids = (prefs || []).map((p: any) => p.student_id);
+      const ids = await somenteAtivos((prefs || []).map((p: any) => p.student_id));
       if (!ids.length) return json({ sent: 0 });
 
       // não incomoda quem já bateu a meta do dia
@@ -249,6 +261,14 @@ Deno.serve(async (req) => {
     const payload = { titulo, texto, tag: tipo || "aviso", url: "./" };
     let q = admin.from("train_push").select("*").eq("papel", "aluno").eq("coach_id", userId);
     if (!all) q = q.eq("student_id", student_id);
+    else {
+      /* "Avisar todos" tem de bater com o que o banco gravou: aviso_enviar_todos
+         não cria a linha para quem está inativo, então uma notificação para ele
+         abriria o app numa aba Avisos sem o recado. */
+      const { data: ativos } = await admin.from("assess_students")
+        .select("id").eq("coach_id", userId).is("inativo_em", null);
+      q = q.in("student_id", (ativos || []).map((a: any) => a.id));
+    }
     const { data: subs } = await q;
     const sent = await enviar(subs || [], payload);
     return json({ sent });

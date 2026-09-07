@@ -313,6 +313,48 @@ coisas trabalhavam contra ele:
   registro daquele índice exato. Quem fez 4 séries hoje e registrou 1 na vez
   passada repete a carga mais próxima que existir.
 
+## Inativar aluno
+A única saída para quem parava de treinar era o `×` do painel — e ele **exclui**
+o cadastro, levando junto avaliações, fotos, ficha, histórico de séries e
+mensalidade. Quem some em setembro e volta em janeiro perdia tudo. E enquanto
+não sumia, continuava ocupando o painel, o "O mês", a lista de sem treino, a
+cobrança e a lista de quem recebe aviso.
+
+O "Ativo/Inativo" que o painel já mostrava não era isso: é deduzido da data da
+última avaliação (mais de 90 dias sem avaliar). É um palpite do app sobre a
+agenda de reavaliação, não uma decisão do treinador — e como as duas coisas
+dividiam a palavra, o grupo derivado passou a se chamar **"Sem avaliação
+recente"** e o botão que mandava mensagem de saudade virou **"Chamar de
+volta"**. "Inativo" agora quer dizer uma coisa só.
+
+A coluna é `assess_students.inativo_em` (`aluno-inativo.sql`): `NULL` = ativo,
+data = parou. Guarda a data e não um sim/não porque "parou em agosto" responde
+uma pergunta que "parou" não responde. Ela fica **fora de `STU_COLS`** de
+propósito: quem liga e desliga é o botão, com uma gravação só dessa coluna — se
+entrasse na lista, um "Salvar" na anamnese reativaria alguém sem querer.
+
+O que sai da frente quando ele inativa:
+
+- o painel, a contagem do topo e os filtros — o cadastro só aparece no filtro
+  **Inativos**, com a data;
+- as telas de escolher aluno: treino, nutrição, periodização, avaliação
+  técnica e agenda;
+- o "O mês" e a cobrança das mensalidades;
+- o bloco "quem treinou hoje" e o menu "Alunos sem treino" (`painel_hoje` e
+  `alunos_sem_treino` filtram no servidor);
+- o "avisar todos" (`aviso_enviar_todos`) e, na função de push, os lembretes de
+  água e de treino. Sem isso o celular de quem parou continuaria cobrando
+  treino todo dia — e quem desinstala o app por causa disso não volta.
+
+O que **não** sai: os Recados continuam mostrando o nome de quem escreveu, o
+backup continua levando o cadastro inteiro, e `alunos_duplicados` continua
+enxergando os dois cadastros da mesma pessoa — inativo ou não, é um cadastro
+para juntar.
+
+A suíte `inativo` cobre as três promessas do botão (grava só `inativo_em`, com
+data; some das listas; volta inteiro pelo Reativar) e a que só se vê no
+tráfego: o clique não reescreve as outras dezoito colunas da ficha.
+
 ## O recorde que acontecia sempre
 A regra era `carga > (melhor_do_exercicio || 0)`. Exercício que a pessoa nunca
 tinha feito não tinha melhor, virava zero, e qualquer peso acima de zero entrava
@@ -943,7 +985,8 @@ nova, ela acusa.
 ## Banco de dados
 Os arquivos `.sql` da raiz são as migrações, na ordem em que foram aplicadas no
 Supabase. `correcoes.sql` traz as últimas correções e `modelos-treino.sql` cria
-as tabelas de modelos de ficha e de periodização. A única exceção é
-`recorde-recontar.sql`, que **não foi aplicado**: ele altera dados de aluno (a
-coluna `is_pr`) e a decisão de rodar é do treinador — ver "O recorde que
-acontecia sempre".
+as tabelas de modelos de ficha e de periodização; `aluno-inativo.sql` traz a
+coluna `inativo_em` e as quatro funções que passaram a filtrar por ela. A única
+exceção é `recorde-recontar.sql`, que **não foi aplicado**: ele altera dados de
+aluno (a coluna `is_pr`) e a decisão de rodar é do treinador — ver "O recorde
+que acontecia sempre".
