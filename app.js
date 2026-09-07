@@ -4300,7 +4300,7 @@ function Dashboard({
     className: "ph-title"
   }, "Painel do treinador"), /*#__PURE__*/React.createElement("div", {
     className: "ph-sub"
-  }, students.length, " aluno", students.length !== 1 ? 's' : '', kpi.evalsMonth > 0 && ` · ${kpi.evalsMonth} avaliaç${kpi.evalsMonth !== 1 ? 'ões' : 'ão'} neste mês`, kpi.avg != null && ` · score médio ${kpi.avg}`, kpi.avgDelta > 0 && ' ▲', kpi.avgDelta < 0 && ' ▼')), /*#__PURE__*/React.createElement("button", {
+  }, kpi.total, " aluno", kpi.total !== 1 ? 's' : '', kpi.evalsMonth > 0 && ` · ${kpi.evalsMonth} avaliaç${kpi.evalsMonth !== 1 ? 'ões' : 'ão'} neste mês`, kpi.avg != null && ` · score médio ${kpi.avg}`, kpi.avgDelta > 0 && ' ▲', kpi.avgDelta < 0 && ' ▼')), /*#__PURE__*/React.createElement("button", {
     className: "btn btn-primary",
     onClick: onNew
   }, "+ Novo aluno")), /*#__PURE__*/React.createElement(ConviteInstalar, {
@@ -23873,7 +23873,7 @@ function App({
     className: "nav-divider"
   }), /*#__PURE__*/React.createElement("div", {
     className: "nav-section"
-  }, "Aluno ativo"), /*#__PURE__*/React.createElement("button", {
+  }, "Aluno aberto"), /*#__PURE__*/React.createElement("button", {
     className: `nav-btn ${view === 'detail' ? 'active' : ''}`,
     onClick: () => go('detail')
   }, selStudent.name.split(' ')[0]), /*#__PURE__*/React.createElement("button", {
@@ -23949,7 +23949,7 @@ function App({
     style: {
       marginTop: 8
     }
-  }, (students || []).length, " aluno", students.length !== 1 ? 's' : '', " \xB7 ", evals.length, " avalia\xE7", evals.length !== 1 ? 'ões' : 'ão', " \xB7 nuvem"), /*#__PURE__*/React.createElement("div", {
+  }, ativos.length, " aluno", ativos.length !== 1 ? 's' : '', " \xB7 ", evals.length, " avalia\xE7", evals.length !== 1 ? 'ões' : 'ão', " \xB7 nuvem"), /*#__PURE__*/React.createElement("div", {
     style: {
       marginTop: 6,
       display: 'flex',

@@ -1676,7 +1676,10 @@ function Dashboard({students,evals,onSelect,onNew,onDelete,onInativar,onReassess
     <div>
       <div className="abar">
         <div><div className="ph-title">Painel do treinador</div>
-          <div className="ph-sub">{students.length} aluno{students.length!==1?'s':''}
+          {/* kpi.total e quem esta treinando, nao o tamanho da tabela: dizer
+              "38 alunos" contando quem ele mesmo inativou seria a primeira
+              linha da tela mentindo. */}
+          <div className="ph-sub">{kpi.total} aluno{kpi.total!==1?'s':''}
             {kpi.evalsMonth>0&&` · ${kpi.evalsMonth} avaliaç${kpi.evalsMonth!==1?'ões':'ão'} neste mês`}
             {kpi.avg!=null&&` · score médio ${kpi.avg}`}
             {kpi.avgDelta>0&&' ▲'}{kpi.avgDelta<0&&' ▼'}</div></div>
@@ -8761,7 +8764,10 @@ function App({profile,setProfile}){
         </>}
         {selStudent&&<>
           <hr className="nav-divider"/>
-          <div className="nav-section">Aluno ativo</div>
+          {/* "Aluno ativo" queria dizer "o aluno que voce abriu", mas com o
+              botao de inativar na tela vira leitura errada: o cadastro de
+              alguem que parou aparecia embaixo da palavra "ativo". */}
+          <div className="nav-section">Aluno aberto</div>
           <button className={`nav-btn ${view==='detail'?'active':''}`} onClick={()=>go('detail')}>{selStudent.name.split(' ')[0]}</button>
           <button className="nav-btn" onClick={()=>{setEditEv(null);setReassess(false);go('ev-form');}}>Nova avaliação</button>
           {sortedStuEvals.length>0&&<button className="nav-btn" onClick={()=>{setEditEv(null);setReassess(true);go('ev-form');}}>Reavaliação</button>}
@@ -8780,7 +8786,8 @@ function App({profile,setProfile}){
                 {daysLeft>3650?'Assinatura: ilimitada':`Assinatura: ${daysLeft} dia${daysLeft!==1?'s':''}`}</div>}</div>
           </div>
           <button className="btn btn-ghost btn-sm" style={{width:'100%'}} onClick={()=>sb.auth.signOut()}>Sair</button>
-          <div style={{marginTop:8}}>{(students||[]).length} aluno{students.length!==1?'s':''} · {evals.length} avaliaç{evals.length!==1?'ões':'ão'} · nuvem</div>
+          {/* o rodape conta quem esta treinando, igual ao topo do painel */}
+          <div style={{marginTop:8}}>{ativos.length} aluno{ativos.length!==1?'s':''} · {evals.length} avaliaç{evals.length!==1?'ões':'ão'} · nuvem</div>
           <div style={{marginTop:6,display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
             <span style={{fontSize:10.5,color:'var(--text3)'}}>versão {APP_VERSION}</span>
             <button className="link" style={{fontSize:10.5,background:'none',border:'none',padding:0,cursor:'pointer'}}
