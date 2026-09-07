@@ -536,6 +536,11 @@ textarea.fi{resize:vertical;min-height:70px;line-height:1.5}
 .lv-setchip{flex:1;min-width:64px;text-align:center;padding:11px 6px;border-radius:12px;border:1.5px solid var(--lvbd);background:var(--lvc2);color:var(--lvt2);font-weight:700;font-size:13px;cursor:pointer}
 .lv-setchip.active{border-color:var(--lvrx);background:rgba(139,92,246,.18);color:#fff}
 .lv-setchip.done{border-color:var(--lvneon);background:rgba(74,222,128,.14);color:#86efac}
+/* Os números prescritos, como botão. Alvo de 44px de altura: é um dedo suado
+   segurando o celular na academia, não um mouse. */
+.lv-repchips{display:flex;gap:7px;flex-wrap:wrap;margin:-2px 0 12px}
+.lv-repchip{flex:1;min-width:52px;min-height:44px;border-radius:11px;border:1.5px solid var(--lvbd);background:var(--lvc2);color:var(--lvt2);font-weight:700;font-size:15px;cursor:pointer;transition:border-color .12s,background .12s}
+.lv-repchip.on{border-color:var(--lvneon);background:rgba(74,222,128,.16);color:#86efac}
 .lv-in{width:100%;background:var(--lvc2);border:1px solid var(--lvbd);border-radius:12px;padding:12px 13px;color:var(--lvtx);font-size:16px;outline:none}
 .lv-in:focus{border-color:var(--lvrx)}
 .lv-inlbl{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--lvt3);font-weight:700;margin-bottom:5px;display:block}
@@ -760,7 +765,7 @@ function _mfpAvisa(){try{window.MFP_INSTALL_OUVINTES.forEach(function(f){f();});
 window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.MFP_INSTALL=e;_mfpAvisa();});
 window.addEventListener('appinstalled',function(){window.MFP_INSTALL=null;_mfpAvisa();});
 </script>
-<script src="./app.js?v=2026.10.27"></script>
+<script src="./app.js?v=2026.10.28"></script>
 <script>
 /* Atualizacao automatica.
    O registro antigo so chamava register() uma vez: se o navegador ja tinha um

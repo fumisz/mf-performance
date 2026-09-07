@@ -313,6 +313,71 @@ coisas trabalhavam contra ele:
   registro daquele índice exato. Quem fez 4 séries hoje e registrou 1 na vez
   passada repete a carga mais próxima que existir.
 
+## A repetição que ninguém digita
+Metade das séries entrava sem repetição. Medido em 07/09, com o aviso da versão
+anterior **já no ar**:
+
+| | séries | sem repetição |
+|---|---|---|
+| Gabriely | 28 | **0** |
+| Vanessa | 28 | 20 |
+| Zulmira | 15 | 14 |
+
+O app funciona — uma delas preenche tudo. A diferença não é vontade, é o custo
+de digitar: celular numa mão, no meio do treino, teclado numérico. E o aviso que
+tinha entrado antes (`#56`) era um sim/não para o treino **inteiro** — respondia
+uma vez e calava até o fim, então para quem não preenche virou uma pergunta por
+sessão e mais nada.
+
+Duas correções:
+
+- **os números prescritos viram botão.** A ficha diz "3×8-12" — esses números
+  são do treinador, não invenção do app. Um toque em 10 preenche o campo; tocar
+  de novo limpa. Escrito contra as 34 faixas que existem de verdade no banco:
+  "12 cada perna" e "20 leve" dão botão (o número manda, o resto é recado dele),
+  "45 s", "6 min" e "até a falha" não dão nenhum. **89% das séries prescritas**
+  ganham o toque único; o resto continua no teclado, como deve ser;
+- **o aviso passa a ser por exercício.** Quem faz prancha responde uma vez na
+  prancha e não é perturbado de novo ali, mas a puxada seguinte volta a
+  perguntar. Isso só é justo porque digitar deixou de custar teclado.
+
+O campo continua podendo ficar vazio: exigir já foi tentado aqui e o botão
+virava um botão morto — uma aluna abandonou o app por causa disso. E o app nunca
+preenche sozinho: número que a pessoa não fez é pior que número nenhum.
+
+## O lembrete oferecido na hora certa
+De 19 contas, **5 têm aparelho registrado e uma tem lembrete ligado**. E quem
+mais treina é quem menos recebe: Vanessa 58 séries, Jefferson 25, Zulmira 16,
+Karen 12 — nenhum deles com aparelho. O interruptor existe e funciona; ele mora
+numa tela de ajustes que essas pessoas nunca abriram.
+
+A oferta passou a sair no **fim do treino**, quando a pessoa acabou de fazer a
+coisa. Uma vez só: quem disser "agora não" não é perguntado de novo naquele
+aparelho — lembrete que insiste vira motivo para desinstalar. O horário vem do
+treino que ela acabou de fazer, não de um padrão: quem treina 14h não quer aviso
+às 21h. A suíte `lembrete2` cobra as três regras (não aparece no meio do treino;
+grava aparelho e preferência com o período certo; e não volta a perguntar).
+
+## Juntar cadastros: as duas tabelas que ficavam para trás
+Antes de juntar os 7 grupos repetidos que existem hoje, conferi a função
+`aluno_fundir` contra as **35 tabelas que têm `student_id`**. Ela cobria 22, e
+duas das que faltavam causavam perda de dado:
+
+| tabela | o que era | o que acontecia ao juntar |
+|---|---|---|
+| `train_conversa` | as mensagens entre treinador e aluno | `ON DELETE CASCADE` — **apagadas em silêncio** |
+| `assess_tech` | avaliação técnica, com vídeos | sem chave estrangeira — **órfãs**, somem de todas as telas |
+
+`juntar-cadastros-completo.sql` corrige as duas (e leva `assess_slots` junto por
+precaução). As tabelas que continuam de fora — `photos`, `meal_plans`,
+`checkins`, `water_logs`, `weight_logs`, `daily_logs`, `cardio_logs`,
+`supplements`, `anamneses` — são chaveadas pela **conta** e não pelo cadastro,
+conferido linha a linha no banco; a conta já é transferida pela própria função.
+
+A tela também passou a dizer **o que** moveu ("2 avaliações, 30 séries, 4
+mensagens, 1 avaliação técnica") em vez de prometer "ficou com tudo". Foi essa
+conta que expôs o defeito: a função mexia em seis coisas e contava quatro.
+
 ## As fotos que o aluno manda
 No celular do treinador elas chegavam fora do layout. Medido a 390px: cada foto
 renderizava com **2400px de largura**, borda direita em 2439, e a ficha do aluno

@@ -59,7 +59,7 @@ if (CONFIGURED && window.supabase) sb = window.supabase.createClient(CFG.SUPABAS
    .catch. Chamar .catch direto estoura TypeError, e dentro de um useEffect isso
    derruba a tela inteira do aluno. */
 const semEsperar=q=>{try{q.then(()=>{},()=>{});}catch(e){}};
-const APP_VERSION='2026.10.27';   // aparece na tela; serve para conferir se a atualizacao subiu
+const APP_VERSION='2026.10.28';   // aparece na tela; serve para conferir se a atualizacao subiu
 const todayStr = () => new Date().toLocaleDateString('en-CA');
 const dayKey = d => d.toLocaleDateString('en-CA');   // YYYY-MM-DD no fuso LOCAL
 
@@ -4780,9 +4780,16 @@ function DuplicadosScreen({coach,onBack,onMudou}){
     const rAlvo=grupo.find(r=>r.student_id===alvo)||{};
     const nomeAlvo=rAlvo.nome;
     if(!confirm('Juntar '+plural(outros.length,'cadastro')+' em "'+nomeAlvo+'"?\n\n'
-      +'Avaliações, treinos, histórico e avisos vão para ele. Os outros cadastros somem.\n'
-      +'Isso não tem desfazer.'))return;
+      +'Avaliações, treinos, histórico, avisos, mensagens e avaliações técnicas vão\n'
+      +'para ele. Os outros cadastros somem.\nIsso não tem desfazer.'))return;
     setBusy(chave);setMsg(null);
+    /* Somar o que a função DIZ que moveu, e mostrar. "Ficou com tudo" é uma
+       promessa que ninguém consegue conferir; "12 avaliações, 58 treinos, 2
+       mensagens" é uma conta que ele bate com o olho. E foi assim que apareceu
+       o defeito da própria função: ela mexia em seis coisas e contava quatro —
+       a conversa e a avaliação técnica ficavam de fora do relatório porque
+       ficavam de fora da fusão. */
+    const soma={avaliacoes:0,divisoes:0,treinos:0,avisos:0,mensagens:0,tecnicas:0};
     try{
       for(const o of outros){
         let {data,error}=await sb.rpc('aluno_fundir',{p_principal:alvo,p_secundario:o.student_id});
@@ -4800,8 +4807,15 @@ function DuplicadosScreen({coach,onBack,onMudou}){
           data=r2.data;
         }
         if(data&&data.ok===false)throw new Error(data.erro||'não deu');
+        const m=(data&&data.movidos)||{};
+        Object.keys(soma).forEach(k=>{soma[k]+=Number(m[k]||0);});
       }
-      setMsg({t:'ok',m:'Pronto — "'+nomeAlvo+'" ficou com tudo.'});
+      const partes=[[soma.avaliacoes,'avaliação','avaliações'],[soma.divisoes,'ficha','fichas'],
+        [soma.treinos,'série','séries'],[soma.avisos,'aviso','avisos'],
+        [soma.mensagens,'mensagem','mensagens'],[soma.tecnicas,'avaliação técnica','avaliações técnicas']]
+        .filter(([n])=>n>0).map(([n,u1,u2])=>n+' '+(n===1?u1:u2));
+      setMsg({t:'ok',m:'Pronto — "'+nomeAlvo+'" ficou com tudo'
+        +(partes.length?': '+partes.join(', ')+'.':'.')});
       await carregar();
       if(onMudou)onMudou();
     }catch(e){setMsg({t:'err',m:'Não consegui juntar: '+(e.message||e)});}
@@ -5854,6 +5868,35 @@ function TechScreen({coach,students,preStudent,onBack}){
 const TRAIN_TIERS=['Aquecimento','Preparatoria','Valida'];
 // O banco guarda o tipo sem acento (Valida, Preparatoria). Na tela vai
 // acentuado: quem treina nao tem que ver o valor cru da coluna.
+/* ── os números que a ficha prescreveu, como botão ──
+   Metade das séries entrava sem repetição, e não é desleixo: é o teclado. No
+   meio do treino, celular numa mão, a pessoa toca "concluir" e segue. Quem
+   preenche preenche tudo (uma aluna, 28 de 28); quem não preenche não preenche
+   quase nada (14 de 15). A diferença é o custo de digitar, não a vontade.
+   A ficha já diz "3×8-12" — esses números são DELE, não invenção do app. Viram
+   botão: um toque em 10 e o campo está preenchido. Continua dando para digitar
+   outro valor; ninguém é obrigado a usar a faixa.
+   Escrito contra o que ele escreve DE VERDADE nas fichas — as 34 faixas que
+   existem hoje no banco, não um formato imaginado:
+     "10-12", "12-15", "15", "15-20", "8-12", "8-10", "6-8", "20", "12" …
+     "12 cada perna", "20 leve", "12-15 pé alto", "15 cada"  → o número manda,
+        o resto é observação dele para o aluno;
+     "6 min leve", "15 min", "45 s", "45 seg", "até a falha" → sem botão, que
+        aqui não existe repetição para oferecer.
+   Faixa larga demais (1-20) também não vira botão: oito quadradinhos numa
+   linha viram uma parede, e aí o teclado é melhor. */
+const repsDaFaixa=faixa=>{
+  const t=String(faixa||'').trim().toLowerCase();
+  if(!t)return [];
+  if(/\b(min|mins|minuto|minutos|s|seg|segs|segundo|segundos|h)\b/.test(t))return [];
+  const m=/^(\d{1,3})\s*(?:[-–a]\s*(\d{1,3}))?/.exec(t);
+  if(!m)return [];
+  const a=+m[1], b=m[2]?+m[2]:a;
+  if(!a||a>200)return [];
+  if(b<a||b>200||b-a>7)return [a];
+  const fora=[];for(let n=a;n<=b;n++)fora.push(n);
+  return fora;
+};
 const tierNome=t=>t==='Preparatoria'?'Preparatória':t==='Valida'?'Válida':(t||'');
 const tierColor=t=>t==='Valida'?'#2f8f4e':t==='Preparatoria'?'#b0894f':'#8a8378';
 const TRAIN_GRUPOS=['Peito','Costas','Ombro','Bíceps','Tríceps','Antebraço','Quadríceps','Posterior de Coxa','Glúteos','Adutores','Abdutores','Panturrilha','Abdômen','Lombar','Cardio','Mobilidade'];
@@ -9913,15 +9956,54 @@ function TrainExec({student,divisao,demo,somenteLeitura,onBack,onFinish}){
   const celebrate=(carga,primeira)=>{setCel({carga,primeira});
     try{navigator.vibrate&&navigator.vibrate(primeira?[18]:[35,45,90]);}catch(e){}
     setTimeout(()=>setCel(null),primeira?1500:2200);};
+  /* ── o lembrete, oferecido na hora certa ──────────────────────
+     Quem mais treina é quem menos recebe. Medido: Vanessa 58 séries, Jefferson
+     25, Zulmira 16, Karen 12 — nenhum deles com aparelho registrado. De 19
+     contas, 5 têm aparelho e UMA tem lembrete ligado. O interruptor existe e
+     funciona; ele mora numa tela de ajustes que essas pessoas nunca abriram.
+     Então a pergunta sai de onde faz sentido: no fim do treino, quando a pessoa
+     acabou de fazer a coisa. Uma vez só — quem disser não não é perguntado de
+     novo neste aparelho. Lembrete que insiste vira motivo para desinstalar. */
+  const [ofertaLemb,setOfertaLemb]=useState(false);
+  const [lembEstado,setLembEstado]=useState(null);   // null | 'indo' | 'feito' | mensagem de erro
+  useEffect(()=>{if(!finished||demo||somenteLeitura||!sb)return;let vivo=true;(async()=>{
+    try{if(localStorage.getItem('mfp-lembrete-nao')==='1')return;}catch(e){}
+    if(!pushSuportado())return;
+    try{if(Notification.permission==='denied')return;}catch(e){return;}
+    try{
+      const reg=await navigator.serviceWorker.ready;
+      const s=await reg.pushManager.getSubscription();
+      if(s){const {data}=await sb.from('train_push').select('endpoint')
+        .eq('endpoint',s.toJSON().endpoint).eq('papel','aluno').maybeSingle();
+        if(data)return;}                 // já recebe: não pergunta nada
+    }catch(e){}
+    if(vivo)setOfertaLemb(true);
+  })();return()=>{vivo=false;};},[finished]);
+  const ligarLembrete=async()=>{
+    setLembEstado('indo');
+    const r=await ativarPush();
+    if(!r.ok){setLembEstado(r.msg||'Não consegui ligar aqui.');return;}
+    /* O horário vem do treino que ele ACABOU de fazer, não de um padrão: quem
+       treina 14h não quer ser lembrado às 21h. */
+    const h=new Date().getHours();
+    const per=h<12?'manha':h<18?'tarde':'noite';
+    try{await sb.rpc('lembrete_treino',{p_ativo:true,p_periodo:per});}catch(e){}
+    setLembEstado('feito');
+  };
+  const dispensarLembrete=()=>{try{localStorage.setItem('mfp-lembrete-nao','1');}catch(e){}setOfertaLemb(false);};
   // qual série já avisei que está sem repetição (ver o comentário em concluir)
   const [faltaReps,setFaltaReps]=useState(null);
-  /* E se ele já respondeu "concluir mesmo assim" uma vez neste treino, paro de
-     perguntar. Uma aluna gravou 30 séries seguidas sem número nenhum, uma a
-     cada 1-3 minutos, num treino de 53 minutos: ela usa o botão como caixinha
-     de marcar, e isso é uma escolha, não um engano. Perguntar 30 vezes seria
-     castigar justamente quem mais treina. O aviso serve para quem esqueceu —
-     uma vez basta para saber que existe o campo. */
-  const [jaAvisouReps,setJaAvisouReps]=useState(false);
+  /* Quais EXERCÍCIOS ele já decidiu concluir sem repetição.
+     Antes isto era um sim/não para o treino inteiro: bastava responder uma vez
+     e o app calava até o fim. Medido no dia 07/09, com o aviso já no ar:
+     Gabriely 0 de 28 séries sem repetição, Vanessa 20 de 28, Zulmira 14 de 15.
+     Ou seja, para quem não preenche o aviso virou uma pergunta por treino e
+     mais nada — e o buraco continuou do mesmo tamanho.
+     Agora a decisão é por exercício: quem faz prancha responde uma vez na
+     prancha e não é perturbado de novo NAQUELE exercício, mas a puxada seguinte
+     volta a perguntar. Isso só é justo porque digitar deixou de custar teclado:
+     os números prescritos viraram botão (ver "um toque"). */
+  const [semRepsOk,setSemRepsOk]=useState({});
   const concluir=async(s,i)=>{
     // Exercício sem peso existe: elástico, peso do corpo, prancha, alongamento.
     // Exigir carga fazia o botão não responder a nada — sem aviso, sem erro. Uma
@@ -9938,12 +10020,13 @@ function TrainExec({student,divisao,demo,somenteLeitura,onBack,onFinish}){
        aparece vazio, o aluno fica sem referência e grava vazio de novo.
        NÃO bloqueio: exigir carga já foi tentado aqui e o botão virava um botão
        morto — uma aluna abandonou o app por isso. Aqui é só um aviso, e só uma
-       vez: se ele tocar de novo, é porque quis mesmo (esteira, prancha,
-       alongamento não têm repetição). E só pergunto quando a ficha prescreve
-       uma faixa de repetições, que é o que separa força de tempo. */
+       vez POR EXERCÍCIO: se ele tocar de novo, é porque quis mesmo (esteira,
+       prancha, alongamento não têm repetição). E só pergunto quando a ficha
+       prescreve uma faixa de repetições, que é o que separa força de tempo. */
+    const exK=s.exercicio_id||s.exercicio_nome||s.id;
     const pedeRepeticao=reps==null&&!!String(s.faixa_reps||'').trim();
-    if(pedeRepeticao&&!jaAvisouReps&&faltaReps!==k){setFaltaReps(k);return;}
-    if(faltaReps===k)setJaAvisouReps(true);   // ele decidiu: não pergunto mais hoje
+    if(pedeRepeticao&&!semRepsOk[exK]&&faltaReps!==k){setFaltaReps(k);return;}
+    if(faltaReps===k)setSemRepsOk(p=>({...p,[exK]:true}));   // decidiu neste exercício
     setFaltaReps(null);
     // a chave é o exercício que vai para o histórico: se ele trocou na hora, a
     // marca a bater é a do exercício trocado, não a do que estava na ficha
@@ -10076,6 +10159,17 @@ function TrainExec({student,divisao,demo,somenteLeitura,onBack,onFinish}){
                     style={faltaReps===t.id+'_'+ai?{borderColor:'var(--gold)'}:null}
                     value={(vals[t.id+'_'+ai]||{}).reps||''} onChange={ev=>setV(t.id+'_'+ai,'reps',ev.target.value)}/></div>
                 </div>
+                {/* Um toque em vez do teclado. Ver "os números que a ficha
+                    prescreveu, como botão". O que está escolhido fica marcado,
+                    e tocar de novo limpa — quem errou o toque não fica preso a
+                    um número que não fez. */}
+                {(()=>{const op=repsDaFaixa(t.faixa_reps);if(!op.length)return null;
+                  const atual=(vals[t.id+'_'+ai]||{}).reps||'';
+                  return(<div className="lv-repchips">
+                    {op.map(n=>(<button key={n} type="button"
+                      className={'lv-repchip'+(String(n)===String(atual)?' on':'')}
+                      onClick={()=>setV(t.id+'_'+ai,'reps',String(n)===String(atual)?'':String(n))}>{n}</button>))}
+                  </div>);})()}
                 {faltaReps===t.id+'_'+ai&&<div className="lv-sub" style={{color:'var(--gold)',marginBottom:10,lineHeight:1.45}}>
                   Quantas repetições você fez? Sem isso o treino não entra no seu volume.
                   Se este exercício é por tempo, toque de novo em concluir.</div>}
@@ -10126,6 +10220,25 @@ function TrainExec({student,divisao,demo,somenteLeitura,onBack,onFinish}){
       {finished.prs>0&&<div className="lv-pill" style={{background:'var(--lvbrilho)',color:'var(--lvsel2)',marginTop:16,fontSize:14}}>{finished.prs} novo{finished.prs>1?'s':''} recorde{finished.prs>1?'s':''}!</div>}
       <CardTreino stu={student} divisao={divisao} finished={finished} marca={marca} fmtT={fmtT}/>
       <button className="lv-btn" style={{marginTop:16,maxWidth:280}} onClick={()=>setFbAberto(true)}>Contar como foi</button>
+      {/* Ver "o lembrete, oferecido na hora certa". Fica abaixo do que ele veio
+          fazer, sem interromper nada, e some para sempre se ele disser não. */}
+      {ofertaLemb&&<div className="lv-card" style={{marginTop:16,maxWidth:320,textAlign:'left'}}>
+        {lembEstado==='feito'
+          ? <div className="lv-sub">Pronto. No dia do próximo treino o celular te avisa.
+              Dá para desligar quando quiser, em Ajustes.</div>
+          : <>
+            <div style={{fontWeight:700,marginBottom:4}}>Quer que eu te lembre do próximo?</div>
+            <div className="lv-sub" style={{marginBottom:12,lineHeight:1.45}}>
+              Um aviso no celular no dia do treino, no horário em que você treina.
+              Nada além disso.</div>
+            {typeof lembEstado==='string'&&lembEstado!=='indo'&&
+              <div className="lv-sub" style={{color:'var(--gold)',marginBottom:10}}>{lembEstado}</div>}
+            <div style={{display:'flex',gap:8}}>
+              <button className="lv-btn" style={{flex:1}} disabled={lembEstado==='indo'}
+                onClick={ligarLembrete}>{lembEstado==='indo'?'Ligando…':'Pode lembrar'}</button>
+              <button className="lv-ghost" onClick={dispensarLembrete}>Agora não</button>
+            </div></>}
+      </div>}
       <button className="lv-ghost" style={{marginTop:10,padding:'10px 22px'}} onClick={()=>{if(onFinish)onFinish();onBack();}}>Voltar ao início</button>
     </div></>}
 
